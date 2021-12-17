@@ -46,6 +46,22 @@ func (tt *BinaryTree[T]) Insert(item T) {
 	}
 }
 
+// Search will walk the tree looking for `find` and retrn the found item
+// if it is in the tree. If it is not found then `nil` will be returned.
+func (tt *BinaryTree[T]) Search(find T) ( item *T ) {
+	if (*tt).IsEmpty() {
+		return nil
+	}
+
+	if c := find.Compare(*tt.data); c == 0 {
+		return tt.data 
+	} else if c < 0 && tt.left != nil {
+		return tt.left.Search ( find )
+	} else if c > 0 && tt.right != nil {
+		return tt.right.Search ( find )
+	} 
+	return nil
+}
+	
 // TODO remove
-// TODO search for item
 
