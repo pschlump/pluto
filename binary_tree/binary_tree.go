@@ -19,7 +19,7 @@ import (
 	"github.com/pschlump/godebug"
 )
 
-// BinaryTree is a generic type buildt on top of a slice
+// BinaryTree is a generic binary tree
 type BinaryTree[T comparable.Comparable] struct {
 	data *T
 	left, right *BinaryTree[T]
@@ -27,6 +27,9 @@ type BinaryTree[T comparable.Comparable] struct {
 
 // IsEmpty will return true if the binary-tree is empty
 func (tt BinaryTree[T]) IsEmpty() bool {
+	if db1 {
+		fmt.Printf ( "at:%s\n", godebug.LF())
+	}
 	return tt.data == nil && tt.left == nil && tt.right == nil 
 }
 
@@ -61,26 +64,26 @@ func (tt *BinaryTree[T]) Search(find T) ( item *T ) {
 		return nil
 	}
 
-	fmt.Printf ( "at:%s\n", godebug.LF())
+	// fmt.Printf ( "at:%s\n", godebug.LF())
 	for tt != nil {
-		fmt.Printf ( "at:%s\n", godebug.LF())
+		// fmt.Printf ( "at:%s\n", godebug.LF())
 		c := find.Compare(*tt.data)
 		if c == 0 {
-			fmt.Printf ( "FOUND! at:%s\n", godebug.LF())
+			// fmt.Printf ( "FOUND! at:%s\n", godebug.LF())
 			item = tt.data 
 			return
 		}
-		fmt.Printf ( "at:%s\n", godebug.LF())
+		// fmt.Printf ( "at:%s\n", godebug.LF())
 		if c < 0 && tt.left != nil {
 			tt = (*tt).left 
 		} else if c > 0 && tt.right != nil {
 			tt = (*tt).right 
 		} else {
-			fmt.Printf ( "at:%s\n", godebug.LF())
+			// fmt.Printf ( "at:%s\n", godebug.LF())
 			break
 		}
 	}
-	fmt.Printf ( "NOT Found --- at:%s\n", godebug.LF())
+	// fmt.Printf ( "NOT Found --- at:%s\n", godebug.LF())
 	return nil
 }
 	
@@ -148,4 +151,6 @@ func (tt *BinaryTree[T]) Remove(find T) ( found bool ) {
 
 	return
 }
+
+const db1 = false
 

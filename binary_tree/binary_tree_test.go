@@ -66,22 +66,43 @@ func TestStack(t *testing.T) {
 		t.Errorf("Expected non-empty tree after insert, failed to get one.")
 	}
 
-	fmt.Printf ( "Test -- search for found item, at:%s\n", godebug.LF() );
+	if db2 {
+		fmt.Printf ( "Test -- search for found item, at:%s\n", godebug.LF() );
+	}
 	ptr := Tree1.Search(TestTreeNode{S: "12"})
 	if ptr == nil {
 		t.Errorf("Expected to find node in tree, returned nil instead")
 	}
 
-	fmt.Printf ( "Test -- search for not found item\n" );
+	if db2 {
+		fmt.Printf ( "Test -- search for not found item\n" );
+	}
 	ptr = Tree1.Search(TestTreeNode{S: "11"})
 	if ptr != nil {
 		t.Errorf("Expected *NOT* to find node in tree, returned value [%+v] instead",*ptr)
 	}
 
+	Tree1.Insert(TestTreeNode{S: "11"})
+	Tree1.Insert(TestTreeNode{S: "13"})
+	Tree1.Insert(TestTreeNode{S: "10"})
+	ptr = Tree1.Search(TestTreeNode{S: "10"})
+	if ptr == nil {
+		t.Errorf("Expected to find node in tree, returned nil instead")
+	}
+	ptr = Tree1.Search(TestTreeNode{S: "13"})
+	if ptr == nil {
+		t.Errorf("Expected to find node in tree, returned nil instead")
+	}
+	ptr = Tree1.Search(TestTreeNode{S: "11"})
+	if ptr == nil {
+		t.Errorf("Expected to find node in tree, returned nil instead")
+	}
+	ptr = Tree1.Search(TestTreeNode{S: "14"})
+	if ptr != nil {
+		t.Errorf("Expected *NOT* to find node in tree, returned value [%+v] instead",*ptr)
+	}
 
-	/*
-	-- Add "Depth" -> int to get deepest part of tree
-	-- Add "Length" -> Count # of Nodes
-	-- Add "WalkInOrder, WalkPreOrder, WalkPostOrder"
-	*/
 }
+
+const db2 = false
+
