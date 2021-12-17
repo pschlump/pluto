@@ -24,6 +24,9 @@ func (tt BinaryTree[T]) IsEmpty() bool {
 // Insert will add a new item to the tree.  If it is a duplicate of an exiting
 // item the new item will replace the existing one.
 func (tt *BinaryTree[T]) Insert(item T) {
+	if tt == nil {
+		panic ( "tree sholud not be a nil" )
+	}
 	if (*tt).IsEmpty() {
 		tt.data = &item
 		return
@@ -45,19 +48,24 @@ func (tt *BinaryTree[T]) Insert(item T) {
 // Search will walk the tree looking for `find` and retrn the found item
 // if it is in the tree. If it is not found then `nil` will be returned.
 func (tt *BinaryTree[T]) Search(find T) ( item *T ) {
-	if (*tt).IsEmpty() {
+	if tt == nil || (*tt).IsEmpty() {
 		return nil
 	}
 
-	// redo as iterative with loop... TODO
-
-	if c := find.Compare(*tt.data); c == 0 {
-		return tt.data 
-	} else if c < 0 && tt.left != nil {
-		return tt.left.Search ( find )
-	} else if c > 0 && tt.right != nil {
-		return tt.right.Search ( find )
-	} 
+	for tt != nil {
+		c := find.Compare(*tt.data)
+		if c == 0 {
+			item = tt.data 
+			return
+		}
+		if c < 0 && tt.left != nil {
+			tt = (*tt).left 
+		} else if c > 0 && tt.right != nil {
+			tt = (*tt).right 
+		} else {
+			break
+		}
+	}
 	return nil
 }
 	
