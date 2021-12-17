@@ -1,0 +1,11 @@
+# Go 1.18 Library with Basic Generic Functions and Tests
+
+1. Min, Max
+2. MinArray, MaxArray
+3. String keys for a Map
+4. Sorting of Type
+5. Search a slice for a value
+6. Convert map[string]value to []SliceType with name/value
+
+
+
