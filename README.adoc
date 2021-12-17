@@ -1,0 +1,4 @@
+=  Pluto - A Set of Go Generics Data Structures and Algorithms
+
+1. Stack.  In the ./stack directory is a simple generics implementation of a stack.
+

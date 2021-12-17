@@ -1,0 +1,14 @@
+
+= A generics based Go Stack.
+
+A simple stack with Push, Pop, Length, IsEmpty using Go generics.
+
+This requires version 1.18beta1 of Go to be compiled and used.
+
+This is a demo of how to use a generic in a type decleration and how to
+delcare methods on that generic type.  Specifically look at the decleration
+of `Stack[T any]` and also see how the functions are instanciated with
+the generic type.
+
+The code is a conversion of an erlier `Stack` that used `interface{}`.
+
