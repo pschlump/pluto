@@ -1,0 +1,12 @@
+
+= An Introduction to Go Generics.
+
+For about a decade the Go language has not had generic types.
+Even without this it has proven to be a very useful language.
+
+NOTE: In 2022 Go 1.18 will add generics.  At the current time all of
+the code in this is being tested with the pre-relase go1.18beta1
+verions of go.   This will all be re-tested next year (Its December
+2021) when the official 1.18 version is released.
+
+
