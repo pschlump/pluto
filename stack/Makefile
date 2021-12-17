@@ -1,0 +1,4 @@
+
+all:
+	gotip build
+
