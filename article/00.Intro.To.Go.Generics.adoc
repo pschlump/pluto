@@ -9,4 +9,11 @@ the code in this is being tested with the pre-relase go1.18beta1
 verions of go.   This will all be re-tested next year (Its December
 2021) when the official 1.18 version is released.
 
+== Goals
+
+1. For the author of this to learn how to effectivly use go generics.
+2. To provide a set of clear examples of the use of go generics.
+3. To contribute to the Go community some useful code.
+
+
 
