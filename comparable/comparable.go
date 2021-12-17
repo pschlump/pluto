@@ -1,5 +1,11 @@
 package comparable
 
+/*
+Copyright (C) Philip Schlump, 2012-2021.
+
+BSD 3 Clause Licensed.
+*/
+
 type Comparable interface {
 	// Compare will return -1 (or a value less than 0) if a.Compare(b) has a < b,
 	// 0 if the two are considered to be equal, and
