@@ -60,7 +60,10 @@ func (tt *BinaryTree[T]) Insert(item T) {
 // Search will walk the tree looking for `find` and retrn the found item
 // if it is in the tree. If it is not found then `nil` will be returned.
 func (tt *BinaryTree[T]) Search(find T) ( item *T ) {
-	if tt == nil || (*tt).IsEmpty() {
+	if tt == nil {
+		panic ( "tree sholud not be a nil" )
+	}
+	if (*tt).IsEmpty() {
 		return nil
 	}
 
@@ -107,7 +110,7 @@ func (tt *BinaryTree[T]) Remove(find T) ( found bool ) {
 		return false
 	}
 
-	findRightMostNode := func ( parent **BinaryTree[T], find T ) ( found bool, it *BinaryTree[T], pAtIt **BinaryTree[T] ) {
+	findLeftMost := func ( parent **BinaryTree[T], find T ) ( found bool, it *BinaryTree[T], pAtIt **BinaryTree[T] ) {
 		this := **parent
 		for this.right != nil {
 			parent = &(this.right)
@@ -127,12 +130,13 @@ func (tt *BinaryTree[T]) Remove(find T) ( found bool ) {
 				(*tt).data = ((*tt).left.data)
 				(*tt).left = (*tt).left.left
 			} else {
-				// have 2 children!
-				// I think I need to go find the "right most" child at the leaf level and promote that.
-				found, it, pAtIt := findRightMostNode ( &tt.right, find ) 
+				// I think I need to go find the "left most" child in the right sub-tree
+				found, it, pAtIt := findLeftMost ( &tt.right, find ) 
 				if found {
 					(*tt).data = it.data
-					(*pAtIt) = it.left	// if most right node has a left node then promot it.
+					(*pAtIt) = it.right	// if most right node has a left node then promot it.
+				} else {
+					panic ( "Malformed Tree" )
 				}
 			}
 		} else if (*tt).right != nil {
