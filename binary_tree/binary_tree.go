@@ -49,6 +49,8 @@ func (tt *BinaryTree[T]) Search(find T) ( item *T ) {
 		return nil
 	}
 
+	// redo as iterative with loop... TODO
+
 	if c := find.Compare(*tt.data); c == 0 {
 		return tt.data 
 	} else if c < 0 && tt.left != nil {
@@ -60,6 +62,7 @@ func (tt *BinaryTree[T]) Search(find T) ( item *T ) {
 }
 	
 func (tt *BinaryTree[T]) Remove(find T) ( found bool ) {
+
 	// This is a little bit tricky.  To delare a local pointer to a function
 	// that can recursivly call itslef you have to first declare the pointer
 	// then initialize the pointer.   If you try to do this in one step 
@@ -98,7 +101,6 @@ func (tt *BinaryTree[T]) Remove(find T) ( found bool ) {
 				(*tt).data = ((*tt).left.data)
 				(*tt).left = (*tt).left.left
 			} else {
-				// not certin this is correct
 				// have 2 children!
 				// I think I need to go find the "right most" child at the leaf level and promote that.
 				found, it, pAtIt := findRightMostNode ( &tt.right, find ) 
