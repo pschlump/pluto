@@ -78,18 +78,34 @@ func (tt *BinaryTree[T]) Remove(find T) ( found bool ) {
 		return false
 	}
 
+	findRightMostNode := func ( parent **BinaryTree[T], find T ) ( found bool, it *BinaryTree[T], pAtIt **BinaryTree[T] ) {
+		this := **parent
+		for this.right != nil {
+			parent = &(this.right)
+			this = **parent
+		}
+		it = (*parent)
+		pAtIt = parent
+		return
+	}
+
 	if c := find.Compare(*tt.data); c == 0 {
 		if (*tt).left != nil {
 			if (*tt).left.left == nil && (*tt).left.right != nil {
 				(*tt).data = ((*tt).left.data)
-				(*tt).left = (*tt).left.right // I think I need to go find the "right most" child at the leaf level and promote that.
+				(*tt).left = (*tt).left.right
 			} else if (*tt).left.left != nil && (*tt).left.right == nil {
 				(*tt).data = ((*tt).left.data)
-				// not certin this is correct
 				(*tt).left = (*tt).left.left
 			} else {
+				// not certin this is correct
 				// have 2 children!
-				panic("not implemented yet")
+				// I think I need to go find the "right most" child at the leaf level and promote that.
+				found, it, pAtIt := findRightMostNode ( &tt.right, find ) 
+				if found {
+					(*tt).data = it.data
+					(*pAtIt) = it.left	// if most right node has a left node then promot it.
+				}
 			}
 		} else if (*tt).right != nil {
 			(*tt).data = ((*tt).right.data)
