@@ -8,6 +8,7 @@ BSD 3 Clause Licensed.
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/pschlump/godebug"
@@ -48,7 +49,9 @@ func (aa TestTreeNode) Compare(x comparable.Comparable) int {
 	return 0
 }
 
-func TestStack(t *testing.T) {
+func TestTreeInsertSearch(t *testing.T) {
+
+	return
 
 	// Verify we can create a node.
 	ANode := NewTestTree()
@@ -104,5 +107,36 @@ func TestStack(t *testing.T) {
 
 }
 
+func TestTreeDelete(t *testing.T) {
+
+	var Tree1 BinaryTree[TestTreeNode]
+
+	// Build this tree:
+	//			{00}
+	//		{02}
+	//			{03}
+	//	{05}
+	//		{09}
+	Tree1.Insert(TestTreeNode{S: "05"})
+	Tree1.Insert(TestTreeNode{S: "02"})
+	Tree1.Insert(TestTreeNode{S: "09"})
+	Tree1.Insert(TestTreeNode{S: "00"})
+	Tree1.Insert(TestTreeNode{S: "03"})
+	if db3 {
+		fmt.Printf ( "at:%s tree=\n", godebug.LF())
+	   	Tree1.Dump(os.Stdout)
+	}
+	found := Tree1.Remove(TestTreeNode{S: "00"})	// Delete leaf
+	if db3 {
+		fmt.Printf ( "at:%s tree=\n", godebug.LF())
+	   	Tree1.Dump(os.Stdout)
+	}
+	if found == false {
+		t.Errorf("Expected to find find a node to delete, did not." )
+	}
+
+}
+
 const db2 = false
+const db3 = true
 
