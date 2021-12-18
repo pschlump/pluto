@@ -1,0 +1,7 @@
+
+= A generics based Go Queue.
+
+A simple stack with Push, Pop, Length, IsEmpty using Go generics.
+
+This requires version 1.18beta1 of Go to be compiled and used.
+
