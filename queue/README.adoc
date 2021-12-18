@@ -5,3 +5,11 @@ A simple stack with Push, Pop, Length, IsEmpty using Go generics.
 
 This requires version 1.18beta1 of Go to be compiled and used.
 
+This queue implemenation is based on using a slice and the
+performance will be significantly different when poping
+values thatn a queue based on a doublly linked list.  In this
+implentation a copy of the queued dat ais made each time a
+`Pop` occures.  This will result in an order(n) performance
+for this operation.
+A DLL based queue has a order(1) timing for the
+same operation.
