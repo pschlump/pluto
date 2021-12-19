@@ -50,6 +50,16 @@ func TestStack(t *testing.T) {
 	if ss.S != "hi2" {
 		t.Errorf ( "Expected %s got %s", "hi3", ss.S )
 	}
+
+	_ = Que1.Pop()
+	ss, err = Que1.Peek()
+	if err != nil {
+		t.Errorf ( "Unexpectd error on non-empty stack" )
+	}
+	if ss.S != "hi3" {
+		t.Errorf ( "Expected %s got %s", "hi3", ss.S )
+	}
+
 }
 
 
