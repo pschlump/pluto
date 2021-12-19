@@ -10,6 +10,18 @@ import (
 	"errors"
 )
 
+/*
+Basic operations on a stack:
+
+	Push — Inserts an element at the top
+
+	Pop - will remove the top element from the stack.  An error is returned if the stack is empty.
+
+	IsEmpty — Returns true if the stack is empty
+
+	Peek — Returns the top element without removing from the stack
+*/
+
 // Stack is a generic type buildt on top of a slice
 type Stack[T any] []T
 
@@ -41,6 +53,7 @@ func (ns Stack[T]) Length() int {
 }
 
 // Peek returns the top element of the stack or an error indicating that the stack is empty.
+// Some times this is refered to a 'Top'
 func (ns *Stack[T]) Peek() (*T, error) {
 	if !ns.IsEmpty() {
 		return &((*ns)[len(*ns)-1]), nil
