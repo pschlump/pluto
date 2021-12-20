@@ -13,37 +13,38 @@ func TestStack(t *testing.T) {
 		S string
 	}
 
-	var Que1 Queue[TestDemo]
+	var Sll1 Sll[TestDemo]
 
-	if !Que1.IsEmpty() {
+	if !Sll1.IsEmpty() {
 		t.Errorf ( "Expected empty stack after decleration, failed to get one." )
 	}
 
-	Que1.Push ( TestDemo{S:"hi"} )
+	/*
+	Sll1.Push ( TestDemo{S:"hi"} )
 
-	if Que1.IsEmpty() {
+	if Sll1.IsEmpty() {
 		t.Errorf ( "Expected non-empty stack after 1st push, failed to get one." )
 	}
 
-	err := Que1.Pop()
+	err := Sll1.Pop()
 	if err != nil {
 		t.Errorf ( "Unexpectd empty stack error after 1 pop" )
 	}
-	err = Que1.Pop()
+	err = Sll1.Pop()
 	if err == nil {
 		t.Errorf ( "Unexpectd lack of error after pop on empty stack" )
 	}
 
-	Que1.Push ( TestDemo{S:"hi2"} )
-	Que1.Push ( TestDemo{S:"hi3"} )
+	Sll1.Push ( TestDemo{S:"hi2"} )
+	Sll1.Push ( TestDemo{S:"hi3"} )
 
-	got := Que1.Length() 
+	got := Sll1.Length() 
 	expect := 2
 	if got != expect {
 		t.Errorf ( "Expected length of %d got %d", expect, got )
 	}
 
-	ss, err := Que1.Peek()
+	ss, err := Sll1.Peek()
 	if err != nil {
 		t.Errorf ( "Unexpectd error on non-empty stack" )
 	}
@@ -51,14 +52,15 @@ func TestStack(t *testing.T) {
 		t.Errorf ( "Expected %s got %s", "hi3", ss.S )
 	}
 
-	_ = Que1.Pop()
-	ss, err = Que1.Peek()
+	_ = Sll1.Pop()
+	ss, err = Sll1.Peek()
 	if err != nil {
 		t.Errorf ( "Unexpectd error on non-empty stack" )
 	}
 	if ss.S != "hi3" {
 		t.Errorf ( "Expected %s got %s", "hi3", ss.S )
 	}
+	*/
 
 }
 
