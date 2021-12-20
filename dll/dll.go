@@ -80,7 +80,9 @@ func (ns *Dll[T]) Pop() ( rv *T, err error ) {
 	}
 	rv = (*ns).head.data
 	(*ns).head = (*ns).head.next
-	(*ns).head.prev = nil
+	if (*ns).head != nil {
+		(*ns).head.prev = nil
+	}
 	(*ns).length--
 	return 
 }

@@ -1,5 +1,5 @@
 
 = A generics based Go Singly Linked List
 
-A simple singlely linked list (SLL)  with IsEmpty, AppendSLL, HeadSLL, Length
+A simple doubly linked list (DLL)  with IsEmpty, AppendSLL, HeadSLL, Length
 
