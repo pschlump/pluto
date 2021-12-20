@@ -7,8 +7,14 @@
 	. Walk ( inorder, preorder, postorder )
 	. Better "PrintTree"
 3. Queue. 
-4. DLL. (TODO)
+4. SLL. (TODO-Test)
+4. SLL-Queue. (TODO-Test)
+4. DLL. (TODO-Test)
+4. DLL-Stack. (TODO)
+4. DLL-Queue. (TODO)
 3. DLLQueue. (TODO)
 5. BalancedTree. (TODO)
+	. avl
+	. red/black
 5. B-Tree (TODO)
 
