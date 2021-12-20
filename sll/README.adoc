@@ -1,0 +1,5 @@
+
+= A generics based Go Singly Linked List
+
+A simple singlely linked list (SLL)  with IsEmpty, AppendSLL, HeadSLL, Length
+
