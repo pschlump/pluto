@@ -5,34 +5,44 @@ Copyright (C) Philip Schlump, 2012-2021.
 
 BSD 3 Clause Licensed.
 
-Basic operations on a Doubly Linked List (DLL)
+Basic operations on a Doubly Linked List (DLL).
 This list has head-and-tail pointers.
 
-	IsEmpty() — Returns true if the dll is empty
-	AppendDLL(t T) -
- 	Length() int - 
-
-Basic operations of Linked List:
-	InsertAtEnd — Inserts a given element at the end of the linked list
-	InsertAtHead — Inserts a given element at the start/head of the linked list
-	Delete — Deletes a given element from the linked list
-	DeleteAtHead — Deletes the first element of the linked list
-	Search — Returns the given element from a linked list
-	isEmpty — Returns true if the linked list is empty
+*	AppendAtTail — Inserts a new element after the end of the linked list.  					O(1)
+*	InsertBeforeHead — Inserts a new element before the current first ement of list.  			O(1)
+	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
++	DeleteAtHead — Deletes the first element of the linked list.  								O(1)
++	DeleteAtTail — Deletes the last element of the linked list. 								O(1)
++	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
++	ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
+*	IsEmpty — Returns true if the linked list is empty											O(1)
+*	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
+	Walk - Iterate from head to tail of list. 													O(n)
+	ReverseWalk - Iterate from tail to head of list. 											O(n)
+	ReverseList - Reverse all the nodes in list. 												O(n)
+*	Truncate - Delete all the nodes in list. 													O(1)
+*	Push																						O(1)
+*	Pop																							O(1)
+*	Peek																						O(1)
 
 */
 
 import (
 	"errors"
+
+	"github.com/pschlump/pluto/comparable"
 )
 
+// type BinaryTree[T comparable.Comparable] struct {
+// var _ comparable.Equality = (*TestDemo)(nil)
+
 // A node in the singly linked list
-type DllNode[T any] struct {
+type DllNode[T comparable.Equality] struct {
 	next, prev *DllNode[T]
 	data *T
 }
 // Dll is a generic type buildt on top of a slice
-type Dll[T any] struct {
+type Dll[T comparable.Equality] struct {
 	head, tail *DllNode[T]
 	length int
 }
@@ -44,7 +54,7 @@ func (ns *Dll[T]) IsEmpty() bool {
 }
 
 // Push will append a new node to the end of the list.
-func (ns *Dll[T]) InsertHeadDLL(t *T) {
+func (ns *Dll[T]) InsertBeforeHead(t *T) {
 	x := DllNode[T] { data: t }	// Create the node
 	if (*ns).head == nil {
 		(*ns).head = &x
@@ -59,7 +69,7 @@ func (ns *Dll[T]) InsertHeadDLL(t *T) {
 }
 
 // Push will append a new node to the end of the list.
-func (ns *Dll[T]) AppendTailDLL(t *T) {
+func (ns *Dll[T]) AppendAtTail(t *T) {
 	x := DllNode[T] { data: t }	// Create the node
 	if (*ns).head == nil {
 		(*ns).head = &x
@@ -95,6 +105,29 @@ func (ns *Dll[T]) Pop() ( rv *T, err error ) {
 	return 
 }
 
+func (ns *Dll[T]) Delete( it *DllNode[T] ) ( err error ) {
+	_, err = ns.Pop()
+	// TODO
+	return
+}
+
+func (ns *Dll[T]) DeleteAtHead() ( err error ) {
+	_, err =ns.Pop()
+	return
+}
+
+func (ns *Dll[T]) DeleteAtTail() ( err error ) {
+	if ns.IsEmpty() {
+		return ErrEmptyDll
+	}
+	// rv = (*ns).tail.data
+	(*ns).tail = (*ns).tail.prev
+	if (*ns).tail != nil {
+		(*ns).tail.next = nil
+	}
+	(*ns).length--
+	return 
+}
 
 // Peek returns the top element of the stack or an error indicating that the stack is empty.
 func (ns *Dll[T]) Peek() (rv *T, err error) {
@@ -112,4 +145,39 @@ func (ns *Dll[T]) Truncate()  {
 	(*ns).length = 0
 	return 
 }
+
+// Walk - Iterate from head to tail of list. 												O(n)
+// Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
+func (ns *Dll[T]) Search( t *T ) (rv *DllNode[T], pos int) {
+	if ns.IsEmpty() {
+		return nil, -1 // not found
+	} 
+
+	i := 0
+	for p := (*ns).head; p != nil; p = p.next {
+		if (*p.data).IsEqual(*t) { // IsEqual(b Equality) bool
+			return p, i
+		}
+		i++
+	}
+	return nil, -1 // not found
+}
+
+// ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
+func (ns *Dll[T]) ReverseSearch( t *T ) (rv *DllNode[T], pos int) {
+	if ns.IsEmpty() {
+		return nil, -1 // not found
+	} 
+
+	i := (*ns).length
+	for p := (*ns).tail; p != nil; p = p.prev {
+		if (*p.data).IsEqual(*t) { // IsEqual(b Equality) bool
+			return p, i
+		}
+		i--
+	}
+	return nil, -1 // not found
+}
+
+
 
