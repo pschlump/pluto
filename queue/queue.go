@@ -21,7 +21,6 @@ import (
 // Queue is a generic type buildt on top of a slice
 type Queue[T any] struct {
 	data []T
-	head int
 }
 
 // IsEmpty will return true if the stack is empty
