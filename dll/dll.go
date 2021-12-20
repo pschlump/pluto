@@ -12,6 +12,14 @@ This list has head-and-tail pointers.
 	AppendDLL(t T) -
  	Length() int - 
 
+Basic operations of Linked List:
+	InsertAtEnd — Inserts a given element at the end of the linked list
+	InsertAtHead — Inserts a given element at the start/head of the linked list
+	Delete — Deletes a given element from the linked list
+	DeleteAtHead — Deletes the first element of the linked list
+	Search — Returns the given element from a linked list
+	isEmpty — Returns true if the linked list is empty
+
 */
 
 import (
