@@ -20,7 +20,7 @@ import (
 // A node in the singly linked list
 type SllNode[T any] struct {
 	next *SllNode[T]
-	data T
+	data *T
 }
 // Sll is a generic type buildt on top of a slice
 type Sll[T any] struct {
@@ -30,19 +30,34 @@ type Sll[T any] struct {
 
 // IsEmpty will return true if the stack is empty
 func (ns *Sll[T]) IsEmpty() bool {
-	return (*ns).head == nil
+	// return (*ns).head == nil
 	return (*ns).length == 0
 }
 
 // Push will append a new node to the end of the list.
-func (ns *Sll[T]) AppendSLL(t SllNode[T]) {
+func (ns *Sll[T]) InsertHeadSLL(t *T) {
+	x := SllNode[T] { data: t }	// Create the node
 	if (*ns).head == nil {
-		(*ns).head = &t
-		(*ns).tail = &t
+		(*ns).head = &x
+		(*ns).tail = &x
 		(*ns).length = 1
 	} else {
-		(*ns).tail.next = &t
-		(*ns).tail = &t
+		x.next = (*ns).head
+		(*ns).head = &x
+		(*ns).length++
+	}
+}
+
+// Push will append a new node to the end of the list.
+func (ns *Sll[T]) AppendTailSLL(t *T) {
+	x := SllNode[T] { data: t }	// Create the node
+	if (*ns).head == nil {
+		(*ns).head = &x
+		(*ns).tail = &x
+		(*ns).length = 1
+	} else {
+		(*ns).tail.next = &x
+		(*ns).tail = &x
 		(*ns).length++
 	}
 }
@@ -56,12 +71,11 @@ func (ns *Sll[T]) Length() int {
 var ErrEmptySll = errors.New("Empty Sll")
 
 // Pop will remove the top element from the stack.  An error is returned if the stack is empty.
-func (ns *Sll[T]) Pop() ( rv *SllNode[T], err error ) {
+func (ns *Sll[T]) Pop() ( rv *T, err error ) {
 	if ns.IsEmpty() {
 		return nil, ErrEmptySll
 	}
-	rv = (*ns).head
-	rv.next = nil
+	rv = (*ns).head.data
 	(*ns).head = (*ns).head.next
 	(*ns).length--
 	return 
@@ -69,11 +83,11 @@ func (ns *Sll[T]) Pop() ( rv *SllNode[T], err error ) {
 
 
 // Peek returns the top element of the stack or an error indicating that the stack is empty.
-func (ns *Sll[T]) Peek() (rv *SllNode[T], err error) {
+func (ns *Sll[T]) Peek() (rv *T, err error) {
 	if ns.IsEmpty() {
 		return nil, ErrEmptySll
 	} 
-	rv = (*ns).head
+	rv = (*ns).head.data
 	return 
 }
 
