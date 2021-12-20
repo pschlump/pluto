@@ -44,6 +44,7 @@ func (ns *Dll[T]) InsertHeadSLL(t *T) {
 		(*ns).length = 1
 	} else {
 		x.next = (*ns).head
+		(*ns).head.prev = &x
 		(*ns).head = &x
 		(*ns).length++
 	}
@@ -58,6 +59,7 @@ func (ns *Dll[T]) AppendTailSLL(t *T) {
 		(*ns).length = 1
 	} else {
 		(*ns).tail.next = &x
+		x.prev = (*ns).tail
 		(*ns).tail = &x
 		(*ns).length++
 	}
@@ -78,6 +80,7 @@ func (ns *Dll[T]) Pop() ( rv *T, err error ) {
 	}
 	rv = (*ns).head.data
 	(*ns).head = (*ns).head.next
+	(*ns).head.prev = nil
 	(*ns).length--
 	return 
 }
