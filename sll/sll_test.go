@@ -59,6 +59,54 @@ func TestStack(t *testing.T) {
 		t.Errorf ( "Expected %s got %s", "hi3", ss.S )
 	}
 
+	Sll1.Truncate()
+	got = Sll1.Length() 
+	expect = 0
+	if got != expect {
+		t.Errorf ( "Expected length of %d got %d", expect, got )
+	}
+
+	// func (ns *Sll[T]) InsertHeadSLL(t *T) {
+	// func (ns *Sll[T]) AppendTailSLL(t *T) {
+
+	Sll1.InsertHeadSLL ( &TestDemo{S:"02"} )
+	Sll1.AppendTailSLL ( &TestDemo{S:"03"} )
+	Sll1.InsertHeadSLL ( &TestDemo{S:"01"} )
+
+	got = Sll1.Length() 
+	expect = 3
+	if got != expect {
+		t.Errorf ( "Expected length of %d got %d", expect, got )
+	}
+
+	a, err := Sll1.Pop()
+	if err != nil {
+		t.Errorf ( "Unexpectd lack of error after pop on empty stack" )
+	}
+	if a.S != "01" {
+		t.Errorf ( "Unexpectd data" )
+	}
+
+	a, err = Sll1.Pop()
+	if err != nil {
+		t.Errorf ( "Unexpectd lack of error after pop on empty stack" )
+	}
+	if a.S != "02" {
+		t.Errorf ( "Unexpectd data" )
+	}
+
+	a, err = Sll1.Pop()
+	if err != nil {
+		t.Errorf ( "Unexpectd lack of error after pop on empty stack" )
+	}
+	if a.S != "03" {
+		t.Errorf ( "Unexpectd data" )
+	}
+
+	a, err = Sll1.Pop()
+	if err == nil {
+		t.Errorf ( "Unexpectd lack of error after pop on empty stack" )
+	}
 }
 
 

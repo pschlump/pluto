@@ -58,8 +58,8 @@ func (ns *Dll[T]) AppendTailSLL(t *T) {
 		(*ns).tail = &x
 		(*ns).length = 1
 	} else {
-		(*ns).tail.next = &x
 		x.prev = (*ns).tail
+		(*ns).tail.next = &x
 		(*ns).tail = &x
 		(*ns).length++
 	}
@@ -94,6 +94,14 @@ func (ns *Dll[T]) Peek() (rv *T, err error) {
 		return nil, ErrEmptyDll
 	} 
 	rv = (*ns).head.data
+	return 
+}
+
+// Truncate removes all data from the list.
+func (ns *Dll[T]) Truncate()  {
+	(*ns).head = nil
+   	(*ns).tail = nil
+	(*ns).length = 0
 	return 
 }
 

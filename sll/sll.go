@@ -91,3 +91,13 @@ func (ns *Sll[T]) Peek() (rv *T, err error) {
 	return 
 }
 
+
+
+// Truncate removes all data from the list.
+func (ns *Sll[T]) Truncate()  {
+	(*ns).head = nil
+   	(*ns).tail = nil
+	(*ns).length = 0
+	return 
+}
+
