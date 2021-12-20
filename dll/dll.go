@@ -5,11 +5,11 @@ Copyright (C) Philip Schlump, 2012-2021.
 
 BSD 3 Clause Licensed.
 
-Basic operations on a Doubly Linked List (SLL)
+Basic operations on a Doubly Linked List (DLL)
 This list has head-and-tail pointers.
 
 	IsEmpty() — Returns true if the dll is empty
-	AppendSLL(t T) -
+	AppendDLL(t T) -
  	Length() int - 
 
 */
@@ -36,7 +36,7 @@ func (ns *Dll[T]) IsEmpty() bool {
 }
 
 // Push will append a new node to the end of the list.
-func (ns *Dll[T]) InsertHeadSLL(t *T) {
+func (ns *Dll[T]) InsertHeadDLL(t *T) {
 	x := DllNode[T] { data: t }	// Create the node
 	if (*ns).head == nil {
 		(*ns).head = &x
@@ -51,7 +51,7 @@ func (ns *Dll[T]) InsertHeadSLL(t *T) {
 }
 
 // Push will append a new node to the end of the list.
-func (ns *Dll[T]) AppendTailSLL(t *T) {
+func (ns *Dll[T]) AppendTailDLL(t *T) {
 	x := DllNode[T] { data: t }	// Create the node
 	if (*ns).head == nil {
 		(*ns).head = &x
