@@ -10,16 +10,16 @@ This list has head-and-tail pointers.
 
 *	AppendAtTail — Inserts a new element after the end of the linked list.  					O(1)
 *	InsertBeforeHead — Inserts a new element before the current first ement of list.  			O(1)
-	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
++	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
 +	DeleteAtHead — Deletes the first element of the linked list.  								O(1)
 +	DeleteAtTail — Deletes the last element of the linked list. 								O(1)
 +	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
 +	ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
 *	IsEmpty — Returns true if the linked list is empty											O(1)
 *	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
-	Walk - Iterate from head to tail of list. 													O(n)
-	ReverseWalk - Iterate from tail to head of list. 											O(n)
-	ReverseList - Reverse all the nodes in list. 												O(n)
++	Walk - Iterate from head to tail of list. 													O(n)
++	ReverseWalk - Iterate from tail to head of list. 											O(n)
++	ReverseList - Reverse all the nodes in list. 												O(n)
 *	Truncate - Delete all the nodes in list. 													O(1)
 *	Push																						O(1)
 *	Pop																							O(1)
@@ -90,6 +90,7 @@ func (ns *Dll[T]) Length() int {
 
 // An error to indicate that the stack is empty
 var ErrEmptyDll = errors.New("Empty Dll")
+var ErrInteralDll = errors.New("Interal Dll")
 
 // Pop will remove the top element from the stack.  An error is returned if the stack is empty.
 func (ns *Dll[T]) Pop() ( rv *T, err error ) {
@@ -107,8 +108,32 @@ func (ns *Dll[T]) Pop() ( rv *T, err error ) {
 
 func (ns *Dll[T]) Delete( it *DllNode[T] ) ( err error ) {
 	_, err = ns.Pop()
-	// TODO
-	return
+	if (*ns).head == it && (*ns).tail == it {
+		(*ns).head = nil
+		(*ns).tail = nil
+		(*ns).length = 0
+		return
+	}
+	if (*ns).head == it && (*ns).length > 1 {
+		err = ns.DeleteAtHead() 
+		return
+	}
+	if (*ns).tail == it && (*ns).length > 1 {
+		err = ns.DeleteAtTail() 
+		return
+	}
+	if (*ns).length > 2 {
+		// xyzzy - TODO - 
+		// xyzzy - TODO - 
+		// xyzzy - TODO - 
+		// xyzzy - TODO - 
+		n := it.prev
+		p := it.next
+		n.next = p
+		p.prev = n
+		return
+	}
+	return ErrInteralDll 
 }
 
 func (ns *Dll[T]) DeleteAtHead() ( err error ) {
@@ -179,5 +204,53 @@ func (ns *Dll[T]) ReverseSearch( t *T ) (rv *DllNode[T], pos int) {
 	return nil, -1 // not found
 }
 
+type ApplyFunction[T comparable.Equality] func ( pos int, data T, userData interface{} ) bool
 
+// Walk - Iterate from head to tail of list. 												O(n)
+func (ns *Dll[T]) Walk( fx ApplyFunction[T], userData interface{} ) (rv *DllNode[T], pos int) {
+	if ns.IsEmpty() {
+		return nil, -1 // not found
+	} 
+
+	i := 0
+	for p := (*ns).head; p != nil; p = p.next {
+		if fx(i, *p.data, userData) { 
+			return p, i
+		}
+		i++
+	}
+	return nil, -1 // not found
+}
+
+// ReverseWalk - Iterate from tail to head of list. 											O(n)
+func (ns *Dll[T]) ReverseWalk( fx ApplyFunction[T], userData interface{} ) (rv *DllNode[T], pos int) {
+	if ns.IsEmpty() {
+		return nil, -1 // not found
+	} 
+
+	i := (*ns).length
+	for p := (*ns).tail; p != nil; p = p.prev {
+		if fx(i, *p.data, userData) { 
+			return p, i
+		}
+		i--
+	}
+	return nil, -1 // not found
+}
+
+// ReverseList - Reverse all the nodes in list. 												O(n)
+func (ns *Dll[T]) ReverseList() {
+	if ns.IsEmpty() {
+		return 
+	} 
+
+	var tmp Dll[T]
+	i := 0
+	for p := (*ns).head; p != nil; p = p.next {
+		tmp.AppendAtTail(p.data)
+		i++
+	}
+	ns.head = tmp.head
+	ns.tail = tmp.tail
+}
 
