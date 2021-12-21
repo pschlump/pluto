@@ -132,6 +132,71 @@ func TestDll(t *testing.T) {
 	if err == nil {
 		t.Errorf ( "Unexpectd lack of error after pop on empty stack" )
 	}
+
+	// 	Test - DeleteAtHead 
+	Dll1.InsertBeforeHead ( &TestDemo{S:"02"} )
+	Dll1.AppendAtTail ( &TestDemo{S:"03"} )
+	Dll1.InsertBeforeHead ( &TestDemo{S:"01"} )
+	err = Dll1.DeleteAtHead()
+	if err != nil {
+		t.Errorf ( "Unexpectd error after pop on empty stack" )
+	}
+	a, err = Dll1.Pop()
+	if err != nil {
+		t.Errorf ( "Unexpectd error after pop on empty stack" )
+	}
+	if a.S != "02" {
+		t.Errorf ( "Unexpectd data" )
+	}
+
+	// Test - ReverseList - Reverse all the nodes in list. 												O(n)
+	Dll1.Truncate()  
+	Dll1.InsertBeforeHead ( &TestDemo{S:"02"} )
+	Dll1.AppendAtTail ( &TestDemo{S:"03"} )
+	Dll1.InsertBeforeHead ( &TestDemo{S:"01"} )
+	Dll1.ReverseList()
+	a, err = Dll1.Pop()
+	if err != nil {
+		t.Errorf ( "Unexpectd error after pop on empty stack" )
+	}
+	if a.S != "03" {
+		t.Errorf ( "Unexpectd data, got %s expected %s", a.S, "03" )
+	}
+
+	// Test - DeleteAtTail — Deletes the last element of the linked list. 								O(1)
+	Dll1.Truncate()  
+	Dll1.InsertBeforeHead ( &TestDemo{S:"02"} )
+	Dll1.AppendAtTail ( &TestDemo{S:"03"} )
+	Dll1.InsertBeforeHead ( &TestDemo{S:"01"} )
+	Dll1.DeleteAtTail()
+	Dll1.DeleteAtTail()
+	a, err = Dll1.Pop()
+	if err != nil {
+		t.Errorf ( "Unexpectd error after pop on empty stack" )
+	}
+	if a.S != "01" {
+		t.Errorf ( "Unexpectd data, got %s expected %s", a.S, "01" )
+	}
+	if Dll1.Length() != 0 {
+		t.Errorf ( "Unexpectd length" )
+	}
+
+
+	/*
+
+	+	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
+	+	ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
+
+	+	Walk - Iterate from head to tail of list. 													O(n)
+	+	ReverseWalk - Iterate from tail to head of list. 											O(n)
+
+	+	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
+
+	*/
+
+
+
+
 }
 
 

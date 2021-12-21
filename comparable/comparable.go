@@ -13,3 +13,8 @@ type Comparable interface {
 	// For int this can be implemented as "a - b"
 	Compare(b Comparable) int // Compare(b interface{}) int
 }
+
+type Equality interface {
+	// IsEqual will return true if the 2 items are equal.
+	IsEqual(b Equality) bool
+}

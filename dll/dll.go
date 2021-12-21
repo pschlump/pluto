@@ -34,9 +34,6 @@ import (
 	"github.com/pschlump/pluto/comparable"
 )
 
-// type BinaryTree[T comparable.Comparable] struct {
-// var _ comparable.Equality = (*TestDemo)(nil)
-
 // A node in the singly linked list
 type DllNode[T comparable.Equality] struct {
 	next, prev *DllNode[T]
@@ -50,7 +47,6 @@ type Dll[T comparable.Equality] struct {
 
 // IsEmpty will return true if the stack is empty
 func (ns *Dll[T]) IsEmpty() bool {
-	// return (*ns).head == nil
 	return (*ns).length == 0
 }
 
@@ -248,7 +244,8 @@ func (ns *Dll[T]) ReverseList() {
 	var tmp Dll[T]
 	i := 0
 	for p := (*ns).head; p != nil; p = p.next {
-		tmp.AppendAtTail(p.data)
+		// tmp.AppendAtTail(p.data)
+		tmp.InsertBeforeHead(p.data)
 		i++
 	}
 	ns.head = tmp.head
