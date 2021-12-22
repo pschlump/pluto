@@ -9,7 +9,7 @@
 3. Queue. 
 4. SLL. (TODO-Test)
 4. SLL-Queue. (TODO-Test)
-4. DLL. (TODO-Test)
+4. DLL. Doubley Linked List with Head and Tail Pointers.
 4. DLL-Stack. (TODO)
 4. DLL-Queue. (TODO)
 3. DLLQueue. (TODO)
