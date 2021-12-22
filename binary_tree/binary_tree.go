@@ -8,7 +8,6 @@ BSD 3 Clause Licensed.
 
 /*
 	-- Add "Depth" -> int to get deepest part of tree
-	-- Add "Length" -> Count # of Nodes
 	-- Add "WalkInOrder, WalkPreOrder, WalkPostOrder"
 */
 
@@ -29,7 +28,8 @@ type BinaryTreeNode[T comparable.Comparable] struct {
 
 // BinaryTree is a generic binary tree
 type BinaryTree[T comparable.Comparable] struct {
-	root *BinaryTreeNode[T]
+	root 	*BinaryTreeNode[T]
+	length 	int
 }
 
 // IsEmpty will return true if the binary-tree is empty
@@ -51,6 +51,7 @@ func (tt *BinaryTree[T]) Insert(item T) {
 	node.right = nil
 	if (*tt).IsEmpty() {
 		tt.root = node
+		tt.length = 1
 		return
 	}
 
@@ -59,6 +60,7 @@ func (tt *BinaryTree[T]) Insert(item T) {
 	insert = func ( root **BinaryTreeNode[T] ) {
 		if *root == nil {
 			*root = node
+			tt.length++
 		// } else if c := (*(node.data)).Compare( (*root).data ); c == 0 {
 		} else if c := item.Compare( *((*root).data) ); c == 0 {
 			(*root) = node
@@ -70,24 +72,15 @@ func (tt *BinaryTree[T]) Insert(item T) {
 	}
 
 	insert ( &( (*tt).root ) )
-
 }
-	/*
-	if c := item.Compare(*tt.data); c == 0 {
-		tt.data = &item
-	} else if c < 0  && tt.left == nil {
-		tt.left = &(BinaryTree[T]{ data: &item })
-		fmt.Printf ( "Create %+v addr=%p &tt.left=%p\n", item, tt.left, &(tt.left) )
-	} else if c > 0  && tt.right == nil {
-		tt.right = &(BinaryTree[T]{ data: &item })
-		fmt.Printf ( "Create %+v addr=%p &tt.right=%p\n", item, tt.right, &(tt.right) )
-	} else if c < 0 {
-		tt.left.Insert ( item )
-	} else {
-		tt.right.Insert ( item )
-	}
-	*/
 
+// Length returns the number of elements in the list.
+func (tt *BinaryTree[T]) Length() int {
+	return (*tt).length
+}
+
+// Search will walk the tree looking for `find` and retrn the found item
+// if it is in the tree. If it is not found then `nil` will be returned.
 func (tt *BinaryTree[T]) Search(find T) ( item *T ) {
 	if tt == nil {
 		panic ( "tree sholud not be a nil" )
@@ -120,6 +113,7 @@ func (tt *BinaryTree[T]) Search(find T) ( item *T ) {
 	return nil
 }
 
+// Dump will print out the tree to the file `fo`.
 func (tt *BinaryTree[T]) Dump(fo *os.File) {
 	var inorderTraversal func ( tt *BinaryTreeNode[T], n int, fo *os.File )
 	inorderTraversal = func ( cur *BinaryTreeNode[T], n int, fo *os.File ) {
@@ -137,40 +131,6 @@ func (tt *BinaryTree[T]) Dump(fo *os.File) {
 	inorderTraversal ( tt.root, 0, fo)
 }
 
-/*
-// Search will walk the tree looking for `find` and retrn the found item
-// if it is in the tree. If it is not found then `nil` will be returned.
-func (tt *BinaryTree[T]) Search(find T) ( item *T ) {
-	if tt == nil {
-		panic ( "tree sholud not be a nil" )
-	}
-	if (*tt).IsEmpty() {
-		return nil
-	}
-
-	// fmt.Printf ( "at:%s\n", godebug.LF())
-	for tt != nil {
-		// fmt.Printf ( "at:%s\n", godebug.LF())
-		c := find.Compare(*tt.data)
-		if c == 0 {
-			// fmt.Printf ( "FOUND! at:%s\n", godebug.LF())
-			item = tt.data 
-			return
-		}
-		// fmt.Printf ( "at:%s\n", godebug.LF())
-		if c < 0 && tt.left != nil {
-			tt = (*tt).left 
-		} else if c > 0 && tt.right != nil {
-			tt = (*tt).right 
-		} else {
-			// fmt.Printf ( "at:%s\n", godebug.LF())
-			break
-		}
-	}
-	// fmt.Printf ( "NOT Found --- at:%s\n", godebug.LF())
-	return nil
-}
-*/
 
 /*
 	
@@ -265,24 +225,6 @@ at:File: /Users/philip/go/src/github.com/pschlump/pluto/binary_tree/binary_tree_
     {09}
 	* /
 }
-
-func (tt *BinaryTree[T]) Dump(fo *os.File) {
-	var dump1 func ( tt *BinaryTree[T], n int, fo *os.File )
-	dump1 = func ( tt *BinaryTree[T], n int, fo *os.File ) {
-		if tt == nil {
-			return
-		}
-		if (*tt).left != nil {
-			dump1 ( (*tt).left, n+1, fo);
-		}
-		fmt.Printf ( "%s%v (left=%p/%p, right=%p/%p) self=%p\n", strings.Repeat(" ",4*n), *((*tt).data), (*tt).left, &((*tt).left), (*tt).right, &((*tt).right), tt )
-		if (*tt).right != nil {
-			dump1 ( (*tt).right, n+1, fo);
-		}
-	}
-	dump1 ( tt, 0, fo)
-}
-
 
 */
 
