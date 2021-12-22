@@ -308,7 +308,7 @@ func TestDll(t *testing.T) {
 		t.Errorf ( "Unexpectd error" )
 	} else {
 		if (*rv).data.S != "01" {
-			t.Errorf ( "Unexpectd value" )
+			t.Errorf ( "Unexpectd value, expected ->%s<- got ->%s<-", "01", (*rv).data.S )
 		}
 	}
 	
@@ -317,7 +317,7 @@ func TestDll(t *testing.T) {
 		t.Errorf ( "Unexpectd error" )
 	} else {
 		if (*rv).data.S != "02" {
-			t.Errorf ( "Unexpectd value" )
+			t.Errorf ( "Unexpectd value, expected ->%s<- got ->%s<-", "02", (*rv).data.S )
 		}
 	}
 	
@@ -326,7 +326,7 @@ func TestDll(t *testing.T) {
 		t.Errorf ( "Unexpectd error" )
 	} else {
 		if (*rv).data.S != "03" {
-			t.Errorf ( "Unexpectd value" )
+			t.Errorf ( "Unexpectd value, expected ->%s<- got ->%s<-", "03", (*rv).data.S )
 		}
 	}
 	

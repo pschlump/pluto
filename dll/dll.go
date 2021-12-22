@@ -265,15 +265,24 @@ func (ns *Dll[T]) Index(sub int) (rv *DllNode[T], err error) {
 		return nil, ErrOutOfRange 
 	} 
 
-	i := 0
-	p := (*ns).head;
-	for ; p != nil && i < sub; p = p.next {
-		i++
-	}
-	if p != nil {
-		rv = p
+	if sub < 0 || sub >= (*ns).length {
+		return nil, ErrOutOfRange 
+	} else if sub < ((*ns).length/2) {
+		i := 0
+		rv = (*ns).head;
+		for ; i < sub; rv = rv.next {
+			i++
+		}
 		return
-	} 
+	} else {
+		i := (*ns).length-1
+		rv = (*ns).tail;
+		for ; rv != nil && i > sub; rv = rv.prev {
+			i--
+		}
+		return
+	}
+
 	return nil, ErrOutOfRange 
 }
 
