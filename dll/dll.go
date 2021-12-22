@@ -38,6 +38,7 @@ With the use of Enque can be used as a Queue.  This is a synonym for AppendAtTai
 * 	PeekTail - Peek returns the last element of the DLL (like a Queue) or an error 				O(1)
 		indicating that the queue is empty.			
 * 	PopTail - Remvoe the element at the end of the DLL.											O(1)
+*	Enque - add to the tail so that DLL can be used as a Queue.									O(1)
 
 This version of the DLL is not suitable for concurrnet usage but ../DLLTs has mutex 
 locks so that it is thread safe.  It has the exact same interface.
@@ -52,13 +53,13 @@ import (
 
 // A node in the singly linked list
 type DllNode[T comparable.Equality] struct {
-	next, prev *DllNode[T]
-	data *T
+	next, prev 	*DllNode[T]
+	data 		*T
 }
 // Dll is a generic type buildt on top of a slice
 type Dll[T comparable.Equality] struct {
-	head, tail *DllNode[T]
-	length int
+	head, tail 	*DllNode[T]
+	length 		int
 }
 
 // IsEmpty will return true if the DLL (queue or stack) is empty
@@ -284,7 +285,6 @@ func (ns *Dll[T]) ReverseList() {
 	var tmp Dll[T]
 	i := 0
 	for p := (*ns).head; p != nil; p = p.next {
-		// tmp.AppendAtTail(p.data)
 		tmp.InsertBeforeHead(p.data)
 		i++
 	}

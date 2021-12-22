@@ -1,4 +1,4 @@
-module github.com/pschlump/pluto/sll
+module github.com/pschlump/pluto/dll
 
 go 1.18
 
