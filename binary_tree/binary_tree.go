@@ -133,7 +133,6 @@ func (tt *BinaryTree[T]) Dump(fo *os.File) {
 
 
 /*
-	
 func (tt *BinaryTree[T]) Remove(find T) ( found bool ) {
 
 	// This is a little bit tricky.  To delare a local pointer to a function
@@ -225,7 +224,6 @@ at:File: /Users/philip/go/src/github.com/pschlump/pluto/binary_tree/binary_tree_
     {09}
 	* /
 }
-
 */
 
 const db1 = true
