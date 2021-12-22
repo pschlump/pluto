@@ -26,6 +26,8 @@ This list has head-and-tail pointers.
 +	ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
 +	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
 
+	Index - return the Nth item																	O(n)
+
 */
 
 import (
