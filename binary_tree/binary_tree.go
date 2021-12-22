@@ -19,13 +19,17 @@ import (
 
 	"github.com/pschlump/pluto/comparable"
 	"github.com/pschlump/godebug"
-	"github.com/pschlump/MiscLib"
+	// "github.com/pschlump/MiscLib"
 )
+
+type BinaryTreeNode[T comparable.Comparable] struct {
+	data 		*T
+	left, right *BinaryTreeNode[T]
+}
 
 // BinaryTree is a generic binary tree
 type BinaryTree[T comparable.Comparable] struct {
-	data *T
-	left, right *BinaryTree[T]
+	root *BinaryTreeNode[T]
 }
 
 // IsEmpty will return true if the binary-tree is empty
@@ -33,7 +37,7 @@ func (tt BinaryTree[T]) IsEmpty() bool {
 	if db1 {
 		fmt.Printf ( "at:%s\n", godebug.LF())
 	}
-	return tt.data == nil && tt.left == nil && tt.right == nil 
+	return tt.root == nil 
 }
 
 // Insert will add a new item to the tree.  If it is a duplicate of an exiting
@@ -42,11 +46,33 @@ func (tt *BinaryTree[T]) Insert(item T) {
 	if tt == nil {
 		panic ( "tree sholud not be a nil" )
 	}
+	node := &BinaryTreeNode[T]{ data : &item }
+	node.left = nil
+	node.right = nil
 	if (*tt).IsEmpty() {
-		tt.data = &item
+		tt.root = node
 		return
 	}
 
+	// Simple is recursive, can be replce with an iterative tree traversal.
+	var insert func ( root **BinaryTreeNode[T] )
+	insert = func ( root **BinaryTreeNode[T] ) {
+		if *root == nil {
+			*root = node
+		// } else if c := (*(node.data)).Compare( (*root).data ); c == 0 {
+		} else if c := item.Compare( *((*root).data) ); c == 0 {
+			(*root) = node
+		} else if c < 0 {
+			insert ( &( (*root).left ) )
+		} else {
+			insert ( &( (*root).right ) )
+		}
+	}
+
+	insert ( &( (*tt).root ) )
+
+}
+	/*
 	if c := item.Compare(*tt.data); c == 0 {
 		tt.data = &item
 	} else if c < 0  && tt.left == nil {
@@ -60,8 +86,58 @@ func (tt *BinaryTree[T]) Insert(item T) {
 	} else {
 		tt.right.Insert ( item )
 	}
+	*/
+
+func (tt *BinaryTree[T]) Search(find T) ( item *T ) {
+	if tt == nil {
+		panic ( "tree sholud not be a nil" )
+	}
+	if (*tt).IsEmpty() {
+		return nil
+	}
+
+	// Iterative search through tree (can be used above)
+	cur := tt.root
+	for tt != nil {
+		// fmt.Printf ( "at:%s\n", godebug.LF())
+		c := find.Compare(*cur.data)
+		if c == 0 {
+			// fmt.Printf ( "FOUND! at:%s\n", godebug.LF())
+			item = cur.data 
+			return
+		}
+		// fmt.Printf ( "at:%s\n", godebug.LF())
+		if c < 0 && cur.left != nil {
+			cur = (*cur).left 
+		} else if c > 0 && cur.right != nil {
+			cur = (*cur).right 
+		} else {
+			// fmt.Printf ( "at:%s\n", godebug.LF())
+			break
+		}
+	}
+	// fmt.Printf ( "NOT Found --- at:%s\n", godebug.LF())
+	return nil
 }
 
+func (tt *BinaryTree[T]) Dump(fo *os.File) {
+	var inorderTraversal func ( tt *BinaryTreeNode[T], n int, fo *os.File )
+	inorderTraversal = func ( cur *BinaryTreeNode[T], n int, fo *os.File ) {
+		if cur == nil {
+			return
+		}
+		if (*cur).left != nil {
+			inorderTraversal ( (*cur).left, n+1, fo);
+		}
+		fmt.Printf ( "%s%v (left=%p/%p, right=%p/%p) self=%p\n", strings.Repeat(" ",4*n), *((*cur).data), (*cur).left, &((*cur).left), (*cur).right, &((*cur).right), cur )
+		if (*cur).right != nil {
+			inorderTraversal ( (*cur).right, n+1, fo);
+		}
+	}
+	inorderTraversal ( tt.root, 0, fo)
+}
+
+/*
 // Search will walk the tree looking for `find` and retrn the found item
 // if it is in the tree. If it is not found then `nil` will be returned.
 func (tt *BinaryTree[T]) Search(find T) ( item *T ) {
@@ -94,6 +170,9 @@ func (tt *BinaryTree[T]) Search(find T) ( item *T ) {
 	// fmt.Printf ( "NOT Found --- at:%s\n", godebug.LF())
 	return nil
 }
+*/
+
+/*
 	
 func (tt *BinaryTree[T]) Remove(find T) ( found bool ) {
 
@@ -171,7 +250,7 @@ func (tt *BinaryTree[T]) Remove(find T) ( found bool ) {
 	fmt.Printf ( "at:%s\n", godebug.LF())
 
 	return
-	/*
+	/ *
 at:File: /Users/philip/go/src/github.com/pschlump/pluto/binary_tree/binary_tree.go LineNo:158
 interalRemove Top at:File: /Users/philip/go/src/github.com/pschlump/pluto/binary_tree/binary_tree.go LineNo:105 node={S:02}
 at:File: /Users/philip/go/src/github.com/pschlump/pluto/binary_tree/binary_tree.go LineNo:110
@@ -184,7 +263,7 @@ at:File: /Users/philip/go/src/github.com/pschlump/pluto/binary_tree/binary_tree_
         {03}
 {05}
     {09}
-	*/
+	* /
 }
 
 func (tt *BinaryTree[T]) Dump(fo *os.File) {
@@ -204,5 +283,7 @@ func (tt *BinaryTree[T]) Dump(fo *os.File) {
 	dump1 ( tt, 0, fo)
 }
 
-const db1 = false
 
+*/
+
+const db1 = true
