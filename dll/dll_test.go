@@ -298,6 +298,43 @@ func TestDll(t *testing.T) {
 	// func (ns *Dll[T]) Index(sub int) (rv *DllNode[T], err error) {
 	// Index - return the Nth item																	O(n)
 
+	Dll1.Truncate()  
+	Dll1.InsertBeforeHead ( &TestDemo{S:"02"} )
+	Dll1.AppendAtTail ( &TestDemo{S:"03"} )
+	Dll1.InsertBeforeHead ( &TestDemo{S:"01"} )
+
+	rv, err = Dll1.Index ( 0 )
+	if err != nil {
+		t.Errorf ( "Unexpectd error" )
+	} else {
+		if (*rv).data.S != "01" {
+			t.Errorf ( "Unexpectd value" )
+		}
+	}
+	
+	rv, err = Dll1.Index ( 1 )
+	if err != nil {
+		t.Errorf ( "Unexpectd error" )
+	} else {
+		if (*rv).data.S != "02" {
+			t.Errorf ( "Unexpectd value" )
+		}
+	}
+	
+	rv, err = Dll1.Index ( 2 )
+	if err != nil {
+		t.Errorf ( "Unexpectd error" )
+	} else {
+		if (*rv).data.S != "03" {
+			t.Errorf ( "Unexpectd value" )
+		}
+	}
+	
+	rv, err = Dll1.Index ( 3 )
+	if err == nil {
+		t.Errorf ( "Unexpectd lack of error" )
+	} 
+
 }
 
 var db1 = false

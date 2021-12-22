@@ -9,8 +9,10 @@ Basic operations on a Doubly Linked List (DLL).
 This list has head-and-tail pointers.
 
 *	AppendAtTail — Inserts a new element after the end of the linked list.  					O(1)
+*	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
 *	DeleteAtHead — Deletes the first element of the linked list.  								O(1)
 *	DeleteAtTail — Deletes the last element of the linked list. 								O(1)
+*	Index - return the Nth item																	O(n)
 *	InsertBeforeHead — Inserts a new element before the current first ement of list.  			O(1)
 *	IsEmpty — Returns true if the linked list is empty											O(1)
 *	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
@@ -18,14 +20,11 @@ This list has head-and-tail pointers.
 *	Pop																							O(1)
 *	Push																						O(1)
 *	ReverseList - Reverse all the nodes in list. 												O(n)
-*	Truncate - Delete all the nodes in list. 													O(1)
-*	Walk - Iterate from head to tail of list. 													O(n)
+*	ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
 *	ReverseWalk - Iterate from tail to head of list. 											O(n)
 *	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
-*	ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
-*	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
-
-+	Index - return the Nth item																	O(n)
+*	Truncate - Delete all the nodes in list. 													O(1)
+*	Walk - Iterate from head to tail of list. 													O(n)
 
 */
 
@@ -260,6 +259,7 @@ func (ns *Dll[T]) ReverseList() {
 	ns.tail = tmp.tail
 }
 
+// Index will return the Nth item from the list.
 func (ns *Dll[T]) Index(sub int) (rv *DllNode[T], err error) {
 	if ns.IsEmpty() {
 		return nil, ErrOutOfRange 
