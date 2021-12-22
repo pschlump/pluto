@@ -66,6 +66,8 @@ type Dll[T comparable.Equality] struct {
 
 // IsEmpty will return true if the DLL (queue or stack) is empty
 func (ns *Dll[T]) IsEmpty() bool {
+	(*ns).mu.RLock()
+	defer (*ns).mu.RUnlock()
 	return (*ns).length == 0
 }
 
