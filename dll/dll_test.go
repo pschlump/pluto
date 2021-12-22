@@ -249,7 +249,9 @@ func TestDll(t *testing.T) {
 	// Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
 	// func (ns *Dll[T]) Search( t *T ) (rv *DllNode[T], pos int) {
 	rv, pos = Dll1.Search( &TestDemo{ S: "02"} )
-	fmt.Printf ( "%+v, at locaiton %d\n", rv, pos )
+	if db4 {
+		fmt.Printf ( "%+v, at locaiton %d\n", rv, pos )
+	}
 
 	// Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
 	// func (ns *Dll[T]) Delete( it *DllNode[T] ) ( err error ) {
@@ -259,12 +261,41 @@ func TestDll(t *testing.T) {
 		t.Errorf ( "Unexpectd length, after search/delete, expected %d got %d", 2, Dll1.Length() )
 	}
 
+	// Print the nodes in a list.
 	fx = func ( pos int, data TestDemo, userData interface{} ) bool {
-		fmt.Printf ( "[%d] = %s\n", pos, data.S )
+		if db3 {
+			fmt.Printf ( "[%d] = %s\n", pos, data.S )
+		}
 		return false
 	}
+	Dll1.Walk( fx, "02" )
+
+	// ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
+
+	Dll1.Truncate()  
+	Dll1.InsertBeforeHead ( &TestDemo{S:"02"} )
+	Dll1.AppendAtTail ( &TestDemo{S:"03"} )
+	Dll1.InsertBeforeHead ( &TestDemo{S:"01"} )
+
+	// Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
+	// func (ns *Dll[T]) Search( t *T ) (rv *DllNode[T], pos int) {
+	rv, pos = Dll1.ReverseSearch( &TestDemo{ S: "02"} )
+	if db4 {
+		fmt.Printf ( "%+v, at locaiton %d\n", rv, pos )
+	}
+
+	// Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
+	// func (ns *Dll[T]) Delete( it *DllNode[T] ) ( err error ) {
+	err = Dll1.Delete( rv )
+
+	if Dll1.Length() != 2 {
+		t.Errorf ( "Unexpectd length, after search/delete, expected %d got %d", 2, Dll1.Length() )
+	}
+
 	Dll1.Walk( fx, "02" )
 }
 
 var db1 = false
+var db3 = false
+var db4 = false
 

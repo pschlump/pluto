@@ -21,10 +21,9 @@ This list has head-and-tail pointers.
 *	Truncate - Delete all the nodes in list. 													O(1)
 *	Walk - Iterate from head to tail of list. 													O(n)
 *	ReverseWalk - Iterate from tail to head of list. 											O(n)
-
-+	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
-+	ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
-+	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
+*	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
+*	ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
+*	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
 
 	Index - return the Nth item																	O(n)
 
@@ -108,26 +107,28 @@ func (ns *Dll[T]) Pop() ( rv *T, err error ) {
 }
 
 func (ns *Dll[T]) Delete( it *DllNode[T] ) ( err error ) {
-	fmt.Printf ( "AT: %s - top of Delete\n", godebug.LF())
+	if db2 {
+		fmt.Printf ( "AT: %s - top of Delete\n", godebug.LF())
+	}
 	if (*ns).head == it && (*ns).tail == it {
-		fmt.Printf ( "AT: %s\n", godebug.LF())
+		// fmt.Printf ( "AT: %s\n", godebug.LF())
 		(*ns).head = nil
 		(*ns).tail = nil
 		(*ns).length = 0
 		return
 	}
 	if (*ns).head == it && (*ns).length > 1 {
-		fmt.Printf ( "AT: %s\n", godebug.LF())
+		// fmt.Printf ( "AT: %s\n", godebug.LF())
 		err = ns.DeleteAtHead() 
 		return
 	}
 	if (*ns).tail == it && (*ns).length > 1 {
-		fmt.Printf ( "AT: %s\n", godebug.LF())
+		// fmt.Printf ( "AT: %s\n", godebug.LF())
 		err = ns.DeleteAtTail() 
 		return
 	}
 	if (*ns).length > 2 {
-		fmt.Printf ( "AT: %s\n", godebug.LF())
+		// fmt.Printf ( "AT: %s\n", godebug.LF())
 		n := it.prev
 		p := it.next
 		n.next = p
@@ -135,7 +136,7 @@ func (ns *Dll[T]) Delete( it *DllNode[T] ) ( err error ) {
 		(*ns).length--
 		return
 	}
-	fmt.Printf ( "AT: %s\n", godebug.LF())
+	// fmt.Printf ( "AT: %s\n", godebug.LF())
 	return ErrInteralDll 
 }
 
@@ -257,4 +258,6 @@ func (ns *Dll[T]) ReverseList() {
 	ns.head = tmp.head
 	ns.tail = tmp.tail
 }
+
+const db2 = false
 
