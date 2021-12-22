@@ -19,11 +19,11 @@ This list has head-and-tail pointers.
 *	Push																						O(1)
 *	ReverseList - Reverse all the nodes in list. 												O(n)
 *	Truncate - Delete all the nodes in list. 													O(1)
+*	Walk - Iterate from head to tail of list. 													O(n)
+*	ReverseWalk - Iterate from tail to head of list. 											O(n)
 
 +	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
 +	ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
-+	Walk - Iterate from head to tail of list. 													O(n)
-+	ReverseWalk - Iterate from tail to head of list. 											O(n)
 +	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
 
 */

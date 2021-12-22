@@ -182,19 +182,8 @@ func TestDll(t *testing.T) {
 	}
 
 
-	/*
 
-	+	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
-	+	ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
-
-	+	Walk - Iterate from head to tail of list. 													O(n)
-	+	ReverseWalk - Iterate from tail to head of list. 											O(n)
-
-	+	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
-
-	*/
-
-
+	// Walk - Iterate from head to tail of list. 													O(n)
 	// func (ns *Dll[T]) Walk( fx ApplyFunction[T], userData interface{} ) (rv *DllNode[T], pos int) {
 	Dll1.Truncate()  
 	Dll1.InsertBeforeHead ( &TestDemo{S:"02"} )
@@ -227,6 +216,7 @@ func TestDll(t *testing.T) {
 		}
 	}
 
+	// ReverseWalk - Iterate from tail to head of list. 											O(n)
 	found = []string{}
 	rv, pos = Dll1.ReverseWalk( fx, "02" )
 	_, _ = rv, pos 
@@ -241,6 +231,15 @@ func TestDll(t *testing.T) {
 			t.Errorf ( "Unexpectd value" )
 		}
 	}
+
+	/*
+
+	+	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
+	+	ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
+
+	+	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
+
+	*/
 
 }
 
