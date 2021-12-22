@@ -71,8 +71,6 @@ func (ns *Dll[T]) IsEmpty() bool {
 
 func (ns *Dll[T]) noLockInsertBeforeHead(t *T) {
 	x := DllNode[T] { data: t }	// Create the node
-	(*ns).mu.Lock()
-	defer (*ns).mu.Unlock()
 	if (*ns).head == nil {
 		(*ns).head = &x
 		(*ns).tail = &x
@@ -88,6 +86,7 @@ func (ns *Dll[T]) noLockInsertBeforeHead(t *T) {
 // Push will append a new node to the end of the list.
 func (ns *Dll[T]) InsertBeforeHead(t *T) {
 	(*ns).mu.Lock()
+	defer (*ns).mu.Unlock()
 	(*ns).noLockInsertBeforeHead(t)
 }
 
@@ -115,7 +114,7 @@ func (ns *Dll[T]) Enque(t *T) {
 // Length returns the number of elements in the list.
 func (ns *Dll[T]) Length() int {
 	(*ns).mu.RLock()
-	defer (*ns).mu.Unlock()
+	defer (*ns).mu.RUnlock()
 	return (*ns).length
 }
 
@@ -218,7 +217,7 @@ func (ns *Dll[T]) DeleteAtTail() ( err error ) {
 // Peek returns the top element of the DLL (like a Stack) or an error indicating that the stack is empty.
 func (ns *Dll[T]) Peek() (rv *T, err error) {
 	(*ns).mu.RLock()
-	defer (*ns).mu.Unlock()
+	defer (*ns).mu.RUnlock()
 	if ns.IsEmpty() {
 		return nil, ErrEmptyDll
 	} 
@@ -229,7 +228,7 @@ func (ns *Dll[T]) Peek() (rv *T, err error) {
 // Peek returns the last element of the DLL (like a Queue) or an error indicating that the stack is empty.
 func (ns *Dll[T]) PeekTail() (rv *T, err error) {
 	(*ns).mu.RLock()
-	defer (*ns).mu.Unlock()
+	defer (*ns).mu.RUnlock()
 	if ns.IsEmpty() {
 		return nil, ErrEmptyDll
 	} 
@@ -251,7 +250,7 @@ func (ns *Dll[T]) Truncate()  {
 // Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
 func (ns *Dll[T]) Search( t *T ) (rv *DllNode[T], pos int) {
 	(*ns).mu.RLock()
-	defer (*ns).mu.Unlock()
+	defer (*ns).mu.RUnlock()
 	if ns.IsEmpty() {
 		return nil, -1 // not found
 	} 
@@ -269,7 +268,7 @@ func (ns *Dll[T]) Search( t *T ) (rv *DllNode[T], pos int) {
 // ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
 func (ns *Dll[T]) ReverseSearch( t *T ) (rv *DllNode[T], pos int) {
 	(*ns).mu.RLock()
-	defer (*ns).mu.Unlock()
+	defer (*ns).mu.RUnlock()
 	if ns.IsEmpty() {
 		return nil, -1 // not found
 	} 
@@ -289,7 +288,7 @@ type ApplyFunction[T comparable.Equality] func ( pos int, data T, userData inter
 // Walk - Iterate from head to tail of list. 												O(n)
 func (ns *Dll[T]) Walk( fx ApplyFunction[T], userData interface{} ) (rv *DllNode[T], pos int) {
 	(*ns).mu.RLock()
-	defer (*ns).mu.Unlock()
+	defer (*ns).mu.RUnlock()
 	if ns.IsEmpty() {
 		return nil, -1 // not found
 	} 
@@ -307,7 +306,7 @@ func (ns *Dll[T]) Walk( fx ApplyFunction[T], userData interface{} ) (rv *DllNode
 // ReverseWalk - Iterate from tail to head of list. 											O(n)
 func (ns *Dll[T]) ReverseWalk( fx ApplyFunction[T], userData interface{} ) (rv *DllNode[T], pos int) {
 	(*ns).mu.RLock()
-	defer (*ns).mu.Unlock()
+	defer (*ns).mu.RUnlock()
 	if ns.IsEmpty() {
 		return nil, -1 // not found
 	} 
@@ -343,7 +342,7 @@ func (ns *Dll[T]) ReverseList() {
 // Index will return the Nth item from the list.
 func (ns *Dll[T]) Index(sub int) (rv *DllNode[T], err error) {
 	(*ns).mu.RLock()
-	defer (*ns).mu.Unlock()
+	defer (*ns).mu.RUnlock()
 	if ns.IsEmpty() {
 		return nil, ErrOutOfRange 
 	} 
