@@ -1,0 +1,5 @@
+
+= A generics based Go Double Linked List that is Thread(goroutine) safe
+
+A simple doubly linked list (DLL)  with IsEmpty, AppendSLL, HeadSLL, Length
+
