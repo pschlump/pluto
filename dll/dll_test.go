@@ -195,8 +195,54 @@ func TestDll(t *testing.T) {
 	*/
 
 
+	// func (ns *Dll[T]) Walk( fx ApplyFunction[T], userData interface{} ) (rv *DllNode[T], pos int) {
+	Dll1.Truncate()  
+	Dll1.InsertBeforeHead ( &TestDemo{S:"02"} )
+	Dll1.AppendAtTail ( &TestDemo{S:"03"} )
+	Dll1.InsertBeforeHead ( &TestDemo{S:"01"} )
 
+	var found []string
+	var fx ApplyFunction[TestDemo]
+	fx = func ( pos int, data TestDemo, userData interface{} ) bool {
+		if db1 {
+			fmt.Printf ( "[%d] = %s\n", pos, data.S )
+		}
+		found = append(found, data.S)
+		if userData.(string) == data.S {
+			return true
+		}
+		return false
+	}
+	rv, pos := Dll1.Walk( fx, "02" )
+	_, _ = rv, pos 
+
+	if len(found) != 2 {
+		t.Errorf ( "Unexpectd length" )
+	} else {
+		if found[0] != "01" {
+			t.Errorf ( "Unexpectd value" )
+		}
+		if found[1] != "02" {
+			t.Errorf ( "Unexpectd value" )
+		}
+	}
+
+	found = []string{}
+	rv, pos = Dll1.ReverseWalk( fx, "02" )
+	_, _ = rv, pos 
+
+	if len(found) != 2 {
+		t.Errorf ( "Unexpectd length" )
+	} else {
+		if found[0] != "03" {
+			t.Errorf ( "Unexpectd value" )
+		}
+		if found[1] != "02" {
+			t.Errorf ( "Unexpectd value" )
+		}
+	}
 
 }
 
+var db1 = false
 
