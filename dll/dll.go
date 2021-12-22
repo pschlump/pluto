@@ -32,7 +32,9 @@ This list has head-and-tail pointers.
 
 import (
 	"errors"
+	"fmt"
 
+	"github.com/pschlump/godebug"
 	"github.com/pschlump/pluto/comparable"
 )
 
@@ -106,37 +108,39 @@ func (ns *Dll[T]) Pop() ( rv *T, err error ) {
 }
 
 func (ns *Dll[T]) Delete( it *DllNode[T] ) ( err error ) {
-	_, err = ns.Pop()
+	fmt.Printf ( "AT: %s - top of Delete\n", godebug.LF())
 	if (*ns).head == it && (*ns).tail == it {
+		fmt.Printf ( "AT: %s\n", godebug.LF())
 		(*ns).head = nil
 		(*ns).tail = nil
 		(*ns).length = 0
 		return
 	}
 	if (*ns).head == it && (*ns).length > 1 {
+		fmt.Printf ( "AT: %s\n", godebug.LF())
 		err = ns.DeleteAtHead() 
 		return
 	}
 	if (*ns).tail == it && (*ns).length > 1 {
+		fmt.Printf ( "AT: %s\n", godebug.LF())
 		err = ns.DeleteAtTail() 
 		return
 	}
 	if (*ns).length > 2 {
-		// xyzzy - TODO - 
-		// xyzzy - TODO - 
-		// xyzzy - TODO - 
-		// xyzzy - TODO - 
+		fmt.Printf ( "AT: %s\n", godebug.LF())
 		n := it.prev
 		p := it.next
 		n.next = p
 		p.prev = n
+		(*ns).length--
 		return
 	}
+	fmt.Printf ( "AT: %s\n", godebug.LF())
 	return ErrInteralDll 
 }
 
 func (ns *Dll[T]) DeleteAtHead() ( err error ) {
-	_, err =ns.Pop()
+	_, err = ns.Pop()
 	return
 }
 
