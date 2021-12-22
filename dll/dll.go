@@ -30,9 +30,7 @@ This list has head-and-tail pointers.
 
 import (
 	"errors"
-	"fmt"
 
-	"github.com/pschlump/godebug"
 	"github.com/pschlump/pluto/comparable"
 )
 
@@ -107,28 +105,21 @@ func (ns *Dll[T]) Pop() ( rv *T, err error ) {
 }
 
 func (ns *Dll[T]) Delete( it *DllNode[T] ) ( err error ) {
-	if db2 {
-		fmt.Printf ( "AT: %s - top of Delete\n", godebug.LF())
-	}
 	if (*ns).head == it && (*ns).tail == it {
-		// fmt.Printf ( "AT: %s\n", godebug.LF())
 		(*ns).head = nil
 		(*ns).tail = nil
 		(*ns).length = 0
 		return
 	}
 	if (*ns).head == it && (*ns).length > 1 {
-		// fmt.Printf ( "AT: %s\n", godebug.LF())
 		err = ns.DeleteAtHead() 
 		return
 	}
 	if (*ns).tail == it && (*ns).length > 1 {
-		// fmt.Printf ( "AT: %s\n", godebug.LF())
 		err = ns.DeleteAtTail() 
 		return
 	}
 	if (*ns).length > 2 {
-		// fmt.Printf ( "AT: %s\n", godebug.LF())
 		n := it.prev
 		p := it.next
 		n.next = p
@@ -136,7 +127,6 @@ func (ns *Dll[T]) Delete( it *DllNode[T] ) ( err error ) {
 		(*ns).length--
 		return
 	}
-	// fmt.Printf ( "AT: %s\n", godebug.LF())
 	return ErrInteralDll 
 }
 
@@ -285,7 +275,4 @@ func (ns *Dll[T]) Index(sub int) (rv *DllNode[T], err error) {
 
 	return nil, ErrOutOfRange 
 }
-
-
-const db2 = false
 
