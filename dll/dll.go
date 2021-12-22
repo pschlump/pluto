@@ -25,7 +25,7 @@ This list has head-and-tail pointers.
 *	ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
 *	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
 
-	Index - return the Nth item																	O(n)
++	Index - return the Nth item																	O(n)
 
 */
 
@@ -91,6 +91,7 @@ func (ns *Dll[T]) Length() int {
 // An error to indicate that the stack is empty
 var ErrEmptyDll = errors.New("Empty Dll")
 var ErrInteralDll = errors.New("Interal Dll")
+var ErrOutOfRange = errors.New("Subscript Out of Range")
 
 // Pop will remove the top element from the stack.  An error is returned if the stack is empty.
 func (ns *Dll[T]) Pop() ( rv *T, err error ) {
@@ -258,6 +259,24 @@ func (ns *Dll[T]) ReverseList() {
 	ns.head = tmp.head
 	ns.tail = tmp.tail
 }
+
+func (ns *Dll[T]) Index(sub int) (rv *DllNode[T], err error) {
+	if ns.IsEmpty() {
+		return nil, ErrOutOfRange 
+	} 
+
+	i := 0
+	p := (*ns).head;
+	for ; p != nil && i < sub; p = p.next {
+		i++
+	}
+	if p != nil {
+		rv = p
+		return
+	} 
+	return nil, ErrOutOfRange 
+}
+
 
 const db2 = false
 

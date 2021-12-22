@@ -293,6 +293,11 @@ func TestDll(t *testing.T) {
 	}
 
 	Dll1.Walk( fx, "02" )
+
+	// TODO
+	// func (ns *Dll[T]) Index(sub int) (rv *DllNode[T], err error) {
+	// Index - return the Nth item																	O(n)
+
 }
 
 var db1 = false
