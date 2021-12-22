@@ -1,4 +1,4 @@
-package dll
+package dllts
 
 /*
 Copyright (C) Philip Schlump, 2012-2021.
@@ -69,8 +69,7 @@ func (ns *Dll[T]) IsEmpty() bool {
 	return (*ns).length == 0
 }
 
-// Push will append a new node to the end of the list.
-func (ns *Dll[T]) InsertBeforeHead(t *T) {
+func (ns *Dll[T]) noLockInsertBeforeHead(t *T) {
 	x := DllNode[T] { data: t }	// Create the node
 	(*ns).mu.Lock()
 	defer (*ns).mu.Unlock()
@@ -84,6 +83,12 @@ func (ns *Dll[T]) InsertBeforeHead(t *T) {
 		(*ns).head = &x
 		(*ns).length++
 	}
+}
+
+// Push will append a new node to the end of the list.
+func (ns *Dll[T]) InsertBeforeHead(t *T) {
+	(*ns).mu.Lock()
+	(*ns).noLockInsertBeforeHead(t)
 }
 
 // Push will append a new node to the end of the list.
@@ -123,6 +128,20 @@ var ErrOutOfRange = errors.New("Subscript Out of Range")
 func (ns *Dll[T]) Pop() ( rv *T, err error ) {
 	(*ns).mu.Lock()
 	defer (*ns).mu.Unlock()
+	rv, err = (*ns).noLockPop()
+	return
+}
+
+// PopTail will remove the top element from the DLL.  An error is returned if the stack is empty.
+func (ns *Dll[T]) PopTail() ( rv *T, err error ) {
+	(*ns).mu.Lock()
+	defer (*ns).mu.Unlock()
+	rv, err = (*ns).noLockPopTail()
+	return
+}
+
+// Pop will remove the top element from the DLL.  An error is returned if the stack is empty.
+func (ns *Dll[T]) noLockPop() ( rv *T, err error ) {
 	if ns.IsEmpty() {
 		return nil, ErrEmptyDll
 	}
@@ -136,9 +155,7 @@ func (ns *Dll[T]) Pop() ( rv *T, err error ) {
 }
 
 // PopTail will remove the top element from the DLL.  An error is returned if the stack is empty.
-func (ns *Dll[T]) PopTail() ( rv *T, err error ) {
-	(*ns).mu.Lock()
-	defer (*ns).mu.Unlock()
+func (ns *Dll[T]) noLockPopTail() ( rv *T, err error ) {
 	if ns.IsEmpty() {
 		return nil, ErrEmptyDll
 	}
@@ -161,13 +178,11 @@ func (ns *Dll[T]) Delete( it *DllNode[T] ) ( err error ) {
 		return
 	}
 	if (*ns).head == it && (*ns).length > 1 {
-		// xyzzy - TODO - fix.
-		err = ns.DeleteAtHead() 
+		_, err = (*ns).noLockPop() 
 		return
 	}
 	if (*ns).tail == it && (*ns).length > 1 {
-		// xyzzy - TODO - fix.
-		err = ns.DeleteAtTail() 
+		_, err = (*ns).noLockPopTail() 
 		return
 	}
 	if (*ns).length > 2 {
@@ -318,8 +333,7 @@ func (ns *Dll[T]) ReverseList() {
 	var tmp Dll[T]
 	i := 0
 	for p := (*ns).head; p != nil; p = p.next {
-		// xyzzy - TODO - fix.
-		tmp.InsertBeforeHead(p.data)
+		tmp.noLockInsertBeforeHead(p.data)
 		i++
 	}
 	ns.head = tmp.head
