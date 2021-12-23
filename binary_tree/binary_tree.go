@@ -18,7 +18,7 @@ import (
 
 	"github.com/pschlump/pluto/comparable"
 	"github.com/pschlump/godebug"
-	"github.com/pschlump/MiscLib"
+	// "github.com/pschlump/MiscLib"
 )
 
 type BinaryTreeNode[T comparable.Comparable] struct {
@@ -98,24 +98,19 @@ func (tt *BinaryTree[T]) Search(find T) ( item *T ) {
 	// Iterative search through tree (can be used above)
 	cur := tt.root
 	for tt != nil {
-		// fmt.Printf ( "at:%s\n", godebug.LF())
 		c := find.Compare(*cur.data)
 		if c == 0 {
-			// fmt.Printf ( "FOUND! at:%s\n", godebug.LF())
 			item = cur.data 
 			return
 		}
-		// fmt.Printf ( "at:%s\n", godebug.LF())
 		if c < 0 && cur.left != nil {
 			cur = (*cur).left 
 		} else if c > 0 && cur.right != nil {
 			cur = (*cur).right 
 		} else {
-			// fmt.Printf ( "at:%s\n", godebug.LF())
 			break
 		}
 	}
-	// fmt.Printf ( "NOT Found --- at:%s\n", godebug.LF())
 	return nil
 }
 
@@ -147,18 +142,18 @@ func (tt *BinaryTree[T]) Delete(find T) ( found bool ) {
 	}
 
 	findLeftMostInRightSubtree := func ( parent **BinaryTreeNode[T] ) ( found bool, pAtIt **BinaryTreeNode[T] ) {
-		fmt.Printf ( "%sFindLeftMost/At Top: at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+		// fmt.Printf ( "%sFindLeftMost/At Top: at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
 		this := **parent
 		if *parent == nil {
-			fmt.Printf ( "%sFindLeftMost/no tree: at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+			// fmt.Printf ( "%sFindLeftMost/no tree: at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
 			return
 		}
 		for this.right != nil {
-			fmt.Printf ( "%sAdvance 1 step. at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+			// fmt.Printf ( "%sAdvance 1 step. at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
 			parent = &(this.right)
 			this = **parent
 		}
-		fmt.Printf ( "%sat bottom at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+		// fmt.Printf ( "%sat bottom at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
 		found = true
 		pAtIt = parent
 		return
@@ -170,42 +165,42 @@ func (tt *BinaryTree[T]) Delete(find T) ( found bool ) {
 		// fmt.Printf ( "at:%s\n", godebug.LF())
 		c := find.Compare(*(*cur).data)
 		if c == 0 {
-			fmt.Printf ( "FOUND! now remove it! at:%s\n", godebug.LF())
+			// fmt.Printf ( "FOUND! now remove it! at:%s\n", godebug.LF())
 			(*tt).length --
 			if (*cur).left == nil && (*cur).right == nil {
-				fmt.Printf ( "at:%s\n", godebug.LF())
+				// fmt.Printf ( "at:%s\n", godebug.LF())
 				(*cur) = nil // just delete the node, it has no children.
 			} else if (*cur).left != nil && (*cur).right == nil {
-				fmt.Printf ( "at:%s\n", godebug.LF())
+				// fmt.Printf ( "at:%s\n", godebug.LF())
 				(*cur) = (*cur).left // Has only left children, promote them.
 			} else if (*cur).left == nil && (*cur).right != nil {
-				fmt.Printf ( "at:%s\n", godebug.LF())
+				// fmt.Printf ( "at:%s\n", godebug.LF())
 				(*cur) = (*cur).right // Has only right children, promote them.
 			} else { // has both children.
-				fmt.Printf ( "at:%s\n", godebug.LF())
+				// fmt.Printf ( "at:%s\n", godebug.LF())
 				// Has only right children, promote them.
 				found, pAtIt := findLeftMostInRightSubtree ( &((*cur).right) )	// Find lft mos of right sub-tree
 				if !found {
-					fmt.Printf ( "%sAbout to Panic: Failed to have a subtree. AT:%s%s\n", MiscLib.ColorRed, godebug.LF(), MiscLib.ColorReset)
+					// fmt.Printf ( "%sAbout to Panic: Failed to have a subtree. AT:%s%s\n", MiscLib.ColorRed, godebug.LF(), MiscLib.ColorReset)
 					panic ( "Can't have a missing sub-tree." )
 				}
-				fmt.Printf ( "at:%s\n", godebug.LF())
+				// fmt.Printf ( "at:%s\n", godebug.LF())
 				(*cur).data = (*pAtIt).data	// promote node's data.
-				fmt.Printf ( "at:%s\n", godebug.LF())
+				// fmt.Printf ( "at:%s\n", godebug.LF())
 				(*pAtIt) = (*pAtIt).right // Left most can have a right sub-tree - but it is left most so it can't have a more left tree.
-				fmt.Printf ( "at:%s\n", godebug.LF())
+				// fmt.Printf ( "at:%s\n", godebug.LF())
 			}
 			return true
 		}
 		// fmt.Printf ( "at:%s\n", godebug.LF())
 		if c < 0 && (*cur).left != nil {
-			fmt.Printf ( "Go Left at:%s\n", godebug.LF())
+			// fmt.Printf ( "Go Left at:%s\n", godebug.LF())
 			cur = &((*cur).left)
 		} else if c > 0 && (*cur).right != nil {
-			fmt.Printf ( "Go Right at:%s\n", godebug.LF())
+			// fmt.Printf ( "Go Right at:%s\n", godebug.LF())
 			cur = &((*cur).right)
 		} else {
-			fmt.Printf ( "not found - in loop - at:%s\n", godebug.LF())
+			// fmt.Printf ( "not found - in loop - at:%s\n", godebug.LF())
 			break
 		}
 	}

@@ -246,8 +246,10 @@ func TestTreeDelete(t *testing.T) {
 	// Should have a tree that looks like *(left is highter up)*
 	//		{03} 
 	//	{08} 
-	fmt.Printf ( "%sAfter delete with 2 nodes remaining: at:%s tree=%s\n", MiscLib.ColorYellow, godebug.LF(), MiscLib.ColorReset)
-	Tree1.Dump(os.Stdout)
+	if db6 {
+		fmt.Printf ( "%sAfter delete with 2 nodes remaining: at:%s tree=%s\n", MiscLib.ColorYellow, godebug.LF(), MiscLib.ColorReset)
+		Tree1.Dump(os.Stdout)
+	}
 
 	// -------------------------------------------------------------------------------
 	// Mid-Leaf Test:
@@ -266,8 +268,10 @@ func TestTreeDelete(t *testing.T) {
 		fmt.Printf ( "at:%s tree=\n", godebug.LF())
 	   	Tree1.Dump(os.Stdout)
 	}
-	fmt.Printf ( "\nOrignal Tree at:%s tree=\n", godebug.LF())
-	Tree1.Dump(os.Stdout)
+	if db5 {
+		fmt.Printf ( "\nOrignal Tree at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
+	}
 
 	found = Tree1.Delete(TestTreeNode{S: "03"})	// Delete leaf
 	if db3 {
@@ -281,8 +285,10 @@ func TestTreeDelete(t *testing.T) {
 		t.Errorf("Expected to tree contain 4 nodes got, %d", size )
 	}
 
-	fmt.Printf ( "\nAfter 2nd Delete\nSo Far So Good AT:%s tree=\n", godebug.LF())
-	Tree1.Dump(os.Stdout)
+	if db5 {
+		fmt.Printf ( "\nAfter 2nd Delete\nSo Far So Good AT:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
+	}
 
 	found = Tree1.Delete(TestTreeNode{S: "02"})	// Delete mid node
 	if found == false {
@@ -291,8 +297,10 @@ func TestTreeDelete(t *testing.T) {
 	if size := Tree1.Length(); size != 3 {
 		t.Errorf("Expected to tree contain 3 nodes got, %d", size )
 	}
-	fmt.Printf ( "\nAfter 2nd Delete\nSo Far So Good AT:%s tree=\n", godebug.LF())
-	Tree1.Dump(os.Stdout)
+	if db5 {
+		fmt.Printf ( "\nAfter 2nd Delete\nSo Far So Good AT:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
+	}
 
 	found = Tree1.Delete(TestTreeNode{S: "00"})	// Delete mid node
 	if found == false {
@@ -301,8 +309,10 @@ func TestTreeDelete(t *testing.T) {
 	if size := Tree1.Length(); size != 2 {
 		t.Errorf("Expected to tree contain 2 nodes got, %d", size )
 	}
-	fmt.Printf ( "\nAfter 3rd Delete\nSo Far So Good AT:%s tree=\n", godebug.LF())
-	Tree1.Dump(os.Stdout)
+	if db5 {
+		fmt.Printf ( "\nAfter 3rd Delete\nSo Far So Good AT:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
+	}
 
 	found = Tree1.Delete(TestTreeNode{S: "09"})	// Delete mid node
 	if found == false {
@@ -311,11 +321,15 @@ func TestTreeDelete(t *testing.T) {
 	if size := Tree1.Length(); size != 1 {
 		t.Errorf("Expected to tree contain 1 nodes got, %d", size )
 	}
-	fmt.Printf ( "\nAfter 4rd Delete\nEnd at:%s tree=\n", godebug.LF())
-	Tree1.Dump(os.Stdout)
+	if db5 {
+		fmt.Printf ( "\nAfter 4rd Delete\nEnd at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
+	}
 }
 
 const db2 = false
-const db3 = true
+const db3 = false
 const db4 = false
+const db5 = false
+const db6 = false
 
