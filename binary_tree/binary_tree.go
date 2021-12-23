@@ -40,6 +40,12 @@ func (tt BinaryTree[T]) IsEmpty() bool {
 	return tt.root == nil 
 }
 
+// Truncate removes all data from the tree.
+func (tt *BinaryTree[T]) Truncate()  {
+	(*tt).root = nil 
+	(*tt).length = 0
+}
+
 // Insert will add a new item to the tree.  If it is a duplicate of an exiting
 // item the new item will replace the existing one.
 func (tt *BinaryTree[T]) Insert(item T) {
@@ -132,6 +138,61 @@ func (tt *BinaryTree[T]) Dump(fo *os.File) {
 }
 
 
+func (tt *BinaryTree[T]) Remove(find T) ( found bool ) {
+	if tt == nil {
+		panic ( "tree sholud not be a nil" )
+	}
+	if (*tt).IsEmpty() {
+		return false
+	}
+
+	findLeftMostInRightSubtree := func ( parent **BinaryTreeNode[T] ) ( found bool, pAtIt **BinaryTreeNode[T] ) {
+		fmt.Printf ( "at:%s\n", godebug.LF())
+		this := **parent
+		for this.right != nil {
+			fmt.Printf ( "at:%s\n", godebug.LF())
+			parent = &(this.right)
+			this = **parent
+		}
+		fmt.Printf ( "at:%s\n", godebug.LF())
+		pAtIt = parent
+		return
+	}
+
+	// Iterative search through tree (can be used above)
+	cur := &tt.root
+	for tt != nil {
+		// fmt.Printf ( "at:%s\n", godebug.LF())
+		c := find.Compare(*(*cur).data)
+		if c == 0 {
+			// fmt.Printf ( "FOUND! now remove it! at:%s\n", godebug.LF())
+			if (*cur).left == nil && (*cur).right == nil {
+				(*cur) = nil // just delete the node, it has no children.
+			} else if (*cur).left != nil && (*cur).right == nil {
+				// Has only left children, promote them.
+			} else if (*cur).right != nil { // has both left and right children.
+				// Has only right children, promote them.
+				found, pAtIt := findLeftMostInRightSubtree ( &((*cur).right) )
+				if !found {
+				}
+				(*cur).data = (*pAtIt).data	// promote node's data.
+			}
+			return true
+		}
+		// fmt.Printf ( "at:%s\n", godebug.LF())
+		if c < 0 && (*cur).left != nil {
+			cur = &((*cur).left)
+		} else if c > 0 && (*cur).right != nil {
+			cur = &((*cur).right)
+		} else {
+			// fmt.Printf ( "at:%s\n", godebug.LF())
+			break
+		}
+	}
+	// fmt.Printf ( "NOT Found --- at:%s\n", godebug.LF())
+	return false
+}
+
 /*
 func (tt *BinaryTree[T]) Remove(find T) ( found bool ) {
 
@@ -159,7 +220,7 @@ func (tt *BinaryTree[T]) Remove(find T) ( found bool ) {
 		return false
 	}
 
-	findLeftMost := func ( parent **BinaryTree[T], find T ) ( found bool, it *BinaryTree[T], pAtIt **BinaryTree[T] ) {
+	findLeftMostInRightSubtree := func ( parent **BinaryTree[T], find T ) ( found bool, it *BinaryTree[T], pAtIt **BinaryTree[T] ) {
 		fmt.Printf ( "at:%s\n", godebug.LF())
 		this := **parent
 		for this.right != nil {
@@ -226,4 +287,4 @@ at:File: /Users/philip/go/src/github.com/pschlump/pluto/binary_tree/binary_tree_
 }
 */
 
-const db1 = true
+const db1 = false // print in IsEmpty
