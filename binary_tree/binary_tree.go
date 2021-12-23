@@ -7,8 +7,27 @@ BSD 3 Clause Licensed.
 */
 
 /*
-	-- Add "Depth" -> int to get deepest part of tree
-	-- Add "WalkInOrder, WalkPreOrder, WalkPostOrder"
+
+Basic operations on a Binary Tree.
+
+* 	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(log|2(n))
++ 	DeleteAtHead — Deletes the first element of the linked list.  								O(log|2(n))
+		Delete ( FindMin ( ) )
++ 	DeleteAtTail — Deletes the last element of the linked list. 								O(log|2(n))
+		Delete ( FindMax ( ) )
++ 	Index - return the Nth item	in the list - in a format usable with Delete.					O(n) 
+* 	IsEmpty — Returns true if the linked list is empty											O(1)
+* 	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
++ 	Reverse - Reverse all the nodes in list. 													O(n)
+* 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(log|2(n))
+* 	Truncate - Delete all the nodes in list. 													O(1)
++	FindMin
++	FindMax
++	"Depth" -> int to get deepest part of tree
++	WalkInOrder
++	WalkPreOrder
++	WalkPostOrder
+
 */
 
 import (
@@ -18,6 +37,7 @@ import (
 
 	"github.com/pschlump/pluto/comparable"
 	"github.com/pschlump/godebug"
+	"github.com/pschlump/pluto/g_lib"
 	// "github.com/pschlump/MiscLib"
 )
 
@@ -116,7 +136,7 @@ func (tt *BinaryTree[T]) Search(find T) ( item *T ) {
 
 // Dump will print out the tree to the file `fo`.
 func (tt *BinaryTree[T]) Dump(fo *os.File) {
-	var inorderTraversal func ( tt *BinaryTreeNode[T], n int, fo *os.File )
+	var inorderTraversal func ( cur *BinaryTreeNode[T], n int, fo *os.File )
 	inorderTraversal = func ( cur *BinaryTreeNode[T], n int, fo *os.File ) {
 		if cur == nil {
 			return
@@ -215,5 +235,239 @@ func (tt *BinaryTree[T]) Delete(find T) ( found bool ) {
 {05}
     {09}
 */
+
+func (tt *BinaryTree[T]) FindMin() ( item *T ) {
+	if tt == nil {
+		panic ( "tree sholud not be a nil" )
+	}
+	if (*tt).IsEmpty() {
+		return nil
+	}
+
+	// Iterative search through tree (can be used above)
+	cur := tt.root
+	if (*cur).left == nil {
+		return (*cur).data
+	}
+	for cur.left != nil {
+		cur = (*cur).left 
+	}
+	return (*cur).left.data
+}
+
+func (tt *BinaryTree[T]) FindMax() ( item *T ) {
+	if tt == nil {
+		panic ( "tree sholud not be a nil" )
+	}
+	if (*tt).IsEmpty() {
+		return nil
+	}
+
+	// Iterative search through tree (can be used above)
+	cur := tt.root
+	if (*cur).right == nil {
+		return (*cur).data
+	}
+	for cur.right != nil {
+		cur = (*cur).right 
+	}
+	return (*cur).left.data
+}
+
+func (tt *BinaryTree[T]) DeleteAtHead(find T) ( found bool ) {
+	if tt == nil {
+		panic ( "tree sholud not be a nil" )
+	}
+	if (*tt).IsEmpty() {
+		return false
+	}
+
+	x := tt.FindMin()
+	tt.Delete ( *x )
+	return true
+}
+
+func (tt *BinaryTree[T]) DeleteAtTail(find T) ( found bool ) {
+	if tt == nil {
+		panic ( "tree sholud not be a nil" )
+	}
+	if (*tt).IsEmpty() {
+		return false
+	}
+
+	x := tt.FindMax()
+	tt.Delete ( *x )
+	return true
+}
+
+func (tt *BinaryTree[T]) Reverse() {
+	if tt == nil {
+		panic ( "tree sholud not be a nil" )
+	}
+	if (*tt).IsEmpty() {
+		return 
+	}
+
+	var postTraversal func ( cur *BinaryTreeNode[T] )
+	postTraversal = func ( cur *BinaryTreeNode[T] ) {
+		if cur == nil {
+			return
+		}
+		if (*cur).left != nil {
+			postTraversal ( (*cur).left )
+		}
+		if (*cur).right != nil {
+			postTraversal ( (*cur).right )
+		}
+		(*cur).left, (*cur).right = (*cur).right, (*cur).left
+	}
+	postTraversal ( tt.root )
+}
+
+func (tt *BinaryTree[T]) Index(pos int) ( item *T ) {
+	if tt == nil {
+		panic ( "tree sholud not be a nil" )
+	}
+	if (*tt).IsEmpty() {
+		return nil
+	}
+
+	var n = 0
+	var inorderTraversal func ( cur *BinaryTreeNode[T] )
+	inorderTraversal = func ( cur *BinaryTreeNode[T] ) {
+		if cur == nil {
+			return
+		}
+		n++
+		if n < pos {
+			if (*cur).left != nil {
+				inorderTraversal ( (*cur).left )
+			}
+		}
+		if n == (pos-1) {
+			item = cur.data
+		}
+		if n < pos {
+			if (*cur).right != nil {
+				inorderTraversal ( (*cur).right )
+			}
+		}
+	}
+	inorderTraversal ( tt.root )
+	return
+}
+
+func (tt *BinaryTree[T]) Depth() ( d int ) {
+	if tt == nil {
+		panic ( "tree sholud not be a nil" )
+	}
+	if (*tt).IsEmpty() {
+		return 0
+	}
+
+	d = 0
+	var inorderTraversal func ( cur *BinaryTreeNode[T] )
+	inorderTraversal = func ( cur *BinaryTreeNode[T] ) {
+		if cur == nil {
+			return
+		}
+		if (*cur).left != nil {
+			inorderTraversal ( (*cur).left )
+			d = g_lib.Max[int]( d, d+1 )
+		}
+		if (*cur).right != nil {
+			inorderTraversal ( (*cur).right )
+			d = g_lib.Max[int]( d, d+1 )
+		}
+	}
+	if tt.root != nil {
+		inorderTraversal ( tt.root )
+	} 
+	return
+}
+
+type ApplyFunction[T comparable.Comparable] func ( pos, depth int, data *T, userData interface{} ) bool
+
+func (tt *BinaryTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) {
+
+	p := 0
+	b := true
+	var inorderTraversal func ( cur *BinaryTreeNode[T], n int )
+	inorderTraversal = func ( cur *BinaryTreeNode[T], n int ) {
+		if cur == nil {
+			return
+		}
+		if b { 
+			if (*cur).left != nil {
+				inorderTraversal ( (*cur).left, n+1 )
+			}
+		}
+		// ----------------------------------------------------------------------
+		b = b && fx ( p, n, (*cur).data, userData )
+		p++
+		// ----------------------------------------------------------------------
+		if b {
+			if (*cur).right != nil {
+				inorderTraversal ( (*cur).right, n+1 )
+			}
+		}
+	}
+	inorderTraversal ( tt.root, 0 )
+}
+
+func (tt *BinaryTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
+
+	p := 0
+	b := true
+	var preOrderTraversal func ( cur *BinaryTreeNode[T], n int )
+	preOrderTraversal = func ( cur *BinaryTreeNode[T], n int ) {
+		if cur == nil {
+			return
+		}
+		// ----------------------------------------------------------------------
+		b = b && fx ( p, n, (*cur).data, userData )
+		// ----------------------------------------------------------------------
+		if b { 
+			if (*cur).left != nil {
+				preOrderTraversal ( (*cur).left, n+1 )
+			}
+		}
+		p++
+		if b {
+			if (*cur).right != nil {
+				preOrderTraversal ( (*cur).right, n+1 )
+			}
+		}
+	}
+	preOrderTraversal ( tt.root, 0 )
+}
+
+func (tt *BinaryTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
+
+	p := 0
+	b := true
+	var postOrderTraversal func ( cur *BinaryTreeNode[T], n int )
+	postOrderTraversal = func ( cur *BinaryTreeNode[T], n int ) {
+		if cur == nil {
+			return
+		}
+		if b { 
+			if (*cur).left != nil {
+				postOrderTraversal ( (*cur).left, n+1 )
+			}
+		}
+		p++
+		if b {
+			if (*cur).right != nil {
+				postOrderTraversal ( (*cur).right, n+1 )
+			}
+		}
+		// ----------------------------------------------------------------------
+		b = b && fx ( p, n, (*cur).data, userData )
+		// ----------------------------------------------------------------------
+	}
+	postOrderTraversal ( tt.root, 0 )
+}
+
 
 const db1 = false // print in IsEmpty
