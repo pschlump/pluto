@@ -49,6 +49,7 @@ import (
 
 	"github.com/pschlump/godebug"
 	"github.com/pschlump/pluto/comparable"
+	"github.com/pschlump/MiscLib"
 )
 
 // TestTreeNode is an Inteface Matcing data type for the Nodes that supports the Comparable 
@@ -143,40 +144,6 @@ func TestTreeInsertSearch(t *testing.T) {
 
 }
 
-func TestTreeDelete(t *testing.T) {
-
-	var Tree1 BinaryTree[TestTreeNode]
-
-	// Build this tree:
-	//			{00}
-	//		{02}
-	//			{03}
-	//	{05}
-	//		{09}
-	Tree1.Insert(TestTreeNode{S: "05"})
-	Tree1.Insert(TestTreeNode{S: "02"})
-	Tree1.Insert(TestTreeNode{S: "09"})
-	Tree1.Insert(TestTreeNode{S: "00"})
-	Tree1.Insert(TestTreeNode{S: "03"})
-	if db3 {
-		fmt.Printf ( "at:%s tree=\n", godebug.LF())
-	   	Tree1.Dump(os.Stdout)
-	}
-
-	/*
-	TODO ----------- TODO ----------- TODO ----------- TODO ----------- TODO ----------- TODO ----------- 
-	found := Tree1.Remove(TestTreeNode{S: "00"})	// Delete leaf
-	if db3 {
-		fmt.Printf ( "at:%s tree=\n", godebug.LF())
-	   	Tree1.Dump(os.Stdout)
-	}
-	if found == false {
-		t.Errorf("Expected to find find a node to delete, did not." )
-	}
-	*/
-
-}
-
 // TEST TODO: func (tt *Binarytree[T]) Truncate()  {
 func TestTreeTruncate(t *testing.T) {
 
@@ -206,6 +173,146 @@ func TestTreeTruncate(t *testing.T) {
 		}
 	}
 
+}
+
+// test deleting node from tree.  This is a set of tests on .Delete() that tries
+// works through all possible configurations of trees.
+func TestTreeDelete(t *testing.T) {
+
+	var Tree1 BinaryTree[TestTreeNode]
+
+	// Build this tree (eventually):
+	//			{00}
+	//		{02}
+	//			{03}
+	//	{05}
+	//		{09}
+
+	// -------------------------------------------------------------------------------
+	// Delete from Empty tree 
+	found := Tree1.Delete(TestTreeNode{S: "05"})	// Delete called on empty tree.
+	if found == true {
+		t.Errorf("Found node in empty tree." )
+	}
+
+	// -------------------------------------------------------------------------------
+	// Root-Test: Delete from tree with a single root node.
+	Tree1.Insert(TestTreeNode{S: "05"})
+	found = Tree1.Delete(TestTreeNode{S: "05"})	// Delete leaf (Only Node in tree)
+	if found == false {
+		t.Errorf("Expected to find find a node to delete, did not." )
+	}
+	if size := Tree1.Length(); size != 0 {
+		t.Errorf("Expected to empty tree got, %d", size )
+		fmt.Printf ( "Shoudl be empty but is: at:%s tree=\n", godebug.LF())
+	   	Tree1.Dump(os.Stdout)
+	}
+
+	// -------------------------------------------------------------------------------
+	// Root-Test: Delete from tree with a root node and a left sub-tree
+	Tree1.Insert(TestTreeNode{S: "05"})
+	Tree1.Insert(TestTreeNode{S: "03"})
+	found = Tree1.Delete(TestTreeNode{S: "05"})	// Delete Tree with 1 side node.
+	if size := Tree1.Length(); size != 1 {
+		t.Errorf("Expected to tree contain 1 node got, %d", size )
+		fmt.Printf ( "Shoudl be single node, but is: at:%s tree=\n", godebug.LF())
+	   	Tree1.Dump(os.Stdout)
+	}
+
+	// -------------------------------------------------------------------------------
+	// Root-Test: Delete from tree with a root node and a right sub-tree
+	Tree1.Truncate()		// This tests tree.Trundate() also.
+	Tree1.Insert(TestTreeNode{S: "05"})
+	Tree1.Insert(TestTreeNode{S: "08"})
+	found = Tree1.Delete(TestTreeNode{S: "05"})	// Delete Tree with 1 side node.
+	if size := Tree1.Length(); size != 1 {
+		t.Errorf("Expected to tree contain 1 node got, %d", size )
+		fmt.Printf ( "Shoudl be single node, but is: at:%s tree=\n", godebug.LF())
+	   	Tree1.Dump(os.Stdout)
+	}
+
+	// -------------------------------------------------------------------------------
+	// Root-Test: Delete root node with 2 sub trees.
+	Tree1.Truncate()
+	Tree1.Insert(TestTreeNode{S: "05"})
+	Tree1.Insert(TestTreeNode{S: "08"})
+	Tree1.Insert(TestTreeNode{S: "03"})
+	found = Tree1.Delete(TestTreeNode{S: "05"})	// Delete Tree with left and right children.
+	if size := Tree1.Length(); size != 2 {
+		t.Errorf("Expected to tree contain 2 nodes got, %d", size )
+		fmt.Printf ( "Shoudl be empty but is: at:%s tree=\n", godebug.LF())
+	   	Tree1.Dump(os.Stdout)
+	}
+	// Should have a tree that looks like *(left is highter up)*
+	//		{03} 
+	//	{08} 
+	fmt.Printf ( "%sAfter delete with 2 nodes remaining: at:%s tree=%s\n", MiscLib.ColorYellow, godebug.LF(), MiscLib.ColorReset)
+	Tree1.Dump(os.Stdout)
+
+	// -------------------------------------------------------------------------------
+	// Mid-Leaf Test:
+
+
+	// -------------------------------------------------------------------------------
+	// Original Delete test.
+
+	Tree1.Truncate()
+	Tree1.Insert(TestTreeNode{S: "05"})
+	Tree1.Insert(TestTreeNode{S: "02"})
+	Tree1.Insert(TestTreeNode{S: "09"})
+	Tree1.Insert(TestTreeNode{S: "00"})
+	Tree1.Insert(TestTreeNode{S: "03"})
+	if db3 {
+		fmt.Printf ( "at:%s tree=\n", godebug.LF())
+	   	Tree1.Dump(os.Stdout)
+	}
+	fmt.Printf ( "\nOrignal Tree at:%s tree=\n", godebug.LF())
+	Tree1.Dump(os.Stdout)
+
+	found = Tree1.Delete(TestTreeNode{S: "03"})	// Delete leaf
+	if db3 {
+		fmt.Printf ( "at:%s tree=\n", godebug.LF())
+	   	Tree1.Dump(os.Stdout)
+	}
+	if found == false {
+		t.Errorf("Expected to find find a node to delete, did not." )
+	}
+	if size := Tree1.Length(); size != 4 {
+		t.Errorf("Expected to tree contain 4 nodes got, %d", size )
+	}
+
+	fmt.Printf ( "\nAfter 2nd Delete\nSo Far So Good AT:%s tree=\n", godebug.LF())
+	Tree1.Dump(os.Stdout)
+
+	found = Tree1.Delete(TestTreeNode{S: "02"})	// Delete mid node
+	if found == false {
+		t.Errorf("Expected to find find a node to delete, did not." )
+	}
+	if size := Tree1.Length(); size != 3 {
+		t.Errorf("Expected to tree contain 3 nodes got, %d", size )
+	}
+	fmt.Printf ( "\nAfter 2nd Delete\nSo Far So Good AT:%s tree=\n", godebug.LF())
+	Tree1.Dump(os.Stdout)
+
+	found = Tree1.Delete(TestTreeNode{S: "00"})	// Delete mid node
+	if found == false {
+		t.Errorf("Expected to find find a node to delete, did not." )
+	}
+	if size := Tree1.Length(); size != 2 {
+		t.Errorf("Expected to tree contain 2 nodes got, %d", size )
+	}
+	fmt.Printf ( "\nAfter 3rd Delete\nSo Far So Good AT:%s tree=\n", godebug.LF())
+	Tree1.Dump(os.Stdout)
+
+	found = Tree1.Delete(TestTreeNode{S: "09"})	// Delete mid node
+	if found == false {
+		t.Errorf("Expected to find find a node to delete, did not." )
+	}
+	if size := Tree1.Length(); size != 1 {
+		t.Errorf("Expected to tree contain 1 nodes got, %d", size )
+	}
+	fmt.Printf ( "\nAfter 4rd Delete\nEnd at:%s tree=\n", godebug.LF())
+	Tree1.Dump(os.Stdout)
 }
 
 const db2 = false

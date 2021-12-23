@@ -18,7 +18,7 @@ import (
 
 	"github.com/pschlump/pluto/comparable"
 	"github.com/pschlump/godebug"
-	// "github.com/pschlump/MiscLib"
+	"github.com/pschlump/MiscLib"
 )
 
 type BinaryTreeNode[T comparable.Comparable] struct {
@@ -129,7 +129,7 @@ func (tt *BinaryTree[T]) Dump(fo *os.File) {
 		if (*cur).left != nil {
 			inorderTraversal ( (*cur).left, n+1, fo);
 		}
-		fmt.Printf ( "%s%v (left=%p/%p, right=%p/%p) self=%p\n", strings.Repeat(" ",4*n), *((*cur).data), (*cur).left, &((*cur).left), (*cur).right, &((*cur).right), cur )
+		fmt.Printf ( "%s%v%s (left=%p/%p, right=%p/%p) self=%p\n", strings.Repeat(" ",4*n), *((*cur).data), strings.Repeat(" ",20-(4*n)),  (*cur).left, &((*cur).left), (*cur).right, &((*cur).right), cur )
 		if (*cur).right != nil {
 			inorderTraversal ( (*cur).right, n+1, fo);
 		}
@@ -138,7 +138,7 @@ func (tt *BinaryTree[T]) Dump(fo *os.File) {
 }
 
 
-func (tt *BinaryTree[T]) Remove(find T) ( found bool ) {
+func (tt *BinaryTree[T]) Delete(find T) ( found bool ) {
 	if tt == nil {
 		panic ( "tree sholud not be a nil" )
 	}
@@ -147,45 +147,65 @@ func (tt *BinaryTree[T]) Remove(find T) ( found bool ) {
 	}
 
 	findLeftMostInRightSubtree := func ( parent **BinaryTreeNode[T] ) ( found bool, pAtIt **BinaryTreeNode[T] ) {
-		fmt.Printf ( "at:%s\n", godebug.LF())
+		fmt.Printf ( "%sFindLeftMost/At Top: at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
 		this := **parent
+		if *parent == nil {
+			fmt.Printf ( "%sFindLeftMost/no tree: at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+			return
+		}
 		for this.right != nil {
-			fmt.Printf ( "at:%s\n", godebug.LF())
+			fmt.Printf ( "%sAdvance 1 step. at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
 			parent = &(this.right)
 			this = **parent
 		}
-		fmt.Printf ( "at:%s\n", godebug.LF())
+		fmt.Printf ( "%sat bottom at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+		found = true
 		pAtIt = parent
 		return
 	}
 
 	// Iterative search through tree (can be used above)
-	cur := &tt.root
+	cur := &tt.root	// ptr to ptr to tree
 	for tt != nil {
 		// fmt.Printf ( "at:%s\n", godebug.LF())
 		c := find.Compare(*(*cur).data)
 		if c == 0 {
-			// fmt.Printf ( "FOUND! now remove it! at:%s\n", godebug.LF())
+			fmt.Printf ( "FOUND! now remove it! at:%s\n", godebug.LF())
+			(*tt).length --
 			if (*cur).left == nil && (*cur).right == nil {
+				fmt.Printf ( "at:%s\n", godebug.LF())
 				(*cur) = nil // just delete the node, it has no children.
 			} else if (*cur).left != nil && (*cur).right == nil {
-				// Has only left children, promote them.
-			} else if (*cur).right != nil { // has both left and right children.
+				fmt.Printf ( "at:%s\n", godebug.LF())
+				(*cur) = (*cur).left // Has only left children, promote them.
+			} else if (*cur).left == nil && (*cur).right != nil {
+				fmt.Printf ( "at:%s\n", godebug.LF())
+				(*cur) = (*cur).right // Has only right children, promote them.
+			} else { // has both children.
+				fmt.Printf ( "at:%s\n", godebug.LF())
 				// Has only right children, promote them.
-				found, pAtIt := findLeftMostInRightSubtree ( &((*cur).right) )
+				found, pAtIt := findLeftMostInRightSubtree ( &((*cur).right) )	// Find lft mos of right sub-tree
 				if !found {
+					fmt.Printf ( "%sAbout to Panic: Failed to have a subtree. AT:%s%s\n", MiscLib.ColorRed, godebug.LF(), MiscLib.ColorReset)
+					panic ( "Can't have a missing sub-tree." )
 				}
+				fmt.Printf ( "at:%s\n", godebug.LF())
 				(*cur).data = (*pAtIt).data	// promote node's data.
+				fmt.Printf ( "at:%s\n", godebug.LF())
+				(*pAtIt) = (*pAtIt).right // Left most can have a right sub-tree - but it is left most so it can't have a more left tree.
+				fmt.Printf ( "at:%s\n", godebug.LF())
 			}
 			return true
 		}
 		// fmt.Printf ( "at:%s\n", godebug.LF())
 		if c < 0 && (*cur).left != nil {
+			fmt.Printf ( "Go Left at:%s\n", godebug.LF())
 			cur = &((*cur).left)
 		} else if c > 0 && (*cur).right != nil {
+			fmt.Printf ( "Go Right at:%s\n", godebug.LF())
 			cur = &((*cur).right)
 		} else {
-			// fmt.Printf ( "at:%s\n", godebug.LF())
+			fmt.Printf ( "not found - in loop - at:%s\n", godebug.LF())
 			break
 		}
 	}
@@ -194,97 +214,11 @@ func (tt *BinaryTree[T]) Remove(find T) ( found bool ) {
 }
 
 /*
-func (tt *BinaryTree[T]) Remove(find T) ( found bool ) {
-
-	// This is a little bit tricky.  To delare a local pointer to a function
-	// that can recursivly call itslef you have to first declare the pointer
-	// then initialize the pointer.   If you try to do this in one step 
-	// it will error.  The variable is not declared until the end of the
-	// funtion that initialized it - so it can't be used inside itself.
-	var internalRemove func ( parent **BinaryTree[T], find T ) bool 
-	internalRemove = func ( parent **BinaryTree[T], find T ) bool {
-		// this := **parent
-		fmt.Printf ( "interalRemove Top at:%s node=%+v\n", godebug.LF(), *((**parent).data))
-		if cc := find.Compare ( *((**parent).data) ) ; cc == 0 {
-			fmt.Printf ( "%sFound%s ! at:%s, *parent=%p/%p (**parent).left=%p\n", MiscLib.ColorGreen, MiscLib.ColorReset, godebug.LF(), *parent, parent, (**parent).left)
-			*parent = (**parent).left
-			return true
-		} else if cc < 0 && (**parent).left != nil {
-			fmt.Printf ( "at:%s\n", godebug.LF())
-			return internalRemove ( &(**parent).left, find ) 
-		} else if cc > 0 && (**parent).right != nil {
-			fmt.Printf ( "at:%s\n", godebug.LF())
-			return internalRemove ( &(**parent).right, find )
-		} 
-		fmt.Printf ( "at:%s\n", godebug.LF())
-		return false
-	}
-
-	findLeftMostInRightSubtree := func ( parent **BinaryTree[T], find T ) ( found bool, it *BinaryTree[T], pAtIt **BinaryTree[T] ) {
-		fmt.Printf ( "at:%s\n", godebug.LF())
-		this := **parent
-		for this.right != nil {
-			fmt.Printf ( "at:%s\n", godebug.LF())
-			parent = &(this.right)
-			this = **parent
-		}
-		fmt.Printf ( "at:%s\n", godebug.LF())
-		it = (*parent)
-		pAtIt = parent
-		return
-	}
-
-	if c := find.Compare(*tt.data); c == 0 {
-		fmt.Printf ( "at:%s\n", godebug.LF())
-		// Found at "top" node.
-		if (*tt).right != nil {
-			// I think I need to go find the "left most" child in the right sub-tree
-			fmt.Printf ( "at:%s\n", godebug.LF())
-			found, it, pAtIt := findLeftMost ( &tt.right, find ) 
-			if found {
-				fmt.Printf ( "at:%s\n", godebug.LF())
-				(*tt).data = it.data
-				(*pAtIt) = it.right	// if most right node has a left node then promot it.
-			} else {
-				panic ( "Malformed Tree" )
-			}
-		} else if (*tt).left != nil {
-			fmt.Printf ( "at:%s\n", godebug.LF())
-			(*tt).data = ((*tt).left.data)
-			(*tt).left = ((*tt).left.left)
-		} else {
-			fmt.Printf ( "at:%s\n", godebug.LF())
-			(*tt).data = nil
-		}
-		return true
-	} else if c < 0 && tt.left != nil {
-		fmt.Printf ( "at:%s\n", godebug.LF())
-		return internalRemove ( &tt.left, find )
-	} else if c > 0 && tt.left != nil {
-		fmt.Printf ( "at:%s\n", godebug.LF())
-		return internalRemove ( &tt.right, find )
-	} else {
-		fmt.Printf ( "at:%s\n", godebug.LF())
-		return false
-	}
-	fmt.Printf ( "at:%s\n", godebug.LF())
-
-	return
-	/ *
-at:File: /Users/philip/go/src/github.com/pschlump/pluto/binary_tree/binary_tree.go LineNo:158
-interalRemove Top at:File: /Users/philip/go/src/github.com/pschlump/pluto/binary_tree/binary_tree.go LineNo:105 node={S:02}
-at:File: /Users/philip/go/src/github.com/pschlump/pluto/binary_tree/binary_tree.go LineNo:110
-interalRemove Top at:File: /Users/philip/go/src/github.com/pschlump/pluto/binary_tree/binary_tree.go LineNo:105 node={S:00}
-at:File: /Users/philip/go/src/github.com/pschlump/pluto/binary_tree/binary_tree.go LineNo:107
-at:File: /Users/philip/go/src/github.com/pschlump/pluto/binary_tree/binary_tree.go LineNo:116
-at:File: /Users/philip/go/src/github.com/pschlump/pluto/binary_tree/binary_tree_test.go LineNo:129 tree=
         {00}
     {02}
         {03}
 {05}
     {09}
-	* /
-}
 */
 
 const db1 = false // print in IsEmpty
