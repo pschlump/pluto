@@ -11,19 +11,21 @@ BSD 3 Clause Licensed.
 Basic operations on a Binary Tree.
 
 * 	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(log|2(n))
-+ 	DeleteAtHead — Deletes the first element of the linked list.  								O(log|2(n))
-		Delete ( FindMin ( ) )
-+ 	DeleteAtTail — Deletes the last element of the linked list. 								O(log|2(n))
-		Delete ( FindMax ( ) )
-+ 	Index - return the Nth item	in the list - in a format usable with Delete.					O(n) 
+* 	Index - return the Nth item	in the list - in a format usable with Delete.					O(n) 
 * 	IsEmpty — Returns true if the linked list is empty											O(1)
 * 	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
-+ 	Reverse - Reverse all the nodes in list. 													O(n)
+* 	Reverse - Reverse all the nodes in list. 													O(n)
 * 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(log|2(n))
 * 	Truncate - Delete all the nodes in list. 													O(1)
 *	FindMin
 *	FindMax
-+	"Depth" -> int to get deepest part of tree
+*	Depth -> int to get deepest part of tree
+
+* 	DeleteAtHead — Deletes the first element of the linked list.  								O(log|2(n))
+		Delete ( FindMin ( ) )
+* 	DeleteAtTail — Deletes the last element of the linked list. 								O(log|2(n))
+		Delete ( FindMax ( ) )
+
 +	WalkInOrder
 +	WalkPreOrder
 +	WalkPostOrder
@@ -274,7 +276,7 @@ func (tt *BinaryTree[T]) FindMax() ( item *T ) {
 	return (*cur).data
 }
 
-func (tt *BinaryTree[T]) DeleteAtHead(find T) ( found bool ) {
+func (tt *BinaryTree[T]) DeleteAtHead() ( found bool ) {
 	if tt == nil {
 		panic ( "tree sholud not be a nil" )
 	}
@@ -287,7 +289,7 @@ func (tt *BinaryTree[T]) DeleteAtHead(find T) ( found bool ) {
 	return true
 }
 
-func (tt *BinaryTree[T]) DeleteAtTail(find T) ( found bool ) {
+func (tt *BinaryTree[T]) DeleteAtTail() ( found bool ) {
 	if tt == nil {
 		panic ( "tree sholud not be a nil" )
 	}

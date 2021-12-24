@@ -352,8 +352,9 @@ func TestTreeIndex(t *testing.T) {
 	   	Tree1.Dump(os.Stdout)
 	}
 
-	fmt.Printf ( "\nBefore ------------------------------\n" )
-	Tree1.Dump(os.Stdout)
+	// fmt.Printf ( "\nBefore ------------------------------\n" )
+	// Tree1.Dump(os.Stdout)
+
 	x := Tree1.Index(0) 
 	if x == nil {
 		t.Errorf("Error, nil returend for 0 index")
@@ -376,12 +377,85 @@ func TestTreeIndex(t *testing.T) {
 	}
 }
 
+
+func TestTreeRevese(t *testing.T) {
+	// func (tt *BinaryTree[T]) Reverse() {
+	var Tree1 BinaryTree[TestTreeNode]
+
+	Tree1.Insert(TestTreeNode{S: "05"})
+	Tree1.Insert(TestTreeNode{S: "02"})
+	Tree1.Insert(TestTreeNode{S: "09"})
+	Tree1.Insert(TestTreeNode{S: "00"})
+	Tree1.Insert(TestTreeNode{S: "03"})
+	if db3 {
+		fmt.Printf ( "at:%s tree=\n", godebug.LF())
+	   	Tree1.Dump(os.Stdout)
+	}
+
+	Tree1.Reverse() 
+
+	fmt.Printf ( "\nAfter ------------------------------\n" )
+	Tree1.Dump(os.Stdout)
+
+	if size := Tree1.Length(); size != 5 {
+		t.Errorf("Error")
+	}
+}
+
+func TestTreeDeleteAtTail(t *testing.T) {
+	// func (tt *BinaryTree[T]) DeleteAtTail(find T) ( found bool ) {
+	var Tree1 BinaryTree[TestTreeNode]
+
+	Tree1.Insert(TestTreeNode{S: "05"})
+	Tree1.Insert(TestTreeNode{S: "02"})
+	Tree1.Insert(TestTreeNode{S: "09"})
+	Tree1.Insert(TestTreeNode{S: "00"})
+	Tree1.Insert(TestTreeNode{S: "03"})
+	if db3 {
+		fmt.Printf ( "at:%s tree=\n", godebug.LF())
+	   	Tree1.Dump(os.Stdout)
+	}
+
+	found := Tree1.DeleteAtTail() 
+
+	fmt.Printf ( "\nAfter ------------------------------ %v\n", found )
+	Tree1.Dump(os.Stdout)
+
+	if size := Tree1.Length(); size != 4 {
+		t.Errorf("Error")
+	}
+}
+
+
+func TestTreeDeleteAtHead(t *testing.T) {
+	// func (tt *BinaryTree[T]) DeleteAtHead(find T) ( found bool ) {
+	var Tree1 BinaryTree[TestTreeNode]
+
+	Tree1.Insert(TestTreeNode{S: "05"})
+	Tree1.Insert(TestTreeNode{S: "02"})
+	Tree1.Insert(TestTreeNode{S: "09"})
+	Tree1.Insert(TestTreeNode{S: "00"})
+	Tree1.Insert(TestTreeNode{S: "03"})
+	if db3 {
+		fmt.Printf ( "at:%s tree=\n", godebug.LF())
+	   	Tree1.Dump(os.Stdout)
+	}
+
+	found := Tree1.DeleteAtHead() 
+
+	fmt.Printf ( "\nAfter ------------------------------ %v\n", found )
+	Tree1.Dump(os.Stdout)
+
+	if size := Tree1.Length(); size != 4 {
+		t.Errorf("Error")
+	}
+}
+
 /*
-func (tt *BinaryTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
 type ApplyFunction[T comparable.Comparable] func ( pos, depth int, data *T, userData interface{} ) bool
-func (tt *BinaryTree[T]) Reverse() {
-func (tt *BinaryTree[T]) DeleteAtTail(find T) ( found bool ) {
-func (tt *BinaryTree[T]) DeleteAtHead(find T) ( found bool ) {
+func (tt *BinaryTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
+func (tt *BinaryTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) {
+func (tt *BinaryTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
 */
 
 const db2 = false
