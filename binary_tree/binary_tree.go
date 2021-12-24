@@ -21,8 +21,8 @@ Basic operations on a Binary Tree.
 + 	Reverse - Reverse all the nodes in list. 													O(n)
 * 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(log|2(n))
 * 	Truncate - Delete all the nodes in list. 													O(1)
-+	FindMin
-+	FindMax
+*	FindMin
+*	FindMax
 +	"Depth" -> int to get deepest part of tree
 +	WalkInOrder
 +	WalkPreOrder
@@ -252,7 +252,7 @@ func (tt *BinaryTree[T]) FindMin() ( item *T ) {
 	for cur.left != nil {
 		cur = (*cur).left 
 	}
-	return (*cur).left.data
+	return (*cur).data
 }
 
 func (tt *BinaryTree[T]) FindMax() ( item *T ) {
@@ -271,7 +271,7 @@ func (tt *BinaryTree[T]) FindMax() ( item *T ) {
 	for cur.right != nil {
 		cur = (*cur).right 
 	}
-	return (*cur).left.data
+	return (*cur).data
 }
 
 func (tt *BinaryTree[T]) DeleteAtHead(find T) ( found bool ) {
@@ -338,15 +338,19 @@ func (tt *BinaryTree[T]) Index(pos int) ( item *T ) {
 		if cur == nil {
 			return
 		}
-		n++
+		fmt.Printf ( "Top n=%d, pos=%d, at:%s\n", n, pos, godebug.LF() )
 		if n < pos {
 			if (*cur).left != nil {
 				inorderTraversal ( (*cur).left )
 			}
 		}
-		if n == (pos-1) {
-			item = cur.data
+		fmt.Printf ( "InOrder - Before Set, Top n=%d, pos=%d, at:%s\n", n, pos, godebug.LF() )
+		if n == pos {
+			item = (*cur).data
+			fmt.Printf ( "*********** (set) Top n=%d, pos=%d, ->%+v<- at:%s\n", n, pos, item, godebug.LF() )
 		}
+		n++
+		fmt.Printf ( "Top n=%d, pos=%d, at:%s\n", n, pos, godebug.LF() )
 		if n < pos {
 			if (*cur).right != nil {
 				inorderTraversal ( (*cur).right )

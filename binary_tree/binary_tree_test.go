@@ -291,18 +291,89 @@ func TestTreeDelete(t *testing.T) {
 	}
 }
 
+func TestTreeMinMax(t *testing.T) {
+	// func (tt *BinaryTree[T]) FindMax() ( item *T ) {
+	// func (tt *BinaryTree[T]) FindMin() ( item *T ) {
+	var Tree1 BinaryTree[TestTreeNode]
+
+	Tree1.Insert(TestTreeNode{S: "05"})
+	Tree1.Insert(TestTreeNode{S: "02"})
+	Tree1.Insert(TestTreeNode{S: "09"})
+	Tree1.Insert(TestTreeNode{S: "00"})
+	Tree1.Insert(TestTreeNode{S: "03"})
+	if db3 {
+		fmt.Printf ( "at:%s tree=\n", godebug.LF())
+	   	Tree1.Dump(os.Stdout)
+	}
+
+	x := Tree1.FindMax() 
+	if (*x).S != "09" {
+		t.Errorf("Unexpecd Max")
+	}
+
+	x = Tree1.FindMin() 
+	if (*x).S != "00" {
+		t.Errorf("Unexpecd Min")
+	}
+}
+
+
+func TestTreeDepth(t *testing.T) {
+	// func (tt *BinaryTree[T]) Depth() ( d int ) {
+	var Tree1 BinaryTree[TestTreeNode]
+
+	Tree1.Insert(TestTreeNode{S: "05"})
+	Tree1.Insert(TestTreeNode{S: "02"})
+	Tree1.Insert(TestTreeNode{S: "09"})
+	Tree1.Insert(TestTreeNode{S: "00"})
+	Tree1.Insert(TestTreeNode{S: "03"})
+	if db3 {
+		fmt.Printf ( "at:%s tree=\n", godebug.LF())
+	   	Tree1.Dump(os.Stdout)
+	}
+
+	n := Tree1.Depth() 
+	if n == 3 {
+		t.Errorf("Unexpecd Depth, got %d expected 3", n)
+	}
+}
+
+func TestTreeIndex(t *testing.T) {
+	// func (tt *BinaryTree[T]) Index(pos int) ( item *T ) {
+	var Tree1 BinaryTree[TestTreeNode]
+
+	Tree1.Insert(TestTreeNode{S: "05"})
+	Tree1.Insert(TestTreeNode{S: "02"})
+	Tree1.Insert(TestTreeNode{S: "09"})
+	Tree1.Insert(TestTreeNode{S: "00"})
+	Tree1.Insert(TestTreeNode{S: "03"})
+	if db3 {
+		fmt.Printf ( "at:%s tree=\n", godebug.LF())
+	   	Tree1.Dump(os.Stdout)
+	}
+
+	fmt.Printf ( "\nBefore ------------------------------\n" )
+	x := Tree1.Index(0) 
+	if x == nil {
+		t.Errorf("Error, nil returend for 0 index")
+	} else if x.S != "00" {
+		t.Errorf("Error, Not Fond expected ->00<- got ->%s<-", x.S)
+	}
+
+	x = Tree1.Index(1) 
+	if x == nil {
+		t.Errorf("Error, nil returend for 1 index")
+	} else if x.S != "02" {
+		t.Errorf("Error, Not Fond expected ->02<- got ->%s<-", x.S)
+	}
+}
+
 /*
-func (tt *BinaryTree[T]) FindMin() ( item *T ) {
 func (tt *BinaryTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
-func (tt *BinaryTree[T]) FindMin() ( item *T ) {
 type ApplyFunction[T comparable.Comparable] func ( pos, depth int, data *T, userData interface{} ) bool
-func (tt *BinaryTree[T]) Depth() ( d int ) {
-func (tt *BinaryTree[T]) Index(pos int) ( item *T ) {
 func (tt *BinaryTree[T]) Reverse() {
 func (tt *BinaryTree[T]) DeleteAtTail(find T) ( found bool ) {
 func (tt *BinaryTree[T]) DeleteAtHead(find T) ( found bool ) {
-func (tt *BinaryTree[T]) FindMax() ( item *T ) {
-func (tt *BinaryTree[T]) FindMin() ( item *T ) {
 */
 
 const db2 = false
