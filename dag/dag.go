@@ -22,6 +22,9 @@ The algorythm is a non-recursive depth-first search.
 
 	WalkDepthFirst
 
+	InsertNode ( Node, ChildOf )
+	InsertEdge ( Node, ToNode )
+
 */
 
 import (

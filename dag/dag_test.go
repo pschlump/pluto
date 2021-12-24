@@ -58,7 +58,7 @@ func TestTreeInsertSearch(t *testing.T) {
 	ANode := NewTestTree()
 	_ = ANode 
 
-	var Tree1 BinaryTree[TestTreeNode]
+	var Tree1 DirectedAcyclicGraph[TestTreeNode]
 
 	if !Tree1.IsEmpty() {
 		t.Errorf("Expected empty tree after decleration, failed to get one.")
@@ -111,7 +111,7 @@ func TestTreeInsertSearch(t *testing.T) {
 // TEST TODO: func (tt *Binarytree[T]) Truncate()  {
 func TestTreeTruncate(t *testing.T) {
 
-	var Tree1 BinaryTree[TestTreeNode]
+	var Tree1 DirectedAcyclicGraph[TestTreeNode]
 
 	// Build this tree:
 	//			{00}
@@ -143,7 +143,7 @@ func TestTreeTruncate(t *testing.T) {
 // works through all possible configurations of trees.
 func TestTreeDelete(t *testing.T) {
 
-	var Tree1 BinaryTree[TestTreeNode]
+	var Tree1 DirectedAcyclicGraph[TestTreeNode]
 
 	// Build this tree (eventually):
 	//			{00}
@@ -292,9 +292,9 @@ func TestTreeDelete(t *testing.T) {
 }
 
 func TestTreeMinMax(t *testing.T) {
-	// func (tt *BinaryTree[T]) FindMax() ( item *T ) {
-	// func (tt *BinaryTree[T]) FindMin() ( item *T ) {
-	var Tree1 BinaryTree[TestTreeNode]
+	// func (tt *DirectedAcyclicGraph[T]) FindMax() ( item *T ) {
+	// func (tt *DirectedAcyclicGraph[T]) FindMin() ( item *T ) {
+	var Tree1 DirectedAcyclicGraph[TestTreeNode]
 
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "02"})
@@ -319,8 +319,8 @@ func TestTreeMinMax(t *testing.T) {
 
 
 func TestTreeDepth(t *testing.T) {
-	// func (tt *BinaryTree[T]) Depth() ( d int ) {
-	var Tree1 BinaryTree[TestTreeNode]
+	// func (tt *DirectedAcyclicGraph[T]) Depth() ( d int ) {
+	var Tree1 DirectedAcyclicGraph[TestTreeNode]
 
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "02"})
@@ -339,8 +339,8 @@ func TestTreeDepth(t *testing.T) {
 }
 
 func TestTreeIndex(t *testing.T) {
-	// func (tt *BinaryTree[T]) Index(pos int) ( item *T ) {
-	var Tree1 BinaryTree[TestTreeNode]
+	// func (tt *DirectedAcyclicGraph[T]) Index(pos int) ( item *T ) {
+	var Tree1 DirectedAcyclicGraph[TestTreeNode]
 
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "02"})
@@ -379,8 +379,8 @@ func TestTreeIndex(t *testing.T) {
 
 
 func TestTreeRevese(t *testing.T) {
-	// func (tt *BinaryTree[T]) Reverse() {
-	var Tree1 BinaryTree[TestTreeNode]
+	// func (tt *DirectedAcyclicGraph[T]) Reverse() {
+	var Tree1 DirectedAcyclicGraph[TestTreeNode]
 
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "02"})
@@ -405,8 +405,8 @@ func TestTreeRevese(t *testing.T) {
 }
 
 func TestTreeDeleteAtTail(t *testing.T) {
-	// func (tt *BinaryTree[T]) DeleteAtTail(find T) ( found bool ) {
-	var Tree1 BinaryTree[TestTreeNode]
+	// func (tt *DirectedAcyclicGraph[T]) DeleteAtTail(find T) ( found bool ) {
+	var Tree1 DirectedAcyclicGraph[TestTreeNode]
 
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "02"})
@@ -432,8 +432,8 @@ func TestTreeDeleteAtTail(t *testing.T) {
 
 
 func TestTreeDeleteAtHead(t *testing.T) {
-	// func (tt *BinaryTree[T]) DeleteAtHead(find T) ( found bool ) {
-	var Tree1 BinaryTree[TestTreeNode]
+	// func (tt *DirectedAcyclicGraph[T]) DeleteAtHead(find T) ( found bool ) {
+	var Tree1 DirectedAcyclicGraph[TestTreeNode]
 
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "02"})
@@ -458,14 +458,14 @@ func TestTreeDeleteAtHead(t *testing.T) {
 }
 
 /*
-func (tt *BinaryTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
-func (tt *BinaryTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
+func (tt *DirectedAcyclicGraph[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
+func (tt *DirectedAcyclicGraph[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
 */
 
 func TestTreeWalkInOrder(t *testing.T) {
 	// type ApplyFunction[T comparable.Comparable] func ( pos, depth int, data *T, userData interface{} ) bool
-	// func (tt *BinaryTree[T]) DeleteAtHead(find T) ( found bool ) {
-	var Tree1 BinaryTree[TestTreeNode]
+	// func (tt *DirectedAcyclicGraph[T]) DeleteAtHead(find T) ( found bool ) {
+	var Tree1 DirectedAcyclicGraph[TestTreeNode]
 
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "02"})
@@ -492,8 +492,8 @@ func TestTreeWalkInOrder(t *testing.T) {
 
 func TestTreeWalkPreOrder(t *testing.T) {
 	// type ApplyFunction[T comparable.Comparable] func ( pos, depth int, data *T, userData interface{} ) bool
-	// func (tt *BinaryTree[T]) DeleteAtHead(find T) ( found bool ) {
-	var Tree1 BinaryTree[TestTreeNode]
+	// func (tt *DirectedAcyclicGraph[T]) DeleteAtHead(find T) ( found bool ) {
+	var Tree1 DirectedAcyclicGraph[TestTreeNode]
 
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "02"})
@@ -520,8 +520,8 @@ func TestTreeWalkPreOrder(t *testing.T) {
 
 func TestTreeWalkPostOrder(t *testing.T) {
 	// type ApplyFunction[T comparable.Comparable] func ( pos, depth int, data *T, userData interface{} ) bool
-	// func (tt *BinaryTree[T]) DeleteAtHead(find T) ( found bool ) {
-	var Tree1 BinaryTree[TestTreeNode]
+	// func (tt *DirectedAcyclicGraph[T]) DeleteAtHead(find T) ( found bool ) {
+	var Tree1 DirectedAcyclicGraph[TestTreeNode]
 
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "02"})
