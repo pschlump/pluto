@@ -26,7 +26,7 @@ Basic operations on a Binary Tree.
 * 	DeleteAtTail — Deletes the last element of the linked list. 								O(log|2(n))
 		Delete ( FindMax ( ) )
 
-+	WalkInOrder
+*	WalkInOrder
 +	WalkPreOrder
 +	WalkPostOrder
 

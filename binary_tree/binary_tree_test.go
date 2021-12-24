@@ -394,8 +394,10 @@ func TestTreeRevese(t *testing.T) {
 
 	Tree1.Reverse() 
 
-	fmt.Printf ( "\nAfter ------------------------------\n" )
-	Tree1.Dump(os.Stdout)
+	if false {
+		fmt.Printf ( "\nAfter ------------------------------\n" )
+		Tree1.Dump(os.Stdout)
+	}
 
 	if size := Tree1.Length(); size != 5 {
 		t.Errorf("Error")
@@ -418,8 +420,10 @@ func TestTreeDeleteAtTail(t *testing.T) {
 
 	found := Tree1.DeleteAtTail() 
 
-	fmt.Printf ( "\nAfter ------------------------------ %v\n", found )
-	Tree1.Dump(os.Stdout)
+	if false {
+		fmt.Printf ( "\nAfter ------------------------------ %v\n", found )
+		Tree1.Dump(os.Stdout)
+	}
 
 	if size := Tree1.Length(); size != 4 {
 		t.Errorf("Error")
@@ -443,8 +447,10 @@ func TestTreeDeleteAtHead(t *testing.T) {
 
 	found := Tree1.DeleteAtHead() 
 
-	fmt.Printf ( "\nAfter ------------------------------ %v\n", found )
-	Tree1.Dump(os.Stdout)
+	if false {
+		fmt.Printf ( "\nAfter ------------------------------ %v\n", found )
+		Tree1.Dump(os.Stdout)
+	}
 
 	if size := Tree1.Length(); size != 4 {
 		t.Errorf("Error")
@@ -452,11 +458,94 @@ func TestTreeDeleteAtHead(t *testing.T) {
 }
 
 /*
-type ApplyFunction[T comparable.Comparable] func ( pos, depth int, data *T, userData interface{} ) bool
 func (tt *BinaryTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
-func (tt *BinaryTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) {
 func (tt *BinaryTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
 */
+
+func TestTreeWalkInOrder(t *testing.T) {
+	// type ApplyFunction[T comparable.Comparable] func ( pos, depth int, data *T, userData interface{} ) bool
+	// func (tt *BinaryTree[T]) DeleteAtHead(find T) ( found bool ) {
+	var Tree1 BinaryTree[TestTreeNode]
+
+	Tree1.Insert(TestTreeNode{S: "05"})
+	Tree1.Insert(TestTreeNode{S: "02"})
+	Tree1.Insert(TestTreeNode{S: "09"})
+	Tree1.Insert(TestTreeNode{S: "00"})
+	Tree1.Insert(TestTreeNode{S: "03"})
+	if db3 {
+		fmt.Printf ( "at:%s tree=\n", godebug.LF())
+	   	Tree1.Dump(os.Stdout)
+	}
+
+	var x []string
+	var fx ApplyFunction[TestTreeNode]
+	fx = func ( pos, depth int, data *TestTreeNode, y interface{} ) bool {
+		x = append ( x, data.S )
+		return true
+	}
+	Tree1.WalkInOrder( fx, nil ) 
+
+	fmt.Printf ( "Output: %s\n", x )
+
+	// TODO -- automate correct answer.
+}
+
+func TestTreeWalkPreOrder(t *testing.T) {
+	// type ApplyFunction[T comparable.Comparable] func ( pos, depth int, data *T, userData interface{} ) bool
+	// func (tt *BinaryTree[T]) DeleteAtHead(find T) ( found bool ) {
+	var Tree1 BinaryTree[TestTreeNode]
+
+	Tree1.Insert(TestTreeNode{S: "05"})
+	Tree1.Insert(TestTreeNode{S: "02"})
+	Tree1.Insert(TestTreeNode{S: "09"})
+	Tree1.Insert(TestTreeNode{S: "00"})
+	Tree1.Insert(TestTreeNode{S: "03"})
+	if db3 {
+		fmt.Printf ( "at:%s tree=\n", godebug.LF())
+	   	Tree1.Dump(os.Stdout)
+	}
+
+	var x []string
+	var fx ApplyFunction[TestTreeNode]
+	fx = func ( pos, depth int, data *TestTreeNode, y interface{} ) bool {
+		x = append ( x, data.S )
+		return true
+	}
+	Tree1.WalkPreOrder( fx, nil ) 
+
+	fmt.Printf ( "PreOrder Output: %s\n", x )
+
+	// TODO -- automate correct answer.
+}
+
+func TestTreeWalkPostOrder(t *testing.T) {
+	// type ApplyFunction[T comparable.Comparable] func ( pos, depth int, data *T, userData interface{} ) bool
+	// func (tt *BinaryTree[T]) DeleteAtHead(find T) ( found bool ) {
+	var Tree1 BinaryTree[TestTreeNode]
+
+	Tree1.Insert(TestTreeNode{S: "05"})
+	Tree1.Insert(TestTreeNode{S: "02"})
+	Tree1.Insert(TestTreeNode{S: "09"})
+	Tree1.Insert(TestTreeNode{S: "00"})
+	Tree1.Insert(TestTreeNode{S: "03"})
+	if db3 {
+		fmt.Printf ( "at:%s tree=\n", godebug.LF())
+	   	Tree1.Dump(os.Stdout)
+	}
+
+	var x []string
+	var fx ApplyFunction[TestTreeNode]
+	fx = func ( pos, depth int, data *TestTreeNode, y interface{} ) bool {
+		x = append ( x, data.S )
+		return true
+	}
+	Tree1.WalkPostOrder( fx, nil ) 
+
+	fmt.Printf ( "PostOrder Output: %s\n", x )
+
+	// TODO -- automate correct answer.
+}
+
 
 const db2 = false
 const db3 = false
