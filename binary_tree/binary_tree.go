@@ -332,26 +332,30 @@ func (tt *BinaryTree[T]) Index(pos int) ( item *T ) {
 		return nil
 	}
 
+	if pos < 0 || pos >= tt.length {
+		return nil
+	}
+
 	var n = 0
+	var done = false
 	var inorderTraversal func ( cur *BinaryTreeNode[T] )
 	inorderTraversal = func ( cur *BinaryTreeNode[T] ) {
 		if cur == nil {
 			return
 		}
-		fmt.Printf ( "Top n=%d, pos=%d, at:%s\n", n, pos, godebug.LF() )
-		if n < pos {
+		if ! done {
 			if (*cur).left != nil {
 				inorderTraversal ( (*cur).left )
 			}
 		}
-		fmt.Printf ( "InOrder - Before Set, Top n=%d, pos=%d, at:%s\n", n, pos, godebug.LF() )
+		// fmt.Printf ( "InOrder - Before Set, Top n=%d, pos=%d,    value=%+v     at:%s\n", n, pos, item, godebug.LF() )
 		if n == pos {
 			item = (*cur).data
-			fmt.Printf ( "*********** (set) Top n=%d, pos=%d, ->%+v<- at:%s\n", n, pos, item, godebug.LF() )
+			// fmt.Printf ( "*********** Set \n")
+			done = true
 		}
 		n++
-		fmt.Printf ( "Top n=%d, pos=%d, at:%s\n", n, pos, godebug.LF() )
-		if n < pos {
+		if ! done {
 			if (*cur).right != nil {
 				inorderTraversal ( (*cur).right )
 			}

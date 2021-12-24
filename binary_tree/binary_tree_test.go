@@ -353,6 +353,7 @@ func TestTreeIndex(t *testing.T) {
 	}
 
 	fmt.Printf ( "\nBefore ------------------------------\n" )
+	Tree1.Dump(os.Stdout)
 	x := Tree1.Index(0) 
 	if x == nil {
 		t.Errorf("Error, nil returend for 0 index")
@@ -365,6 +366,13 @@ func TestTreeIndex(t *testing.T) {
 		t.Errorf("Error, nil returend for 1 index")
 	} else if x.S != "02" {
 		t.Errorf("Error, Not Fond expected ->02<- got ->%s<-", x.S)
+	}
+
+	x = Tree1.Index(4) 
+	if x == nil {
+		t.Errorf("Error, nil returend for 1 index")
+	} else if x.S != "09" {
+		t.Errorf("Error, Not Fond expected ->09<- got ->%s<-", x.S)
 	}
 }
 
