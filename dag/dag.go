@@ -8,27 +8,19 @@ BSD 3 Clause Licensed.
 
 /*
 
-Basic operations on a Binary Tree.
+Basic operations on a Directed Acyclic Graph (DAG).
 
 * 	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(log|2(n))
-* 	Index - return the Nth item	in the list - in a format usable with Delete.					O(n) 
 * 	IsEmpty — Returns true if the linked list is empty											O(1)
 * 	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
-* 	Reverse - Reverse all the nodes in list. 													O(n)
 * 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(log|2(n))
 * 	Truncate - Delete all the nodes in list. 													O(1)
-*	FindMin
-*	FindMax
-*	Depth -> int to get deepest part of tree
 
-* 	DeleteAtHead — Deletes the first element of the linked list.  								O(log|2(n))
-		Delete ( FindMin ( ) )
-* 	DeleteAtTail — Deletes the last element of the linked list. 								O(log|2(n))
-		Delete ( FindMax ( ) )
+The Depth First Search is a composite data structure.  It uses the Go builtin "map" to mark the
+nodes that have been visited and the ../stack to collect the nodes that are stil to be visited.
+The algorythm is a non-recursive depth-first search.
 
-*	WalkInOrder
-+	WalkPreOrder
-+	WalkPostOrder
+	WalkDepthFirst
 
 */
 
@@ -38,43 +30,41 @@ import (
 	"strings"
 
 	"github.com/pschlump/pluto/comparable"
-	"github.com/pschlump/godebug"
 	"github.com/pschlump/pluto/g_lib"
+	// "github.com/pschlump/godebug"
 	// "github.com/pschlump/MiscLib"
 )
 
-type BinaryTreeNode[T comparable.Comparable] struct {
+type DirectedAcyclicGraphNode[T comparable.Comparable] struct {
 	data 		*T
-	left, right *BinaryTreeNode[T]
+	left, right *DirectedAcyclicGraphNode[T]	// to be removed.
+	neighbor 	*[]DirectedAcyclicGraphNode[T]
 }
 
-// BinaryTree is a generic binary tree
-type BinaryTree[T comparable.Comparable] struct {
-	root 	*BinaryTreeNode[T]
-	length 	int
+// DirectedAcyclicGraph is a generic binary tree
+type DirectedAcyclicGraph[T comparable.Comparable] struct {
+	root 	*DirectedAcyclicGraphNode[T]
+	length 	int	// Number of Nodes in Graph
 }
 
 // IsEmpty will return true if the binary-tree is empty
-func (tt BinaryTree[T]) IsEmpty() bool {
-	if db1 {
-		fmt.Printf ( "at:%s\n", godebug.LF())
-	}
+func (tt DirectedAcyclicGraph[T]) IsEmpty() bool {
 	return tt.root == nil 
 }
 
 // Truncate removes all data from the tree.
-func (tt *BinaryTree[T]) Truncate()  {
+func (tt *DirectedAcyclicGraph[T]) Truncate()  {
 	(*tt).root = nil 
 	(*tt).length = 0
 }
 
 // Insert will add a new item to the tree.  If it is a duplicate of an exiting
 // item the new item will replace the existing one.
-func (tt *BinaryTree[T]) Insert(item T) {
+func (tt *DirectedAcyclicGraph[T]) Insert(item T) {
 	if tt == nil {
 		panic ( "tree sholud not be a nil" )
 	}
-	node := &BinaryTreeNode[T]{ data : &item }
+	node := &DirectedAcyclicGraphNode[T]{ data : &item }
 	node.left = nil
 	node.right = nil
 	if (*tt).IsEmpty() {
@@ -84,8 +74,8 @@ func (tt *BinaryTree[T]) Insert(item T) {
 	}
 
 	// Simple is recursive, can be replce with an iterative tree traversal.
-	var insert func ( root **BinaryTreeNode[T] )
-	insert = func ( root **BinaryTreeNode[T] ) {
+	var insert func ( root **DirectedAcyclicGraphNode[T] )
+	insert = func ( root **DirectedAcyclicGraphNode[T] ) {
 		if *root == nil {
 			*root = node
 			tt.length++
@@ -103,13 +93,13 @@ func (tt *BinaryTree[T]) Insert(item T) {
 }
 
 // Length returns the number of elements in the list.
-func (tt *BinaryTree[T]) Length() int {
+func (tt *DirectedAcyclicGraph[T]) Length() int {
 	return (*tt).length
 }
 
 // Search will walk the tree looking for `find` and retrn the found item
 // if it is in the tree. If it is not found then `nil` will be returned.
-func (tt *BinaryTree[T]) Search(find T) ( item *T ) {
+func (tt *DirectedAcyclicGraph[T]) Search(find T) ( item *T ) {
 	if tt == nil {
 		panic ( "tree sholud not be a nil" )
 	}
@@ -137,9 +127,9 @@ func (tt *BinaryTree[T]) Search(find T) ( item *T ) {
 }
 
 // Dump will print out the tree to the file `fo`.
-func (tt *BinaryTree[T]) Dump(fo *os.File) {
-	var inorderTraversal func ( cur *BinaryTreeNode[T], n int, fo *os.File )
-	inorderTraversal = func ( cur *BinaryTreeNode[T], n int, fo *os.File ) {
+func (tt *DirectedAcyclicGraph[T]) Dump(fo *os.File) {
+	var inorderTraversal func ( cur *DirectedAcyclicGraphNode[T], n int, fo *os.File )
+	inorderTraversal = func ( cur *DirectedAcyclicGraphNode[T], n int, fo *os.File ) {
 		if cur == nil {
 			return
 		}
@@ -155,7 +145,7 @@ func (tt *BinaryTree[T]) Dump(fo *os.File) {
 }
 
 
-func (tt *BinaryTree[T]) Delete(find T) ( found bool ) {
+func (tt *DirectedAcyclicGraph[T]) Delete(find T) ( found bool ) {
 	if tt == nil {
 		panic ( "tree sholud not be a nil" )
 	}
@@ -163,7 +153,7 @@ func (tt *BinaryTree[T]) Delete(find T) ( found bool ) {
 		return false
 	}
 
-	findLeftMostInRightSubtree := func ( parent **BinaryTreeNode[T] ) ( found bool, pAtIt **BinaryTreeNode[T] ) {
+	findLeftMostInRightSubtree := func ( parent **DirectedAcyclicGraphNode[T] ) ( found bool, pAtIt **DirectedAcyclicGraphNode[T] ) {
 		// fmt.Printf ( "%sFindLeftMost/At Top: at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
 		this := **parent
 		if *parent == nil {
@@ -238,7 +228,7 @@ func (tt *BinaryTree[T]) Delete(find T) ( found bool ) {
     {09}
 */
 
-func (tt *BinaryTree[T]) FindMin() ( item *T ) {
+func (tt *DirectedAcyclicGraph[T]) FindMin() ( item *T ) {
 	if tt == nil {
 		panic ( "tree sholud not be a nil" )
 	}
@@ -257,7 +247,7 @@ func (tt *BinaryTree[T]) FindMin() ( item *T ) {
 	return (*cur).data
 }
 
-func (tt *BinaryTree[T]) FindMax() ( item *T ) {
+func (tt *DirectedAcyclicGraph[T]) FindMax() ( item *T ) {
 	if tt == nil {
 		panic ( "tree sholud not be a nil" )
 	}
@@ -276,7 +266,7 @@ func (tt *BinaryTree[T]) FindMax() ( item *T ) {
 	return (*cur).data
 }
 
-func (tt *BinaryTree[T]) DeleteAtHead() ( found bool ) {
+func (tt *DirectedAcyclicGraph[T]) DeleteAtHead() ( found bool ) {
 	if tt == nil {
 		panic ( "tree sholud not be a nil" )
 	}
@@ -289,7 +279,7 @@ func (tt *BinaryTree[T]) DeleteAtHead() ( found bool ) {
 	return true
 }
 
-func (tt *BinaryTree[T]) DeleteAtTail() ( found bool ) {
+func (tt *DirectedAcyclicGraph[T]) DeleteAtTail() ( found bool ) {
 	if tt == nil {
 		panic ( "tree sholud not be a nil" )
 	}
@@ -302,7 +292,7 @@ func (tt *BinaryTree[T]) DeleteAtTail() ( found bool ) {
 	return true
 }
 
-func (tt *BinaryTree[T]) Reverse() {
+func (tt *DirectedAcyclicGraph[T]) Reverse() {
 	if tt == nil {
 		panic ( "tree sholud not be a nil" )
 	}
@@ -310,8 +300,8 @@ func (tt *BinaryTree[T]) Reverse() {
 		return 
 	}
 
-	var postTraversal func ( cur *BinaryTreeNode[T] )
-	postTraversal = func ( cur *BinaryTreeNode[T] ) {
+	var postTraversal func ( cur *DirectedAcyclicGraphNode[T] )
+	postTraversal = func ( cur *DirectedAcyclicGraphNode[T] ) {
 		if cur == nil {
 			return
 		}
@@ -326,7 +316,7 @@ func (tt *BinaryTree[T]) Reverse() {
 	postTraversal ( tt.root )
 }
 
-func (tt *BinaryTree[T]) Index(pos int) ( item *T ) {
+func (tt *DirectedAcyclicGraph[T]) Index(pos int) ( item *T ) {
 	if tt == nil {
 		panic ( "tree sholud not be a nil" )
 	}
@@ -340,8 +330,8 @@ func (tt *BinaryTree[T]) Index(pos int) ( item *T ) {
 
 	var n = 0
 	var done = false
-	var inorderTraversal func ( cur *BinaryTreeNode[T] )
-	inorderTraversal = func ( cur *BinaryTreeNode[T] ) {
+	var inorderTraversal func ( cur *DirectedAcyclicGraphNode[T] )
+	inorderTraversal = func ( cur *DirectedAcyclicGraphNode[T] ) {
 		if cur == nil {
 			return
 		}
@@ -367,7 +357,7 @@ func (tt *BinaryTree[T]) Index(pos int) ( item *T ) {
 	return
 }
 
-func (tt *BinaryTree[T]) Depth() ( d int ) {
+func (tt *DirectedAcyclicGraph[T]) Depth() ( d int ) {
 	if tt == nil {
 		panic ( "tree sholud not be a nil" )
 	}
@@ -376,8 +366,8 @@ func (tt *BinaryTree[T]) Depth() ( d int ) {
 	}
 
 	d = 0
-	var inorderTraversal func ( cur *BinaryTreeNode[T] )
-	inorderTraversal = func ( cur *BinaryTreeNode[T] ) {
+	var inorderTraversal func ( cur *DirectedAcyclicGraphNode[T] )
+	inorderTraversal = func ( cur *DirectedAcyclicGraphNode[T] ) {
 		if cur == nil {
 			return
 		}
@@ -398,12 +388,12 @@ func (tt *BinaryTree[T]) Depth() ( d int ) {
 
 type ApplyFunction[T comparable.Comparable] func ( pos, depth int, data *T, userData interface{} ) bool
 
-func (tt *BinaryTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) {
+func (tt *DirectedAcyclicGraph[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) {
 
 	p := 0
 	b := true
-	var inorderTraversal func ( cur *BinaryTreeNode[T], n int )
-	inorderTraversal = func ( cur *BinaryTreeNode[T], n int ) {
+	var inorderTraversal func ( cur *DirectedAcyclicGraphNode[T], n int )
+	inorderTraversal = func ( cur *DirectedAcyclicGraphNode[T], n int ) {
 		if cur == nil {
 			return
 		}
@@ -425,12 +415,12 @@ func (tt *BinaryTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) 
 	inorderTraversal ( tt.root, 0 )
 }
 
-func (tt *BinaryTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
+func (tt *DirectedAcyclicGraph[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
 
 	p := 0
 	b := true
-	var preOrderTraversal func ( cur *BinaryTreeNode[T], n int )
-	preOrderTraversal = func ( cur *BinaryTreeNode[T], n int ) {
+	var preOrderTraversal func ( cur *DirectedAcyclicGraphNode[T], n int )
+	preOrderTraversal = func ( cur *DirectedAcyclicGraphNode[T], n int ) {
 		if cur == nil {
 			return
 		}
@@ -452,12 +442,12 @@ func (tt *BinaryTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{})
 	preOrderTraversal ( tt.root, 0 )
 }
 
-func (tt *BinaryTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
+func (tt *DirectedAcyclicGraph[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
 
 	p := 0
 	b := true
-	var postOrderTraversal func ( cur *BinaryTreeNode[T], n int )
-	postOrderTraversal = func ( cur *BinaryTreeNode[T], n int ) {
+	var postOrderTraversal func ( cur *DirectedAcyclicGraphNode[T], n int )
+	postOrderTraversal = func ( cur *DirectedAcyclicGraphNode[T], n int ) {
 		if cur == nil {
 			return
 		}
@@ -480,4 +470,3 @@ func (tt *BinaryTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}
 }
 
 
-const db1 = false // print in IsEmpty
