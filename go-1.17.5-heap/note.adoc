@@ -1,0 +1,8 @@
+
+https://en.wikipedia.org/wiki/Priority_queue
+
+go's 1.17.5 version of heap: https://cs.opensource.google/go/go/+/refs/tags/go1.17.5:src/container/
+
+(Has list, ring also)
+
+https://cs.opensource.google/go/go/+/refs/tags/go1.17.5:src/container/heap/
