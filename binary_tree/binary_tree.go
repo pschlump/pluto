@@ -43,14 +43,14 @@ import (
 	// "github.com/pschlump/MiscLib"
 )
 
-type BinaryTreeNode[T comparable.Comparable] struct {
+type BinaryTreeElement[T comparable.Comparable] struct {
 	data 		*T
-	left, right *BinaryTreeNode[T]
+	left, right *BinaryTreeElement[T]
 }
 
 // BinaryTree is a generic binary tree
 type BinaryTree[T comparable.Comparable] struct {
-	root 	*BinaryTreeNode[T]
+	root 	*BinaryTreeElement[T]
 	length 	int
 }
 
@@ -74,7 +74,7 @@ func (tt *BinaryTree[T]) Insert(item T) {
 	if tt == nil {
 		panic ( "tree sholud not be a nil" )
 	}
-	node := &BinaryTreeNode[T]{ data : &item }
+	node := &BinaryTreeElement[T]{ data : &item }
 	node.left = nil
 	node.right = nil
 	if (*tt).IsEmpty() {
@@ -84,8 +84,8 @@ func (tt *BinaryTree[T]) Insert(item T) {
 	}
 
 	// Simple is recursive, can be replce with an iterative tree traversal.
-	var insert func ( root **BinaryTreeNode[T] )
-	insert = func ( root **BinaryTreeNode[T] ) {
+	var insert func ( root **BinaryTreeElement[T] )
+	insert = func ( root **BinaryTreeElement[T] ) {
 		if *root == nil {
 			*root = node
 			tt.length++
@@ -138,8 +138,8 @@ func (tt *BinaryTree[T]) Search(find T) ( item *T ) {
 
 // Dump will print out the tree to the file `fo`.
 func (tt *BinaryTree[T]) Dump(fo *os.File) {
-	var inorderTraversal func ( cur *BinaryTreeNode[T], n int, fo *os.File )
-	inorderTraversal = func ( cur *BinaryTreeNode[T], n int, fo *os.File ) {
+	var inorderTraversal func ( cur *BinaryTreeElement[T], n int, fo *os.File )
+	inorderTraversal = func ( cur *BinaryTreeElement[T], n int, fo *os.File ) {
 		if cur == nil {
 			return
 		}
@@ -163,7 +163,7 @@ func (tt *BinaryTree[T]) Delete(find T) ( found bool ) {
 		return false
 	}
 
-	findLeftMostInRightSubtree := func ( parent **BinaryTreeNode[T] ) ( found bool, pAtIt **BinaryTreeNode[T] ) {
+	findLeftMostInRightSubtree := func ( parent **BinaryTreeElement[T] ) ( found bool, pAtIt **BinaryTreeElement[T] ) {
 		// fmt.Printf ( "%sFindLeftMost/At Top: at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
 		this := **parent
 		if *parent == nil {
@@ -310,8 +310,8 @@ func (tt *BinaryTree[T]) Reverse() {
 		return 
 	}
 
-	var postTraversal func ( cur *BinaryTreeNode[T] )
-	postTraversal = func ( cur *BinaryTreeNode[T] ) {
+	var postTraversal func ( cur *BinaryTreeElement[T] )
+	postTraversal = func ( cur *BinaryTreeElement[T] ) {
 		if cur == nil {
 			return
 		}
@@ -340,8 +340,8 @@ func (tt *BinaryTree[T]) Index(pos int) ( item *T ) {
 
 	var n = 0
 	var done = false
-	var inorderTraversal func ( cur *BinaryTreeNode[T] )
-	inorderTraversal = func ( cur *BinaryTreeNode[T] ) {
+	var inorderTraversal func ( cur *BinaryTreeElement[T] )
+	inorderTraversal = func ( cur *BinaryTreeElement[T] ) {
 		if cur == nil {
 			return
 		}
@@ -376,8 +376,8 @@ func (tt *BinaryTree[T]) Depth() ( d int ) {
 	}
 
 	d = 0
-	var inorderTraversal func ( cur *BinaryTreeNode[T] )
-	inorderTraversal = func ( cur *BinaryTreeNode[T] ) {
+	var inorderTraversal func ( cur *BinaryTreeElement[T] )
+	inorderTraversal = func ( cur *BinaryTreeElement[T] ) {
 		if cur == nil {
 			return
 		}
@@ -402,8 +402,8 @@ func (tt *BinaryTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) 
 
 	p := 0
 	b := true
-	var inorderTraversal func ( cur *BinaryTreeNode[T], n int )
-	inorderTraversal = func ( cur *BinaryTreeNode[T], n int ) {
+	var inorderTraversal func ( cur *BinaryTreeElement[T], n int )
+	inorderTraversal = func ( cur *BinaryTreeElement[T], n int ) {
 		if cur == nil {
 			return
 		}
@@ -429,8 +429,8 @@ func (tt *BinaryTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{})
 
 	p := 0
 	b := true
-	var preOrderTraversal func ( cur *BinaryTreeNode[T], n int )
-	preOrderTraversal = func ( cur *BinaryTreeNode[T], n int ) {
+	var preOrderTraversal func ( cur *BinaryTreeElement[T], n int )
+	preOrderTraversal = func ( cur *BinaryTreeElement[T], n int ) {
 		if cur == nil {
 			return
 		}
@@ -456,8 +456,8 @@ func (tt *BinaryTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}
 
 	p := 0
 	b := true
-	var postOrderTraversal func ( cur *BinaryTreeNode[T], n int )
-	postOrderTraversal = func ( cur *BinaryTreeNode[T], n int ) {
+	var postOrderTraversal func ( cur *BinaryTreeElement[T], n int )
+	postOrderTraversal = func ( cur *BinaryTreeElement[T], n int ) {
 		if cur == nil {
 			return
 		}
