@@ -184,7 +184,7 @@ func TestDll(t *testing.T) {
 
 
 	// Walk - Iterate from head to tail of list. 													O(n)
-	// func (ns *Dll[T]) Walk( fx ApplyFunction[T], userData interface{} ) (rv *DllNode[T], pos int) {
+	// func (ns *Dll[T]) Walk( fx ApplyFunction[T], userData interface{} ) (rv *DllElement[T], pos int) {
 	Dll1.Truncate()  
 	Dll1.InsertBeforeHead ( &TestDemo{S:"02"} )
 	Dll1.AppendAtTail ( &TestDemo{S:"03"} )
@@ -247,14 +247,14 @@ func TestDll(t *testing.T) {
 	Dll1.InsertBeforeHead ( &TestDemo{S:"01"} )
 
 	// Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
-	// func (ns *Dll[T]) Search( t *T ) (rv *DllNode[T], pos int) {
+	// func (ns *Dll[T]) Search( t *T ) (rv *DllElement[T], pos int) {
 	rv, pos = Dll1.Search( &TestDemo{ S: "02"} )
 	if db4 {
 		fmt.Printf ( "%+v, at locaiton %d\n", rv, pos )
 	}
 
 	// Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
-	// func (ns *Dll[T]) Delete( it *DllNode[T] ) ( err error ) {
+	// func (ns *Dll[T]) Delete( it *DllElement[T] ) ( err error ) {
 	err = Dll1.Delete( rv )
 
 	if Dll1.Length() != 2 {
@@ -278,14 +278,14 @@ func TestDll(t *testing.T) {
 	Dll1.InsertBeforeHead ( &TestDemo{S:"01"} )
 
 	// Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
-	// func (ns *Dll[T]) Search( t *T ) (rv *DllNode[T], pos int) {
+	// func (ns *Dll[T]) Search( t *T ) (rv *DllElement[T], pos int) {
 	rv, pos = Dll1.ReverseSearch( &TestDemo{ S: "02"} )
 	if db4 {
 		fmt.Printf ( "%+v, at locaiton %d\n", rv, pos )
 	}
 
 	// Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
-	// func (ns *Dll[T]) Delete( it *DllNode[T] ) ( err error ) {
+	// func (ns *Dll[T]) Delete( it *DllElement[T] ) ( err error ) {
 	err = Dll1.Delete( rv )
 
 	if Dll1.Length() != 2 {
@@ -295,7 +295,7 @@ func TestDll(t *testing.T) {
 	Dll1.Walk( fx, "02" )
 
 	// TODO
-	// func (ns *Dll[T]) Index(sub int) (rv *DllNode[T], err error) {
+	// func (ns *Dll[T]) Index(sub int) (rv *DllElement[T], err error) {
 	// Index - return the Nth item																	O(n)
 
 	Dll1.Truncate()  
