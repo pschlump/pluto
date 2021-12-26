@@ -62,3 +62,8 @@ func (ns *Stack[T]) Peek() (*T, error) {
 	} 
 	return nil, ErrEmptyStack
 }
+
+// Truncate removes all data from the list.
+func (ns *Stack[T]) Truncate()  {
+	(*ns) = []T{}
+}

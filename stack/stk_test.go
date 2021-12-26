@@ -20,6 +20,7 @@ func TestStack(t *testing.T) {
 	}
 
 	Stk1.Push ( TestDemo{S:"hi"} )
+	Stk1.Push ( TestDemo{S:"there"} )
 
 	if Stk1.IsEmpty() {
 		t.Errorf ( "Expected non-empty stack after 1st push, failed to get one." )
@@ -29,11 +30,23 @@ func TestStack(t *testing.T) {
 	if err != nil {
 		t.Errorf ( "Unexpectd empty stack error after 1 pop" )
 	}
+	if x.S != "there" {
+		t.Errorf ( "Unexpectd value" )
+	}
+	x, _ = Stk1.Pop()
+	if x.S != "hi" {
+		t.Errorf ( "Unexpectd value" )
+	}
 	x, err = Stk1.Pop()
 	if err == nil {
 		t.Errorf ( "Unexpectd lack of error after pop on empty stack" )
 	}
-	_ = x
+
+	Stk1.Push ( TestDemo{S:"hi"} )
+	Stk1.Truncate()
+	if !Stk1.IsEmpty() {
+		t.Errorf ( "Expected empty stack after decleration, failed to get one." )
+	}
 
 	Stk1.Push ( TestDemo{S:"hi2"} )
 	Stk1.Push ( TestDemo{S:"hi3"} )
