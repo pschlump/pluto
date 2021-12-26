@@ -168,6 +168,9 @@ func (ns *Dll[T]) InsertBeforeHead(t *T) {
 		(*ns).length++
 	}
 }
+func (ns *Dll[T]) Push(t *T) {
+	ns.InsertBeforeHead(t)
+}
 
 // Push will append a new node to the end of the list.
 func (ns *Dll[T]) AppendAtTail(t *T) {
