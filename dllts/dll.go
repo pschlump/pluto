@@ -104,6 +104,8 @@ func (ns *Dll[T]) Current(el *DllElement[T], pos int) *DllIter[T] {
 
 // Value returns the current data for this element in the list.
 func (iter *DllIter[T]) Value() *T {
+	(*iter).iterLock.RLock()
+	defer (*iter).iterLock.RUnlock()
 	iter.dll.mu.RLock()
 	defer iter.dll.mu.RUnlock()
 	if iter.cur != nil {
@@ -114,8 +116,10 @@ func (iter *DllIter[T]) Value() *T {
 
 // Next advances to the next element in the list.
 func (iter *DllIter[T]) Next() {
-	iter.dll.mu.Lock()
-	defer iter.dll.mu.Unlock()
+	(*iter).iterLock.Lock()
+	defer (*iter).iterLock.Unlock()
+	iter.dll.mu.RLock()
+	defer iter.dll.mu.RUnlock()
 	if iter.cur == nil {
 		return 
 	}
@@ -125,8 +129,10 @@ func (iter *DllIter[T]) Next() {
 
 // Prev moves back to the previous element in the list.
 func (iter *DllIter[T]) Prev() {
-	iter.dll.mu.Lock()
-	defer iter.dll.mu.Unlock()
+	(*iter).iterLock.Lock()
+	defer (*iter).iterLock.Unlock()
+	iter.dll.mu.RLock()
+	defer iter.dll.mu.RUnlock()
 	if iter.cur == nil {
 		return 
 	}
