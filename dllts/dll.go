@@ -52,18 +52,104 @@ import (
 	"github.com/pschlump/pluto/comparable"
 )
 
-// A node in the singly linked list
-type DllNode[T comparable.Equality] struct {
-	next, prev 	*DllNode[T]
+// A node in the doubly linked list
+type DllElement[T comparable.Equality] struct {
+	next, prev 	*DllElement[T]
 	data 		*T
 }
 // Dll is a generic type buildt on top of a slice
 type Dll[T comparable.Equality] struct {
-	head, tail 	*DllNode[T]
+	head, tail 	*DllElement[T]
 	length 		int
 	mu       	sync.RWMutex
 }
 
+// An iteration type that allows a for loop to walk the list.
+type DllIter[T comparable.Equality] struct {
+	cur 		*DllElement[T]
+	dll 		*Dll[T]
+	pos 		int
+	iterLock    sync.RWMutex
+}
+
+// -------------------------------------------------------------------------------------------------------
+
+// Front will start at the beginning of a list for iteration over list.
+func (ns *Dll[T]) Front() *DllIter[T] {
+	return &DllIter[T] {
+		cur: ns.head,
+		dll: ns,
+	}
+}
+
+// Rear will start at the end of a list for iteration over list.
+func (ns *Dll[T]) Rear() *DllIter[T] {
+	return &DllIter[T] {
+		cur: ns.tail,
+		dll: ns,
+		pos: ns.length-1,
+	}
+}
+
+// Current will take the node returned from Search or RevrseSearch
+// 		func (ns *Dll[T]) Search( t *T ) (rv *DllElement[T], pos int) {
+// and allow you to start an iteration process from that point.
+func (ns *Dll[T]) Current(el *DllElement[T], pos int) *DllIter[T] {
+	return &DllIter[T] {
+		cur: el,
+		dll: ns,
+		pos: pos,
+	}
+}
+
+// Value returns the current data for this element in the list.
+func (iter *DllIter[T]) Value() *T {
+	iter.dll.mu.RLock()
+	defer iter.dll.mu.RUnlock()
+	if iter.cur != nil {
+		return iter.cur.data
+	}
+	return nil
+}
+
+// Next advances to the next element in the list.
+func (iter *DllIter[T]) Next() {
+	iter.dll.mu.Lock()
+	defer iter.dll.mu.Unlock()
+	if iter.cur == nil {
+		return 
+	}
+	iter.cur = iter.cur.next
+	iter.pos++
+}
+
+// Prev moves back to the previous element in the list.
+func (iter *DllIter[T]) Prev() {
+	iter.dll.mu.Lock()
+	defer iter.dll.mu.Unlock()
+	if iter.cur == nil {
+		return 
+	}
+	iter.cur = iter.cur.prev
+	iter.pos--
+}
+
+// Done returns true if the end of the list has been reached.
+func (iter *DllIter[T]) Done() bool {
+	iter.dll.mu.RLock()
+	defer iter.dll.mu.RUnlock()
+	return iter.cur == nil
+}
+
+// Pos returns the current "index" of the elemnt being iterated on.  So if the list has 3 elements, a, b, c and we
+// start at the head of the list 'a' will have a Pos() of 0, 'b' will have a Pos() of 1 etc.
+func (iter *DllIter[T]) Pos() int {
+	iter.dll.mu.RLock()
+	defer iter.dll.mu.RUnlock()
+	return iter.pos
+}
+
+// -------------------------------------------------------------------------------------------------------
 // IsEmpty will return true if the DLL (queue or stack) is empty
 func (ns *Dll[T]) IsEmpty() bool {
 	(*ns).mu.RLock()
@@ -72,7 +158,7 @@ func (ns *Dll[T]) IsEmpty() bool {
 }
 
 func (ns *Dll[T]) noLockInsertBeforeHead(t *T) {
-	x := DllNode[T] { data: t }	// Create the node
+	x := DllElement[T] { data: t }	// Create the node
 	if (*ns).head == nil {
 		(*ns).head = &x
 		(*ns).tail = &x
@@ -94,7 +180,7 @@ func (ns *Dll[T]) InsertBeforeHead(t *T) {
 
 // Push will append a new node to the end of the list.
 func (ns *Dll[T]) AppendAtTail(t *T) {
-	x := DllNode[T] { data: t }	// Create the node
+	x := DllElement[T] { data: t }	// Create the node
 	(*ns).mu.Lock()
 	defer (*ns).mu.Unlock()
 	if (*ns).head == nil {
@@ -143,7 +229,8 @@ func (ns *Dll[T]) PopTail() ( rv *T, err error ) {
 
 // Pop will remove the top element from the DLL.  An error is returned if the stack is empty.
 func (ns *Dll[T]) noLockPop() ( rv *T, err error ) {
-	if ns.IsEmpty() {
+	// if ns.IsEmpty() {
+	if (*ns).length == 0 {
 		return nil, ErrEmptyDll
 	}
 	rv = (*ns).head.data
@@ -157,7 +244,8 @@ func (ns *Dll[T]) noLockPop() ( rv *T, err error ) {
 
 // PopTail will remove the top element from the DLL.  An error is returned if the stack is empty.
 func (ns *Dll[T]) noLockPopTail() ( rv *T, err error ) {
-	if ns.IsEmpty() {
+	// if ns.IsEmpty() {
+	if (*ns).length == 0 {
 		return nil, ErrEmptyDll
 	}
 	rv = (*ns).tail.data
@@ -169,7 +257,7 @@ func (ns *Dll[T]) noLockPopTail() ( rv *T, err error ) {
 	return 
 }
 
-func (ns *Dll[T]) Delete( it *DllNode[T] ) ( err error ) {
+func (ns *Dll[T]) Delete( it *DllElement[T] ) ( err error ) {
 	(*ns).mu.Lock()
 	defer (*ns).mu.Unlock()
 	if (*ns).head == it && (*ns).tail == it {
@@ -205,7 +293,8 @@ func (ns *Dll[T]) DeleteAtHead() ( err error ) {
 func (ns *Dll[T]) DeleteAtTail() ( err error ) {
 	(*ns).mu.Lock()
 	defer (*ns).mu.Unlock()
-	if ns.IsEmpty() {
+	// if ns.IsEmpty() {
+	if (*ns).length == 0 {
 		return ErrEmptyDll
 	}
 	(*ns).tail = (*ns).tail.prev
@@ -220,7 +309,8 @@ func (ns *Dll[T]) DeleteAtTail() ( err error ) {
 func (ns *Dll[T]) Peek() (rv *T, err error) {
 	(*ns).mu.RLock()
 	defer (*ns).mu.RUnlock()
-	if ns.IsEmpty() {
+	// if ns.IsEmpty() {
+	if (*ns).length == 0 {
 		return nil, ErrEmptyDll
 	} 
 	rv = (*ns).head.data
@@ -231,7 +321,8 @@ func (ns *Dll[T]) Peek() (rv *T, err error) {
 func (ns *Dll[T]) PeekTail() (rv *T, err error) {
 	(*ns).mu.RLock()
 	defer (*ns).mu.RUnlock()
-	if ns.IsEmpty() {
+	// if ns.IsEmpty() {
+	if (*ns).length == 0 {
 		return nil, ErrEmptyDll
 	} 
 	rv = (*ns).tail.data
@@ -250,10 +341,11 @@ func (ns *Dll[T]) Truncate()  {
 
 // Walk - Iterate from head to tail of list. 												O(n)
 // Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
-func (ns *Dll[T]) Search( t *T ) (rv *DllNode[T], pos int) {
+func (ns *Dll[T]) Search( t *T ) (rv *DllElement[T], pos int) {
 	(*ns).mu.RLock()
 	defer (*ns).mu.RUnlock()
-	if ns.IsEmpty() {
+	// if ns.IsEmpty() {
+	if (*ns).length == 0 {
 		return nil, -1 // not found
 	} 
 
@@ -268,10 +360,11 @@ func (ns *Dll[T]) Search( t *T ) (rv *DllNode[T], pos int) {
 }
 
 // ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
-func (ns *Dll[T]) ReverseSearch( t *T ) (rv *DllNode[T], pos int) {
+func (ns *Dll[T]) ReverseSearch( t *T ) (rv *DllElement[T], pos int) {
 	(*ns).mu.RLock()
 	defer (*ns).mu.RUnlock()
-	if ns.IsEmpty() {
+	// if ns.IsEmpty() {
+	if (*ns).length == 0 {
 		return nil, -1 // not found
 	} 
 
@@ -288,10 +381,11 @@ func (ns *Dll[T]) ReverseSearch( t *T ) (rv *DllNode[T], pos int) {
 type ApplyFunction[T comparable.Equality] func ( pos int, data T, userData interface{} ) bool
 
 // Walk - Iterate from head to tail of list. 												O(n)
-func (ns *Dll[T]) Walk( fx ApplyFunction[T], userData interface{} ) (rv *DllNode[T], pos int) {
+func (ns *Dll[T]) Walk( fx ApplyFunction[T], userData interface{} ) (rv *DllElement[T], pos int) {
 	(*ns).mu.RLock()
 	defer (*ns).mu.RUnlock()
-	if ns.IsEmpty() {
+	// if ns.IsEmpty() {
+	if (*ns).length == 0 {
 		return nil, -1 // not found
 	} 
 
@@ -306,10 +400,11 @@ func (ns *Dll[T]) Walk( fx ApplyFunction[T], userData interface{} ) (rv *DllNode
 }
 
 // ReverseWalk - Iterate from tail to head of list. 											O(n)
-func (ns *Dll[T]) ReverseWalk( fx ApplyFunction[T], userData interface{} ) (rv *DllNode[T], pos int) {
+func (ns *Dll[T]) ReverseWalk( fx ApplyFunction[T], userData interface{} ) (rv *DllElement[T], pos int) {
 	(*ns).mu.RLock()
 	defer (*ns).mu.RUnlock()
-	if ns.IsEmpty() {
+	// if ns.IsEmpty() {
+	if (*ns).length == 0 {
 		return nil, -1 // not found
 	} 
 
@@ -327,7 +422,8 @@ func (ns *Dll[T]) ReverseWalk( fx ApplyFunction[T], userData interface{} ) (rv *
 func (ns *Dll[T]) ReverseList() {
 	(*ns).mu.Lock()
 	defer (*ns).mu.Unlock()
-	if ns.IsEmpty() {
+	// if ns.IsEmpty() {
+	if (*ns).length == 0 {
 		return 
 	} 
 
@@ -342,10 +438,11 @@ func (ns *Dll[T]) ReverseList() {
 }
 
 // Index will return the Nth item from the list.
-func (ns *Dll[T]) Index(sub int) (rv *DllNode[T], err error) {
+func (ns *Dll[T]) Index(sub int) (rv *DllElement[T], err error) {
 	(*ns).mu.RLock()
 	defer (*ns).mu.RUnlock()
-	if ns.IsEmpty() {
+	// if ns.IsEmpty() {
+	if (*ns).length == 0 {
 		return nil, ErrOutOfRange 
 	} 
 

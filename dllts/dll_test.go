@@ -10,7 +10,7 @@ import (
 	"testing"
 	"fmt"
 
-	// "github.com/pschlump/godebug"
+	"github.com/pschlump/godebug"
 	"github.com/pschlump/pluto/comparable"
 )
 
@@ -47,20 +47,37 @@ func TestDll(t *testing.T) {
 
 	var Dll1 Dll[TestDemo]
 
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 	if !Dll1.IsEmpty() {
 		t.Errorf ( "Expected empty stack after decleration, failed to get one." )
 	}
 
 	Dll1.AppendAtTail ( &TestDemo{S:"hi"} )
 
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 	if Dll1.IsEmpty() {
 		t.Errorf ( "Expected non-empty stack after 1st push, failed to get one." )
+	}
+
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
 	}
 
 	_, err := Dll1.Pop()
 	if err != nil {
 		t.Errorf ( "Unexpectd empty stack error after 1 pop" )
 	}
+
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 	_, err = Dll1.Pop()
 	if err == nil {
 		t.Errorf ( "Unexpectd lack of error after pop on empty stack" )
@@ -68,6 +85,10 @@ func TestDll(t *testing.T) {
 
 	Dll1.AppendAtTail ( &TestDemo{S:"hi2"} )
 	Dll1.AppendAtTail ( &TestDemo{S:"hi3"} )
+
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
 
 	got := Dll1.Length() 
 	expect := 2
@@ -93,6 +114,10 @@ func TestDll(t *testing.T) {
 
 	// func (ns *Dll[T]) InsertBeforeHead(t *T) {
 	// func (ns *Dll[T]) AppendAtTail(t *T) {
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 
 	Dll1.InsertBeforeHead ( &TestDemo{S:"02"} )
 	Dll1.AppendAtTail ( &TestDemo{S:"03"} )
@@ -133,6 +158,10 @@ func TestDll(t *testing.T) {
 		t.Errorf ( "Unexpectd lack of error after pop on empty stack" )
 	}
 
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 	// 	Test - DeleteAtHead 
 	Dll1.InsertBeforeHead ( &TestDemo{S:"02"} )
 	Dll1.AppendAtTail ( &TestDemo{S:"03"} )
@@ -147,6 +176,10 @@ func TestDll(t *testing.T) {
 	}
 	if a.S != "02" {
 		t.Errorf ( "Unexpectd data" )
+	}
+
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
 	}
 
 	// Test - ReverseList - Reverse all the nodes in list. 												O(n)
@@ -182,9 +215,13 @@ func TestDll(t *testing.T) {
 	}
 
 
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 
 	// Walk - Iterate from head to tail of list. 													O(n)
-	// func (ns *Dll[T]) Walk( fx ApplyFunction[T], userData interface{} ) (rv *DllNode[T], pos int) {
+	// func (ns *Dll[T]) Walk( fx ApplyFunction[T], userData interface{} ) (rv *DllElement[T], pos int) {
 	Dll1.Truncate()  
 	Dll1.InsertBeforeHead ( &TestDemo{S:"02"} )
 	Dll1.AppendAtTail ( &TestDemo{S:"03"} )
@@ -216,6 +253,10 @@ func TestDll(t *testing.T) {
 		}
 	}
 
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 	// ReverseWalk - Iterate from tail to head of list. 											O(n)
 	found = []string{}
 	rv, pos = Dll1.ReverseWalk( fx, "02" )
@@ -241,20 +282,24 @@ func TestDll(t *testing.T) {
 
 	*/
 
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 	Dll1.Truncate()  
 	Dll1.InsertBeforeHead ( &TestDemo{S:"02"} )
 	Dll1.AppendAtTail ( &TestDemo{S:"03"} )
 	Dll1.InsertBeforeHead ( &TestDemo{S:"01"} )
 
 	// Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
-	// func (ns *Dll[T]) Search( t *T ) (rv *DllNode[T], pos int) {
+	// func (ns *Dll[T]) Search( t *T ) (rv *DllElement[T], pos int) {
 	rv, pos = Dll1.Search( &TestDemo{ S: "02"} )
 	if db4 {
 		fmt.Printf ( "%+v, at locaiton %d\n", rv, pos )
 	}
 
 	// Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
-	// func (ns *Dll[T]) Delete( it *DllNode[T] ) ( err error ) {
+	// func (ns *Dll[T]) Delete( it *DllElement[T] ) ( err error ) {
 	err = Dll1.Delete( rv )
 
 	if Dll1.Length() != 2 {
@@ -271,6 +316,10 @@ func TestDll(t *testing.T) {
 	Dll1.Walk( fx, "02" )
 
 	// ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 
 	Dll1.Truncate()  
 	Dll1.InsertBeforeHead ( &TestDemo{S:"02"} )
@@ -278,14 +327,14 @@ func TestDll(t *testing.T) {
 	Dll1.InsertBeforeHead ( &TestDemo{S:"01"} )
 
 	// Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
-	// func (ns *Dll[T]) Search( t *T ) (rv *DllNode[T], pos int) {
+	// func (ns *Dll[T]) Search( t *T ) (rv *DllElement[T], pos int) {
 	rv, pos = Dll1.ReverseSearch( &TestDemo{ S: "02"} )
 	if db4 {
 		fmt.Printf ( "%+v, at locaiton %d\n", rv, pos )
 	}
 
 	// Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
-	// func (ns *Dll[T]) Delete( it *DllNode[T] ) ( err error ) {
+	// func (ns *Dll[T]) Delete( it *DllElement[T] ) ( err error ) {
 	err = Dll1.Delete( rv )
 
 	if Dll1.Length() != 2 {
@@ -294,8 +343,12 @@ func TestDll(t *testing.T) {
 
 	Dll1.Walk( fx, "02" )
 
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 	// TODO
-	// func (ns *Dll[T]) Index(sub int) (rv *DllNode[T], err error) {
+	// func (ns *Dll[T]) Index(sub int) (rv *DllElement[T], err error) {
 	// Index - return the Nth item																	O(n)
 
 	Dll1.Truncate()  
@@ -321,6 +374,10 @@ func TestDll(t *testing.T) {
 		}
 	}
 	
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 	rv, err = Dll1.Index ( 2 )
 	if err != nil {
 		t.Errorf ( "Unexpectd error" )
@@ -337,7 +394,58 @@ func TestDll(t *testing.T) {
 
 }
 
+func TestIter(t *testing.T) {
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
+	var Dll2 Dll[TestDemo]
+	Dll2.InsertBeforeHead ( &TestDemo{S:"02"} )
+	Dll2.AppendAtTail ( &TestDemo{S:"03"} )
+	Dll2.InsertBeforeHead ( &TestDemo{S:"01"} )
+
+	expected := []string{"01", "02", "03"}
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
+	for ii := Dll2.Front() ; ! ii.Done(); ii.Next() {
+		if db6 {
+			fmt.Printf ( "at:%s pos %d value %+v\n", godebug.LF(), ii.Pos(), ii.Value() )
+		}
+		j := ii.Pos()
+		if j < 0 || j >= len(expected) {
+			t.Errorf ( "Unexpectd location in list: %d\n", j )
+		} else {
+			if expected[j] != ii.Value().S {
+				t.Errorf ( "Unexpectd Value got ->%s<- expectd ->%s<- at pos %d\n", ii.Value().S, expected[j], j )
+			}
+		}
+	}
+
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
+	for ii := Dll2.Rear() ; ! ii.Done(); ii.Prev() {
+		if db6 {
+			fmt.Printf ( "at:%s pos %d value %+v\n", godebug.LF(), ii.Pos(), ii.Value() )
+		}
+		j := ii.Pos()
+		if j < 0 || j >= len(expected) {
+			t.Errorf ( "Unexpectd location in list: %d\n", j )
+		} else {
+			if expected[j] != ii.Value().S {
+				t.Errorf ( "Unexpectd Value got ->%s<- expectd ->%s<- at pos %d\n", ii.Value().S, expected[j], j )
+			}
+		}
+	}
+
+}
+
 var db1 = false
 var db3 = false
 var db4 = false
+var db6 = false
+var db7 = false
 
