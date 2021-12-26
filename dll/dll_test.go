@@ -47,20 +47,37 @@ func TestDll(t *testing.T) {
 
 	var Dll1 Dll[TestDemo]
 
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 	if !Dll1.IsEmpty() {
 		t.Errorf ( "Expected empty stack after decleration, failed to get one." )
 	}
 
 	Dll1.AppendAtTail ( &TestDemo{S:"hi"} )
 
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 	if Dll1.IsEmpty() {
 		t.Errorf ( "Expected non-empty stack after 1st push, failed to get one." )
+	}
+
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
 	}
 
 	_, err := Dll1.Pop()
 	if err != nil {
 		t.Errorf ( "Unexpectd empty stack error after 1 pop" )
 	}
+
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 	_, err = Dll1.Pop()
 	if err == nil {
 		t.Errorf ( "Unexpectd lack of error after pop on empty stack" )
@@ -68,6 +85,10 @@ func TestDll(t *testing.T) {
 
 	Dll1.AppendAtTail ( &TestDemo{S:"hi2"} )
 	Dll1.AppendAtTail ( &TestDemo{S:"hi3"} )
+
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
 
 	got := Dll1.Length() 
 	expect := 2
@@ -93,6 +114,10 @@ func TestDll(t *testing.T) {
 
 	// func (ns *Dll[T]) InsertBeforeHead(t *T) {
 	// func (ns *Dll[T]) AppendAtTail(t *T) {
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 
 	Dll1.InsertBeforeHead ( &TestDemo{S:"02"} )
 	Dll1.AppendAtTail ( &TestDemo{S:"03"} )
@@ -133,6 +158,10 @@ func TestDll(t *testing.T) {
 		t.Errorf ( "Unexpectd lack of error after pop on empty stack" )
 	}
 
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 	// 	Test - DeleteAtHead 
 	Dll1.InsertBeforeHead ( &TestDemo{S:"02"} )
 	Dll1.AppendAtTail ( &TestDemo{S:"03"} )
@@ -147,6 +176,10 @@ func TestDll(t *testing.T) {
 	}
 	if a.S != "02" {
 		t.Errorf ( "Unexpectd data" )
+	}
+
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
 	}
 
 	// Test - ReverseList - Reverse all the nodes in list. 												O(n)
@@ -182,6 +215,10 @@ func TestDll(t *testing.T) {
 	}
 
 
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 
 	// Walk - Iterate from head to tail of list. 													O(n)
 	// func (ns *Dll[T]) Walk( fx ApplyFunction[T], userData interface{} ) (rv *DllElement[T], pos int) {
@@ -216,6 +253,10 @@ func TestDll(t *testing.T) {
 		}
 	}
 
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 	// ReverseWalk - Iterate from tail to head of list. 											O(n)
 	found = []string{}
 	rv, pos = Dll1.ReverseWalk( fx, "02" )
@@ -240,6 +281,10 @@ func TestDll(t *testing.T) {
 	+	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
 
 	*/
+
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
 
 	Dll1.Truncate()  
 	Dll1.InsertBeforeHead ( &TestDemo{S:"02"} )
@@ -271,6 +316,10 @@ func TestDll(t *testing.T) {
 	Dll1.Walk( fx, "02" )
 
 	// ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 
 	Dll1.Truncate()  
 	Dll1.InsertBeforeHead ( &TestDemo{S:"02"} )
@@ -293,6 +342,10 @@ func TestDll(t *testing.T) {
 	}
 
 	Dll1.Walk( fx, "02" )
+
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
 
 	// TODO
 	// func (ns *Dll[T]) Index(sub int) (rv *DllElement[T], err error) {
@@ -321,6 +374,10 @@ func TestDll(t *testing.T) {
 		}
 	}
 	
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 	rv, err = Dll1.Index ( 2 )
 	if err != nil {
 		t.Errorf ( "Unexpectd error" )
@@ -338,12 +395,19 @@ func TestDll(t *testing.T) {
 }
 
 func TestIter(t *testing.T) {
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
 	var Dll2 Dll[TestDemo]
 	Dll2.InsertBeforeHead ( &TestDemo{S:"02"} )
 	Dll2.AppendAtTail ( &TestDemo{S:"03"} )
 	Dll2.InsertBeforeHead ( &TestDemo{S:"01"} )
 
 	expected := []string{"01", "02", "03"}
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
 
 	for ii := Dll2.Front() ; ! ii.Done(); ii.Next() {
 		if db6 {
@@ -357,6 +421,10 @@ func TestIter(t *testing.T) {
 				t.Errorf ( "Unexpectd Value got ->%s<- expectd ->%s<- at pos %d\n", ii.Value().S, expected[j], j )
 			}
 		}
+	}
+
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
 	}
 
 	for ii := Dll2.Rear() ; ! ii.Done(); ii.Prev() {
@@ -379,4 +447,5 @@ var db1 = false
 var db3 = false
 var db4 = false
 var db6 = false
+var db7 = false
 

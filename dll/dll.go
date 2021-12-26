@@ -75,9 +75,9 @@ type Dll[T comparable.Equality] struct {
 
 // An iteration type that allows a for loop to walk the list.
 type DllIter[T comparable.Equality] struct {
-	cur *DllElement[T]
-	dll *Dll[T]
-	pos int
+	cur 		*DllElement[T]
+	dll 		*Dll[T]
+	pos 		int
 }
 
 // -------------------------------------------------------------------------------------------------------
