@@ -25,14 +25,15 @@ func TestStack(t *testing.T) {
 		t.Errorf ( "Expected non-empty stack after 1st push, failed to get one." )
 	}
 
-	err := Stk1.Pop()
+	x, err := Stk1.Pop()
 	if err != nil {
 		t.Errorf ( "Unexpectd empty stack error after 1 pop" )
 	}
-	err = Stk1.Pop()
+	x, err = Stk1.Pop()
 	if err == nil {
 		t.Errorf ( "Unexpectd lack of error after pop on empty stack" )
 	}
+	_ = x
 
 	Stk1.Push ( TestDemo{S:"hi2"} )
 	Stk1.Push ( TestDemo{S:"hi3"} )

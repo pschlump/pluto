@@ -39,12 +39,14 @@ func (ns *Stack[T]) Push(t T) {
 var ErrEmptyStack = errors.New("Empty Stack")
 
 // Pop will remove the top element from the stack.  An error is returned if the stack is empty.
-func (ns *Stack[T]) Pop() error {
+func (ns *Stack[T]) Pop() ( rv T, err error ) {
 	if ns.IsEmpty() {
-		return ErrEmptyStack
+		err = ErrEmptyStack
+		return 
 	}
+	rv = (*ns)[len((*ns))-1]
 	(*ns) = (*ns)[0:len((*ns))-1]
-	return nil
+	return 
 }
 
 // Length returns the number of elements in the stack.
