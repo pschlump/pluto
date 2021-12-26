@@ -25,7 +25,7 @@ func TestStack(t *testing.T) {
 		t.Errorf ( "Expected empty stack after decleration, failed to get one." )
 	}
 
-	Sll1.AppendTailSLL ( &TestDemo{S:"hi"} )
+	Sll1.InsertBeforeHead ( &TestDemo{S:"hi"} )
 
 	if Sll1.IsEmpty() {
 		t.Errorf ( "Expected non-empty stack after 1st push, failed to get one." )
@@ -40,8 +40,8 @@ func TestStack(t *testing.T) {
 		t.Errorf ( "Unexpectd lack of error after pop on empty stack" )
 	}
 
-	Sll1.AppendTailSLL ( &TestDemo{S:"hi2"} )
-	Sll1.AppendTailSLL ( &TestDemo{S:"hi3"} )
+	Sll1.InsertBeforeHead ( &TestDemo{S:"hi2"} )
+	Sll1.InsertBeforeHead ( &TestDemo{S:"hi3"} )
 
 	got := Sll1.Length() 
 	expect := 2
@@ -73,10 +73,10 @@ func TestStack(t *testing.T) {
 	}
 
 	// func (ns *Sll[T]) InsertHeadSLL(t *T) {
-	// func (ns *Sll[T]) AppendTailSLL(t *T) {
+	// func (ns *Sll[T]) InsertBeforeHead(t *T) {
 
 	Sll1.InsertHeadSLL ( &TestDemo{S:"02"} )
-	Sll1.AppendTailSLL ( &TestDemo{S:"03"} )
+	Sll1.InsertBeforeHead ( &TestDemo{S:"03"} )
 	Sll1.InsertHeadSLL ( &TestDemo{S:"01"} )
 
 	got = Sll1.Length() 
@@ -124,7 +124,7 @@ func TestIter(t *testing.T) {
 
 	var Sll2 Sll[TestDemo]
 	Sll2.InsertHeadSLL ( &TestDemo{S:"02"} )
-	Sll2.AppendTailSLL ( &TestDemo{S:"03"} )
+	Sll2.InsertBeforeHead ( &TestDemo{S:"03"} )
 	Sll2.InsertHeadSLL ( &TestDemo{S:"01"} )
 
 	expected := []string{"01", "02", "03"}

@@ -92,7 +92,7 @@ func (ns *Sll[T]) IsEmpty() bool {
 	return (*ns).length == 0
 }
 
-// Push will append a new node to the end of the list.
+// InsertHeadSLL will append a new node to the end of the list.
 func (ns *Sll[T]) InsertHeadSLL(t *T) {
 	x := SllElement[T] { data: t }	// Create the node
 	if (*ns).head == nil {
@@ -106,8 +106,8 @@ func (ns *Sll[T]) InsertHeadSLL(t *T) {
 	}
 }
 
-// Push will append a new node to the end of the list.
-func (ns *Sll[T]) AppendTailSLL(t *T) {
+// InsertBeforeHead will append a new node to the end of the list.
+func (ns *Sll[T]) InsertBeforeHead(t *T) {
 	x := SllElement[T] { data: t }	// Create the node
 	if (*ns).head == nil {
 		(*ns).head = &x
@@ -118,6 +118,11 @@ func (ns *Sll[T]) AppendTailSLL(t *T) {
 		(*ns).tail = &x
 		(*ns).length++
 	}
+}
+
+// Push will append a new node to the end of the list.
+func (ns *Sll[T]) Push(t *T) {
+	ns.InsertBeforeHead(t)
 }
 
 // Length returns the number of elements in the list.
