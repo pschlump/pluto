@@ -2,7 +2,10 @@ module github.com/pschlump/pluto/dllts
 
 go 1.18
 
-require github.com/pschlump/pluto/comparable v0.0.2
+require (
+	github.com/pschlump/pluto/comparable v0.0.2
+	github.com/pschlump/pluto/dllts v0.0.2
+)
 
 require (
 	github.com/mattn/go-colorable v0.1.1 // indirect
@@ -15,3 +18,5 @@ require (
 )
 
 replace github.com/pschlump/pluto/comparable => ../comparable
+
+replace github.com/pschlump/pluto/dllts => ./

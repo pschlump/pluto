@@ -171,11 +171,17 @@ func (ns *Dll[T]) noLockInsertBeforeHead(t *T) {
 	}
 }
 
-// Push will append a new node to the end of the list.
+// InsertBeforeHead will append a new node to the end of the list.
 func (ns *Dll[T]) InsertBeforeHead(t *T) {
 	(*ns).mu.Lock()
 	defer (*ns).mu.Unlock()
 	(*ns).noLockInsertBeforeHead(t)
+}
+
+// Push will append a new node to the end of the list.
+// This is just an alias for InsertBeforeHead()
+func (ns *Dll[T]) Push(t *T) {
+	ns.InsertBeforeHead(t)
 }
 
 // Push will append a new node to the end of the list.
