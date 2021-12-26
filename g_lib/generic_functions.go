@@ -1,7 +1,6 @@
 package g_lib
 
 import (
-	"fmt"
 	"constraints"
 )
 
@@ -43,7 +42,6 @@ func MaxArray[T constraints.Ordered](a []T) (rv T){
   	return 
 }
 
-
 func InArray[T comparable](needle T, haystack []T) bool {
 	for _, val := range haystack {
 		if val == needle {
@@ -67,8 +65,4 @@ func KeysForStringMap[T any](aMap map[string]T) (rv []string ) {
 		rv = append ( rv, key )
 	}
 	return 
-}
-
-func callOnce() {
-	fmt.Printf ( "MaxArray ( []string{\"a\",\"b\"} ) = %v\n", MaxArray( []string{"a","b"} ) )
 }
