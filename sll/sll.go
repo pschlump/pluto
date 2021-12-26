@@ -18,16 +18,74 @@ import (
 )
 
 // A node in the singly linked list
-type SllNode[T any] struct {
-	next *SllNode[T]
+type SllElement[T any] struct {
+	next *SllElement[T]
 	data *T
 }
 // Sll is a generic type buildt on top of a slice
 type Sll[T any] struct {
-	head, tail *SllNode[T]
+	head, tail *SllElement[T]
 	length int
 }
 
+
+// An iteration type that allows a for loop to walk the list.
+type SllIter[T any] struct {
+	cur 		*SllElement[T]
+	sll 		*Sll[T]
+	pos 		int
+}
+
+// -------------------------------------------------------------------------------------------------------
+
+// Front will start at the beginning of a list for iteration over list.
+func (ns *Sll[T]) Front() *SllIter[T] {
+	return &SllIter[T] {
+		cur: ns.head,
+		sll: ns,
+	}
+}
+
+// Current will take the node returned from Search or RevrseSearch
+// 		func (ns *Sll[T]) Search( t *T ) (rv *SllElement[T], pos int) {
+// and allow you to start an iteration process from that point.
+func (ns *Sll[T]) Current(el *SllElement[T], pos int) *SllIter[T] {
+	return &SllIter[T] {
+		cur: el,
+		sll: ns,
+		pos: pos,
+	}
+}
+
+// Value returns the current data for this element in the list.
+func (iter *SllIter[T]) Value() *T {
+	if iter.cur != nil {
+		return iter.cur.data
+	}
+	return nil
+}
+
+// Next advances to the next element in the list.
+func (iter *SllIter[T]) Next() {
+	if iter.cur == nil {
+		return 
+	}
+	iter.cur = iter.cur.next
+	iter.pos++
+}
+
+// Done returns true if the end of the list has been reached.
+func (iter *SllIter[T]) Done() bool {
+	return iter.cur == nil
+}
+
+// Pos returns the current "index" of the elemnt being iterated on.  So if the list has 3 elements, a, b, c and we
+// start at the head of the list 'a' will have a Pos() of 0, 'b' will have a Pos() of 1 etc.
+func (iter *SllIter[T]) Pos() int {
+	return iter.pos
+}
+
+// -------------------------------------------------------------------------------------------------------
 // IsEmpty will return true if the stack is empty
 func (ns *Sll[T]) IsEmpty() bool {
 	// return (*ns).head == nil
@@ -36,7 +94,7 @@ func (ns *Sll[T]) IsEmpty() bool {
 
 // Push will append a new node to the end of the list.
 func (ns *Sll[T]) InsertHeadSLL(t *T) {
-	x := SllNode[T] { data: t }	// Create the node
+	x := SllElement[T] { data: t }	// Create the node
 	if (*ns).head == nil {
 		(*ns).head = &x
 		(*ns).tail = &x
@@ -50,7 +108,7 @@ func (ns *Sll[T]) InsertHeadSLL(t *T) {
 
 // Push will append a new node to the end of the list.
 func (ns *Sll[T]) AppendTailSLL(t *T) {
-	x := SllNode[T] { data: t }	// Create the node
+	x := SllElement[T] { data: t }	// Create the node
 	if (*ns).head == nil {
 		(*ns).head = &x
 		(*ns).tail = &x

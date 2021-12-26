@@ -6,12 +6,18 @@ Copyright (C) Philip Schlump, 2012-2021.
 BSD 3 Clause Licensed.
 */
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+
+	"github.com/pschlump/godebug"
+)
+
+type TestDemo struct {
+	S string
+}
 
 func TestStack(t *testing.T) {
-	type TestDemo struct {
-		S string
-	}
 
 	var Sll1 Sll[TestDemo]
 
@@ -109,4 +115,39 @@ func TestStack(t *testing.T) {
 	}
 }
 
+ 
+
+func TestIter(t *testing.T) {
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
+	var Sll2 Sll[TestDemo]
+	Sll2.InsertHeadSLL ( &TestDemo{S:"02"} )
+	Sll2.AppendTailSLL ( &TestDemo{S:"03"} )
+	Sll2.InsertHeadSLL ( &TestDemo{S:"01"} )
+
+	expected := []string{"01", "02", "03"}
+	if db7 {
+		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+	}
+
+	for ii := Sll2.Front() ; ! ii.Done(); ii.Next() {
+		if db6 {
+			fmt.Printf ( "at:%s pos %d value %+v\n", godebug.LF(), ii.Pos(), ii.Value() )
+		}
+		j := ii.Pos()
+		if j < 0 || j >= len(expected) {
+			t.Errorf ( "Unexpectd location in list: %d\n", j )
+		} else {
+			if expected[j] != ii.Value().S {
+				t.Errorf ( "Unexpectd Value got ->%s<- expectd ->%s<- at pos %d\n", ii.Value().S, expected[j], j )
+			}
+		}
+	}
+
+}
+
+var db6 = false
+var db7 = false
 
