@@ -343,15 +343,34 @@ func TestIter(t *testing.T) {
 	Dll2.AppendAtTail ( &TestDemo{S:"03"} )
 	Dll2.InsertBeforeHead ( &TestDemo{S:"01"} )
 
-	fmt.Printf ( "at:%s\n", godebug.LF())
+	expected := []string{"01", "02", "03"}
 
-	// xyzzy - TODO - automate this test.
-
-	// jj := 0
 	for ii := Dll2.Front() ; ! ii.Done(); ii.Next() {
-		fmt.Printf ( "at pos %d value %+v\n", ii.Pos(), ii.Value() )
-		// fmt.Printf ( "at pos %d value %+v\n", jj, ii.Value() )
-		// jj++
+		if db6 {
+			fmt.Printf ( "at:%s pos %d value %+v\n", godebug.LF(), ii.Pos(), ii.Value() )
+		}
+		j := ii.Pos()
+		if j < 0 || j >= len(expected) {
+			t.Errorf ( "Unexpectd location in list: %d\n", j )
+		} else {
+			if expected[j] != ii.Value().S {
+				t.Errorf ( "Unexpectd Value got ->%s<- expectd ->%s<- at pos %d\n", ii.Value().S, expected[j], j )
+			}
+		}
+	}
+
+	for ii := Dll2.Rear() ; ! ii.Done(); ii.Prev() {
+		if db6 {
+			fmt.Printf ( "at:%s pos %d value %+v\n", godebug.LF(), ii.Pos(), ii.Value() )
+		}
+		j := ii.Pos()
+		if j < 0 || j >= len(expected) {
+			t.Errorf ( "Unexpectd location in list: %d\n", j )
+		} else {
+			if expected[j] != ii.Value().S {
+				t.Errorf ( "Unexpectd Value got ->%s<- expectd ->%s<- at pos %d\n", ii.Value().S, expected[j], j )
+			}
+		}
 	}
 
 }
@@ -359,4 +378,5 @@ func TestIter(t *testing.T) {
 var db1 = false
 var db3 = false
 var db4 = false
+var db6 = false
 
