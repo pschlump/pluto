@@ -10,7 +10,7 @@ import (
 	"testing"
 	"fmt"
 
-	// "github.com/pschlump/godebug"
+	"github.com/pschlump/godebug"
 	"github.com/pschlump/pluto/comparable"
 )
 
@@ -334,6 +334,25 @@ func TestDll(t *testing.T) {
 	if err == nil {
 		t.Errorf ( "Unexpectd lack of error" )
 	} 
+
+}
+
+func TestIter(t *testing.T) {
+	var Dll2 Dll[TestDemo]
+	Dll2.InsertBeforeHead ( &TestDemo{S:"02"} )
+	Dll2.AppendAtTail ( &TestDemo{S:"03"} )
+	Dll2.InsertBeforeHead ( &TestDemo{S:"01"} )
+
+	fmt.Printf ( "at:%s\n", godebug.LF())
+
+	// xyzzy - TODO - automate this test.
+
+	// jj := 0
+	for ii := Dll2.Front() ; ! ii.Done(); ii.Next() {
+		fmt.Printf ( "at pos %d value %+v\n", ii.Pos(), ii.Value() )
+		// fmt.Printf ( "at pos %d value %+v\n", jj, ii.Value() )
+		// jj++
+	}
 
 }
 

@@ -77,6 +77,7 @@ type Dll[T comparable.Equality] struct {
 type DllIter[T comparable.Equality] struct {
 	cur *DllElement[T]
 	dll *Dll[T]
+	pos int
 }
 
 // -------------------------------------------------------------------------------------------------------
@@ -94,16 +95,18 @@ func (ns *Dll[T]) Rear() *DllIter[T] {
 	return &DllIter[T] {
 		cur: ns.tail,
 		dll: ns,
+		pos: ns.length-1,
 	}
 }
 
 // Current will take the node returned from Search or RevrseSearch
 // 		func (ns *Dll[T]) Search( t *T ) (rv *DllElement[T], pos int) {
 // and allow you to start an iteration process from that point.
-func (ns *Dll[T]) Current(el *DllElement[T]) *DllIter[T] {
+func (ns *Dll[T]) Current(el *DllElement[T], pos int) *DllIter[T] {
 	return &DllIter[T] {
 		cur: el,
 		dll: ns,
+		pos: pos,
 	}
 }
 
@@ -117,21 +120,31 @@ func (iter *DllIter[T]) Value() *T {
 
 // Next advances to the next element in the list.
 func (iter *DllIter[T]) Next() {
-	if iter.cur.next != nil {
-		iter.cur = iter.cur.next
+	if iter.cur == nil {
+		return 
 	}
+	iter.cur = iter.cur.next
+	iter.pos++
 }
 
 // Prev moves back to the previous element in the list.
 func (iter *DllIter[T]) Prev() {
-	if iter.cur.prev != nil {
-		iter.cur = iter.cur.prev
+	if iter.cur == nil {
+		return 
 	}
+	iter.cur = iter.cur.prev
+	iter.pos--
 }
 
 // Done returns true if the end of the list has been reached.
 func (iter *DllIter[T]) Done() bool {
-	return iter.cur != nil
+	return iter.cur == nil
+}
+
+// Pos returns the current "index" of the elemnt being iterated on.  So if the list has 3 elements, a, b, c and we
+// start at the head of the list 'a' will have a Pos() of 0, 'b' will have a Pos() of 1 etc.
+func (iter *DllIter[T]) Pos() int {
+	return iter.pos
 }
 
 // -------------------------------------------------------------------------------------------------------
