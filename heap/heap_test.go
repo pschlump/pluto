@@ -47,12 +47,13 @@ func TestSetpAndPop(t *testing.T) {
 	}
 	h.verify(t, 0)
 
-	h.Truncate()
+	h.Truncate()		// Empty the Heap
 
-	if h.Length() != 0 {
+	if h.Length() != 0 { // Verify it is empty.
 		t.Errorf("Invalid length, expected 0, got %d", h.Length() )
 	}
 
+	// Test with 20 0's in the heap.
 	for i := 20; i > 0; i-- {
 		hv := myHeap(0)
 		h.Push(&hv) // all elements are the same
@@ -60,8 +61,7 @@ func TestSetpAndPop(t *testing.T) {
 	h.verify(t, 0)
 
 	for i := 1; h.Length() > 0; i++ {
-		x0 := h.Pop()
-		if x0 != nil {
+		if x0 := h.Pop(); x0 != nil {
 			x := int(*x0)
 			// h.dump()
 			h.verify(t, 0)
@@ -72,11 +72,12 @@ func TestSetpAndPop(t *testing.T) {
 	}
 }
 
+// dump will print out the heap in JSON format.
 func (hp *heap[T]) dump() {
 	fmt.Printf ( "Heap : %s\n", godebug.SVarI(hp.data) )
 }
 
-// func (h myHeap) verify(t *testing.T, i int) {
+// verify checks that the heap is a heap - that it is properly ordered.
 func (hp *heap[T]) verify(t *testing.T, i int) {
 	t.Helper()	// set line number to line of caller of 'verify()'
 	n := hp.Length()
