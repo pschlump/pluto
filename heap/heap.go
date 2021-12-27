@@ -50,6 +50,10 @@ func (hp *heap[T]) Pop () ( rv *T ) {
 	return
 }
 
+func (hp *heap[T]) Truncate() {
+	hp.data = []*T{}
+}
+
 // Delete removes and returns the element at the specified index `ii` from the heap.
 // Complexity is O(log n).
 func (hp *heap[T]) Delete(ii int) (rv *T) {

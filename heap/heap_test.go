@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/pschlump/godebug"
 	"github.com/pschlump/pluto/comparable"
 )
 
@@ -36,7 +37,7 @@ func TestNewHeap(t *testing.T) {
 	_ = x
 }
 
-func Test1(t *testing.T) {
+func TestSetpAndPop(t *testing.T) {
 	h := NewHeap[myHeap]()
 	h.verify(t, 0)
 
@@ -45,20 +46,47 @@ func Test1(t *testing.T) {
 		h.Push(&hv)
 	}
 	h.verify(t, 0)
-	_ = h
+
+	h.Truncate()
+
+	if h.Length() != 0 {
+		t.Errorf("Invalid length, expected 0, got %d", h.Length() )
+	}
+
+	for i := 20; i > 0; i-- {
+		hv := myHeap(0)
+		h.Push(&hv) // all elements are the same
+	}
+	h.verify(t, 0)
+
+	for i := 1; h.Length() > 0; i++ {
+		x0 := h.Pop()
+		if x0 != nil {
+			x := int(*x0)
+			// h.dump()
+			h.verify(t, 0)
+			if x != 0 {
+				t.Errorf("%d.th Pop() got %d; expected %d", i, x, 0)
+			}
+		}
+	}
+}
+
+func (hp *heap[T]) dump() {
+	fmt.Printf ( "Heap : %s\n", godebug.SVarI(hp.data) )
 }
 
 // func (h myHeap) verify(t *testing.T, i int) {
-func (hp *heap[T])  verify(t *testing.T, i int) {
-	t.Helper()
+func (hp *heap[T]) verify(t *testing.T, i int) {
+	t.Helper()	// set line number to line of caller of 'verify()'
 	n := hp.Length()
 	j1 := 2*i + 1
 	j2 := 2*i + 2
 	if j1 < n {
 		// if h.Less(j1, i) {																			// PJS
 		c := (*(hp.data[j1])).Compare(*(hp.data[i])) // Compare [j1] less than [i]
-		if c <= 0 {
-			t.Errorf("heap invariant invalidated [%d] = %d > [%d] = %d", i, (*hp).data[i], j1, (*hp).data[j1])
+		if c < 0 {
+			t.Errorf("Heap invariant invalidated [%d] = %d > [%d] = %d", i, *((*hp).data[i]), j1, *((*hp).data[j1]))
 			return
 		}
 		hp.verify(t, j1) // Recursivly check each sub-tree
@@ -66,8 +94,8 @@ func (hp *heap[T])  verify(t *testing.T, i int) {
 	if j2 < n {
 		// if h.Less(j2, i) {																			// PJS
 		c := (*(hp.data[j2])).Compare(*(hp.data[i])) // Compare [j2] less than [i]
-		if c <= 0 {
-			t.Errorf("heap invariant invalidated [%d] = %d > [%d] = %d", i, (*hp).data[i], j1, (*hp).data[j2])
+		if c < 0 {
+			t.Errorf("heap invariant invalidated [%d] = %d > [%d] = %d", i, *((*hp).data[i]), j1, *((*hp).data[j1]))
 			return
 		}
 		hp.verify(t, j2) // Recursivly check each sub-tree
