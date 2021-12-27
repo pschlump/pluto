@@ -103,22 +103,6 @@ func (hp *heap[T]) verify(t *testing.T, i int) {
 }
 
 /*
-func TestInit0(t *testing.T) {
-	h := new(myHeap)
-	for i := 20; i > 0; i-- {
-		h.Push(0) // all elements are the same
-	}
-	Init(h)
-	h.verify(t, 0)
-
-	for i := 1; h.Len() > 0; i++ {
-		x := Pop(h).(int)
-		h.verify(t, 0)
-		if x != 0 {
-			t.Errorf("%d.th pop got %d; want %d", i, x, 0)
-		}
-	}
-}
 
 func TestInit1(t *testing.T) {
 	h := new(myHeap)
