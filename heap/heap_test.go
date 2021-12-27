@@ -13,6 +13,7 @@ import (
 	"github.com/pschlump/pluto/comparable"
 )
 
+// Create a "heap of int" type called myHeap
 type myHeap int
 
 // At compile time verify that this is a correct type/interface setup.
@@ -30,31 +31,50 @@ func (aa myHeap) Compare(x comparable.Comparable) int {
 	return 0
 }
 
-func TestPlaceholder(t *testing.T) {
+func TestNewHeap(t *testing.T) {
+	x := NewHeap[myHeap]()
+	_ = x
 }
 
-/*
-func (h myHeap) verify(t *testing.T, i int) {
+func Test1(t *testing.T) {
+	h := NewHeap[myHeap]()
+	h.verify(t, 0)
+
+	for i := 20; i > 10; i-- {
+		hv := myHeap(i)
+		h.Push(&hv)
+	}
+	h.verify(t, 0)
+	_ = h
+}
+
+// func (h myHeap) verify(t *testing.T, i int) {
+func (hp *heap[T])  verify(t *testing.T, i int) {
 	t.Helper()
-	n := h.Len()
+	n := hp.Length()
 	j1 := 2*i + 1
 	j2 := 2*i + 2
 	if j1 < n {
-		if h.Less(j1, i) {
-			t.Errorf("heap invariant invalidated [%d] = %d > [%d] = %d", i, h[i], j1, h[j1])
+		// if h.Less(j1, i) {																			// PJS
+		c := (*(hp.data[j1])).Compare(*(hp.data[i])) // Compare [j1] less than [i]
+		if c <= 0 {
+			t.Errorf("heap invariant invalidated [%d] = %d > [%d] = %d", i, (*hp).data[i], j1, (*hp).data[j1])
 			return
 		}
-		h.verify(t, j1)
+		hp.verify(t, j1) // Recursivly check each sub-tree
 	}
 	if j2 < n {
-		if h.Less(j2, i) {
-			t.Errorf("heap invariant invalidated [%d] = %d > [%d] = %d", i, h[i], j1, h[j2])
+		// if h.Less(j2, i) {																			// PJS
+		c := (*(hp.data[j2])).Compare(*(hp.data[i])) // Compare [j2] less than [i]
+		if c <= 0 {
+			t.Errorf("heap invariant invalidated [%d] = %d > [%d] = %d", i, (*hp).data[i], j1, (*hp).data[j2])
 			return
 		}
-		h.verify(t, j2)
+		hp.verify(t, j2) // Recursivly check each sub-tree
 	}
 }
 
+/*
 func TestInit0(t *testing.T) {
 	h := new(myHeap)
 	for i := 20; i > 0; i-- {

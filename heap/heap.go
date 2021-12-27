@@ -98,6 +98,10 @@ func (hp *heap[T]) GetValue(ii int) (value *T) {
 func (hp *heap[T]) Len() int {
 	return len(hp.data)
 }
+func (hp *heap[T]) Length() int {
+	return len(hp.data)
+}
+
 
 
 func (hp *heap[T]) up(j int) {
