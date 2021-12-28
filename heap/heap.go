@@ -9,7 +9,14 @@ package heap
 // xyzzy - TODO - how to append an array of T
 // xyzzy - TODO - how to append sorted array of T
 
-import "github.com/pschlump/pluto/comparable"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/pschlump/godebug"
+	"github.com/pschlump/MiscLib"
+	"github.com/pschlump/pluto/comparable"
+)
 
 //
 // Complexity note.  The order uses 'n' where n = hp.Length().
@@ -38,6 +45,14 @@ func (hp *heap[T]) Push( x *T ) {
 // Pop removes and returns the minimum element (using comparable.Compare).
 // Pop is the same as hp.Remove(0).
 // Complexity is O(log n).
+/*
+func Pop(h Interface) interface{} {
+	n := h.Len() - 1
+	h.Swap(0, n)
+	down(h, 0, n)
+	return h.Pop()
+}
+*/
 func (hp *heap[T]) Pop () ( rv *T ) {
 	if len(hp.data) == 0 {
 		return nil
@@ -109,18 +124,30 @@ func (hp *heap[T]) Length() int {
 
 
 func (hp *heap[T]) up(j int) {
+	fmt.Printf ( "%sup: (before) at:%s\n", MiscLib.ColorCyan, godebug.LF())
+	hp.printAsTree() 
 	for {
 		i := (j - 1) / 2 // pick the parent
+		fmt.Printf ( "up/loop top: at:%s, i = %d, j = %d\n", godebug.LF(), i, j)
 		c := (*(hp.data[j])).Compare(*(hp.data[i])) 
-		if i == j || c >= 0 {	
+		fmt.Printf ( "up/loop top: at:%s, c = %d\n", godebug.LF(), c)
+		// if i == j || c >= 0 {	
+		if i == j || c > 0 {	
+			fmt.Printf ( "up/loop top: at:%s, break\n", godebug.LF())
 			break
 		}
+		fmt.Printf ( "up/loop top: at:%s, swap [%d]==%v with [%d]==%v \n", godebug.LF(), i, *(hp.data[i]), j, *(hp.data[j]) )
 		hp.data[i], hp.data[j] = hp.data[j], hp.data[i] 
 		j = i
 	}
+	fmt.Printf ( "up: (after) at:%s\n", godebug.LF())
+	hp.printAsTree() 
+	fmt.Printf ( "%s\n", MiscLib.ColorReset )
 }
 
-func ( hp *heap[T]) down(i0, n int) bool {
+func ( hp *heap[T]) down(i0, n int) ( rv bool ) {
+	fmt.Printf ( "%sdown: (before) at:%s\n", MiscLib.ColorYellow, godebug.LF())
+	hp.printAsTree() 
 	i := i0
 	for {
 		j1 := 2*i + 1
@@ -129,15 +156,96 @@ func ( hp *heap[T]) down(i0, n int) bool {
 		}
 		j := j1 // choose the left child
 		j2 := j1 + 1
+		// if j2 := j1 + 1; j2 < n && h.Less(j2, j1) {
 		c0 := (*(hp.data[j2])).Compare(*(hp.data[j1]))
 		if j2 < n && c0 < 0 { 
 			j = j2   // choose the right child
 		}
+		// if !h.Less(j, i) {
 		if c := (*(hp.data[j])).Compare(*(hp.data[i])); c >= 0 { 
 			break
 		}
 		hp.data[i], hp.data[j] = hp.data[j], hp.data[i] 
 		i = j
 	}
-	return i > i0
+	rv = i > i0
+	fmt.Printf ( "down: (after) at:%s, will return %v\n", godebug.LF(), rv)
+	hp.printAsTree() 
+	fmt.Printf ( "%s\n", MiscLib.ColorReset )
+	return
 }
+
+
+// dump will print out the heap in JSON format.
+func (hp *heap[T]) printAsJSON() {
+	fmt.Printf ( "Heap : %s\n", godebug.SVarI(hp.data) )
+}
+
+func (hp *heap[T]) printAsTree() {
+	fmt.Printf ( "Heap As Tree: Left, Mid, Right Order: (%s), called from:%s\n", godebug.LF() , godebug.LF(-1))
+	
+	var printIt func ( root, depth int )
+	printIt = func ( i, depth int ) {
+		n := hp.Length()
+		l := 2*i + 1
+		r := 2*i + 2
+		if l < n {
+			printIt ( l, depth+1 )
+		}
+		if i < n {
+			fmt.Printf ( "%2d[%3d]: %s%+v\n", depth, i, strings.Repeat(" ",4*depth), *(hp.data[i]) )
+		}
+		if r < n {
+			printIt ( r, depth+1 )
+		}
+	}
+
+	printIt ( 0, 0 )
+}
+
+
+// To heapify a subtree rooted with node i which is
+// an index in arr[]. N is size of heap
+func (hp *heap[T]) heapify(n, i int) {
+	largest := i; // Initialize largest as root
+	l := 2 * i + 1; // left = 2*i + 1
+	r := 2 * i + 2; // right = 2*i + 2
+
+    // If left child is larger than root
+    // if (l < n && (*hp).data[l] > (*hp).data[largest]) {
+	c := (*(hp.data[l])).Compare(*(hp.data[largest]))
+    if l < n && c > 0 {
+        largest = l;
+	}
+
+    // If right child is larger than largest so far
+	c = (*(hp.data[r])).Compare(*(hp.data[largest]))
+    if r < n && c > 0 {
+        largest = r;
+	}
+
+    // If largest is not root
+    if (largest != i) {
+        // swap((*hp).data[i], (*hp).data[largest]);
+		hp.data[i], hp.data[largest] = hp.data[largest], hp.data[i] 
+
+        // Recursively heapify the affected sub-tree
+        hp.heapify(n, largest);
+    }
+}
+
+/*
+// Function to build a Max-Heap from the given array
+func buildHeap(int arr[], int n)
+{
+    // Index of last non-leaf node
+    int startIdx = (n / 2) - 1;
+
+    // Perform reverse level order traversal
+    // from last non-leaf node and heapify
+    // each node
+    for (int i = startIdx; i >= 0; i--) {
+        heapify(arr, n, i);
+    }
+}
+*/
