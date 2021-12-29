@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	// "github.com/pschlump/godebug"
-	"github.com/pschlump/MiscLib"
+	// "github.com/pschlump/MiscLib"
 	"github.com/pschlump/pluto/comparable"
 )
 
@@ -75,7 +75,7 @@ func TestSetpAndPop(t *testing.T) {
 }
 
 // verify checks that the heap is a heap - that it is properly ordered.
-func (hp *heap[T]) verify(t *testing.T, i int) {
+func (hp *Heap[T]) verify(t *testing.T, i int) {
 	t.Helper()	// set line number to line of caller of 'verify()'
 	n := hp.Length()
 	j1 := 2*i + 1
@@ -84,7 +84,7 @@ func (hp *heap[T]) verify(t *testing.T, i int) {
 		// if h.Less(j1, i) {																			// PJS
 		c := (*(hp.data[j1])).Compare(*(hp.data[i])) // Compare [j1] less than [i]
 		if c < 0 {
-			fmt.Printf("%s((Error 1 from Verify))%s Heap invariant invalidated [%d] = %d > [%d] = %d, compare()=%d\n", MiscLib.ColorRed, MiscLib.ColorReset, i, *((*hp).data[i]), j1, *((*hp).data[j1]), c)
+			// fmt.Printf("%s((Error 1 from Verify))%s Heap invariant invalidated [%d] = %d > [%d] = %d, compare()=%d\n", MiscLib.ColorRed, MiscLib.ColorReset, i, *((*hp).data[i]), j1, *((*hp).data[j1]), c)
 			t.Errorf("Heap invariant invalidated [%d] = %d > [%d] = %d, compare()=%d", i, *((*hp).data[i]), j1, *((*hp).data[j1]), c)
 			return
 		}
@@ -94,7 +94,7 @@ func (hp *heap[T]) verify(t *testing.T, i int) {
 		// if h.Less(j2, i) {																			// PJS
 		c := (*(hp.data[j2])).Compare(*(hp.data[i])) // Compare [j2] less than [i]
 		if c < 0 {
-			fmt.Printf("%s((Error 2 from verify))%s heap invariant invalidated [%d] = %d > [%d] = %d, compare()=%d\n", MiscLib.ColorRed, MiscLib.ColorReset, i, *((*hp).data[i]), j1, *((*hp).data[j2]), c)
+			// fmt.Printf("%s((Error 2 from verify))%s heap invariant invalidated [%d] = %d > [%d] = %d, compare()=%d\n", MiscLib.ColorRed, MiscLib.ColorReset, i, *((*hp).data[i]), j1, *((*hp).data[j2]), c)
 			t.Errorf("heap invariant invalidated [%d] = %d > [%d] = %d, compare()=%d", i, *((*hp).data[i]), j1, *((*hp).data[j2]), c)
 			return
 		}
@@ -111,8 +111,10 @@ func TestWithDifferentElements(t *testing.T) {
 		h.Push(&hv)
 		expect[i] = false
 	}
-	h.printAsJSON()
-	h.printAsTree() 
+	if db10 {
+		h.printAsJSON()
+		h.printAsTree() 
+	}
 	h.verify(t, 0)
 
 	// fmt.Printf ( "\n--------------------------- Top of Pop() Test --------------------------- \n\n" )
