@@ -105,23 +105,34 @@ func (hp *heap[T]) verify(t *testing.T, i int) {
 func TestWithDifferentElements(t *testing.T) {
 	h := NewHeap[myHeap]()
 
-	for i := 3; i > 0; i-- {
+	expect := make ( map[int]bool )
+	for i := 800; i > 0; i-- {
 		hv := myHeap(i)
 		h.Push(&hv)
+		expect[i] = false
 	}
 	h.printAsJSON()
 	h.printAsTree() 
 	h.verify(t, 0)
 
-	fmt.Printf ( "\n--------------------------- Top of Pop() Test --------------------------- \n\n" )
+	// fmt.Printf ( "\n--------------------------- Top of Pop() Test --------------------------- \n\n" )
 	for i := 1; h.Length() > 0; i++ {
 		if x0 := h.Pop(); x0 != nil {
 			x := int(*x0)
-			h.printAsTree()
+			// h.printAsTree()
 			h.verify(t, 0)
+			expect[x] = true
 			if x != i {
-				t.Errorf("%d.th Pop() got %d; expected %d", i, x, i)
+				// if x < i {
+					t.Errorf("%d.th Pop() got %d; expected >= %d", i, x, i)
+				// }
 			}
+		}
+	}
+
+	for k, v := range expect {
+		if !v {
+			t.Errorf("missing %d\n", k)
 		}
 	}
 }

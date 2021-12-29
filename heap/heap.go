@@ -53,6 +53,7 @@ func Pop(h Interface) interface{} {
 	return h.Pop()
 }
 */
+	// Pop() interface{}   // remove and return element Len() - 1.
 func (hp *heap[T]) Pop () ( rv *T ) {
 	if len(hp.data) == 0 {
 		return nil
@@ -60,8 +61,14 @@ func (hp *heap[T]) Pop () ( rv *T ) {
 	n := len(hp.data) - 1
 	hp.data[0], hp.data[n] = hp.data[n], hp.data[0] // (*hp).Swap(0, n)
 	hp.down(0, n) 									//
-	rv = hp.data[0]									// Pop from sort
-	hp.data = hp.data[1:]							// remove element
+	rv = hp.data[n]									// Pop from sort
+	// if n == 0 || n == 1 {
+	if n == 0 {
+		hp.data = []*T{}
+	} else {
+		// hp.data = hp.data[:n-1]						// remove element
+		hp.data = hp.data[:n]						// remove element
+	}
 	return
 }
 
@@ -207,45 +214,42 @@ func (hp *heap[T]) printAsTree() {
 // To heapify a subtree rooted with node i which is
 // an index in arr[]. N is size of heap
 func (hp *heap[T]) heapify(n, i int) {
-	largest := i; // Initialize largest as root
-	l := 2 * i + 1; // left = 2*i + 1
-	r := 2 * i + 2; // right = 2*i + 2
+	largest := i // Initialize largest as root
+	l := 2 * i + 1 // left = 2*i + 1
+	r := 2 * i + 2 // right = 2*i + 2
 
     // If left child is larger than root
     // if (l < n && (*hp).data[l] > (*hp).data[largest]) {
 	c := (*(hp.data[l])).Compare(*(hp.data[largest]))
     if l < n && c > 0 {
-        largest = l;
+        largest = l
 	}
 
     // If right child is larger than largest so far
 	c = (*(hp.data[r])).Compare(*(hp.data[largest]))
     if r < n && c > 0 {
-        largest = r;
+        largest = r
 	}
 
     // If largest is not root
     if (largest != i) {
-        // swap((*hp).data[i], (*hp).data[largest]);
+        // swap((*hp).data[i], (*hp).data[largest])
 		hp.data[i], hp.data[largest] = hp.data[largest], hp.data[i] 
 
         // Recursively heapify the affected sub-tree
-        hp.heapify(n, largest);
+        hp.heapify(n, largest)
     }
 }
 
-/*
-// Function to build a Max-Heap from the given array
-func buildHeap(int arr[], int n)
-{
+// Function to build a Min-Heap from the given array
+func (hp *heap[T]) BuildHeap(n int) {
     // Index of last non-leaf node
-    int startIdx = (n / 2) - 1;
+	startIdx := (n / 2) - 1
 
     // Perform reverse level order traversal
     // from last non-leaf node and heapify
     // each node
-    for (int i = startIdx; i >= 0; i--) {
-        heapify(arr, n, i);
+	for i := startIdx; i >= 0; i-- {
+        hp.heapify(n, i)
     }
 }
-*/
