@@ -1,0 +1,33 @@
+https://www.freecodecamp.org/news/the-top-data-structures-you-should-know-for-your-next-coding-interview-36af0831f5e3/
+
+== Commonly used Data Structures
+
+Let’s first list the most commonly used data structures, and then we’ll cover them one by one:
+
+. Arrays
+. Stacks
+. Queues
+. Linked Lists
+. Trees
+. Graphs
+. Tries (they are effectively trees, but it’s still good to call them out separately).
+. Hash Tables
+
+
+https://graphviz.org/Gallery/directed/datastruct.html
+
+== software-productivity.com
+	
+1. Don't be a one-true-way person
+	. keep your eyes on the goal
+	. remember that there are many ways to solve a problem
+	. remember that you don't have the only way
+	. remember that all rules have exceptions
+	. remember that "pretty" code that is broken is much worse than "ugly" code that works.
+	. objects and OOP are only 1 way to approach a problem - and may not be the best way.
+		. consider a pure-funcaitonal solution
+		. consider graphs and state machines
+		. consider push-down atomata
+		. consider a different data structure
+	. hiding data in OOP means less tests and lower quality code
+

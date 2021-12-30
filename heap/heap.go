@@ -239,4 +239,44 @@ func (hp *Heap[T]) printAsTree() {
 	printIt(0, 0)
 }
 
+// AppendHeap appends a new set of data to the heap (and leaves the heap in a non-heap state).
+// After 1..n AppendHeap operations a call to Heapify() is necessary to re-heap the heap.
+//
+// Example: `h.Heapify(h.Len(),0)` will re-build the entire heap.
+//
+func (hp *Heap[T]) AppendHeap(x []*T) {
+	hp.data = append(hp.data, x...)
+}
+
+// xyzzzy- Commnet- To heapify a subtree rooted with node i which is an index in arr[]. N is size of heap
+// Heapify starts at the sub-tree at 'i' and re-construts the heap.  This is useful after an AppendHeap operation.
+// `h.Heapify(h.Len(),0)` will re-build the entire heap.
+func (hp *Heap[T]) Heapify(n, i int) {
+	largest := i // Initialize largest as root
+	l := 2*i + 1 // left = 2*i + 1
+	r := 2*i + 2 // right = 2*i + 2
+
+	// If left child is larger than root
+	// if (l < n && (*hp).data[l] > (*hp).data[largest]) {
+	c := (*(hp.data[l])).Compare(*(hp.data[largest]))
+	if l < n && c > 0 {
+		largest = l
+	}
+
+	// If right child is larger than largest so far
+	c = (*(hp.data[r])).Compare(*(hp.data[largest]))
+	if r < n && c > 0 {
+		largest = r
+	}
+
+	// If largest is not root
+	if largest != i {
+		// swap((*hp).data[i], (*hp).data[largest])
+		hp.data[i], hp.data[largest] = hp.data[largest], hp.data[i]
+
+		// Recursively heapify the affected sub-tree
+		hp.Heapify(n, largest)
+	}
+}
+
 const db10 = false
