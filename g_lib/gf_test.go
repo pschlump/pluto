@@ -92,10 +92,10 @@ func TestKeyForStringMap(t *testing.T) {
 	if len(k) != 2 {
 		t.Errorf("Incorrect Key Length")
 	}
-	if k[0] != "abc" {
+	if !InArray("abc", k) {
 		t.Errorf("Incorrect Key")
 	}
-	if k[1] != "def" {
+	if !InArray("def", k) {
 		t.Errorf("Incorrect Key")
 	}
 }
