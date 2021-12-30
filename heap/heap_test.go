@@ -34,13 +34,11 @@ func (aa myHeap) Compare(x comparable.Comparable) int {
 }
 
 func TestNewHeap(t *testing.T) {
-	return
 	x := NewHeap[myHeap]()
 	_ = x
 }
 
 func TestSetpAndPop(t *testing.T) {
-	return
 	h := NewHeap[myHeap]()
 	h.verify(t, 0)
 
@@ -72,6 +70,32 @@ func TestSetpAndPop(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestSearch(t *testing.T) {
+	h := NewHeap[myHeap]()
+	for i := 20; i > 10; i-- {
+		hv := myHeap(i)
+		h.Push(&hv)
+	}
+	h.verify(t, 0)
+
+	h.printAsTree() 
+
+	hv := myHeap(12)	
+	v, i, _ := h.Search ( &hv )
+	fmt.Printf ( "v=%+v pos %d\n", *v, i )
+
+	for i := 11; i < 20; i++ {
+		hv := myHeap(i)	
+		val, pos, err := h.Search( &hv ) 
+		if err != nil {
+			t.Errorf("Got err")
+		} else if val != nil && int(*val) != i {
+			t.Errorf("Got err, expected %d got %d, location=%d", i, int(*val), pos)
+		}
+	}
+
 }
 
 // verify checks that the heap is a heap - that it is properly ordered.

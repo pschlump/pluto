@@ -127,8 +127,16 @@ func (hp *Heap[T]) Length() int {
 	return len(hp.data)
 }
 
-// Complexity is O(n log n).
+// Complexity is O(n).
 func (hp *Heap[T])Search(cmpVal *T) (rv *T, pos int, err error) {
+	for ii := 0; ii < len(hp.data); ii++ {
+		c := (*(hp.data[ii])).Compare(*cmpVal)
+		if c == 0 {
+			rv, pos = hp.data[ii], ii
+			return
+		}
+	}
+	/*
 	var findIt func ( root int )
 	findIt = func ( i int ) {
 		if i < len(hp.data) {
@@ -149,6 +157,7 @@ func (hp *Heap[T])Search(cmpVal *T) (rv *T, pos int, err error) {
 		}
 	}
 	findIt(0)
+	*/
 	return
 }
 

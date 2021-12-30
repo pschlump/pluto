@@ -1,4 +1,10 @@
 
-https://en.wikipedia.org/wiki/Priority_queue
+= Priority Queue Operations
 
-https://en.wikipedia.org/wiki/Heap_(data_structure)
+1. Peek
+2. Insert
+3. Delete
+4. Pop - (Peek+Delete)
+5. UpdatePriority ( element )
+6. Search
+
