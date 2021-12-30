@@ -29,7 +29,7 @@ func (aa SomeData) Compare(x comparable.Comparable) int {
 	return 0
 }
 
-func TestSort(t *testing.T) {
+func TestSortUp(t *testing.T) {
 	h := NewHeapSort[SomeData]()
 	sample := []int{5, 2, 1, 8, 3, 4}
 	for _, v := range sample {
@@ -37,14 +37,9 @@ func TestSort(t *testing.T) {
 		h.Insert(vv)
 	}
 
-	if db11 {
-		fmt.Printf("Len = %d\n", h.theHeap.Len())
-	}
 	if h.theHeap.Len() != 6 {
 		t.Errorf("Invalid length returned: Expected %d got %d\n", h.theHeap.Len(), 6)
 	}
-
-	// xyzzy - TODO - dump heap.
 
 	sorted := h.Sort()
 	expect := []int{1, 2, 3, 4, 5, 8}
@@ -60,4 +55,28 @@ func TestSort(t *testing.T) {
 	return
 }
 
-const db11 = false
+func TestSortDown(t *testing.T) {
+	h := NewHeapSort[SomeData]()
+	sample := []int{5, 2, 1, 8, 3, 4}
+	for _, v := range sample {
+		vv := &SomeData{theValue: v}
+		h.Insert(vv)
+	}
+
+	if h.theHeap.Len() != 6 {
+		t.Errorf("Invalid length returned: Expected %d got %d\n", h.theHeap.Len(), 6)
+	}
+
+	sorted := h.SortDown()
+	expect := []int{8, 5, 4, 3, 2, 1}
+	if len(sorted) != len(expect) || len(sorted) != len(sample) {
+		t.Errorf("Invalid length returned: Expected %d got %d, length of sorted data\n", len(sample), len(sorted))
+	} else {
+		for i, v := range expect {
+			if v != sorted[i].theValue {
+				t.Errorf("Expected %d got %d at subscript %d\n", v, sorted[i], i)
+			}
+		}
+	}
+	return
+}
