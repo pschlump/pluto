@@ -36,6 +36,15 @@ func (srt *heap_sort[T]) Insert(n *T) {
 }
 
 // Complexity O(n log n)
+func (srt *heap_sort[T]) InsertArray(n []*T) {
+	//for _, v := range n {
+	//	srt.theHeap.Push(v)
+	//}
+	srt.theHeap.AppendHeap(n)
+	srt.theHeap.Heapify(srt.theHeap.Len(), 0)
+}
+
+// Complexity O(n log n)
 func (srt *heap_sort[T]) Sort() (rv []*T) {
 	n := srt.theHeap.Len()
 	rv = make([]*T, 0, n)
@@ -63,4 +72,10 @@ func (srt *heap_sort[T]) Len() int {
 }
 func (srt *heap_sort[T]) Length() int {
 	return srt.theHeap.Len()
+}
+
+// Truncate removes all data from the heap.
+// Complexity is O(1).
+func (srt *heap_sort[T]) Truncate() {
+	srt.theHeap = heap.NewHeap[T]()
 }

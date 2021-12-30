@@ -10,5 +10,6 @@ test:
 	( cd sll ; make test )
 	( cd sllts ; make test )
 	( cd stack ; make test )
+	( cd heap ; make test )
 	( cd heap_sort ; make test )
 	( cd priority_queue ; make test )
