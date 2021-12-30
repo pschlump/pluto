@@ -48,10 +48,10 @@ func TestSetpAndPop(t *testing.T) {
 	}
 	h.verify(t, 0)
 
-	h.Truncate()		// Empty the Heap
+	h.Truncate() // Empty the Heap
 
 	if h.Length() != 0 { // Verify it is empty.
-		t.Errorf("Invalid length, expected 0, got %d", h.Length() )
+		t.Errorf("Invalid length, expected 0, got %d", h.Length())
 	}
 
 	// Test with 20 0's in the heap.
@@ -80,15 +80,15 @@ func TestSearch(t *testing.T) {
 	}
 	h.verify(t, 0)
 
-	h.printAsTree() 
+	h.printAsTree()
 
-	hv := myHeap(12)	
-	v, i, _ := h.Search ( &hv )
-	fmt.Printf ( "v=%+v pos %d\n", *v, i )
+	hv := myHeap(12)
+	v, i, _ := h.Search(&hv)
+	fmt.Printf("v=%+v pos %d\n", *v, i)
 
 	for i := 11; i < 20; i++ {
-		hv := myHeap(i)	
-		val, pos, err := h.Search( &hv ) 
+		hv := myHeap(i)
+		val, pos, err := h.Search(&hv)
 		if err != nil {
 			t.Errorf("Got err")
 		} else if val != nil && int(*val) != i {
@@ -100,7 +100,7 @@ func TestSearch(t *testing.T) {
 
 // verify checks that the heap is a heap - that it is properly ordered.
 func (hp *Heap[T]) verify(t *testing.T, i int) {
-	t.Helper()	// set line number to line of caller of 'verify()'
+	t.Helper() // set line number to line of caller of 'verify()'
 	n := hp.Length()
 	j1 := 2*i + 1
 	j2 := 2*i + 2
@@ -129,7 +129,7 @@ func (hp *Heap[T]) verify(t *testing.T, i int) {
 func TestWithDifferentElements(t *testing.T) {
 	h := NewHeap[myHeap]()
 
-	expect := make ( map[int]bool )
+	expect := make(map[int]bool)
 	for i := 800; i > 0; i-- {
 		hv := myHeap(i)
 		h.Push(&hv)
@@ -137,7 +137,7 @@ func TestWithDifferentElements(t *testing.T) {
 	}
 	if db10 {
 		h.printAsJSON()
-		h.printAsTree() 
+		h.printAsTree()
 	}
 	h.verify(t, 0)
 
@@ -150,7 +150,7 @@ func TestWithDifferentElements(t *testing.T) {
 			expect[x] = true
 			if x != i {
 				// if x < i {
-					t.Errorf("%d.th Pop() got %d; expected >= %d", i, x, i)
+				t.Errorf("%d.th Pop() got %d; expected >= %d", i, x, i)
 				// }
 			}
 		}

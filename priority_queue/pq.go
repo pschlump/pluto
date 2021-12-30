@@ -21,58 +21,54 @@ import (
 )
 
 type priority_queue[T comparable.Comparable] struct {
-	theHeap *heap.Heap[T] 
+	theHeap *heap.Heap[T]
 }
 
 // Create a new priority_queue and return it.
 // Complexity is O(1).
-func NewPriorityQueue[T comparable.Comparable] () ( rv *priority_queue[T] ) {
+func NewPriorityQueue[T comparable.Comparable]() (rv *priority_queue[T]) {
 	// We don't have to "heapify" at this point becasue we start all heaps with an empty set of data.
 	rv.theHeap = heap.NewHeap[T]()
-	return 
+	return
 }
 
 // Complexity O(1)
-func (pq *priority_queue[T])Peek() (rv *T){
+func (pq *priority_queue[T]) Peek() (rv *T) {
 	return pq.theHeap.Peek()
 }
 
 // Complexity O(n log n)
-func (pq *priority_queue[T])Insert(n *T) {
+func (pq *priority_queue[T]) Insert(n *T) {
 	pq.theHeap.Push(n)
 }
 
-func (pq *priority_queue[T])Pop() (rv *T) {
+func (pq *priority_queue[T]) Pop() (rv *T) {
 	return pq.theHeap.Pop()
 }
 
 // O(n log n)
-func (pq *priority_queue[T])Search(cmpVal *T) (rv *T, pos int, err error) {
+func (pq *priority_queue[T]) Search(cmpVal *T) (rv *T, pos int, err error) {
 	// Binary tree search to find matching node.
 	return pq.theHeap.Search(cmpVal)
 }
 
-
 // Complexity O(n)
-func (pq *priority_queue[T])UpdatePriority(pos int, newVal *T) (found bool) {
+func (pq *priority_queue[T]) UpdatePriority(pos int, newVal *T) (found bool) {
 	// check pos in range
 	// update node at [pos]
 	// re-heap-ify (down from pos)
-	pq.theHeap.SetValue(pos,newVal)
+	pq.theHeap.SetValue(pos, newVal)
 	return
 }
 
-// ----------------------- new ----------------------------------------------------------------
-
 // Complexity O(n log n)
-func (pq *priority_queue[T])Delete(pos int) ( err error ) {
+func (pq *priority_queue[T]) Delete(pos int) (err error) {
 	// swap in node from leaf (last) to this potion
 	// set last to nil
 	// re-heap-ify (down from pos)
 	x := pq.theHeap.Delete(pos)
 	if x == nil {
-		err = fmt.Errorf ( "Failed to delete, not found" )
+		err = fmt.Errorf("Failed to delete, not found")
 	}
 	return
 }
-

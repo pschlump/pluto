@@ -13,20 +13,20 @@ import (
 // This is more moemory effecient than the Walk* functions becasue it
 // manages the stack interally.   It is a tiny bit faster than the
 // Walk* functions.
-// 
+//
 // The main benefit is that it can be used to make cleaner code.
 type BinaryTreeIter[T comparable.Comparable] struct {
-	cur 	*BinaryTreeElement[T] // Pointer to the current element.
-	tree 	*BinaryTree[T]		  // The root of the tree
+	cur  *BinaryTreeElement[T] // Pointer to the current element.
+	tree *BinaryTree[T]        // The root of the tree
 
-	// will need a "Stack" of nodes to be able to iterate 
-	stk 	stack.Stack[*BinaryTreeElement[T]]
+	// will need a "Stack" of nodes to be able to iterate
+	stk stack.Stack[*BinaryTreeElement[T]]
 }
 
 // -------------------------------------------------------------------------------------------------------
 
 // Front will start at the inorder traversal beginning of the tree for iteration over tree.
-func (tt *BinaryTree[T]) Front() ( rv *BinaryTreeIter[T] ) {
+func (tt *BinaryTree[T]) Front() (rv *BinaryTreeIter[T]) {
 	// Find the "head" lowest node in tree, point cur at this.
 	// Setup the "Stack" so can walk tree.
 
@@ -37,7 +37,7 @@ func (tt *BinaryTree[T]) Front() ( rv *BinaryTreeIter[T] ) {
 	// findLeftMost is Local function that searches for the left most
 	// node (first inorder node) in the tree.  It has a side-effect
 	// of setting up the "stk" stack.
-	findLeftMost := func ( parent *BinaryTreeElement[T] ) ( ptr *BinaryTreeElement[T] ) {
+	findLeftMost := func(parent *BinaryTreeElement[T]) (ptr *BinaryTreeElement[T]) {
 		ptr = nil
 		// fmt.Printf ( "%sFindLeftMost/At Top: at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
 		if parent == nil {
@@ -46,7 +46,7 @@ func (tt *BinaryTree[T]) Front() ( rv *BinaryTreeIter[T] ) {
 		}
 		for (*parent).left != nil {
 			// fmt.Printf ( "%sAdvance 1 step. at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
-			rv.stk.Push ( parent )
+			rv.stk.Push(parent)
 			parent = (*parent).left
 		}
 		// fmt.Printf ( "%sat bottom at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
@@ -54,8 +54,8 @@ func (tt *BinaryTree[T]) Front() ( rv *BinaryTreeIter[T] ) {
 		return
 	}
 
-	rv.cur = findLeftMost ( tt.root ) 
-	return 
+	rv.cur = findLeftMost(tt.root)
+	return
 }
 
 /*
@@ -104,4 +104,3 @@ func (iter *BinaryTreeIter[T]) Done() bool {
 	return iter.cur != nil
 }
 */
-

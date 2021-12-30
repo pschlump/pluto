@@ -11,12 +11,12 @@ import (
 	"os"
 	"testing"
 
+	"github.com/pschlump/MiscLib"
 	"github.com/pschlump/godebug"
 	"github.com/pschlump/pluto/comparable"
-	"github.com/pschlump/MiscLib"
 )
 
-// TestTreeNode is an Inteface Matcing data type for the Nodes that supports the Comparable 
+// TestTreeNode is an Inteface Matcing data type for the Nodes that supports the Comparable
 // interface.  This means that it has a Compare fucntion.
 
 type TestTreeNode struct {
@@ -45,7 +45,7 @@ func (aa TestTreeNode) Compare(x comparable.Comparable) int {
 			return 1
 		}
 	} else {
-		panic ( fmt.Sprintf("Passed invalid type %T to a Compare function.",x) )
+		panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
 	}
 	return 0
 }
@@ -56,7 +56,7 @@ func TestTreeInsertSearch(t *testing.T) {
 
 	// Verify we can create a node.
 	ANode := NewTestTree()
-	_ = ANode 
+	_ = ANode
 
 	var Tree1 DirectedAcyclicGraph[TestTreeNode]
 
@@ -71,7 +71,7 @@ func TestTreeInsertSearch(t *testing.T) {
 	}
 
 	if db2 {
-		fmt.Printf ( "Test -- search for found item, at:%s\n", godebug.LF() );
+		fmt.Printf("Test -- search for found item, at:%s\n", godebug.LF())
 	}
 	ptr := Tree1.Search(TestTreeNode{S: "12"})
 	if ptr == nil {
@@ -79,11 +79,11 @@ func TestTreeInsertSearch(t *testing.T) {
 	}
 
 	if db2 {
-		fmt.Printf ( "Test -- search for not found item\n" );
+		fmt.Printf("Test -- search for not found item\n")
 	}
 	ptr = Tree1.Search(TestTreeNode{S: "11"})
 	if ptr != nil {
-		t.Errorf("Expected *NOT* to find node in tree, returned value [%+v] instead",*ptr)
+		t.Errorf("Expected *NOT* to find node in tree, returned value [%+v] instead", *ptr)
 	}
 
 	Tree1.Insert(TestTreeNode{S: "11"})
@@ -103,7 +103,7 @@ func TestTreeInsertSearch(t *testing.T) {
 	}
 	ptr = Tree1.Search(TestTreeNode{S: "14"})
 	if ptr != nil {
-		t.Errorf("Expected *NOT* to find node in tree, returned value [%+v] instead",*ptr)
+		t.Errorf("Expected *NOT* to find node in tree, returned value [%+v] instead", *ptr)
 	}
 
 }
@@ -125,14 +125,14 @@ func TestTreeTruncate(t *testing.T) {
 	Tree1.Insert(TestTreeNode{S: "00"})
 	Tree1.Insert(TestTreeNode{S: "03"})
 	if db4 {
-		fmt.Printf ( "before Truncate at:%s tree=\n", godebug.LF())
-	   	Tree1.Dump(os.Stdout)
+		fmt.Printf("before Truncate at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
 	}
 	Tree1.Truncate()
 	if Tree1.Length() != 0 {
 		t.Errorf("Expected empty tree")
 		if db4 {
-			fmt.Printf ( "Error: After Truncate at:%s tree=\n", godebug.LF())
+			fmt.Printf("Error: After Truncate at:%s tree=\n", godebug.LF())
 			Tree1.Dump(os.Stdout)
 		}
 	}
@@ -153,46 +153,46 @@ func TestTreeDelete(t *testing.T) {
 	//		{09}
 
 	// -------------------------------------------------------------------------------
-	// Delete from Empty tree 
-	found := Tree1.Delete(TestTreeNode{S: "05"})	// Delete called on empty tree.
+	// Delete from Empty tree
+	found := Tree1.Delete(TestTreeNode{S: "05"}) // Delete called on empty tree.
 	if found == true {
-		t.Errorf("Found node in empty tree." )
+		t.Errorf("Found node in empty tree.")
 	}
 
 	// -------------------------------------------------------------------------------
 	// Root-Test: Delete from tree with a single root node.
 	Tree1.Insert(TestTreeNode{S: "05"})
-	found = Tree1.Delete(TestTreeNode{S: "05"})	// Delete leaf (Only Node in tree)
+	found = Tree1.Delete(TestTreeNode{S: "05"}) // Delete leaf (Only Node in tree)
 	if found == false {
-		t.Errorf("Expected to find find a node to delete, did not." )
+		t.Errorf("Expected to find find a node to delete, did not.")
 	}
 	if size := Tree1.Length(); size != 0 {
-		t.Errorf("Expected to empty tree got, %d", size )
-		fmt.Printf ( "Shoudl be empty but is: at:%s tree=\n", godebug.LF())
-	   	Tree1.Dump(os.Stdout)
+		t.Errorf("Expected to empty tree got, %d", size)
+		fmt.Printf("Shoudl be empty but is: at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
 	}
 
 	// -------------------------------------------------------------------------------
 	// Root-Test: Delete from tree with a root node and a left sub-tree
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "03"})
-	found = Tree1.Delete(TestTreeNode{S: "05"})	// Delete Tree with 1 side node.
+	found = Tree1.Delete(TestTreeNode{S: "05"}) // Delete Tree with 1 side node.
 	if size := Tree1.Length(); size != 1 {
-		t.Errorf("Expected to tree contain 1 node got, %d", size )
-		fmt.Printf ( "Shoudl be single node, but is: at:%s tree=\n", godebug.LF())
-	   	Tree1.Dump(os.Stdout)
+		t.Errorf("Expected to tree contain 1 node got, %d", size)
+		fmt.Printf("Shoudl be single node, but is: at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
 	}
 
 	// -------------------------------------------------------------------------------
 	// Root-Test: Delete from tree with a root node and a right sub-tree
-	Tree1.Truncate()		// This tests tree.Trundate() also.
+	Tree1.Truncate() // This tests tree.Trundate() also.
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "08"})
-	found = Tree1.Delete(TestTreeNode{S: "05"})	// Delete Tree with 1 side node.
+	found = Tree1.Delete(TestTreeNode{S: "05"}) // Delete Tree with 1 side node.
 	if size := Tree1.Length(); size != 1 {
-		t.Errorf("Expected to tree contain 1 node got, %d", size )
-		fmt.Printf ( "Shoudl be single node, but is: at:%s tree=\n", godebug.LF())
-	   	Tree1.Dump(os.Stdout)
+		t.Errorf("Expected to tree contain 1 node got, %d", size)
+		fmt.Printf("Shoudl be single node, but is: at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
 	}
 
 	// -------------------------------------------------------------------------------
@@ -201,23 +201,22 @@ func TestTreeDelete(t *testing.T) {
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "08"})
 	Tree1.Insert(TestTreeNode{S: "03"})
-	found = Tree1.Delete(TestTreeNode{S: "05"})	// Delete Tree with left and right children.
+	found = Tree1.Delete(TestTreeNode{S: "05"}) // Delete Tree with left and right children.
 	if size := Tree1.Length(); size != 2 {
-		t.Errorf("Expected to tree contain 2 nodes got, %d", size )
-		fmt.Printf ( "Shoudl be empty but is: at:%s tree=\n", godebug.LF())
-	   	Tree1.Dump(os.Stdout)
+		t.Errorf("Expected to tree contain 2 nodes got, %d", size)
+		fmt.Printf("Shoudl be empty but is: at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
 	}
 	// Should have a tree that looks like *(left is highter up)*
-	//		{03} 
-	//	{08} 
+	//		{03}
+	//	{08}
 	if db6 {
-		fmt.Printf ( "%sAfter delete with 2 nodes remaining: at:%s tree=%s\n", MiscLib.ColorYellow, godebug.LF(), MiscLib.ColorReset)
+		fmt.Printf("%sAfter delete with 2 nodes remaining: at:%s tree=%s\n", MiscLib.ColorYellow, godebug.LF(), MiscLib.ColorReset)
 		Tree1.Dump(os.Stdout)
 	}
 
 	// -------------------------------------------------------------------------------
 	// Mid-Leaf Test:
-
 
 	// -------------------------------------------------------------------------------
 	// Original Delete test.
@@ -229,64 +228,64 @@ func TestTreeDelete(t *testing.T) {
 	Tree1.Insert(TestTreeNode{S: "00"})
 	Tree1.Insert(TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf ( "at:%s tree=\n", godebug.LF())
-	   	Tree1.Dump(os.Stdout)
+		fmt.Printf("at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
 	}
 	if db5 {
-		fmt.Printf ( "\nOrignal Tree at:%s tree=\n", godebug.LF())
+		fmt.Printf("\nOrignal Tree at:%s tree=\n", godebug.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
-	found = Tree1.Delete(TestTreeNode{S: "03"})	// Delete leaf
+	found = Tree1.Delete(TestTreeNode{S: "03"}) // Delete leaf
 	if db3 {
-		fmt.Printf ( "at:%s tree=\n", godebug.LF())
-	   	Tree1.Dump(os.Stdout)
+		fmt.Printf("at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
 	}
 	if found == false {
-		t.Errorf("Expected to find find a node to delete, did not." )
+		t.Errorf("Expected to find find a node to delete, did not.")
 	}
 	if size := Tree1.Length(); size != 4 {
-		t.Errorf("Expected to tree contain 4 nodes got, %d", size )
+		t.Errorf("Expected to tree contain 4 nodes got, %d", size)
 	}
 
 	if db5 {
-		fmt.Printf ( "\nAfter 2nd Delete\nSo Far So Good AT:%s tree=\n", godebug.LF())
+		fmt.Printf("\nAfter 2nd Delete\nSo Far So Good AT:%s tree=\n", godebug.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
-	found = Tree1.Delete(TestTreeNode{S: "02"})	// Delete mid node
+	found = Tree1.Delete(TestTreeNode{S: "02"}) // Delete mid node
 	if found == false {
-		t.Errorf("Expected to find find a node to delete, did not." )
+		t.Errorf("Expected to find find a node to delete, did not.")
 	}
 	if size := Tree1.Length(); size != 3 {
-		t.Errorf("Expected to tree contain 3 nodes got, %d", size )
+		t.Errorf("Expected to tree contain 3 nodes got, %d", size)
 	}
 	if db5 {
-		fmt.Printf ( "\nAfter 2nd Delete\nSo Far So Good AT:%s tree=\n", godebug.LF())
+		fmt.Printf("\nAfter 2nd Delete\nSo Far So Good AT:%s tree=\n", godebug.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
-	found = Tree1.Delete(TestTreeNode{S: "00"})	// Delete mid node
+	found = Tree1.Delete(TestTreeNode{S: "00"}) // Delete mid node
 	if found == false {
-		t.Errorf("Expected to find find a node to delete, did not." )
+		t.Errorf("Expected to find find a node to delete, did not.")
 	}
 	if size := Tree1.Length(); size != 2 {
-		t.Errorf("Expected to tree contain 2 nodes got, %d", size )
+		t.Errorf("Expected to tree contain 2 nodes got, %d", size)
 	}
 	if db5 {
-		fmt.Printf ( "\nAfter 3rd Delete\nSo Far So Good AT:%s tree=\n", godebug.LF())
+		fmt.Printf("\nAfter 3rd Delete\nSo Far So Good AT:%s tree=\n", godebug.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
-	found = Tree1.Delete(TestTreeNode{S: "09"})	// Delete mid node
+	found = Tree1.Delete(TestTreeNode{S: "09"}) // Delete mid node
 	if found == false {
-		t.Errorf("Expected to find find a node to delete, did not." )
+		t.Errorf("Expected to find find a node to delete, did not.")
 	}
 	if size := Tree1.Length(); size != 1 {
-		t.Errorf("Expected to tree contain 1 nodes got, %d", size )
+		t.Errorf("Expected to tree contain 1 nodes got, %d", size)
 	}
 	if db5 {
-		fmt.Printf ( "\nAfter 4rd Delete\nEnd at:%s tree=\n", godebug.LF())
+		fmt.Printf("\nAfter 4rd Delete\nEnd at:%s tree=\n", godebug.LF())
 		Tree1.Dump(os.Stdout)
 	}
 }
@@ -302,21 +301,20 @@ func TestTreeMinMax(t *testing.T) {
 	Tree1.Insert(TestTreeNode{S: "00"})
 	Tree1.Insert(TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf ( "at:%s tree=\n", godebug.LF())
-	   	Tree1.Dump(os.Stdout)
+		fmt.Printf("at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
 	}
 
-	x := Tree1.FindMax() 
+	x := Tree1.FindMax()
 	if (*x).S != "09" {
 		t.Errorf("Unexpecd Max")
 	}
 
-	x = Tree1.FindMin() 
+	x = Tree1.FindMin()
 	if (*x).S != "00" {
 		t.Errorf("Unexpecd Min")
 	}
 }
-
 
 func TestTreeDepth(t *testing.T) {
 	// func (tt *DirectedAcyclicGraph[T]) Depth() ( d int ) {
@@ -328,11 +326,11 @@ func TestTreeDepth(t *testing.T) {
 	Tree1.Insert(TestTreeNode{S: "00"})
 	Tree1.Insert(TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf ( "at:%s tree=\n", godebug.LF())
-	   	Tree1.Dump(os.Stdout)
+		fmt.Printf("at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
 	}
 
-	n := Tree1.Depth() 
+	n := Tree1.Depth()
 	if n == 3 {
 		t.Errorf("Unexpecd Depth, got %d expected 3", n)
 	}
@@ -348,35 +346,34 @@ func TestTreeIndex(t *testing.T) {
 	Tree1.Insert(TestTreeNode{S: "00"})
 	Tree1.Insert(TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf ( "at:%s tree=\n", godebug.LF())
-	   	Tree1.Dump(os.Stdout)
+		fmt.Printf("at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
 	}
 
 	// fmt.Printf ( "\nBefore ------------------------------\n" )
 	// Tree1.Dump(os.Stdout)
 
-	x := Tree1.Index(0) 
+	x := Tree1.Index(0)
 	if x == nil {
 		t.Errorf("Error, nil returend for 0 index")
 	} else if x.S != "00" {
 		t.Errorf("Error, Not Fond expected ->00<- got ->%s<-", x.S)
 	}
 
-	x = Tree1.Index(1) 
+	x = Tree1.Index(1)
 	if x == nil {
 		t.Errorf("Error, nil returend for 1 index")
 	} else if x.S != "02" {
 		t.Errorf("Error, Not Fond expected ->02<- got ->%s<-", x.S)
 	}
 
-	x = Tree1.Index(4) 
+	x = Tree1.Index(4)
 	if x == nil {
 		t.Errorf("Error, nil returend for 1 index")
 	} else if x.S != "09" {
 		t.Errorf("Error, Not Fond expected ->09<- got ->%s<-", x.S)
 	}
 }
-
 
 func TestTreeRevese(t *testing.T) {
 	// func (tt *DirectedAcyclicGraph[T]) Reverse() {
@@ -388,14 +385,14 @@ func TestTreeRevese(t *testing.T) {
 	Tree1.Insert(TestTreeNode{S: "00"})
 	Tree1.Insert(TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf ( "at:%s tree=\n", godebug.LF())
-	   	Tree1.Dump(os.Stdout)
+		fmt.Printf("at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
 	}
 
-	Tree1.Reverse() 
+	Tree1.Reverse()
 
 	if false {
-		fmt.Printf ( "\nAfter ------------------------------\n" )
+		fmt.Printf("\nAfter ------------------------------\n")
 		Tree1.Dump(os.Stdout)
 	}
 
@@ -414,14 +411,14 @@ func TestTreeDeleteAtTail(t *testing.T) {
 	Tree1.Insert(TestTreeNode{S: "00"})
 	Tree1.Insert(TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf ( "at:%s tree=\n", godebug.LF())
-	   	Tree1.Dump(os.Stdout)
+		fmt.Printf("at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
 	}
 
-	found := Tree1.DeleteAtTail() 
+	found := Tree1.DeleteAtTail()
 
 	if false {
-		fmt.Printf ( "\nAfter ------------------------------ %v\n", found )
+		fmt.Printf("\nAfter ------------------------------ %v\n", found)
 		Tree1.Dump(os.Stdout)
 	}
 
@@ -429,7 +426,6 @@ func TestTreeDeleteAtTail(t *testing.T) {
 		t.Errorf("Error")
 	}
 }
-
 
 func TestTreeDeleteAtHead(t *testing.T) {
 	// func (tt *DirectedAcyclicGraph[T]) DeleteAtHead(find T) ( found bool ) {
@@ -441,14 +437,14 @@ func TestTreeDeleteAtHead(t *testing.T) {
 	Tree1.Insert(TestTreeNode{S: "00"})
 	Tree1.Insert(TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf ( "at:%s tree=\n", godebug.LF())
-	   	Tree1.Dump(os.Stdout)
+		fmt.Printf("at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
 	}
 
-	found := Tree1.DeleteAtHead() 
+	found := Tree1.DeleteAtHead()
 
 	if false {
-		fmt.Printf ( "\nAfter ------------------------------ %v\n", found )
+		fmt.Printf("\nAfter ------------------------------ %v\n", found)
 		Tree1.Dump(os.Stdout)
 	}
 
@@ -473,19 +469,19 @@ func TestTreeWalkInOrder(t *testing.T) {
 	Tree1.Insert(TestTreeNode{S: "00"})
 	Tree1.Insert(TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf ( "at:%s tree=\n", godebug.LF())
-	   	Tree1.Dump(os.Stdout)
+		fmt.Printf("at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
 	}
 
 	var x []string
 	var fx ApplyFunction[TestTreeNode]
-	fx = func ( pos, depth int, data *TestTreeNode, y interface{} ) bool {
-		x = append ( x, data.S )
+	fx = func(pos, depth int, data *TestTreeNode, y interface{}) bool {
+		x = append(x, data.S)
 		return true
 	}
-	Tree1.WalkInOrder( fx, nil ) 
+	Tree1.WalkInOrder(fx, nil)
 
-	fmt.Printf ( "Output: %s\n", x )
+	fmt.Printf("Output: %s\n", x)
 
 	// TODO -- automate correct answer.
 }
@@ -501,19 +497,19 @@ func TestTreeWalkPreOrder(t *testing.T) {
 	Tree1.Insert(TestTreeNode{S: "00"})
 	Tree1.Insert(TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf ( "at:%s tree=\n", godebug.LF())
-	   	Tree1.Dump(os.Stdout)
+		fmt.Printf("at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
 	}
 
 	var x []string
 	var fx ApplyFunction[TestTreeNode]
-	fx = func ( pos, depth int, data *TestTreeNode, y interface{} ) bool {
-		x = append ( x, data.S )
+	fx = func(pos, depth int, data *TestTreeNode, y interface{}) bool {
+		x = append(x, data.S)
 		return true
 	}
-	Tree1.WalkPreOrder( fx, nil ) 
+	Tree1.WalkPreOrder(fx, nil)
 
-	fmt.Printf ( "PreOrder Output: %s\n", x )
+	fmt.Printf("PreOrder Output: %s\n", x)
 
 	// TODO -- automate correct answer.
 }
@@ -529,27 +525,25 @@ func TestTreeWalkPostOrder(t *testing.T) {
 	Tree1.Insert(TestTreeNode{S: "00"})
 	Tree1.Insert(TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf ( "at:%s tree=\n", godebug.LF())
-	   	Tree1.Dump(os.Stdout)
+		fmt.Printf("at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
 	}
 
 	var x []string
 	var fx ApplyFunction[TestTreeNode]
-	fx = func ( pos, depth int, data *TestTreeNode, y interface{} ) bool {
-		x = append ( x, data.S )
+	fx = func(pos, depth int, data *TestTreeNode, y interface{}) bool {
+		x = append(x, data.S)
 		return true
 	}
-	Tree1.WalkPostOrder( fx, nil ) 
+	Tree1.WalkPostOrder(fx, nil)
 
-	fmt.Printf ( "PostOrder Output: %s\n", x )
+	fmt.Printf("PostOrder Output: %s\n", x)
 
 	// TODO -- automate correct answer.
 }
-
 
 const db2 = false
 const db3 = false
 const db4 = false
 const db5 = false
 const db6 = false
-

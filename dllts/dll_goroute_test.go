@@ -7,9 +7,9 @@ BSD 3 Clause Licensed.
 */
 
 import (
-	"testing"
 	"fmt"
 	"sync"
+	"testing"
 
 	"github.com/pschlump/godebug"
 	"github.com/pschlump/pluto/comparable"
@@ -50,24 +50,24 @@ func TestDllGoroutines(t *testing.T) {
 	var Dll1 dllts.Dll[TestDemo]
 
 	if db7 {
-		fmt.Printf ( "AT: %s\n", godebug.LF() ) 
+		fmt.Printf("AT: %s\n", godebug.LF())
 	}
 
 	var wg sync.WaitGroup
 	used := make(map[string]int)
-	var used_lock   	sync.RWMutex
+	var used_lock sync.RWMutex
 
 	for i := 0; i < 40000; i++ {
 		if db7 {
-			fmt.Printf ( "In Loop at %d AT: %s\n", i, godebug.LF() ) 
+			fmt.Printf("In Loop at %d AT: %s\n", i, godebug.LF())
 		}
 		go func(n int) {
 			wg.Add(1)
 			defer wg.Done()
 			if db7 {
-				fmt.Printf ( "In Push()\n" )
+				fmt.Printf("In Push()\n")
 			}
-			Dll1.Push ( &TestDemo{ S: fmt.Sprintf("%04d", n ) } )
+			Dll1.Push(&TestDemo{S: fmt.Sprintf("%04d", n)})
 		}(i)
 		go func(n int) {
 			wg.Add(1)
@@ -75,14 +75,14 @@ func TestDllGoroutines(t *testing.T) {
 			done := false
 			for !done {
 				if db7 {
-					fmt.Printf ( "In POP(), length = %d\n", Dll1.Length() )
+					fmt.Printf("In POP(), length = %d\n", Dll1.Length())
 				}
 				x, err := Dll1.Pop()
 				if err == nil {
 					used_lock.Lock()
 					used[x.S]++
 					used_lock.Unlock()
-					done  = true
+					done = true
 				}
 			}
 		}(i)
@@ -91,14 +91,13 @@ func TestDllGoroutines(t *testing.T) {
 	wg.Wait()
 
 	if Dll1.Length() != 0 {
-		t.Errorf ( "Length should be 0 if push/pop is thread safe. Got %d instead!", Dll1.Length() )
+		t.Errorf("Length should be 0 if push/pop is thread safe. Got %d instead!", Dll1.Length())
 	}
 	for k, v := range used {
 		if v > 1 {
-			t.Errorf ( "For key %+v error of %d\n", k, v )
+			t.Errorf("For key %+v error of %d\n", k, v)
 		}
 	}
 }
 
 var db7 = false
-

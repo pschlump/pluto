@@ -9,7 +9,7 @@ Basic operations on a Singly Linked List (SLL)
 
 	IsEmpty() — Returns true if the sll is empty
 	AppendSLL(t T) -
- 	Length() int - 
+ 	Length() int -
 
 */
 
@@ -22,25 +22,25 @@ type SllElement[T any] struct {
 	next *SllElement[T]
 	data *T
 }
+
 // Sll is a generic type buildt on top of a slice
 type Sll[T any] struct {
 	head, tail *SllElement[T]
-	length int
+	length     int
 }
-
 
 // An iteration type that allows a for loop to walk the list.
 type SllIter[T any] struct {
-	cur 		*SllElement[T]
-	sll 		*Sll[T]
-	pos 		int
+	cur *SllElement[T]
+	sll *Sll[T]
+	pos int
 }
 
 // -------------------------------------------------------------------------------------------------------
 
 // Front will start at the beginning of a list for iteration over list.
 func (ns *Sll[T]) Front() *SllIter[T] {
-	return &SllIter[T] {
+	return &SllIter[T]{
 		cur: ns.head,
 		sll: ns,
 	}
@@ -50,7 +50,7 @@ func (ns *Sll[T]) Front() *SllIter[T] {
 // 		func (ns *Sll[T]) Search( t *T ) (rv *SllElement[T], pos int) {
 // and allow you to start an iteration process from that point.
 func (ns *Sll[T]) Current(el *SllElement[T], pos int) *SllIter[T] {
-	return &SllIter[T] {
+	return &SllIter[T]{
 		cur: el,
 		sll: ns,
 		pos: pos,
@@ -68,7 +68,7 @@ func (iter *SllIter[T]) Value() *T {
 // Next advances to the next element in the list.
 func (iter *SllIter[T]) Next() {
 	if iter.cur == nil {
-		return 
+		return
 	}
 	iter.cur = iter.cur.next
 	iter.pos++
@@ -94,7 +94,7 @@ func (ns *Sll[T]) IsEmpty() bool {
 
 // InsertHeadSLL will append a new node to the end of the list.
 func (ns *Sll[T]) InsertHeadSLL(t *T) {
-	x := SllElement[T] { data: t }	// Create the node
+	x := SllElement[T]{data: t} // Create the node
 	if (*ns).head == nil {
 		(*ns).head = &x
 		(*ns).tail = &x
@@ -108,7 +108,7 @@ func (ns *Sll[T]) InsertHeadSLL(t *T) {
 
 // InsertBeforeHead will append a new node to the end of the list.
 func (ns *Sll[T]) InsertBeforeHead(t *T) {
-	x := SllElement[T] { data: t }	// Create the node
+	x := SllElement[T]{data: t} // Create the node
 	if (*ns).head == nil {
 		(*ns).head = &x
 		(*ns).tail = &x
@@ -134,33 +134,29 @@ func (ns *Sll[T]) Length() int {
 var ErrEmptySll = errors.New("Empty Sll")
 
 // Pop will remove the top element from the stack.  An error is returned if the stack is empty.
-func (ns *Sll[T]) Pop() ( rv *T, err error ) {
+func (ns *Sll[T]) Pop() (rv *T, err error) {
 	if ns.IsEmpty() {
 		return nil, ErrEmptySll
 	}
 	rv = (*ns).head.data
 	(*ns).head = (*ns).head.next
 	(*ns).length--
-	return 
+	return
 }
-
 
 // Peek returns the top element of the stack or an error indicating that the stack is empty.
 func (ns *Sll[T]) Peek() (rv *T, err error) {
 	if ns.IsEmpty() {
 		return nil, ErrEmptySll
-	} 
+	}
 	rv = (*ns).head.data
-	return 
+	return
 }
-
-
 
 // Truncate removes all data from the list.
-func (ns *Sll[T]) Truncate()  {
+func (ns *Sll[T]) Truncate() {
 	(*ns).head = nil
-   	(*ns).tail = nil
+	(*ns).tail = nil
 	(*ns).length = 0
-	return 
+	return
 }
-

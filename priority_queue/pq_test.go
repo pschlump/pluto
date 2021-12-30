@@ -34,5 +34,6 @@ func (aa PqTest) Compare(x comparable.Comparable) int {
 func TestCreateHeap(t *testing.T) {
 	h := heap.NewHeap[PqTest]()
 	_ = h
+	// xyzzy - Implement test - TODO
 	return
 }

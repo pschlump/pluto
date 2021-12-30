@@ -38,7 +38,6 @@ func (ns *Queue[T]) Enqueue(t T) {
 	(*ns).data = append((*ns).data, t)
 }
 
-
 // An error to indicate that the stack is empty
 var ErrEmptyQueue = errors.New("Empty Queue")
 
@@ -61,7 +60,7 @@ func (ns *Queue[T]) Length() int {
 func (ns *Queue[T]) Peek() (*T, error) {
 	if !ns.IsEmpty() {
 		return &((*ns).data[0]), nil
-	} 
+	}
 	return nil, ErrEmptyQueue
 }
 
@@ -74,5 +73,5 @@ func (ns *Queue[T]) Dequeue() (rv *T, err error) {
 	rv = &((*ns).data[0])
 	// (*ns).data = (*ns).data[1:len((*ns).data)]
 	(*ns).data = (*ns).data[1:]
-	return 
+	return
 }

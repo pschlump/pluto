@@ -39,25 +39,25 @@ import (
 )
 
 type DirectedAcyclicGraphNode[T comparable.Comparable] struct {
-	data 		*T
-	left, right *DirectedAcyclicGraphNode[T]	// to be removed.
-	neighbor 	*[]DirectedAcyclicGraphNode[T]
+	data        *T
+	left, right *DirectedAcyclicGraphNode[T] // to be removed.
+	neighbor    *[]DirectedAcyclicGraphNode[T]
 }
 
 // DirectedAcyclicGraph is a generic binary tree
 type DirectedAcyclicGraph[T comparable.Comparable] struct {
-	root 	*DirectedAcyclicGraphNode[T]
-	length 	int	// Number of Nodes in Graph
+	root   *DirectedAcyclicGraphNode[T]
+	length int // Number of Nodes in Graph
 }
 
 // IsEmpty will return true if the binary-tree is empty
 func (tt DirectedAcyclicGraph[T]) IsEmpty() bool {
-	return tt.root == nil 
+	return tt.root == nil
 }
 
 // Truncate removes all data from the tree.
-func (tt *DirectedAcyclicGraph[T]) Truncate()  {
-	(*tt).root = nil 
+func (tt *DirectedAcyclicGraph[T]) Truncate() {
+	(*tt).root = nil
 	(*tt).length = 0
 }
 
@@ -65,9 +65,9 @@ func (tt *DirectedAcyclicGraph[T]) Truncate()  {
 // item the new item will replace the existing one.
 func (tt *DirectedAcyclicGraph[T]) Insert(item T) {
 	if tt == nil {
-		panic ( "tree sholud not be a nil" )
+		panic("tree sholud not be a nil")
 	}
-	node := &DirectedAcyclicGraphNode[T]{ data : &item }
+	node := &DirectedAcyclicGraphNode[T]{data: &item}
 	node.left = nil
 	node.right = nil
 	if (*tt).IsEmpty() {
@@ -77,22 +77,22 @@ func (tt *DirectedAcyclicGraph[T]) Insert(item T) {
 	}
 
 	// Simple is recursive, can be replce with an iterative tree traversal.
-	var insert func ( root **DirectedAcyclicGraphNode[T] )
-	insert = func ( root **DirectedAcyclicGraphNode[T] ) {
+	var insert func(root **DirectedAcyclicGraphNode[T])
+	insert = func(root **DirectedAcyclicGraphNode[T]) {
 		if *root == nil {
 			*root = node
 			tt.length++
-		// } else if c := (*(node.data)).Compare( (*root).data ); c == 0 {
-		} else if c := item.Compare( *((*root).data) ); c == 0 {
+			// } else if c := (*(node.data)).Compare( (*root).data ); c == 0 {
+		} else if c := item.Compare(*((*root).data)); c == 0 {
 			(*root) = node
 		} else if c < 0 {
-			insert ( &( (*root).left ) )
+			insert(&((*root).left))
 		} else {
-			insert ( &( (*root).right ) )
+			insert(&((*root).right))
 		}
 	}
 
-	insert ( &( (*tt).root ) )
+	insert(&((*tt).root))
 }
 
 // Length returns the number of elements in the list.
@@ -102,9 +102,9 @@ func (tt *DirectedAcyclicGraph[T]) Length() int {
 
 // Search will walk the tree looking for `find` and retrn the found item
 // if it is in the tree. If it is not found then `nil` will be returned.
-func (tt *DirectedAcyclicGraph[T]) Search(find T) ( item *T ) {
+func (tt *DirectedAcyclicGraph[T]) Search(find T) (item *T) {
 	if tt == nil {
-		panic ( "tree sholud not be a nil" )
+		panic("tree sholud not be a nil")
 	}
 	if (*tt).IsEmpty() {
 		return nil
@@ -115,13 +115,13 @@ func (tt *DirectedAcyclicGraph[T]) Search(find T) ( item *T ) {
 	for tt != nil {
 		c := find.Compare(*cur.data)
 		if c == 0 {
-			item = cur.data 
+			item = cur.data
 			return
 		}
 		if c < 0 && cur.left != nil {
-			cur = (*cur).left 
+			cur = (*cur).left
 		} else if c > 0 && cur.right != nil {
-			cur = (*cur).right 
+			cur = (*cur).right
 		} else {
 			break
 		}
@@ -131,32 +131,31 @@ func (tt *DirectedAcyclicGraph[T]) Search(find T) ( item *T ) {
 
 // Dump will print out the tree to the file `fo`.
 func (tt *DirectedAcyclicGraph[T]) Dump(fo *os.File) {
-	var inorderTraversal func ( cur *DirectedAcyclicGraphNode[T], n int, fo *os.File )
-	inorderTraversal = func ( cur *DirectedAcyclicGraphNode[T], n int, fo *os.File ) {
+	var inorderTraversal func(cur *DirectedAcyclicGraphNode[T], n int, fo *os.File)
+	inorderTraversal = func(cur *DirectedAcyclicGraphNode[T], n int, fo *os.File) {
 		if cur == nil {
 			return
 		}
 		if (*cur).left != nil {
-			inorderTraversal ( (*cur).left, n+1, fo);
+			inorderTraversal((*cur).left, n+1, fo)
 		}
-		fmt.Printf ( "%s%v%s (left=%p/%p, right=%p/%p) self=%p\n", strings.Repeat(" ",4*n), *((*cur).data), strings.Repeat(" ",20-(4*n)),  (*cur).left, &((*cur).left), (*cur).right, &((*cur).right), cur )
+		fmt.Printf("%s%v%s (left=%p/%p, right=%p/%p) self=%p\n", strings.Repeat(" ", 4*n), *((*cur).data), strings.Repeat(" ", 20-(4*n)), (*cur).left, &((*cur).left), (*cur).right, &((*cur).right), cur)
 		if (*cur).right != nil {
-			inorderTraversal ( (*cur).right, n+1, fo);
+			inorderTraversal((*cur).right, n+1, fo)
 		}
 	}
-	inorderTraversal ( tt.root, 0, fo)
+	inorderTraversal(tt.root, 0, fo)
 }
 
-
-func (tt *DirectedAcyclicGraph[T]) Delete(find T) ( found bool ) {
+func (tt *DirectedAcyclicGraph[T]) Delete(find T) (found bool) {
 	if tt == nil {
-		panic ( "tree sholud not be a nil" )
+		panic("tree sholud not be a nil")
 	}
 	if (*tt).IsEmpty() {
 		return false
 	}
 
-	findLeftMostInRightSubtree := func ( parent **DirectedAcyclicGraphNode[T] ) ( found bool, pAtIt **DirectedAcyclicGraphNode[T] ) {
+	findLeftMostInRightSubtree := func(parent **DirectedAcyclicGraphNode[T]) (found bool, pAtIt **DirectedAcyclicGraphNode[T]) {
 		// fmt.Printf ( "%sFindLeftMost/At Top: at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
 		this := **parent
 		if *parent == nil {
@@ -175,13 +174,13 @@ func (tt *DirectedAcyclicGraph[T]) Delete(find T) ( found bool ) {
 	}
 
 	// Iterative search through tree (can be used above)
-	cur := &tt.root	// ptr to ptr to tree
+	cur := &tt.root // ptr to ptr to tree
 	for tt != nil {
 		// fmt.Printf ( "at:%s\n", godebug.LF())
 		c := find.Compare(*(*cur).data)
 		if c == 0 {
 			// fmt.Printf ( "FOUND! now remove it! at:%s\n", godebug.LF())
-			(*tt).length --
+			(*tt).length--
 			if (*cur).left == nil && (*cur).right == nil {
 				// fmt.Printf ( "at:%s\n", godebug.LF())
 				(*cur) = nil // just delete the node, it has no children.
@@ -194,13 +193,13 @@ func (tt *DirectedAcyclicGraph[T]) Delete(find T) ( found bool ) {
 			} else { // has both children.
 				// fmt.Printf ( "at:%s\n", godebug.LF())
 				// Has only right children, promote them.
-				found, pAtIt := findLeftMostInRightSubtree ( &((*cur).right) )	// Find lft mos of right sub-tree
+				found, pAtIt := findLeftMostInRightSubtree(&((*cur).right)) // Find lft mos of right sub-tree
 				if !found {
 					// fmt.Printf ( "%sAbout to Panic: Failed to have a subtree. AT:%s%s\n", MiscLib.ColorRed, godebug.LF(), MiscLib.ColorReset)
-					panic ( "Can't have a missing sub-tree." )
+					panic("Can't have a missing sub-tree.")
 				}
 				// fmt.Printf ( "at:%s\n", godebug.LF())
-				(*cur).data = (*pAtIt).data	// promote node's data.
+				(*cur).data = (*pAtIt).data // promote node's data.
 				// fmt.Printf ( "at:%s\n", godebug.LF())
 				(*pAtIt) = (*pAtIt).right // Left most can have a right sub-tree - but it is left most so it can't have a more left tree.
 				// fmt.Printf ( "at:%s\n", godebug.LF())
@@ -231,9 +230,9 @@ func (tt *DirectedAcyclicGraph[T]) Delete(find T) ( found bool ) {
     {09}
 */
 
-func (tt *DirectedAcyclicGraph[T]) FindMin() ( item *T ) {
+func (tt *DirectedAcyclicGraph[T]) FindMin() (item *T) {
 	if tt == nil {
-		panic ( "tree sholud not be a nil" )
+		panic("tree sholud not be a nil")
 	}
 	if (*tt).IsEmpty() {
 		return nil
@@ -245,14 +244,14 @@ func (tt *DirectedAcyclicGraph[T]) FindMin() ( item *T ) {
 		return (*cur).data
 	}
 	for cur.left != nil {
-		cur = (*cur).left 
+		cur = (*cur).left
 	}
 	return (*cur).data
 }
 
-func (tt *DirectedAcyclicGraph[T]) FindMax() ( item *T ) {
+func (tt *DirectedAcyclicGraph[T]) FindMax() (item *T) {
 	if tt == nil {
-		panic ( "tree sholud not be a nil" )
+		panic("tree sholud not be a nil")
 	}
 	if (*tt).IsEmpty() {
 		return nil
@@ -264,64 +263,64 @@ func (tt *DirectedAcyclicGraph[T]) FindMax() ( item *T ) {
 		return (*cur).data
 	}
 	for cur.right != nil {
-		cur = (*cur).right 
+		cur = (*cur).right
 	}
 	return (*cur).data
 }
 
-func (tt *DirectedAcyclicGraph[T]) DeleteAtHead() ( found bool ) {
+func (tt *DirectedAcyclicGraph[T]) DeleteAtHead() (found bool) {
 	if tt == nil {
-		panic ( "tree sholud not be a nil" )
+		panic("tree sholud not be a nil")
 	}
 	if (*tt).IsEmpty() {
 		return false
 	}
 
 	x := tt.FindMin()
-	tt.Delete ( *x )
+	tt.Delete(*x)
 	return true
 }
 
-func (tt *DirectedAcyclicGraph[T]) DeleteAtTail() ( found bool ) {
+func (tt *DirectedAcyclicGraph[T]) DeleteAtTail() (found bool) {
 	if tt == nil {
-		panic ( "tree sholud not be a nil" )
+		panic("tree sholud not be a nil")
 	}
 	if (*tt).IsEmpty() {
 		return false
 	}
 
 	x := tt.FindMax()
-	tt.Delete ( *x )
+	tt.Delete(*x)
 	return true
 }
 
 func (tt *DirectedAcyclicGraph[T]) Reverse() {
 	if tt == nil {
-		panic ( "tree sholud not be a nil" )
+		panic("tree sholud not be a nil")
 	}
 	if (*tt).IsEmpty() {
-		return 
+		return
 	}
 
-	var postTraversal func ( cur *DirectedAcyclicGraphNode[T] )
-	postTraversal = func ( cur *DirectedAcyclicGraphNode[T] ) {
+	var postTraversal func(cur *DirectedAcyclicGraphNode[T])
+	postTraversal = func(cur *DirectedAcyclicGraphNode[T]) {
 		if cur == nil {
 			return
 		}
 		if (*cur).left != nil {
-			postTraversal ( (*cur).left )
+			postTraversal((*cur).left)
 		}
 		if (*cur).right != nil {
-			postTraversal ( (*cur).right )
+			postTraversal((*cur).right)
 		}
 		(*cur).left, (*cur).right = (*cur).right, (*cur).left
 	}
-	postTraversal ( tt.root )
+	postTraversal(tt.root)
 }
 
-func (tt *DirectedAcyclicGraph[T]) Index(pos int) ( item *T ) {
+func (tt *DirectedAcyclicGraph[T]) Index(pos int) (item *T) {
 	if tt == nil {
-		panic ( "tree sholud not be a nil" )
+		panic("tree sholud not be a nil")
 	}
 	if (*tt).IsEmpty() {
 		return nil
@@ -333,14 +332,14 @@ func (tt *DirectedAcyclicGraph[T]) Index(pos int) ( item *T ) {
 
 	var n = 0
 	var done = false
-	var inorderTraversal func ( cur *DirectedAcyclicGraphNode[T] )
-	inorderTraversal = func ( cur *DirectedAcyclicGraphNode[T] ) {
+	var inorderTraversal func(cur *DirectedAcyclicGraphNode[T])
+	inorderTraversal = func(cur *DirectedAcyclicGraphNode[T]) {
 		if cur == nil {
 			return
 		}
-		if ! done {
+		if !done {
 			if (*cur).left != nil {
-				inorderTraversal ( (*cur).left )
+				inorderTraversal((*cur).left)
 			}
 		}
 		// fmt.Printf ( "InOrder - Before Set, Top n=%d, pos=%d,    value=%+v     at:%s\n", n, pos, item, godebug.LF() )
@@ -350,126 +349,124 @@ func (tt *DirectedAcyclicGraph[T]) Index(pos int) ( item *T ) {
 			done = true
 		}
 		n++
-		if ! done {
+		if !done {
 			if (*cur).right != nil {
-				inorderTraversal ( (*cur).right )
+				inorderTraversal((*cur).right)
 			}
 		}
 	}
-	inorderTraversal ( tt.root )
+	inorderTraversal(tt.root)
 	return
 }
 
-func (tt *DirectedAcyclicGraph[T]) Depth() ( d int ) {
+func (tt *DirectedAcyclicGraph[T]) Depth() (d int) {
 	if tt == nil {
-		panic ( "tree sholud not be a nil" )
+		panic("tree sholud not be a nil")
 	}
 	if (*tt).IsEmpty() {
 		return 0
 	}
 
 	d = 0
-	var inorderTraversal func ( cur *DirectedAcyclicGraphNode[T] )
-	inorderTraversal = func ( cur *DirectedAcyclicGraphNode[T] ) {
+	var inorderTraversal func(cur *DirectedAcyclicGraphNode[T])
+	inorderTraversal = func(cur *DirectedAcyclicGraphNode[T]) {
 		if cur == nil {
 			return
 		}
 		if (*cur).left != nil {
-			inorderTraversal ( (*cur).left )
-			d = g_lib.Max[int]( d, d+1 )
+			inorderTraversal((*cur).left)
+			d = g_lib.Max[int](d, d+1)
 		}
 		if (*cur).right != nil {
-			inorderTraversal ( (*cur).right )
-			d = g_lib.Max[int]( d, d+1 )
+			inorderTraversal((*cur).right)
+			d = g_lib.Max[int](d, d+1)
 		}
 	}
 	if tt.root != nil {
-		inorderTraversal ( tt.root )
-	} 
+		inorderTraversal(tt.root)
+	}
 	return
 }
 
-type ApplyFunction[T comparable.Comparable] func ( pos, depth int, data *T, userData interface{} ) bool
+type ApplyFunction[T comparable.Comparable] func(pos, depth int, data *T, userData interface{}) bool
 
 func (tt *DirectedAcyclicGraph[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) {
 
 	p := 0
 	b := true
-	var inorderTraversal func ( cur *DirectedAcyclicGraphNode[T], n int )
-	inorderTraversal = func ( cur *DirectedAcyclicGraphNode[T], n int ) {
+	var inorderTraversal func(cur *DirectedAcyclicGraphNode[T], n int)
+	inorderTraversal = func(cur *DirectedAcyclicGraphNode[T], n int) {
 		if cur == nil {
 			return
 		}
-		if b { 
+		if b {
 			if (*cur).left != nil {
-				inorderTraversal ( (*cur).left, n+1 )
+				inorderTraversal((*cur).left, n+1)
 			}
 		}
 		// ----------------------------------------------------------------------
-		b = b && fx ( p, n, (*cur).data, userData )
+		b = b && fx(p, n, (*cur).data, userData)
 		p++
 		// ----------------------------------------------------------------------
 		if b {
 			if (*cur).right != nil {
-				inorderTraversal ( (*cur).right, n+1 )
+				inorderTraversal((*cur).right, n+1)
 			}
 		}
 	}
-	inorderTraversal ( tt.root, 0 )
+	inorderTraversal(tt.root, 0)
 }
 
 func (tt *DirectedAcyclicGraph[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
 
 	p := 0
 	b := true
-	var preOrderTraversal func ( cur *DirectedAcyclicGraphNode[T], n int )
-	preOrderTraversal = func ( cur *DirectedAcyclicGraphNode[T], n int ) {
+	var preOrderTraversal func(cur *DirectedAcyclicGraphNode[T], n int)
+	preOrderTraversal = func(cur *DirectedAcyclicGraphNode[T], n int) {
 		if cur == nil {
 			return
 		}
 		// ----------------------------------------------------------------------
-		b = b && fx ( p, n, (*cur).data, userData )
+		b = b && fx(p, n, (*cur).data, userData)
 		// ----------------------------------------------------------------------
-		if b { 
+		if b {
 			if (*cur).left != nil {
-				preOrderTraversal ( (*cur).left, n+1 )
+				preOrderTraversal((*cur).left, n+1)
 			}
 		}
 		p++
 		if b {
 			if (*cur).right != nil {
-				preOrderTraversal ( (*cur).right, n+1 )
+				preOrderTraversal((*cur).right, n+1)
 			}
 		}
 	}
-	preOrderTraversal ( tt.root, 0 )
+	preOrderTraversal(tt.root, 0)
 }
 
 func (tt *DirectedAcyclicGraph[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
 
 	p := 0
 	b := true
-	var postOrderTraversal func ( cur *DirectedAcyclicGraphNode[T], n int )
-	postOrderTraversal = func ( cur *DirectedAcyclicGraphNode[T], n int ) {
+	var postOrderTraversal func(cur *DirectedAcyclicGraphNode[T], n int)
+	postOrderTraversal = func(cur *DirectedAcyclicGraphNode[T], n int) {
 		if cur == nil {
 			return
 		}
-		if b { 
+		if b {
 			if (*cur).left != nil {
-				postOrderTraversal ( (*cur).left, n+1 )
+				postOrderTraversal((*cur).left, n+1)
 			}
 		}
 		p++
 		if b {
 			if (*cur).right != nil {
-				postOrderTraversal ( (*cur).right, n+1 )
+				postOrderTraversal((*cur).right, n+1)
 			}
 		}
 		// ----------------------------------------------------------------------
-		b = b && fx ( p, n, (*cur).data, userData )
+		b = b && fx(p, n, (*cur).data, userData)
 		// ----------------------------------------------------------------------
 	}
-	postOrderTraversal ( tt.root, 0 )
+	postOrderTraversal(tt.root, 0)
 }
-
-

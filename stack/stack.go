@@ -39,14 +39,14 @@ func (ns *Stack[T]) Push(t T) {
 var ErrEmptyStack = errors.New("Empty Stack")
 
 // Pop will remove the top element from the stack.  An error is returned if the stack is empty.
-func (ns *Stack[T]) Pop() ( rv T, err error ) {
+func (ns *Stack[T]) Pop() (rv T, err error) {
 	if ns.IsEmpty() {
 		err = ErrEmptyStack
-		return 
+		return
 	}
 	rv = (*ns)[len((*ns))-1]
-	(*ns) = (*ns)[0:len((*ns))-1]
-	return 
+	(*ns) = (*ns)[0 : len((*ns))-1]
+	return
 }
 
 // Length returns the number of elements in the stack.
@@ -59,11 +59,11 @@ func (ns Stack[T]) Length() int {
 func (ns *Stack[T]) Peek() (*T, error) {
 	if !ns.IsEmpty() {
 		return &((*ns)[len(*ns)-1]), nil
-	} 
+	}
 	return nil, ErrEmptyStack
 }
 
 // Truncate removes all data from the list.
-func (ns *Stack[T]) Truncate()  {
+func (ns *Stack[T]) Truncate() {
 	(*ns) = []T{}
 }

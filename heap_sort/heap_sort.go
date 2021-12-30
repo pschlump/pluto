@@ -18,40 +18,40 @@ import (
 )
 
 type heap_sort[T comparable.Comparable] struct {
-	theHeap *heap.Heap[T] 
+	theHeap *heap.Heap[T]
 }
 
 // Create a new heap_sort and return it.
 // Complexity is O(1).
-func NewHeapSort[T comparable.Comparable] () ( rv *heap_sort[T] ) {
+func NewHeapSort[T comparable.Comparable]() (rv *heap_sort[T]) {
 	rv = &heap_sort[T]{
 		theHeap: heap.NewHeap[T](),
-	}
-	return 
-}
-
-// Complexity O(n log n)
-func (srt *heap_sort[T])Insert(n *T) {
-	srt.theHeap.Push(n)
-}
-
-// Complexity O(n log n)
-func (srt *heap_sort[T]) Sort() ( rv []*T ) {
-	n := srt.theHeap.Len()
-	rv = make ( []*T, 0, n )
-	for i := 0; i < n; i++ {
-		rv = append ( rv, srt.theHeap.Pop() )
 	}
 	return
 }
 
 // Complexity O(n log n)
-func (srt *heap_sort[T]) SortDown() ( rv []*T ) {
+func (srt *heap_sort[T]) Insert(n *T) {
+	srt.theHeap.Push(n)
+}
+
+// Complexity O(n log n)
+func (srt *heap_sort[T]) Sort() (rv []*T) {
 	n := srt.theHeap.Len()
-	rv = make ( []*T, n, n )
+	rv = make([]*T, 0, n)
+	for i := 0; i < n; i++ {
+		rv = append(rv, srt.theHeap.Pop())
+	}
+	return
+}
+
+// Complexity O(n log n)
+func (srt *heap_sort[T]) SortDown() (rv []*T) {
+	n := srt.theHeap.Len()
+	rv = make([]*T, n, n)
 	for i, j := 0, n; i < n; i++ {
 		j--
-		rv[j] = srt.theHeap.Pop() 
+		rv[j] = srt.theHeap.Pop()
 	}
 	return
 }

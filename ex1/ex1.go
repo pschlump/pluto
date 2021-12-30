@@ -12,10 +12,9 @@ import (
 
 // BinaryTree is a generic type buildt on top of a slice
 type BinaryTree[T constraints.Ordered] struct {
-	data *T
+	data        *T
 	left, right *BinaryTree[T]
 }
-
 
 // IsEmpty will return true if the binary-tree is empty
 func (tt BinaryTree[T]) IsEmpty() bool {
@@ -31,16 +30,15 @@ func (tt *BinaryTree[T]) Insert(item T) {
 	if item == *(tt.data) {
 		tt.data = &item
 	} else if item <= *(tt.data) && tt.left == nil {
-		tt.left = &(BinaryTree[T]{ data: &item })
+		tt.left = &(BinaryTree[T]{data: &item})
 	} else if item > *(tt.data) && tt.right == nil {
-		tt.right = &(BinaryTree[T]{ data: &item })
+		tt.right = &(BinaryTree[T]{data: &item})
 	} else if item <= *(tt.data) {
-		tt.left.Insert ( item )
+		tt.left.Insert(item)
 	} else {
-		tt.right.Insert ( item )
+		tt.right.Insert(item)
 	}
 }
 
 // TODO remove
 // TODO search for item
-
