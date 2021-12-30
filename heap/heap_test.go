@@ -80,11 +80,15 @@ func TestSearch(t *testing.T) {
 	}
 	h.verify(t, 0)
 
-	h.printAsTree()
+	if db12 {
+		h.printAsTree()
+	}
 
 	hv := myHeap(12)
 	v, i, _ := h.Search(&hv)
-	fmt.Printf("v=%+v pos %d\n", *v, i)
+	if db12 {
+		fmt.Printf("v=%+v pos %d\n", *v, i)
+	}
 
 	for i := 11; i < 20; i++ {
 		hv := myHeap(i)
@@ -308,3 +312,5 @@ func TestFix(t *testing.T) {
 	}
 }
 */
+
+const db12 = false
