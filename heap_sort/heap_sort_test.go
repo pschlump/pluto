@@ -40,6 +40,12 @@ func TestSortUp(t *testing.T) {
 	if h.theHeap.Len() != 6 {
 		t.Errorf("Invalid length returned: Expected %d got %d\n", h.theHeap.Len(), 6)
 	}
+	if h.Len() != 6 {
+		t.Errorf("Invalid length returned: Expected %d got %d\n", h.theHeap.Len(), 6)
+	}
+	if h.Length() != 6 {
+		t.Errorf("Invalid length returned: Expected %d got %d\n", h.theHeap.Len(), 6)
+	}
 
 	sorted := h.Sort()
 	expect := []int{1, 2, 3, 4, 5, 8}

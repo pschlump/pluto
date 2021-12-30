@@ -31,29 +31,36 @@ func NewHeapSort[T comparable.Comparable] () ( rv *heap_sort[T] ) {
 }
 
 // Complexity O(n log n)
-func (pq *heap_sort[T])Insert(n *T) {
-	pq.theHeap.Push(n)
+func (srt *heap_sort[T])Insert(n *T) {
+	srt.theHeap.Push(n)
 }
 
 // Complexity O(n log n)
-func (pq *heap_sort[T]) Sort() ( rv []*T ) {
-	n := pq.theHeap.Len()
+func (srt *heap_sort[T]) Sort() ( rv []*T ) {
+	n := srt.theHeap.Len()
 	rv = make ( []*T, 0, n )
 	for i := 0; i < n; i++ {
-		rv = append ( rv, pq.theHeap.Pop() )
+		rv = append ( rv, srt.theHeap.Pop() )
 	}
 	return
 }
 
 // Complexity O(n log n)
-func (pq *heap_sort[T]) SortDown() ( rv []*T ) {
-	n := pq.theHeap.Len()
+func (srt *heap_sort[T]) SortDown() ( rv []*T ) {
+	n := srt.theHeap.Len()
 	rv = make ( []*T, n, n )
 	for i, j := 0, n; i < n; i++ {
 		j--
-		rv[j] = pq.theHeap.Pop() 
+		rv[j] = srt.theHeap.Pop() 
 	}
 	return
 }
 
-// xyzzy TODO - add Len(), Length()
+// Len will return the number of items in the heap.
+// Complexity is O(1).
+func (srt *heap_sort[T]) Len() int {
+	return srt.theHeap.Len()
+}
+func (srt *heap_sort[T]) Length() int {
+	return srt.theHeap.Len()
+}
