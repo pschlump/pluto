@@ -24,8 +24,9 @@ type heap_sort[T comparable.Comparable] struct {
 // Create a new heap_sort and return it.
 // Complexity is O(1).
 func NewHeapSort[T comparable.Comparable] () ( rv *heap_sort[T] ) {
-	// We don't have to "heapify" at this point becasue we start all heaps with an empty set of data.
-	rv.theHeap = heap.NewHeap[T]()
+	rv = &heap_sort[T]{
+		theHeap: heap.NewHeap[T](),
+	}
 	return 
 }
 
@@ -58,3 +59,4 @@ func (pq *heap_sort[T]) SortDown() ( rv []*T ) {
 	return
 }
 
+// xyzzy TODO - add Len(), Length()
