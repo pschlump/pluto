@@ -39,9 +39,8 @@ func (pq *heap_sort[T])Insert(n *T) {
 func (pq *heap_sort[T]) Sort() ( rv []*T ) {
 	n := pq.theHeap.Len()
 	rv = make ( []*T, 0, n )
-	for i := 0; i < pq.theHeap.Len(); i++ {
-		x := pq.theHeap.Pop() 
-		rv = append ( rv, x )
+	for i := 0; i < n; i++ {
+		rv = append ( rv, pq.theHeap.Pop() )
 	}
 	return
 }
@@ -50,11 +49,9 @@ func (pq *heap_sort[T]) Sort() ( rv []*T ) {
 func (pq *heap_sort[T]) SortDown() ( rv []*T ) {
 	n := pq.theHeap.Len()
 	rv = make ( []*T, n, n )
-	j := n-1
-	for i := 0; i < pq.theHeap.Len(); i++ {
-		x := pq.theHeap.Pop() 
-		rv[j] = x
+	for i, j := 0, n; i < n; i++ {
 		j--
+		rv[j] = pq.theHeap.Pop() 
 	}
 	return
 }
