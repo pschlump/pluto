@@ -73,7 +73,23 @@ type Numeric interface {
 		~float32 | ~float64
 }
 
-func Abs[T Numeric](a T) T {
+// Signed is a constraint with a type set of all signed integer types.
+type SignedNumeric interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64
+}
+
+// SignedNumeric is a constraint with a type set of all signed types.
+type SignedNumeric interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~float32 | ~float64
+}
+
+// Unsigned is a constraint with a type set of all unsigned integer types.
+type Unsigned interface {
+	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+}
+
+func Abs[T SignedNumeric](a T) T {
 	if a < 0 {
 		return -a
 	}
