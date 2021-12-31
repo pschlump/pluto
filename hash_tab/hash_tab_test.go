@@ -91,16 +91,65 @@ func TestTest(t *testing.T) {
 
 	ht.Dump(os.Stdout)
 
-	// Len
-	// Search
-	// Delete
-	// Len
-	// Search - do not find
-	// Insert
-	// Len
+	// Check setup of hash tab
+	if ht.IsEmpty() {
+		t.Errorf("Expected to not be empty hash-tab, failed.")
+	}
+	if ht.Len() != 40 {
+		t.Errorf("Expected length of 40, got %d", ht.Len())
+	}
+	if ht.Length() != 40 {
+		t.Errorf("Expected length of 40, got %d", ht.Len())
+	}
+
 	// Search - find
-	// Truncate
+	it := ht.Search(&TestData{S: "   8"})
+	if it == nil {
+		t.Errorf("Expected to find it, did not")
+	}
+
+	// Delete
+	found := ht.Delete(it) // func (tt *HashTab[T]) Delete(find *T) (found bool) {
+	if !found {
+		t.Errorf("Expected to delete it, did not")
+	}
 	// Len
+	if ht.Len() != 39 {
+		t.Errorf("Expected length of 39, got %d", ht.Len())
+	}
+
 	// Search - do not find
+	it = ht.Search(&TestData{S: "   8"})
+	if it != nil {
+		t.Errorf("Expected to NOT find it, did not")
+	}
+
+	// Insert
+	ht.Insert(&TestData{S: "abcd"})
+
+	// Len
+	if ht.Length() != 40 {
+		t.Errorf("Expected length of 40, got %d", ht.Len())
+	}
+
+	// Search - find
+	it = ht.Search(&TestData{S: "abcd"})
+	if it == nil {
+		t.Errorf("Expected to find it, did not")
+	}
+
+	// Truncate
+	ht.Truncate()
+
+	// Len
+	if ht.Length() != 0 {
+		t.Errorf("Expected length of 0, got %d", ht.Len())
+	}
+
+	// Search - do not find
+	it = ht.Search(&TestData{S: "abcd"})
+	if it != nil {
+		t.Errorf("Expected to NOT find it, did not")
+	}
 
 }

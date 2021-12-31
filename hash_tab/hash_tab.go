@@ -8,27 +8,13 @@ BSD 3 Clause Licensed.
 
 /*
 
-Basic operations on a Binary Tree.
+Basic operations on a Hash Table.
 
-* 	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(log|2(n))
-* 	Index - return the Nth item	in the list - in a format usable with Delete.					O(n)
+* 	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(???)
 * 	IsEmpty — Returns true if the linked list is empty											O(1)
 * 	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
-* 	Reverse - Reverse all the nodes in list. 													O(n)
-* 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(log|2(n))
+* 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(???)
 * 	Truncate - Delete all the nodes in list. 													O(1)
-*	FindMin
-*	FindMax
-*	Depth -> int to get deepest part of tree
-
-* 	DeleteAtHead — Deletes the first element of the linked list.  								O(log|2(n))
-		Delete ( FindMin ( ) )
-* 	DeleteAtTail — Deletes the last element of the linked list. 								O(log|2(n))
-		Delete ( FindMax ( ) )
-
-*	WalkInOrder
-+	WalkPreOrder
-+	WalkPostOrder
 
 */
 
@@ -108,7 +94,7 @@ func (tt *HashTab[T]) Search(find *T) (item *T) {
 	if (*tt).IsEmpty() {
 		return nil
 	}
-	h := tt.hash(item) % tt.size
+	h := tt.hash(find) % tt.size
 	// func (ns *Dll[T]) Search( t *T ) (rv *DllElement[T], pos int) {
 	x, pos := tt.buckets[h].Search(find)
 	if pos < 0 {
@@ -137,9 +123,11 @@ func (tt *HashTab[T]) Delete(find *T) (found bool) {
 	h := tt.hash(find) % tt.size
 	it, pos := tt.buckets[h].Search(find)
 	if pos >= 0 {
-		(*tt).length++
 		err := tt.buckets[h].Delete(it)
-		found = err != nil
+		found = err == nil
+		if found {
+			(*tt).length--
+		}
 	}
 	return
 }
