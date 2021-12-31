@@ -31,3 +31,56 @@ https://graphviz.org/Gallery/directed/datastruct.html
 		. consider a different data structure
 	. hiding data in OOP means less tests and lower quality code
 
+
+Connect type://ip:port/database?un=X&pw=Y
+	Type := https | http | gRPC => 17210 | jsonrpc => 16210 
+
+	with https/http - parameters are passed via "post" with __method__=post (get is not used)
+
+
+
+
+
+Commands:
+
+. set A b						cmd_set
+. setex A b TTL					cmd_setx
+. setexx A b TTL.ms				cmd_setxx
+. event name TTL				cmd_event
+. eventx name TTL.ms			cmd_eventx
+
+. define name ...
+
+. set --persist A b
+
+. set --persist --immutable A b
+. set -p -i A b
+
+. set --ttl X a b
+
+. keys pattern
+
+. keys --datestart X --dateend XZ
+
+. 
+
+
+. CMD [ options ]* Params
+
+
+== Structured Data (JSON etc)
+
+== SQL?
+
+
+
+
+
+
+key-cli --un x --pw y --database z
+
+
+
+
+
+

@@ -41,8 +41,6 @@ import (
 	"github.com/pschlump/pluto/sll"
 )
 
-// xyzzy var _ comparable.Equality = (*TestDemo)(nil)
-
 // HashTab is a generic binary tree
 type HashTab[T comparable.Equality] struct {
 	buckets [](*sll.Sll[T]) // the table
@@ -95,6 +93,7 @@ func (tt *HashTab[T]) Insert(item *T) {
 }
 
 // Length returns the number of elements in the list.
+// Complexity is O(1).
 func (tt *HashTab[T]) Len() int {
 	return (*tt).length
 }
@@ -119,6 +118,7 @@ func (tt *HashTab[T]) Search(find *T) (item *T) {
 }
 
 // Dump will print out the hash table to the file `fo`.
+// Complexity is O(n).
 func (tt *HashTab[T]) Dump(fo *os.File) {
 	fmt.Printf("Elements: %d, mod size:%d\n", tt.length, tt.size)
 	for i, v := range tt.buckets {

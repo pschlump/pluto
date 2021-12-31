@@ -68,9 +68,11 @@ func (aa TestData) IsEqual(x comparable.Equality) bool {
 func (aa TestData) HashKey(x interface{}) (rv int) {
 	if v, ok := x.(*TestData); ok {
 		rv = HashStr.HashStr([]byte(v.S))
+		return
 	}
 	if v, ok := x.(TestData); ok {
 		rv = HashStr.HashStr([]byte(v.S))
+		return
 	}
 	return
 }
@@ -88,4 +90,17 @@ func TestTest(t *testing.T) {
 	}
 
 	ht.Dump(os.Stdout)
+
+	// Len
+	// Search
+	// Delete
+	// Len
+	// Search - do not find
+	// Insert
+	// Len
+	// Search - find
+	// Truncate
+	// Len
+	// Search - do not find
+
 }
