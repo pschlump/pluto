@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 
 Basic operations on a Binary Tree.
 
+* 	Insert - create a new element in tree.														O(log|2(n))
 * 	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(log|2(n))
 * 	Index - return the Nth item	in the list - in a format usable with Delete.					O(n)
 * 	IsEmpty — Returns true if the linked list is empty											O(1)
@@ -54,8 +55,23 @@ type BinaryTree[T comparable.Comparable] struct {
 	length int
 }
 
-// func NewHashtab[T comparable.Comparable]() *BinaryTree[T] {
-// }
+// -------------------------------------------------------------------------------------------------------
+
+// Create a new BinaryTree and return it.
+// Complexity is O(1).
+func NewBinaryTree[T comparable.Comparable]() *BinaryTree[T] {
+	return &BinaryTree[T]{
+		root:   nil,
+		length: 0,
+	}
+}
+
+// Complexity is O(1).
+func (ee *BinaryTreeElement[T]) GetData() *T {
+	return ee.data
+}
+
+// -------------------------------------------------------------------------------------------------------
 
 // IsEmpty will return true if the binary-tree is empty
 func (tt BinaryTree[T]) IsEmpty() bool {
@@ -73,11 +89,11 @@ func (tt *BinaryTree[T]) Truncate() {
 
 // Insert will add a new item to the tree.  If it is a duplicate of an exiting
 // item the new item will replace the existing one.
-func (tt *BinaryTree[T]) Insert(item T) {
+func (tt *BinaryTree[T]) Insert(item *T) {
 	if tt == nil {
 		panic("tree sholud not be a nil")
 	}
-	node := &BinaryTreeElement[T]{data: &item}
+	node := &BinaryTreeElement[T]{data: item}
 	node.left = nil
 	node.right = nil
 	if (*tt).IsEmpty() {
@@ -93,7 +109,7 @@ func (tt *BinaryTree[T]) Insert(item T) {
 			*root = node
 			tt.length++
 			// } else if c := (*(node.data)).Compare( (*root).data ); c == 0 {
-		} else if c := item.Compare(*((*root).data)); c == 0 {
+		} else if c := (*item).Compare(*((*root).data)); c == 0 {
 			(*root) = node
 		} else if c < 0 {
 			insert(&((*root).left))
@@ -112,7 +128,7 @@ func (tt *BinaryTree[T]) Length() int {
 
 // Search will walk the tree looking for `find` and retrn the found item
 // if it is in the tree. If it is not found then `nil` will be returned.
-func (tt *BinaryTree[T]) Search(find T) (item *T) {
+func (tt *BinaryTree[T]) Search(find *T) (item *T) {
 	if tt == nil {
 		panic("tree sholud not be a nil")
 	}
@@ -120,44 +136,53 @@ func (tt *BinaryTree[T]) Search(find T) (item *T) {
 		return nil
 	}
 
+	// fmt.Printf("at:%s\n", godebug.LF())
+
 	// Iterative search through tree (can be used above)
 	cur := tt.root
 	for tt != nil {
-		c := find.Compare(*cur.data)
+		// fmt.Printf(" at:%s ->%s<-\n", godebug.LF(), *cur.data)
+		c := (*find).Compare(*cur.data)
 		if c == 0 {
+			// fmt.Printf("  %sfound%s at:%s\n", MiscLib.ColorGreen, MiscLib.ColorReset, godebug.LF())
 			item = cur.data
 			return
 		}
 		if c < 0 && cur.left != nil {
+			// fmt.Printf("  left at:%s\n", godebug.LF())
 			cur = (*cur).left
 		} else if c > 0 && cur.right != nil {
+			// fmt.Printf("  right at:%s\n", godebug.LF())
 			cur = (*cur).right
 		} else {
+			// fmt.Printf("  ( not found / break loop ) at:%s\n", godebug.LF())
 			break
 		}
 	}
+	// fmt.Printf("all done at:%s\n", godebug.LF())
 	return nil
 }
 
 // Dump will print out the tree to the file `fo`.
 func (tt *BinaryTree[T]) Dump(fo *os.File) {
-	var inorderTraversal func(cur *BinaryTreeElement[T], n int, fo *os.File)
-	inorderTraversal = func(cur *BinaryTreeElement[T], n int, fo *os.File) {
+	k := tt.Depth() * 4
+	var inorderTraversal func(cur *BinaryTreeElement[T], n int)
+	inorderTraversal = func(cur *BinaryTreeElement[T], n int) {
 		if cur == nil {
 			return
 		}
 		if (*cur).left != nil {
-			inorderTraversal((*cur).left, n+1, fo)
+			inorderTraversal((*cur).left, n+1)
 		}
-		fmt.Printf("%s%v%s (left=%p/%p, right=%p/%p) self=%p\n", strings.Repeat(" ", 4*n), *((*cur).data), strings.Repeat(" ", 20-(4*n)), (*cur).left, &((*cur).left), (*cur).right, &((*cur).right), cur)
+		fmt.Printf("%s%v%s (left=%p/%p, right=%p/%p) self=%p\n", strings.Repeat(" ", 4*n), *((*cur).data), strings.Repeat(" ", k-(4*n)), (*cur).left, &((*cur).left), (*cur).right, &((*cur).right), cur)
 		if (*cur).right != nil {
-			inorderTraversal((*cur).right, n+1, fo)
+			inorderTraversal((*cur).right, n+1)
 		}
 	}
-	inorderTraversal(tt.root, 0, fo)
+	inorderTraversal(tt.root, 0)
 }
 
-func (tt *BinaryTree[T]) Delete(find T) (found bool) {
+func (tt *BinaryTree[T]) Delete(find *T) (found bool) {
 	if tt == nil {
 		panic("tree sholud not be a nil")
 	}
@@ -187,7 +212,7 @@ func (tt *BinaryTree[T]) Delete(find T) (found bool) {
 	cur := &tt.root // ptr to ptr to tree
 	for tt != nil {
 		// fmt.Printf ( "at:%s\n", godebug.LF())
-		c := find.Compare(*(*cur).data)
+		c := (*find).Compare(*(*cur).data)
 		if c == 0 {
 			// fmt.Printf ( "FOUND! now remove it! at:%s\n", godebug.LF())
 			(*tt).length--
@@ -287,7 +312,7 @@ func (tt *BinaryTree[T]) DeleteAtHead() (found bool) {
 	}
 
 	x := tt.FindMin()
-	tt.Delete(*x)
+	tt.Delete(x)
 	return true
 }
 
@@ -300,7 +325,7 @@ func (tt *BinaryTree[T]) DeleteAtTail() (found bool) {
 	}
 
 	x := tt.FindMax()
-	tt.Delete(*x)
+	tt.Delete(x)
 	return true
 }
 

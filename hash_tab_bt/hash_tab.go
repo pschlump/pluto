@@ -99,9 +99,11 @@ func (tt *HashTab[T]) Search(find *T) (rv *T) {
 		return nil
 	}
 	h := hash(find) % tt.size
-	fmt.Printf("%sh=%d - for ->%+v<-%s\n", MiscLib.ColorYellow, h, find, MiscLib.ColorReset)
+	if db1 {
+		fmt.Printf("%sh=%d - for ->%+v<-%s\n", MiscLib.ColorYellow, h, find, MiscLib.ColorReset)
+	}
 	rv = tt.buckets[h].Search(find) // func (ns *BinaryTree[T]) Search(t *T) (rv *BinaryTreeElement[T], pos int) {
-	if rv != nil {
+	if rv == nil {
 		return nil
 	}
 	return
@@ -154,3 +156,5 @@ func hash(x interface{}) (rv int) {
 	}
 	panic(fmt.Sprintf("Invalid type, %T needs to be Stringer or Hashable interface\n", x))
 }
+
+const db1 = false

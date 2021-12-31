@@ -74,7 +74,7 @@ type Numeric interface {
 }
 
 // Signed is a constraint with a type set of all signed integer types.
-type SignedNumeric interface {
+type SignedInteger interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64
 }
 

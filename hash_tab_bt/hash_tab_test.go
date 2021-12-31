@@ -13,6 +13,7 @@ import (
 
 	"github.com/pschlump/HashStr"
 	"github.com/pschlump/MiscLib"
+	"github.com/pschlump/godebug"
 	"github.com/pschlump/pluto/comparable"
 )
 
@@ -68,12 +69,12 @@ func (aa TestData) IsEqual(x comparable.Equality) bool {
 
 func (aa TestData) HashKey(x interface{}) (rv int) {
 	if v, ok := x.(*TestData); ok {
-		fmt.Printf("%s1st case%s\n", MiscLib.ColorRed, MiscLib.ColorReset)
+		// fmt.Printf("%s1st case%s\n", MiscLib.ColorRed, MiscLib.ColorReset)
 		rv = HashStr.HashStr([]byte(v.S))
 		return
 	}
 	if v, ok := x.(TestData); ok {
-		fmt.Printf("%s2nd case%s\n", MiscLib.ColorRed, MiscLib.ColorReset)
+		// fmt.Printf("%s2nd case%s\n", MiscLib.ColorRed, MiscLib.ColorReset)
 		rv = HashStr.HashStr([]byte(v.S))
 		return
 	}
@@ -114,10 +115,21 @@ func TestTest(t *testing.T) {
 		t.Errorf("Expected length of 40, got %d", ht.Len())
 	}
 
+	// ------------------------------------------------------------------------------------------------------------------------------------------------------
 	// Search - find
+	// ------------------------------------------------------------------------------------------------------------------------------------------------------
+	if db2 {
+		fmt.Printf("%s --------- this one ---------- at:%s %s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+	}
 	it := ht.Search(&TestData{S: "   8"})
 	if it == nil {
+		if db2 {
+			fmt.Printf("%s --------- error did not find it ---------- at:%s %s\n", MiscLib.ColorRed, godebug.LF(), MiscLib.ColorReset)
+		}
 		t.Errorf("Expected to find it, did not")
+	}
+	if db2 {
+		fmt.Printf("%s --------- test done ---------- at:%s %s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
 	}
 
 	// Delete
@@ -165,3 +177,5 @@ func TestTest(t *testing.T) {
 	}
 
 }
+
+const db2 = false
