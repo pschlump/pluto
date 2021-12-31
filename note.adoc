@@ -38,8 +38,36 @@ Connect type://ip:port/database?un=X&pw=Y
 	with https/http - parameters are passed via "post" with __method__=post (get is not used)
 
 
+== Critical Observations about API and Data
+
+. Web applications need an API to data
+. SQL/single-table is a lousy way to dal with data (normalized data is not UI/UX ready)
+. UI/UX needs complex data (multi-table, documents, map[name]stuff + Secuirty)
+. Redis is not a good store for web-data because
+	. it is not persistent
+	. name/vlaue or name-data-structure is not "searchable"
+. MongoDB is not a good store for data because
+	. it is documents
+	. it is not ACID compliant
+	. 
 
 
+
+1. Goal : High speed binary cached data.  (need a speed comparable to memcached)
+	. gRPC
+	. binary
+	. set/get operations
+	. data timeout
+	. LRU cache
+	. cache invalidations
+	. pub/sub with cache invalidations (sub on chanel -> invalidation)
+2. Better Complex Data Structures
+	. name -> set of X (searilized)
+	. set of X
+	. list of X
+	. stack of X
+	etc...
+	X can contain ... (complex hierarcial data structurs)
 
 Commands:
 

@@ -52,6 +52,7 @@ func NewSll[T comparable.Equality]() *Sll[T] {
 	}
 }
 
+// Complexity is O(1).
 func (ee *SllElement[T]) GetData() *T {
 	return ee.data
 }

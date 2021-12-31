@@ -36,17 +36,19 @@ With the basic stack operations it also can be used as a stack:
 With the use of Enque can be used as a Queue.  This is a synonym for AppendAtTail.				O(1)
 
 * 	PeekTail - Peek returns the last element of the DLL (like a Queue) or an error 				O(1)
-		indicating that the queue is empty.			
+		indicating that the queue is empty.
 * 	PopTail - Remvoe the element at the end of the DLL.											O(1)
 *	Enque - add to the tail so that DLL can be used as a Queue.									O(1)
 
-This version of the DLL is not suitable for concurrnet usage but ../DLLTs has mutex 
+This version of the DLL is not suitable for concurrnet usage but ../DLLTs has mutex
 locks so that it is thread safe.  It has the exact same interface.
 
 */
 
 import (
 	"errors"
+	"fmt"
+	"os"
 
 	"github.com/pschlump/pluto/comparable"
 )
@@ -55,7 +57,7 @@ import (
 //	for e := l.Front(); e.Done(); e.Next() {
 //		// do something with e.Value()
 //	}
-// or 
+// or
 //	for e := l.Rear(); e.Done(); e.Prev() {
 //		// do something with e.Value()
 //	}
@@ -63,28 +65,45 @@ import (
 
 // An element in the doubly linked list.
 type DllElement[T comparable.Equality] struct {
-	next, prev 	*DllElement[T]
-	data 		*T
+	next, prev *DllElement[T]
+	data       *T
 }
 
 // Dll is a generic type buildt on top of a slice
 type Dll[T comparable.Equality] struct {
-	head, tail 	*DllElement[T]
-	length 		int
+	head, tail *DllElement[T]
+	length     int
 }
 
 // An iteration type that allows a for loop to walk the list.
 type DllIter[T comparable.Equality] struct {
-	cur 		*DllElement[T]
-	dll 		*Dll[T]
-	pos 		int
+	cur *DllElement[T]
+	dll *Dll[T]
+	pos int
+}
+
+// -------------------------------------------------------------------------------------------------------
+
+// Create a new DLL and return it.
+// Complexity is O(1).
+func NewDll[T comparable.Equality]() *Dll[T] {
+	return &Dll[T]{
+		head:   nil,
+		tail:   nil,
+		length: 0,
+	}
+}
+
+// Complexity is O(1).
+func (ee *DllElement[T]) GetData() *T {
+	return ee.data
 }
 
 // -------------------------------------------------------------------------------------------------------
 
 // Front will start at the beginning of a list for iteration over list.
 func (ns *Dll[T]) Front() *DllIter[T] {
-	return &DllIter[T] {
+	return &DllIter[T]{
 		cur: ns.head,
 		dll: ns,
 	}
@@ -92,10 +111,10 @@ func (ns *Dll[T]) Front() *DllIter[T] {
 
 // Rear will start at the end of a list for iteration over list.
 func (ns *Dll[T]) Rear() *DllIter[T] {
-	return &DllIter[T] {
+	return &DllIter[T]{
 		cur: ns.tail,
 		dll: ns,
-		pos: ns.length-1,
+		pos: ns.length - 1,
 	}
 }
 
@@ -103,7 +122,7 @@ func (ns *Dll[T]) Rear() *DllIter[T] {
 // 		func (ns *Dll[T]) Search( t *T ) (rv *DllElement[T], pos int) {
 // and allow you to start an iteration process from that point.
 func (ns *Dll[T]) Current(el *DllElement[T], pos int) *DllIter[T] {
-	return &DllIter[T] {
+	return &DllIter[T]{
 		cur: el,
 		dll: ns,
 		pos: pos,
@@ -121,7 +140,7 @@ func (iter *DllIter[T]) Value() *T {
 // Next advances to the next element in the list.
 func (iter *DllIter[T]) Next() {
 	if iter.cur == nil {
-		return 
+		return
 	}
 	iter.cur = iter.cur.next
 	iter.pos++
@@ -130,7 +149,7 @@ func (iter *DllIter[T]) Next() {
 // Prev moves back to the previous element in the list.
 func (iter *DllIter[T]) Prev() {
 	if iter.cur == nil {
-		return 
+		return
 	}
 	iter.cur = iter.cur.prev
 	iter.pos--
@@ -156,7 +175,7 @@ func (ns *Dll[T]) IsEmpty() bool {
 
 // Push will append a new node to the end of the list.
 func (ns *Dll[T]) InsertBeforeHead(t *T) {
-	x := DllElement[T] { data: t }	// Create the node
+	x := DllElement[T]{data: t} // Create the node
 	if (*ns).head == nil {
 		(*ns).head = &x
 		(*ns).tail = &x
@@ -174,7 +193,7 @@ func (ns *Dll[T]) Push(t *T) {
 
 // Push will append a new node to the end of the list.
 func (ns *Dll[T]) AppendAtTail(t *T) {
-	x := DllElement[T] { data: t }	// Create the node
+	x := DllElement[T]{data: t} // Create the node
 	if (*ns).head == nil {
 		(*ns).head = &x
 		(*ns).tail = &x
@@ -202,7 +221,7 @@ var ErrInteralDll = errors.New("Interal Dll")
 var ErrOutOfRange = errors.New("Subscript Out of Range")
 
 // Pop will remove the top element from the DLL.  An error is returned if the stack is empty.
-func (ns *Dll[T]) Pop() ( rv *T, err error ) {
+func (ns *Dll[T]) Pop() (rv *T, err error) {
 	if ns.IsEmpty() {
 		return nil, ErrEmptyDll
 	}
@@ -212,11 +231,11 @@ func (ns *Dll[T]) Pop() ( rv *T, err error ) {
 		(*ns).head.prev = nil
 	}
 	(*ns).length--
-	return 
+	return
 }
 
 // PopTail will remove the top element from the DLL.  An error is returned if the stack is empty.
-func (ns *Dll[T]) PopTail() ( rv *T, err error ) {
+func (ns *Dll[T]) PopTail() (rv *T, err error) {
 	if ns.IsEmpty() {
 		return nil, ErrEmptyDll
 	}
@@ -226,10 +245,10 @@ func (ns *Dll[T]) PopTail() ( rv *T, err error ) {
 		(*ns).tail.next = nil
 	}
 	(*ns).length--
-	return 
+	return
 }
 
-func (ns *Dll[T]) Delete( it *DllElement[T] ) ( err error ) {
+func (ns *Dll[T]) Delete(it *DllElement[T]) (err error) {
 	if (*ns).head == it && (*ns).tail == it {
 		(*ns).head = nil
 		(*ns).tail = nil
@@ -237,11 +256,11 @@ func (ns *Dll[T]) Delete( it *DllElement[T] ) ( err error ) {
 		return
 	}
 	if (*ns).head == it && (*ns).length > 1 {
-		err = ns.DeleteAtHead() 
+		err = ns.DeleteAtHead()
 		return
 	}
 	if (*ns).tail == it && (*ns).length > 1 {
-		err = ns.DeleteAtTail() 
+		err = ns.DeleteAtTail()
 		return
 	}
 	if (*ns).length > 2 {
@@ -252,15 +271,15 @@ func (ns *Dll[T]) Delete( it *DllElement[T] ) ( err error ) {
 		(*ns).length--
 		return
 	}
-	return ErrInteralDll 
+	return ErrInteralDll
 }
 
-func (ns *Dll[T]) DeleteAtHead() ( err error ) {
+func (ns *Dll[T]) DeleteAtHead() (err error) {
 	_, err = ns.Pop()
 	return
 }
 
-func (ns *Dll[T]) DeleteAtTail() ( err error ) {
+func (ns *Dll[T]) DeleteAtTail() (err error) {
 	if ns.IsEmpty() {
 		return ErrEmptyDll
 	}
@@ -270,41 +289,41 @@ func (ns *Dll[T]) DeleteAtTail() ( err error ) {
 		(*ns).tail.next = nil
 	}
 	(*ns).length--
-	return 
+	return
 }
 
 // Peek returns the top element of the DLL (like a Stack) or an error indicating that the stack is empty.
 func (ns *Dll[T]) Peek() (rv *T, err error) {
 	if ns.IsEmpty() {
 		return nil, ErrEmptyDll
-	} 
+	}
 	rv = (*ns).head.data
-	return 
+	return
 }
 
 // Peek returns the last element of the DLL (like a Queue) or an error indicating that the stack is empty.
 func (ns *Dll[T]) PeekTail() (rv *T, err error) {
 	if ns.IsEmpty() {
 		return nil, ErrEmptyDll
-	} 
+	}
 	rv = (*ns).tail.data
-	return 
+	return
 }
 
 // Truncate removes all data from the list.
-func (ns *Dll[T]) Truncate()  {
+func (ns *Dll[T]) Truncate() {
 	(*ns).head = nil
-   	(*ns).tail = nil
+	(*ns).tail = nil
 	(*ns).length = 0
-	return 
+	return
 }
 
 // Walk - Iterate from head to tail of list. 												O(n)
 // Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
-func (ns *Dll[T]) Search( t *T ) (rv *DllElement[T], pos int) {
+func (ns *Dll[T]) Search(t *T) (rv *DllElement[T], pos int) {
 	if ns.IsEmpty() {
 		return nil, -1 // not found
-	} 
+	}
 
 	i := 0
 	for p := (*ns).head; p != nil; p = p.next {
@@ -317,10 +336,10 @@ func (ns *Dll[T]) Search( t *T ) (rv *DllElement[T], pos int) {
 }
 
 // ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
-func (ns *Dll[T]) ReverseSearch( t *T ) (rv *DllElement[T], pos int) {
+func (ns *Dll[T]) ReverseSearch(t *T) (rv *DllElement[T], pos int) {
 	if ns.IsEmpty() {
 		return nil, -1 // not found
-	} 
+	}
 
 	i := (*ns).length
 	for p := (*ns).tail; p != nil; p = p.prev {
@@ -332,17 +351,17 @@ func (ns *Dll[T]) ReverseSearch( t *T ) (rv *DllElement[T], pos int) {
 	return nil, -1 // not found
 }
 
-type ApplyFunction[T comparable.Equality] func ( pos int, data T, userData interface{} ) bool
+type ApplyFunction[T comparable.Equality] func(pos int, data T, userData interface{}) bool
 
 // Walk - Iterate from head to tail of list. 												O(n)
-func (ns *Dll[T]) Walk( fx ApplyFunction[T], userData interface{} ) (rv *DllElement[T], pos int) {
+func (ns *Dll[T]) Walk(fx ApplyFunction[T], userData interface{}) (rv *DllElement[T], pos int) {
 	if ns.IsEmpty() {
 		return nil, -1 // not found
-	} 
+	}
 
 	i := 0
 	for p := (*ns).head; p != nil; p = p.next {
-		if fx(i, *p.data, userData) { 
+		if fx(i, *p.data, userData) {
 			return p, i
 		}
 		i++
@@ -351,14 +370,14 @@ func (ns *Dll[T]) Walk( fx ApplyFunction[T], userData interface{} ) (rv *DllElem
 }
 
 // ReverseWalk - Iterate from tail to head of list. 											O(n)
-func (ns *Dll[T]) ReverseWalk( fx ApplyFunction[T], userData interface{} ) (rv *DllElement[T], pos int) {
+func (ns *Dll[T]) ReverseWalk(fx ApplyFunction[T], userData interface{}) (rv *DllElement[T], pos int) {
 	if ns.IsEmpty() {
 		return nil, -1 // not found
-	} 
+	}
 
 	i := (*ns).length
 	for p := (*ns).tail; p != nil; p = p.prev {
-		if fx(i, *p.data, userData) { 
+		if fx(i, *p.data, userData) {
 			return p, i
 		}
 		i--
@@ -369,8 +388,8 @@ func (ns *Dll[T]) ReverseWalk( fx ApplyFunction[T], userData interface{} ) (rv *
 // ReverseList - Reverse all the nodes in list. 												O(n)
 func (ns *Dll[T]) ReverseList() {
 	if ns.IsEmpty() {
-		return 
-	} 
+		return
+	}
 
 	var tmp Dll[T]
 	i := 0
@@ -385,27 +404,34 @@ func (ns *Dll[T]) ReverseList() {
 // Index will return the Nth item from the list.
 func (ns *Dll[T]) Index(sub int) (rv *DllElement[T], err error) {
 	if ns.IsEmpty() {
-		return nil, ErrOutOfRange 
-	} 
+		return nil, ErrOutOfRange
+	}
 
 	if sub < 0 || sub >= (*ns).length {
-		return nil, ErrOutOfRange 
-	} else if sub < ((*ns).length/2) {
+		return nil, ErrOutOfRange
+	} else if sub < ((*ns).length / 2) {
 		i := 0
-		rv = (*ns).head;
+		rv = (*ns).head
 		for ; i < sub; rv = rv.next {
 			i++
 		}
 		return
 	} else {
-		i := (*ns).length-1
-		rv = (*ns).tail;
+		i := (*ns).length - 1
+		rv = (*ns).tail
 		for ; rv != nil && i > sub; rv = rv.prev {
 			i--
 		}
 		return
 	}
 
-	return nil, ErrOutOfRange 
+	return nil, ErrOutOfRange
 }
 
+func (tt *Dll[T]) Dump(fo *os.File) {
+	i := 0
+	for p := tt.head; p != nil; p = p.next {
+		fmt.Printf("%d: %+v\n", i, *(p.data))
+		i++
+	}
+}
