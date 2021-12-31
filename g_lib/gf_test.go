@@ -99,3 +99,20 @@ func TestKeyForStringMap(t *testing.T) {
 		t.Errorf("Incorrect Key")
 	}
 }
+
+func TestAbs(t *testing.T) {
+	x := Abs[int](-4)
+	if x != 4 {
+		t.Errorf("Abs failed")
+	}
+
+	x = Abs[int](4)
+	if x != 4 {
+		t.Errorf("Abs failed")
+	}
+
+	x = Abs[int](0)
+	if x != 0 {
+		t.Errorf("Abs failed")
+	}
+}
