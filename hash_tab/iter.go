@@ -1,5 +1,6 @@
 package hash_tab
 
+/*
 import (
 	"github.com/pschlump/pluto/comparable"
 	"github.com/pschlump/pluto/stack"

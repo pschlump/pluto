@@ -7,7 +7,7 @@ require (
 	github.com/pschlump/godebug v1.0.1
 	github.com/pschlump/pluto/comparable v0.0.2
 	github.com/pschlump/pluto/g_lib v0.0.2
-	github.com/pschlump/pluto/stack v0.0.2
+	github.com/pschlump/pluto/sll v0.0.2
 )
 
 require (
@@ -22,4 +22,4 @@ replace github.com/pschlump/pluto/comparable => ../comparable
 
 replace github.com/pschlump/pluto/g_lib => ../g_lib
 
-replace github.com/pschlump/pluto/stack => ../stack
+replace github.com/pschlump/pluto/sll => ../sll

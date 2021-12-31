@@ -15,26 +15,22 @@ Basic operations on a Singly Linked List (SLL)
 
 import (
 	"errors"
-	"fmt"
-	"os"
-
-	"github.com/pschlump/pluto/comparable"
 )
 
 // A node in the singly linked list
-type SllElement[T comparable.Equality] struct {
+type SllElement[T any] struct {
 	next *SllElement[T]
 	data *T
 }
 
 // Sll is a generic type buildt on top of a slice
-type Sll[T comparable.Equality] struct {
+type Sll[T any] struct {
 	head, tail *SllElement[T]
 	length     int
 }
 
 // An iteration type that allows a for loop to walk the list.
-type SllIter[T comparable.Equality] struct {
+type SllIter[T any] struct {
 	cur *SllElement[T]
 	sll *Sll[T]
 	pos int
@@ -44,16 +40,12 @@ type SllIter[T comparable.Equality] struct {
 
 // Create a new SLL and return it.
 // Complexity is O(1).
-func NewSll[T comparable.Equality]() *Sll[T] {
+func NewSll[T any]() *Sll[T] {
 	return &Sll[T]{
 		head:   nil,
 		tail:   nil,
 		length: 0,
 	}
-}
-
-func (ee *SllElement[T]) GetData() *T {
-	return ee.data
 }
 
 // -------------------------------------------------------------------------------------------------------
@@ -112,7 +104,7 @@ func (ns *Sll[T]) IsEmpty() bool {
 	return (*ns).length == 0
 }
 
-// InsertBeforeHead will append a new node to the end of the list.
+// InsertHeadSLL will append a new node to the end of the list.
 func (ns *Sll[T]) InsertBeforeHead(t *T) {
 	x := SllElement[T]{data: t} // Create the node
 	if (*ns).head == nil {
@@ -152,7 +144,6 @@ func (ns *Sll[T]) Length() int {
 
 // An error to indicate that the stack is empty
 var ErrEmptySll = errors.New("Empty Sll")
-var ErrNotFound = errors.New("Not Found")
 
 // Pop will remove the top element from the stack.  An error is returned if the stack is empty.
 func (ns *Sll[T]) Pop() (rv *T, err error) {
@@ -165,21 +156,9 @@ func (ns *Sll[T]) Pop() (rv *T, err error) {
 	return
 }
 
-func (ns *Sll[T]) Delete(t *SllElement[T]) (err error) {
-	if ns.IsEmpty() {
-		return ErrEmptySll
-	}
-	if (*((*ns.head).data)).IsEqual(*t.data) { // IsEqual(b Equality) bool
-		*ns.head = *ns.head.next
-		return
-	}
-	for pp := &((*ns.head).next); *pp != nil; pp = &((*pp).next) {
-		if (*((*pp).data)).IsEqual(*t.data) { // IsEqual(b Equality) bool
-			*pp = (*pp).next
-			return
-		}
-	}
-	return ErrNotFound
+func (ns *Sll[T]) Delete(it *SllElement[T]) (err error) {
+	// xyzzy
+	return
 }
 
 // Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
@@ -213,12 +192,4 @@ func (ns *Sll[T]) Truncate() {
 	(*ns).tail = nil
 	(*ns).length = 0
 	return
-}
-
-func (tt *Sll[T]) Dump(fo *os.File) {
-	i := 0
-	for p := tt.head; p != nil; p = p.next {
-		fmt.Printf("%d: %+v\n", i, *(p.data))
-		i++
-	}
 }

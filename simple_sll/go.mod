@@ -2,10 +2,7 @@ module github.com/pschlump/pluto/sll
 
 go 1.18
 
-require (
-	github.com/pschlump/godebug v1.0.1
-	github.com/pschlump/pluto/comparable v0.0.2
-)
+require github.com/pschlump/godebug v1.0.1
 
 require (
 	github.com/mattn/go-colorable v0.1.1 // indirect
@@ -15,5 +12,3 @@ require (
 	github.com/pschlump/json v0.0.0-20180316172947-0d2e6a308e08 // indirect
 	golang.org/x/sys v0.0.0-20190222072716-a9d3bda3a223 // indirect
 )
-
-replace github.com/pschlump/pluto/comparable => ../comparable

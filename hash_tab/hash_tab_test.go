@@ -11,6 +11,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/pschlump/HashStr"
 	"github.com/pschlump/MiscLib"
 	"github.com/pschlump/godebug"
 	"github.com/pschlump/pluto/comparable"
@@ -29,6 +30,8 @@ func NewTestTree() *TestTreeNode {
 
 // At compile time verify that this is a correct type/interface setup.
 var _ comparable.Comparable = (*TestTreeNode)(nil)
+var _ Hashable = (*TestTreeNode)(nil)
+var _ comparable.Equality = (*TestDemo)(nil)
 
 // Compare implements the Compare function to satisfy the interface requirements.
 func (aa TestTreeNode) Compare(x comparable.Comparable) int {
@@ -48,6 +51,29 @@ func (aa TestTreeNode) Compare(x comparable.Comparable) int {
 		panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
 	}
 	return 0
+}
+
+//
+func (aa TestDemo) IsEqual(x comparable.Equality) bool {
+	if bb, ok := x.(TestDemo); ok {
+		if aa.S == bb.S {
+			return true
+		}
+		return false
+	} else if bb, ok := x.(*TestDemo); ok {
+		if aa.S == bb.S {
+			return true
+		}
+		return false
+	} else {
+		panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
+	}
+	return false
+}
+
+func (aa TestTreeNode) HashKey(x interface{}) (rv int) {
+	rv = HashStr.HashStr(x.(TestTreeNode).S)
+	return
 }
 
 func TestTreeInsertSearch(t *testing.T) {

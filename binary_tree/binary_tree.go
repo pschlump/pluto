@@ -54,6 +54,9 @@ type BinaryTree[T comparable.Comparable] struct {
 	length int
 }
 
+// func NewHashtab[T comparable.Comparable]() *BinaryTree[T] {
+// }
+
 // IsEmpty will return true if the binary-tree is empty
 func (tt BinaryTree[T]) IsEmpty() bool {
 	if db1 {

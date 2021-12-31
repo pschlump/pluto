@@ -72,3 +72,9 @@ func (pq *priority_queue[T]) Delete(pos int) (err error) {
 	}
 	return
 }
+
+// Truncate removes all data from the heap.
+// Complexity is O(1).
+func (pq *priority_queue[T]) Truncate() {
+	pq.theHeap = heap.NewHeap[T]()
+}
