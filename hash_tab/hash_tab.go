@@ -55,18 +55,19 @@ type Hashable interface {
 }
 
 // Complexity is O(1).
-func NewHashTab[T comparable.Equality](n int) (rv *HashTab[T]) {
+func NewHashTab[T comparable.Equality](n int) *HashTab[T] {
 	if n < 5 {
 		panic("n too small")
 	}
-	rv = &HashTab[T]{
+	r := HashTab[T]{
 		length: 0,
 		size:   n,
 	}
+	r.buckets = make([](*sll.Sll[T]), n, n)
 	for i := 0; i < n; i++ {
-		rv.buckets[i] = sll.NewSll[T]()
+		r.buckets[i] = sll.NewSll[T]()
 	}
-	return
+	return &r
 }
 
 // IsEmpty will return true if the binary-tree is empty
