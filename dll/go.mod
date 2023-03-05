@@ -2,7 +2,7 @@ module github.com/pschlump/pluto/dll
 
 go 1.18
 
-require github.com/pschlump/pluto/comparable v0.0.2
+require github.com/pschlump/pluto/comparable v0.0.3
 
 require (
 	github.com/mattn/go-colorable v0.1.1 // indirect

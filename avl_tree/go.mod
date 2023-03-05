@@ -5,9 +5,9 @@ go 1.18
 require (
 	github.com/pschlump/MiscLib v0.0.0-20171012162159-e4e6a3a34d5f
 	github.com/pschlump/godebug v1.0.1
-	github.com/pschlump/pluto/comparable v0.0.2
-	github.com/pschlump/pluto/g_lib v0.0.2
-	github.com/pschlump/pluto/stack v0.0.2
+	github.com/pschlump/pluto/comparable v0.0.3
+	github.com/pschlump/pluto/g_lib v0.0.3
+	github.com/pschlump/pluto/stack v0.0.3
 )
 
 require (

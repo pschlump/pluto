@@ -454,7 +454,8 @@ func (tt *AvlTree[T]) Delete(find *T) (found bool) {
 				(*pAtIt) = (*pAtIt).right // Left most can have a right sub-tree - but it is left most so it can't have a more left tree.
 				// fmt.Printf ( "at:%s\n", godebug.LF())
 			}
-			return true
+			// return true
+			goto rb
 		}
 		// fmt.Printf ( "at:%s\n", godebug.LF())
 		if c < 0 && (*cur).left != nil {
@@ -468,8 +469,157 @@ func (tt *AvlTree[T]) Delete(find *T) (found bool) {
 			break
 		}
 	}
-	// fmt.Printf ( "NOT Found --- at:%s\n", godebug.LF())
+
+	// Not Found
 	return false
+
+rb:
+	// Recursive with tail-recursion handeling the AVL rotation.
+	var rebalance func(root **AvlTreeElement[T])
+	rebalance = func(root **AvlTreeElement[T]) {
+		if *root == nil {
+			// *root = node
+			// tt.length++
+			// } else if c := (*(node.data)).Compare( (*root).data ); c == 0 {
+			return
+		} else if c := (*find).Compare(*((*root).data)); c == 0 {
+			// (*root) = node
+			return
+		} else if c < 0 {
+			rebalance(&((*root).left))
+		} else {
+			rebalance(&((*root).right))
+		}
+
+		// AVL section ----------------------------------------------------------------------------------
+		(*root).height = g_lib.Max(tt.Height((*root).left), tt.Height((*root).right)) + 1
+
+		b := tt.calcAvlBalance(*root)
+
+		if g_lib.Abs(b) > 1 { // If we have a height difference that is larer than 1 ( may be < -2, or +2.
+
+			z := (*root) // can change 'z' via *root
+			if z != nil && z.left != nil && z.left.left != nil {
+				// a) Left Left Case
+				// t1, t2, t3 and t4 are subtrees.
+				//          z                                      y
+				//        / \                                   /   \
+				//       y   T4      Right Rotate (z)          x      z
+				//      / \          - - - - - - - - ->      /  \    /  \
+				//     x   T3                               T1  T2  T3  T4
+				//    / \
+				//  T1   T2
+				y := z.left
+				x := y.left
+				t4 := z.right
+				t3 := y.right
+				t2 := x.right
+				t1 := x.left
+				y.left = x
+				y.right = z
+				x.left = t1
+				x.right = t2
+				z.left = t3
+				z.right = t4
+				// re-calculate - the heights based on the "subtrees" (t1, t2, t3, t4)
+				x.height = g_lib.Max(tt.Height(t1), tt.Height(t2)) + 1
+				z.height = g_lib.Max(tt.Height(t3), tt.Height(t4)) + 1
+				y.height = g_lib.Max(tt.Height(x), tt.Height(z)) + 1
+				(*root) = y
+
+			} else if z != nil && z.left != nil && z.left.right != nil {
+				// b) Left Right Case
+				// T1, T2, T3 and T4 are subtrees.
+				//      z                               z                           x
+				//     / \                            /   \                        /  \
+				//    y   T4  Left Rotate (y)        x    T4  Right Rotate(z)    y      z
+				//   / \      - - - - - - - - ->    /  \      - - - - - - - ->  / \    / \
+				// T1   x                          y    T3                    T1  T2 T3  T4
+				//     / \                        / \
+				//   T2   T3                    T1   T2
+				y := z.left
+				x := y.right
+				t4 := z.right
+				t3 := x.right
+				t2 := x.left
+				t1 := y.left
+				x.left = y
+				x.right = z
+				y.left = t1
+				y.right = t2
+				z.left = t3
+				z.right = t4
+				// re-calculate - the heights based on the "subtrees" (t1, t2, t3, t4)
+				y.height = g_lib.Max(tt.Height(t1), tt.Height(t2)) + 1
+				z.height = g_lib.Max(tt.Height(t3), tt.Height(t4)) + 1
+				x.height = g_lib.Max(tt.Height(y), tt.Height(z)) + 1
+				(*root) = x
+
+			} else if z != nil && z.right != nil && z.right.right != nil {
+				// c) Right Right Case
+				// T1, T2, T3 and T4 are subtrees.
+				//   z                                y
+				//  /  \                            /   \
+				// T1   y     Left Rotate(z)       z      x
+				//     /  \   - - - - - - - ->    / \    / \
+				//    T2   x                     T1  T2 T3  T4
+				//        / \
+				//      T3  T4
+				y := z.right
+				x := y.right
+				t4 := x.right
+				t3 := x.left
+				t2 := y.left
+				t1 := z.left
+				y.left = z
+				y.right = x
+				z.left = t1
+				z.right = t2
+				x.left = t3
+				x.right = t4
+				// re-calculate - the heights based on the "subtrees" (t1, t2, t3, t4)
+				z.height = g_lib.Max(tt.Height(t1), tt.Height(t2)) + 1
+				x.height = g_lib.Max(tt.Height(t3), tt.Height(t4)) + 1
+				y.height = g_lib.Max(tt.Height(y), tt.Height(z)) + 1
+				(*root) = y
+
+			} else if z != nil && z.right != nil && z.right.left != nil {
+				// d) Right Left Case
+				// T1, T2, T3 and T4 are subtrees.
+				//    z                            z                            x
+				//   / \                          / \                          /  \
+				// T1   y   Right Rotate (y)    T1   x      Left Rotate(z)   z      y
+				//     / \  - - - - - - - - ->     /  \   - - - - - - - ->  / \    / \
+				//    x   T4                      T2   y                  T1  T2  T3  T4
+				//   / \                              /  \
+				// T2   T3                           T3   T4
+				y := z.right
+				x := y.left
+				t4 := y.right
+				t3 := x.right
+				t2 := x.left
+				t1 := z.left
+				x.left = z
+				x.right = y
+				z.left = t1
+				z.right = t2
+				y.left = t3
+				y.right = t4
+				// re-calculate - the heights based on the "subtrees" (t1, t2, t3, t4)
+				z.height = g_lib.Max(tt.Height(t1), tt.Height(t2)) + 1
+				y.height = g_lib.Max(tt.Height(t3), tt.Height(t4)) + 1
+				x.height = g_lib.Max(tt.Height(y), tt.Height(z)) + 1
+				(*root) = x
+
+			} else {
+				panic("should never get to this point")
+			}
+		}
+	}
+
+	rebalance(&((*tt).root))
+
+	return true
 }
 
 /*

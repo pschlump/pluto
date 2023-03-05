@@ -3,8 +3,8 @@ module github.com/pschlump/pluto/dllts
 go 1.18
 
 require (
-	github.com/pschlump/pluto/comparable v0.0.2
-	github.com/pschlump/pluto/dllts v0.0.2
+	github.com/pschlump/pluto/comparable v0.0.3
+	github.com/pschlump/pluto/dllts v0.0.3
 )
 
 require (

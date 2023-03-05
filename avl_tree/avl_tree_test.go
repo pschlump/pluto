@@ -6,6 +6,8 @@ Copyright (C) Philip Schlump, 2012-2021.
 BSD 3 Clause Licensed.
 */
 
+// TODO - add a avlValidate (tree) that recrusivly checks heights and verifys all are 1,0,-1
+
 import (
 	"fmt"
 	"os"

@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/pschlump/godebug v1.0.1
-	github.com/pschlump/pluto/comparable v0.0.2
+	github.com/pschlump/pluto/comparable v0.0.3
 )
 
 require (
