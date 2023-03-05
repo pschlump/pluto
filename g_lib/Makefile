@@ -9,3 +9,6 @@ all:
 test: all
 	gotip test
 
+setup:
+	go get golang.org/x/exp/constraints
+

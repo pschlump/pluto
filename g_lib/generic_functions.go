@@ -1,7 +1,7 @@
 package g_lib
 
 import (
-	"constraints"
+	"golang.org/x/exp/constraints"
 )
 
 func Min[T constraints.Ordered](a, b T) T {
