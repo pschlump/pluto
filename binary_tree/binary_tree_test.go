@@ -52,8 +52,6 @@ func (aa TestTreeNode) Compare(x comparable.Comparable) int {
 
 func TestTreeInsertSearch(t *testing.T) {
 
-	return
-
 	// Verify we can create a node.
 	ANode := NewTestTree()
 	_ = ANode
@@ -64,11 +62,28 @@ func TestTreeInsertSearch(t *testing.T) {
 		t.Errorf("Expected empty tree after decleration, failed to get one.")
 	}
 
-	Tree1.Insert(&TestTreeNode{S: "12"})
+	v1 := Tree1.Insert(&TestTreeNode{S: "12"})
 
 	if Tree1.IsEmpty() {
 		t.Errorf("Expected non-empty tree after insert, failed to get one.")
 	}
+	if v1 == false {
+		t.Errorf("Expected to insert new node, got back false for new.")
+	}
+
+	v1 = Tree1.Insert(&TestTreeNode{S: "12"})
+
+	if Tree1.IsEmpty() {
+		t.Errorf("Expected non-empty tree after insert, failed to get one.")
+	}
+	if v1 == true {
+		t.Errorf("Expected to insert duplicate node, got back false for new.")
+	}
+	if Tree1.Len() != 1 {
+		t.Errorf("Expected 1 node in tree, got %d", Tree1.Len())
+	}
+
+	return
 
 	if db2 {
 		fmt.Printf("Test -- search for found item, at:%s\n", godebug.LF())

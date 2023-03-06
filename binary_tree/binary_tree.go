@@ -89,7 +89,7 @@ func (tt *BinaryTree[T]) Truncate() {
 
 // Insert will add a new item to the tree.  If it is a duplicate of an exiting
 // item the new item will replace the existing one.
-func (tt *BinaryTree[T]) Insert(item *T) {
+func (tt *BinaryTree[T]) Insert(item *T) (vv bool) {
 	if tt == nil {
 		panic("tree sholud not be a nil")
 	}
@@ -99,29 +99,40 @@ func (tt *BinaryTree[T]) Insert(item *T) {
 	if (*tt).IsEmpty() {
 		tt.root = node
 		tt.length = 1
-		return
+		// dbgo.Printf("%(green)True at %(LF)%(yellow):%+v\n", node)
+		return true
 	}
 
 	// Simple is recursive, can be replce with an iterative tree traversal.
-	var insert func(root **BinaryTreeElement[T])
-	insert = func(root **BinaryTreeElement[T]) {
+	var insert func(root **BinaryTreeElement[T]) bool
+	insert = func(root **BinaryTreeElement[T]) bool {
 		if *root == nil {
 			*root = node
 			tt.length++
-			// } else if c := (*(node.data)).Compare( (*root).data ); c == 0 {
+			// dbgo.Printf("%(green)True at %(LF): %+v\n", *root)
+			return true
 		} else if c := (*item).Compare(*((*root).data)); c == 0 {
+			node.left = (*root).left
+			node.right = (*root).right
 			(*root) = node
+			// dbgo.Printf("%(red)False at %(LF): %+v\n", *root)
+			return false
 		} else if c < 0 {
-			insert(&((*root).left))
+			return insert(&((*root).left))
 		} else {
-			insert(&((*root).right))
+			return insert(&((*root).right))
 		}
 	}
 
-	insert(&((*tt).root))
+	vv = insert(&((*tt).root))
+	// fmt.Printf("for %+v returining %v\n", item, vv)
+	return
 }
 
 // Length returns the number of elements in the list.
+func (tt *BinaryTree[T]) Len() int {
+	return (*tt).length
+}
 func (tt *BinaryTree[T]) Length() int {
 	return (*tt).length
 }

@@ -73,12 +73,15 @@ func (tt *HashTab[T]) Truncate() {
 }
 
 // Insert will add a new item to the tree.  If it is a duplicate of an exiting
-// item the new item will replace the existing one.
+// item the new item will (*old: replace the existing one.*) be inserted before
+// the old one - hiding it (it will act like a stack).
 // Complexity is O(log n)/k.
 func (tt *HashTab[T]) Insert(item *T) {
 	h := tt.hash(item) % tt.size
-	tt.buckets[h].InsertBeforeHead(item)
-	(*tt).length++
+	is_new := tt.buckets[h].InsertBeforeHead(item)
+	if is_new {
+		(*tt).length++
+	}
 }
 
 // Length returns the number of elements in the list.

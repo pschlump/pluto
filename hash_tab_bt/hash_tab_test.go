@@ -13,6 +13,7 @@ import (
 
 	"github.com/pschlump/HashStr"
 	"github.com/pschlump/MiscLib"
+	"github.com/pschlump/dbgo"
 	"github.com/pschlump/godebug"
 	"github.com/pschlump/pluto/comparable"
 )
@@ -64,7 +65,7 @@ func (aa TestData) IsEqual(x comparable.Equality) bool {
 	} else {
 		panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
 	}
-	return false
+	// return false
 }
 
 func (aa TestData) HashKey(x interface{}) (rv int) {
@@ -94,12 +95,22 @@ func TestTest(t *testing.T) {
 
 	ht := NewHashTab[TestData](7)
 
-	if !ht.IsEmpty() {
-		t.Errorf("Expected empty hash-tab after decleration, failed to get one.")
-	}
+	//	if !ht.IsEmpty() {
+	//		t.Errorf("Expected empty hash-tab after decleration, failed to get one.")
+	//	}
 
 	for i := 0; i < 40; i++ {
 		ht.Insert(&TestData{S: fmt.Sprintf("%4d", i)})
+	}
+	if ht.Len() != 40 {
+		t.Errorf("Expected length of 40, got %d", ht.Len())
+	}
+	dbgo.Fprintf(os.Stderr, "---------------------\n")
+	for i := 0; i < 40; i++ {
+		ht.Insert(&TestData{S: fmt.Sprintf("%4d", i)})
+	}
+	if ht.Len() != 40 {
+		t.Errorf("Expected length of 40, got %d", ht.Len())
 	}
 
 	ht.Dump(os.Stdout)

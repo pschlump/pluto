@@ -174,17 +174,20 @@ func (ns *Dll[T]) IsEmpty() bool {
 }
 
 // Push will append a new node to the end of the list.
-func (ns *Dll[T]) InsertBeforeHead(t *T) {
+func (ns *Dll[T]) InsertBeforeHead(t *T) bool {
 	x := DllElement[T]{data: t} // Create the node
 	if (*ns).head == nil {
 		(*ns).head = &x
 		(*ns).tail = &x
 		(*ns).length = 1
+		return true
 	} else {
+		// xyzzy - TODO - if duplicate then replace?
 		x.next = (*ns).head
 		(*ns).head.prev = &x
 		(*ns).head = &x
 		(*ns).length++
+		return true
 	}
 }
 func (ns *Dll[T]) Push(t *T) {
@@ -192,17 +195,20 @@ func (ns *Dll[T]) Push(t *T) {
 }
 
 // Push will append a new node to the end of the list.
-func (ns *Dll[T]) AppendAtTail(t *T) {
+func (ns *Dll[T]) AppendAtTail(t *T) bool {
 	x := DllElement[T]{data: t} // Create the node
 	if (*ns).head == nil {
 		(*ns).head = &x
 		(*ns).tail = &x
 		(*ns).length = 1
+		return true
 	} else {
+		// xyzzy - TODO - if duplicate then replace?
 		x.prev = (*ns).tail
 		(*ns).tail.next = &x
 		(*ns).tail = &x
 		(*ns).length++
+		return true
 	}
 }
 
