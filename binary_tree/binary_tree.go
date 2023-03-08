@@ -201,6 +201,8 @@ func (tt *BinaryTree[T]) Delete(find *T) (found bool) {
 		return false
 	}
 
+	// xyzzy2
+
 	findLeftMostInRightSubtree := func(parent **BinaryTreeElement[T]) (found bool, pAtIt **BinaryTreeElement[T]) {
 		// fmt.Printf ( "%sFindLeftMost/At Top: at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
 		this := **parent
@@ -516,5 +518,35 @@ func (tt *BinaryTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}
 	}
 	postOrderTraversal(tt.root, 0)
 }
+
+/*
+func (tt *Bi8naryTree[T]) DeleteMatch(fx ApplyFunction[T], userData interface{}) {
+
+	p := 0
+	var inorderTraversal func(cur *BinaryTreeElement[T], n int)
+	inorderTraversal = func(cur *BinaryTreeElement[T], n int) {
+		if cur == nil {
+			return
+		}
+		if (*cur).left != nil {
+			inorderTraversal((*cur).left, n+1)
+		}
+
+		// ----------------------------------------------------------------------
+		// xyzzy TODO - how to delte at this point!
+		// ----------------------------------------------------------------------
+		if fx(p, n, (*cur).data, userData) {
+			// tt . Delete(find *T) (found bool) {
+			// xyzzy2
+		}
+		p++
+		// ----------------------------------------------------------------------
+		if (*cur).right != nil {
+			inorderTraversal((*cur).right, n+1)
+		}
+	}
+	inorderTraversal(tt.root, 0)
+}
+*/
 
 const db1 = false // print in IsEmpty
