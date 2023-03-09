@@ -124,7 +124,22 @@ func (tt *HashTab[T]) Dump(fo *os.File) {
 // Delete an element from the hash_tab. The element needs to have been
 // located with "Search" or as a result of a match using the Walk function.
 // Complexity is O(1)
-func (tt *HashTab[T]) Delete(find *dll.DllElement[T]) (found bool) {
+func (tt *HashTab[T]) Delete(find *T) (found bool) {
+	if (*tt).IsEmpty() {
+		return false
+	}
+	// h := tt.hash(find.GetData()) % tt.size
+	h := tt.hash(find) % tt.size
+	err := tt.buckets[h].Delete(find)
+	found = err == nil
+	if found {
+		(*tt).length--
+	}
+	return
+}
+
+// xyzzy -
+func (tt *HashTab[T]) DeleteFound(find *dll.DllElement[T]) (found bool) {
 	if (*tt).IsEmpty() {
 		return false
 	}

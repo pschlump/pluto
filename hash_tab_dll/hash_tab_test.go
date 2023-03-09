@@ -109,7 +109,7 @@ func TestTest(t *testing.T) {
 	}
 
 	// Delete
-	found := ht.Delete(it) // func (tt *HashTab[T]) Delete(find *T) (found bool) {
+	found := ht.DeleteFound(it) // func (tt *HashTab[T]) Delete(find *T) (found bool) {
 	if !found {
 		t.Errorf("Expected to delete it, did not")
 	}
