@@ -129,7 +129,7 @@ func (tt *HashTab[T]) Delete(find *dll.DllElement[T]) (found bool) {
 		return false
 	}
 	h := tt.hash(find.GetData()) % tt.size
-	err := tt.buckets[h].Delete(find)
+	err := tt.buckets[h].DeleteFound(find)
 	found = err == nil
 	if found {
 		(*tt).length--

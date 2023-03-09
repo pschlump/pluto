@@ -8,6 +8,7 @@ BSD 3 Clause Licensed.
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/pschlump/godebug"
@@ -297,7 +298,7 @@ func TestDll(t *testing.T) {
 
 	// Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
 	// func (ns *Dll[T]) Delete( it *DllElement[T] ) ( err error ) {
-	err = Dll1.Delete(rv)
+	err = Dll1.DeleteFound(rv)
 
 	if Dll1.Length() != 2 {
 		t.Errorf("Unexpectd length, after search/delete, expected %d got %d", 2, Dll1.Length())
@@ -331,7 +332,7 @@ func TestDll(t *testing.T) {
 
 	// Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
 	// func (ns *Dll[T]) Delete( it *DllElement[T] ) ( err error ) {
-	err = Dll1.Delete(rv)
+	err = Dll1.DeleteFound(rv)
 
 	if Dll1.Length() != 2 {
 		t.Errorf("Unexpectd length, after search/delete, expected %d got %d", 2, Dll1.Length())
@@ -343,7 +344,6 @@ func TestDll(t *testing.T) {
 		fmt.Printf("AT: %s\n", godebug.LF())
 	}
 
-	// TODO
 	// func (ns *Dll[T]) Index(sub int) (rv *DllElement[T], err error) {
 	// Index - return the Nth item																	O(n)
 
@@ -356,8 +356,8 @@ func TestDll(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpectd error")
 	} else {
-		if (*rv).data.S != "01" {
-			t.Errorf("Unexpectd value, expected ->%s<- got ->%s<-", "01", (*rv).data.S)
+		if (*rv).Data.S != "01" {
+			t.Errorf("Unexpectd value, expected ->%s<- got ->%s<-", "01", (*rv).Data.S)
 		}
 	}
 
@@ -365,8 +365,8 @@ func TestDll(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpectd error")
 	} else {
-		if (*rv).data.S != "02" {
-			t.Errorf("Unexpectd value, expected ->%s<- got ->%s<-", "02", (*rv).data.S)
+		if (*rv).Data.S != "02" {
+			t.Errorf("Unexpectd value, expected ->%s<- got ->%s<-", "02", (*rv).Data.S)
 		}
 	}
 
@@ -378,14 +378,40 @@ func TestDll(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpectd error")
 	} else {
-		if (*rv).data.S != "03" {
-			t.Errorf("Unexpectd value, expected ->%s<- got ->%s<-", "03", (*rv).data.S)
+		if (*rv).Data.S != "03" {
+			t.Errorf("Unexpectd value, expected ->%s<- got ->%s<-", "03", (*rv).Data.S)
 		}
 	}
 
 	rv, err = Dll1.Index(3)
 	if err == nil {
 		t.Errorf("Unexpectd lack of error")
+	}
+
+	// Test "Delete" call.
+	err = Dll1.Delete(&TestDemo{S: "02"})
+	if err != nil {
+		t.Errorf("Failed to delete 02")
+	}
+
+	Dll1.Dump(os.Stdout)
+
+	rv, err = Dll1.Index(0)
+	if err != nil {
+		t.Errorf("Unexpectd error")
+	} else {
+		if (*rv).Data.S != "01" {
+			t.Errorf("Unexpectd value, expected ->%s<- got ->%s<-", "01", (*rv).Data.S)
+		}
+	}
+
+	rv, err = Dll1.Index(1)
+	if err != nil {
+		t.Errorf("Unexpectd error")
+	} else {
+		if (*rv).Data.S != "03" {
+			t.Errorf("Unexpectd value, expected ->%s<- got ->%s<-", "02", (*rv).Data.S)
+		}
 	}
 
 }
