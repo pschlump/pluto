@@ -1,0 +1,45 @@
+
+func (tt *BinaryTree[T]) Search(find T) ( item *T ) {
+	if tt == nil || (*tt).IsEmpty() {
+		return nil
+	}
+
+	for tt != nil {
+		c := find.Compare(*tt.data)
+		if c == 0 {
+			item = tt.data 
+			return
+		}
+		if c < 0 && tt.left != nil {
+			tt = (*tt).left 
+		} else if c > 0 && tt.right != nil {
+			tt = (*tt).right 
+		} else {
+			break
+		}
+	}
+	return nil
+
+	/*
+	if c := find.Compare(*tt.data); c == 0 {
+		return tt.data 
+	} else if c < 0 && tt.left != nil {
+		return tt.left.Search ( find )
+	} else if c > 0 && tt.right != nil {
+		return tt.right.Search ( find )
+	} 
+	return nil
+	*/
+}
+
+https://www.algolist.net/Data_structures/Binary_search_tree/Removal
+	- has diagrams for trees and how to remove.
+
+	-- Add "Depth" -> int to get deepest part of tree
+	-- Add "Length" -> Count # of Nodes
+	-- Add "WalkInOrder, WalkPreOrder, WalkPostOrder"
+
+Reverse - swap left/right pointers.
+
+# github.com/pschlump/pluto/binary_tree
+./binary_tree.go:394:41: cannot use generic type ApplyFunction[T comparable.Equality] without instantiation
