@@ -30,7 +30,7 @@ func (aa myHeap) Compare(x comparable.Comparable) int {
 	} else {
 		panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
 	}
-	return 0
+	// return 0
 }
 
 func TestNewHeap(t *testing.T) {
@@ -113,7 +113,7 @@ func (hp *Heap[T]) verify(t *testing.T, i int) {
 		c := (*(hp.data[j1])).Compare(*(hp.data[i])) // Compare [j1] less than [i]
 		if c < 0 {
 			// fmt.Printf("%s((Error 1 from Verify))%s Heap invariant invalidated [%d] = %d > [%d] = %d, compare()=%d\n", MiscLib.ColorRed, MiscLib.ColorReset, i, *((*hp).data[i]), j1, *((*hp).data[j1]), c)
-			t.Errorf("Heap invariant invalidated [%d] = %d > [%d] = %d, compare()=%d", i, *((*hp).data[i]), j1, *((*hp).data[j1]), c)
+			t.Errorf("Heap invariant invalidated [%d] = %v > [%d] = %v, compare()=%d", i, *((*hp).data[i]), j1, *((*hp).data[j1]), c)
 			return
 		}
 		hp.verify(t, j1) // Recursivly check each sub-tree
@@ -123,7 +123,7 @@ func (hp *Heap[T]) verify(t *testing.T, i int) {
 		c := (*(hp.data[j2])).Compare(*(hp.data[i])) // Compare [j2] less than [i]
 		if c < 0 {
 			// fmt.Printf("%s((Error 2 from verify))%s heap invariant invalidated [%d] = %d > [%d] = %d, compare()=%d\n", MiscLib.ColorRed, MiscLib.ColorReset, i, *((*hp).data[i]), j1, *((*hp).data[j2]), c)
-			t.Errorf("heap invariant invalidated [%d] = %d > [%d] = %d, compare()=%d", i, *((*hp).data[i]), j1, *((*hp).data[j2]), c)
+			t.Errorf("heap invariant invalidated [%d] = %v > [%d] = %v, compare()=%d", i, *((*hp).data[i]), j1, *((*hp).data[j2]), c)
 			return
 		}
 		hp.verify(t, j2) // Recursivly check each sub-tree

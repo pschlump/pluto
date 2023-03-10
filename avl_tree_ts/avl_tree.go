@@ -1,4 +1,4 @@
-package avl_tree
+package avl_tree_ts
 
 /*
 Copyright (C) Philip Schlump, 2012-2021.
@@ -39,6 +39,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/pschlump/godebug"
 	"github.com/pschlump/pluto/comparable"
@@ -56,7 +57,7 @@ type AvlTreeElement[T comparable.Comparable] struct {
 type AvlTree[T comparable.Comparable] struct {
 	root   *AvlTreeElement[T]
 	length int
-	// lock   sync.RWMutex
+	lock   sync.RWMutex
 }
 
 // -------------------------------------------------------------------------------------------------------
@@ -70,7 +71,7 @@ func NewAvlTreeElement[T comparable.Comparable](x *T) *AvlTreeElement[T] {
 	}
 }
 
-func (tt AvlTree[T]) Height(e *AvlTreeElement[T]) int {
+func (tt *AvlTree[T]) Height(e *AvlTreeElement[T]) int {
 	if e == nil {
 		return 0
 	}
@@ -78,7 +79,7 @@ func (tt AvlTree[T]) Height(e *AvlTreeElement[T]) int {
 }
 
 // Complexity is O(1).
-func (tt AvlTree[T]) calcAvlBalance(e *AvlTreeElement[T]) int {
+func (tt *AvlTree[T]) calcAvlBalance(e *AvlTreeElement[T]) int {
 	if e == nil {
 		return 0
 	}
@@ -102,17 +103,17 @@ func (ee *AvlTreeElement[T]) GetData() *T {
 // -------------------------------------------------------------------------------------------------------
 
 // IsEmpty will return true if the binary-tree is empty
-func (tt AvlTree[T]) IsEmpty() bool {
+func (tt *AvlTree[T]) IsEmpty() bool {
 	if db1 {
 		fmt.Printf("at:%s\n", godebug.LF())
 	}
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
+	tt.lock.RLock()
+	defer tt.lock.RUnlock()
 	return tt.root == nil
 }
 
 // nlIsEmpty a no-lock interal version that will return true if the binary-tree is empty
-func (tt AvlTree[T]) nlIsEmpty() bool {
+func (tt *AvlTree[T]) nlIsEmpty() bool {
 	if db1 {
 		fmt.Printf("at:%s\n", godebug.LF())
 	}
@@ -121,8 +122,8 @@ func (tt AvlTree[T]) nlIsEmpty() bool {
 
 // Truncate removes all data from the tree.
 func (tt *AvlTree[T]) Truncate() {
-	// tt.lock.Lock()
-	// defer tt.lock.Unlock()
+	tt.lock.Lock()
+	defer tt.lock.Unlock()
 	(*tt).root = nil
 	(*tt).length = 0
 }
@@ -194,8 +195,8 @@ func (tt *AvlTree[T]) Insert(item *T) {
 		panic("tree sholud not be a nil")
 	}
 
-	// tt.lock.Lock()
-	// defer tt.lock.Unlock()
+	tt.lock.Lock()
+	defer tt.lock.Unlock()
 
 	node := NewAvlTreeElement[T](item)
 	if (*tt).nlIsEmpty() {
@@ -353,8 +354,8 @@ func (tt *AvlTree[T]) Insert(item *T) {
 
 // Length returns the number of elements in the list.
 func (tt *AvlTree[T]) Length() int {
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
+	tt.lock.RLock()
+	defer tt.lock.RUnlock()
 	return (*tt).length
 }
 
@@ -365,8 +366,8 @@ func (tt *AvlTree[T]) Search(find *T) (item *T) {
 		panic("tree sholud not be a nil")
 	}
 
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
+	tt.lock.RLock()
+	defer tt.lock.RUnlock()
 
 	if (*tt).nlIsEmpty() {
 		return nil
@@ -401,8 +402,8 @@ func (tt *AvlTree[T]) Search(find *T) (item *T) {
 
 // Dump will print out the tree to the file `fo`.
 func (tt *AvlTree[T]) Dump(fo *os.File) {
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
+	tt.lock.RLock()
+	defer tt.lock.RUnlock()
 
 	k := tt.nlDepth() * 4
 	var inorderTraversal func(cur *AvlTreeElement[T], n int)
@@ -426,8 +427,8 @@ func (tt *AvlTree[T]) Delete(find *T) (found bool) {
 		panic("tree sholud not be a nil")
 	}
 
-	// tt.lock.Lock()
-	// defer tt.lock.Unlock()
+	tt.lock.Lock()
+	defer tt.lock.Unlock()
 
 	return tt.nlDelete(find)
 }
@@ -668,8 +669,8 @@ func (tt *AvlTree[T]) FindMin() (item *T) {
 		panic("tree sholud not be a nil")
 	}
 
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
+	tt.lock.RLock()
+	defer tt.lock.RUnlock()
 
 	return tt.nlFindMin()
 }
@@ -696,8 +697,8 @@ func (tt *AvlTree[T]) FindMax() (item *T) {
 		panic("tree sholud not be a nil")
 	}
 
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
+	tt.lock.RLock()
+	defer tt.lock.RUnlock()
 
 	return tt.nlFindMax()
 }
@@ -724,8 +725,8 @@ func (tt *AvlTree[T]) DeleteAtHead() (found bool) {
 		panic("tree sholud not be a nil")
 	}
 
-	// tt.lock.Lock()
-	// defer tt.lock.Unlock()
+	tt.lock.Lock()
+	defer tt.lock.Unlock()
 
 	if (*tt).nlIsEmpty() {
 		return false
@@ -741,8 +742,8 @@ func (tt *AvlTree[T]) DeleteAtTail() (found bool) {
 		panic("tree sholud not be a nil")
 	}
 
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
+	tt.lock.RLock()
+	defer tt.lock.RUnlock()
 
 	if (*tt).nlIsEmpty() {
 		return false
@@ -759,8 +760,8 @@ func (tt *AvlTree[T]) Reverse() {
 		panic("tree sholud not be a nil")
 	}
 
-	// tt.lock.Lock()
-	// defer tt.lock.Unlock()
+	tt.lock.Lock()
+	defer tt.lock.Unlock()
 
 	if (*tt).nlIsEmpty() {
 		return
@@ -787,8 +788,8 @@ func (tt *AvlTree[T]) Index(pos int) (item *T) {
 		panic("tree sholud not be a nil")
 	}
 
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
+	tt.lock.RLock()
+	defer tt.lock.RUnlock()
 
 	if (*tt).nlIsEmpty() {
 		return nil
@@ -832,8 +833,8 @@ func (tt *AvlTree[T]) Depth() (d int) {
 		panic("tree sholud not be a nil")
 	}
 
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
+	tt.lock.RLock()
+	defer tt.lock.RUnlock()
 
 	return tt.nlDepth()
 }
@@ -843,8 +844,8 @@ func (tt *AvlTree[T]) nlDepth() (d int) {
 		panic("tree sholud not be a nil")
 	}
 
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
+	tt.lock.RLock()
+	defer tt.lock.RUnlock()
 
 	if (*tt).nlIsEmpty() {
 		return 0
@@ -875,8 +876,8 @@ type ApplyFunction[T comparable.Comparable] func(pos, depth int, data *T, userDa
 
 func (tt *AvlTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) {
 
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
+	tt.lock.RLock()
+	defer tt.lock.RUnlock()
 
 	p := 0
 	b := true
@@ -906,8 +907,8 @@ func (tt *AvlTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) {
 
 func (tt *AvlTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
 
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
+	tt.lock.RLock()
+	defer tt.lock.RUnlock()
 
 	p := 0
 	b := true
@@ -937,8 +938,8 @@ func (tt *AvlTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
 
 func (tt *AvlTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
 
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
+	tt.lock.RLock()
+	defer tt.lock.RUnlock()
 
 	p := 0
 	b := true

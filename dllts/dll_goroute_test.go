@@ -42,7 +42,7 @@ func (aa TestDemo) IsEqual(x comparable.Equality) bool {
 	} else {
 		panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
 	}
-	return false
+	// return false
 }
 
 func TestDllGoroutines(t *testing.T) {

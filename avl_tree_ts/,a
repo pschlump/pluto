@@ -1,0 +1,4 @@
+./avl_tree.go:74:10: Height passes lock by value: github.com/pschlump/pluto/avl_tree_ts.AvlTree[T] contains sync.RWMutex
+./avl_tree.go:82:10: calcAvlBalance passes lock by value: github.com/pschlump/pluto/avl_tree_ts.AvlTree[T] contains sync.RWMutex
+./avl_tree.go:106:10: IsEmpty passes lock by value: github.com/pschlump/pluto/avl_tree_ts.AvlTree[T] contains sync.RWMutex
+./avl_tree.go:116:10: nlIsEmpty passes lock by value: github.com/pschlump/pluto/avl_tree_ts.AvlTree[T] contains sync.RWMutex

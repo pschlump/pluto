@@ -40,7 +40,7 @@ func (aa TestDemo) IsEqual(x comparable.Equality) bool {
 	} else {
 		panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
 	}
-	return false
+	// return false
 }
 
 func TestDll(t *testing.T) {
@@ -356,8 +356,8 @@ func TestDll(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpectd error")
 	} else {
-		if (*rv).data.S != "01" {
-			t.Errorf("Unexpectd value, expected ->%s<- got ->%s<-", "01", (*rv).data.S)
+		if (*rv).Data.S != "01" {
+			t.Errorf("Unexpectd value, expected ->%s<- got ->%s<-", "01", (*rv).Data.S)
 		}
 	}
 
@@ -365,8 +365,8 @@ func TestDll(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpectd error")
 	} else {
-		if (*rv).data.S != "02" {
-			t.Errorf("Unexpectd value, expected ->%s<- got ->%s<-", "02", (*rv).data.S)
+		if (*rv).Data.S != "02" {
+			t.Errorf("Unexpectd value, expected ->%s<- got ->%s<-", "02", (*rv).Data.S)
 		}
 	}
 
@@ -378,8 +378,8 @@ func TestDll(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpectd error")
 	} else {
-		if (*rv).data.S != "03" {
-			t.Errorf("Unexpectd value, expected ->%s<- got ->%s<-", "03", (*rv).data.S)
+		if (*rv).Data.S != "03" {
+			t.Errorf("Unexpectd value, expected ->%s<- got ->%s<-", "03", (*rv).Data.S)
 		}
 	}
 

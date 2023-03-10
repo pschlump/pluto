@@ -55,7 +55,7 @@ import (
 // A node in the doubly linked list
 type DllElement[T comparable.Equality] struct {
 	next, prev *DllElement[T]
-	data       *T
+	Data       *T
 }
 
 // Dll is a generic type buildt on top of a slice
@@ -71,6 +71,28 @@ type DllIter[T comparable.Equality] struct {
 	dll      *Dll[T]
 	pos      int
 	iterLock sync.RWMutex
+}
+
+// -------------------------------------------------------------------------------------------------------
+
+// Create a new DLL and return it.
+// Complexity is O(1).
+func NewDll[T comparable.Equality]() *Dll[T] {
+	return &Dll[T]{
+		head:   nil,
+		tail:   nil,
+		length: 0,
+	}
+}
+
+// Complexity is O(1).
+func (ee *DllElement[T]) GetData() *T {
+	return ee.Data
+}
+
+// Complexity is O(1).
+func (ee *DllElement[T]) SetData(d *T) {
+	ee.Data = d
 }
 
 // -------------------------------------------------------------------------------------------------------
@@ -110,7 +132,7 @@ func (iter *DllIter[T]) Value() *T {
 	iter.dll.mu.RLock()
 	defer iter.dll.mu.RUnlock()
 	if iter.cur != nil {
-		return iter.cur.data
+		return iter.cur.Data
 	}
 	return nil
 }
@@ -165,7 +187,7 @@ func (ns *Dll[T]) IsEmpty() bool {
 }
 
 func (ns *Dll[T]) noLockInsertBeforeHead(t *T) {
-	x := DllElement[T]{data: t} // Create the node
+	x := DllElement[T]{Data: t} // Create the node
 	if (*ns).head == nil {
 		(*ns).head = &x
 		(*ns).tail = &x
@@ -193,7 +215,7 @@ func (ns *Dll[T]) Push(t *T) {
 
 // Push will append a new node to the end of the list.
 func (ns *Dll[T]) AppendAtTail(t *T) {
-	x := DllElement[T]{data: t} // Create the node
+	x := DllElement[T]{Data: t} // Create the node
 	(*ns).mu.Lock()
 	defer (*ns).mu.Unlock()
 	if (*ns).head == nil {
@@ -246,7 +268,7 @@ func (ns *Dll[T]) noLockPop() (rv *T, err error) {
 	if (*ns).length == 0 {
 		return nil, ErrEmptyDll
 	}
-	rv = (*ns).head.data
+	rv = (*ns).head.Data
 	(*ns).head = (*ns).head.next
 	if (*ns).head != nil {
 		(*ns).head.prev = nil
@@ -261,7 +283,7 @@ func (ns *Dll[T]) noLockPopTail() (rv *T, err error) {
 	if (*ns).length == 0 {
 		return nil, ErrEmptyDll
 	}
-	rv = (*ns).tail.data
+	rv = (*ns).tail.Data
 	(*ns).tail = (*ns).tail.prev
 	if (*ns).tail != nil {
 		(*ns).tail.next = nil
@@ -326,7 +348,7 @@ func (ns *Dll[T]) Peek() (rv *T, err error) {
 	if (*ns).length == 0 {
 		return nil, ErrEmptyDll
 	}
-	rv = (*ns).head.data
+	rv = (*ns).head.Data
 	return
 }
 
@@ -338,7 +360,7 @@ func (ns *Dll[T]) PeekTail() (rv *T, err error) {
 	if (*ns).length == 0 {
 		return nil, ErrEmptyDll
 	}
-	rv = (*ns).tail.data
+	rv = (*ns).tail.Data
 	return
 }
 
@@ -354,6 +376,7 @@ func (ns *Dll[T]) Truncate() {
 
 // Walk - Iterate from head to tail of list. 												O(n)
 // Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
+// If the item is not found then a position of -1 is returned.
 func (ns *Dll[T]) Search(t *T) (rv *DllElement[T], pos int) {
 	(*ns).mu.RLock()
 	defer (*ns).mu.RUnlock()
@@ -364,7 +387,7 @@ func (ns *Dll[T]) Search(t *T) (rv *DllElement[T], pos int) {
 
 	i := 0
 	for p := (*ns).head; p != nil; p = p.next {
-		if (*p.data).IsEqual(*t) { // IsEqual(b Equality) bool
+		if (*p.Data).IsEqual(*t) { // IsEqual(b Equality) bool
 			return p, i
 		}
 		i++
@@ -383,7 +406,7 @@ func (ns *Dll[T]) ReverseSearch(t *T) (rv *DllElement[T], pos int) {
 
 	i := (*ns).length
 	for p := (*ns).tail; p != nil; p = p.prev {
-		if (*p.data).IsEqual(*t) { // IsEqual(b Equality) bool
+		if (*p.Data).IsEqual(*t) { // IsEqual(b Equality) bool
 			return p, i
 		}
 		i--
@@ -404,7 +427,7 @@ func (ns *Dll[T]) Walk(fx ApplyFunction[T], userData interface{}) (rv *DllElemen
 
 	i := 0
 	for p := (*ns).head; p != nil; p = p.next {
-		if fx(i, *p.data, userData) {
+		if fx(i, *p.Data, userData) {
 			return p, i
 		}
 		i++
@@ -423,7 +446,7 @@ func (ns *Dll[T]) ReverseWalk(fx ApplyFunction[T], userData interface{}) (rv *Dl
 
 	i := (*ns).length
 	for p := (*ns).tail; p != nil; p = p.prev {
-		if fx(i, *p.data, userData) {
+		if fx(i, *p.Data, userData) {
 			return p, i
 		}
 		i--
@@ -443,7 +466,7 @@ func (ns *Dll[T]) ReverseList() {
 	var tmp Dll[T]
 	i := 0
 	for p := (*ns).head; p != nil; p = p.next {
-		tmp.noLockInsertBeforeHead(p.data)
+		tmp.noLockInsertBeforeHead(p.Data)
 		i++
 	}
 	ns.head = tmp.head
@@ -477,5 +500,5 @@ func (ns *Dll[T]) Index(sub int) (rv *DllElement[T], err error) {
 		return
 	}
 
-	return nil, ErrOutOfRange
+	// return nil, ErrOutOfRange
 }

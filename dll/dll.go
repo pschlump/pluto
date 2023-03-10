@@ -16,7 +16,7 @@ This list has head-and-tail pointers.
 *	InsertBeforeHead — Inserts a new element before the current first ement of list.  			O(1)
 *	IsEmpty — Returns true if the linked list is empty											O(1)
 *	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
-*	Peek - Look at Data at head of list.														O(1)
+*	Peek - Look at data at head of list.														O(1)
 *	Pop	- Remove and return from the head of the list.											O(1)
 *	Push - Insert at the head of the list.														O(1)
 *	ReverseList - Reverse all the nodes in list. 												O(n)
@@ -332,7 +332,7 @@ func (ns *Dll[T]) PeekTail() (rv *T, err error) {
 	return
 }
 
-// Truncate removes all Data from the list.
+// Truncate removes all data from the list.
 func (ns *Dll[T]) Truncate() {
 	(*ns).head = nil
 	(*ns).tail = nil
@@ -448,7 +448,7 @@ func (ns *Dll[T]) Index(sub int) (rv *DllElement[T], err error) {
 		return
 	}
 
-	return nil, ErrOutOfRange
+	// return nil, ErrOutOfRange
 }
 
 func (tt *Dll[T]) Dump(fo *os.File) {
