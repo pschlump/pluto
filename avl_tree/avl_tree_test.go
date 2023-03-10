@@ -54,8 +54,6 @@ func (aa TestTreeNode) Compare(x comparable.Comparable) int {
 
 func TestTreeInsertSearch(t *testing.T) {
 
-	return
-
 	// Verify we can create a node.
 	ANode := NewTestTree()
 	_ = ANode
@@ -106,6 +104,74 @@ func TestTreeInsertSearch(t *testing.T) {
 	ptr = Tree1.Search(&TestTreeNode{S: "14"})
 	if ptr != nil {
 		t.Errorf("Expected *NOT* to find node in tree, returned value [%+v] instead", *ptr)
+	}
+
+}
+
+func TestTreeInsertWithDupsSearch(t *testing.T) {
+
+	var Tree8 AvlTree[TestTreeNode]
+
+	if !Tree8.IsEmpty() {
+		t.Errorf("Expected empty tree after decleration, failed to get one.")
+	}
+
+	Tree8.Insert(&TestTreeNode{S: "12"})
+
+	if Tree8.IsEmpty() {
+		t.Errorf("Expected non-empty tree after insert, failed to get one.")
+	}
+
+	if db2 {
+		fmt.Printf("Test -- search for found item, at:%s\n", godebug.LF())
+	}
+	ptr := Tree8.Search(&TestTreeNode{S: "12"})
+	if ptr == nil {
+		t.Errorf("Expected to find node in tree, returned nil instead")
+	}
+
+	if db2 {
+		fmt.Printf("Test -- search for not found item\n")
+	}
+	ptr = Tree8.Search(&TestTreeNode{S: "11"})
+	if ptr != nil {
+		t.Errorf("Expected *NOT* to find node in tree, returned value [%+v] instead", *ptr)
+	}
+
+	Tree8.Insert(&TestTreeNode{S: "11"})
+	Tree8.Insert(&TestTreeNode{S: "13"})
+	Tree8.Insert(&TestTreeNode{S: "10"})
+	// ------------------------------------------- new -------------------------------------------
+	if db7 {
+		fmt.Printf("Before adding dups\n")
+		Tree8.Dump(os.Stdout)
+	}
+	Tree8.Insert(&TestTreeNode{S: "12"})
+	Tree8.Insert(&TestTreeNode{S: "12"})
+	if db7 {
+		fmt.Printf("After adding dups\n")
+		Tree8.Dump(os.Stdout)
+	}
+	// ------------------------------------------- end -------------------------------------------
+	ptr = Tree8.Search(&TestTreeNode{S: "10"})
+	if ptr == nil {
+		t.Errorf("Expected to find node in tree, returned nil instead")
+	}
+	ptr = Tree8.Search(&TestTreeNode{S: "13"})
+	if ptr == nil {
+		t.Errorf("Expected to find node in tree, returned nil instead")
+	}
+	ptr = Tree8.Search(&TestTreeNode{S: "11"})
+	if ptr == nil {
+		t.Errorf("Expected to find node in tree, returned nil instead")
+	}
+	ptr = Tree8.Search(&TestTreeNode{S: "14"})
+	if ptr != nil {
+		t.Errorf("Expected *NOT* to find node in tree, returned value [%+v] instead", *ptr)
+	}
+	ptr = Tree8.Search(&TestTreeNode{S: "12"})
+	if ptr == nil {
+		t.Errorf("Expected to find node in tree, returned nil instead")
 	}
 
 }
@@ -549,3 +615,4 @@ const db3 = false
 const db4 = false
 const db5 = false
 const db6 = false
+const db7 = false

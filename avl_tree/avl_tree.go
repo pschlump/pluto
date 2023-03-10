@@ -11,6 +11,8 @@ BSD 3 Clause Licensed.
 Basic operations on a AVL Binary Tree.
 
 * 	Insert - create a new element in tree.														O(log|2(n))
+*		Duplicates replace the current node with a new node - this is not reported as
+*       a duplicate.
 * 	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(log|2(n))
 * 	Index - return the Nth item	in the list - in a format usable with Delete.					O(n)
 * 	IsEmpty — Returns true if the linked list is empty											O(1)
@@ -197,8 +199,10 @@ func (tt *AvlTree[T]) Insert(item *T) {
 		if *root == nil {
 			*root = node
 			tt.length++
-			// } else if c := (*(node.data)).Compare( (*root).data ); c == 0 {
 		} else if c := (*item).Compare(*((*root).data)); c == 0 {
+			// Replace duplicate node with new node.
+			node.left = (*root).left
+			node.right = (*root).right
 			(*root) = node
 		} else if c < 0 {
 			insert(&((*root).left))
