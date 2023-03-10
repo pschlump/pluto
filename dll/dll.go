@@ -458,3 +458,5 @@ func (tt *Dll[T]) Dump(fo *os.File) {
 		i++
 	}
 }
+
+/* vim: set noai ts=4 sw=4: */

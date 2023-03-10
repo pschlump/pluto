@@ -166,7 +166,15 @@ func (ns *Sll[T]) Pop() (rv *T, err error) {
 	return
 }
 
-func (ns *Sll[T]) Delete(t *SllElement[T]) (err error) {
+func (ns *Sll[T]) Delete(t *T) (err error) {
+	it, pos := ns.Search(t)
+	if pos < 0 {
+		return fmt.Errorf("Not Found in SLL")
+	}
+	return ns.DeleteFound(it)
+}
+
+func (ns *Sll[T]) DeleteFound(t *SllElement[T]) (err error) {
 	if ns.IsEmpty() {
 		return ErrEmptySll
 	}

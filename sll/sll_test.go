@@ -186,10 +186,10 @@ func TestSllDelete(t *testing.T) {
 	Sll1.InsertAfterTail(&TestDemo{S: "hi3"})
 
 	// func (ns *Sll[T]) Search(t *T) (rv *SllElement[T], pos int) {
-	// func (ns *Sll[T]) Delete(t *SllElement[T]) (err error) {
+	// func (ns *Sll[T]) DeleteFound(t *SllElement[T]) (err error) {
 	e, p := Sll1.Search(&TestDemo{S: "hi2"})
 	fmt.Printf("pos = %d\n", p)
-	err := Sll1.Delete(e)
+	err := Sll1.DeleteFound(e)
 	if err != nil {
 		fmt.Printf("err = %s\n", err)
 		t.Errorf("Unexpectd error: %s", err)

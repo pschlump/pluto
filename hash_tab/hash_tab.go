@@ -123,7 +123,7 @@ func (tt *HashTab[T]) Delete(find *T) (found bool) {
 	h := tt.hash(find) % tt.size
 	it, pos := tt.buckets[h].Search(find)
 	if pos >= 0 {
-		err := tt.buckets[h].Delete(it)
+		err := tt.buckets[h].DeleteFound(it)
 		found = err == nil
 		if found {
 			(*tt).length--

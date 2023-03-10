@@ -13,3 +13,5 @@ test:
 	( cd heap ; make test )
 	( cd heap_sort ; make test )
 	( cd priority_queue ; make test )
+	( cd hash_tab_bt ; make test )
+	( cd hash_tab_dll ; make test )
