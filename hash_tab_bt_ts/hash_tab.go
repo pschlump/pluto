@@ -182,3 +182,5 @@ func hash(x interface{}) (rv int) {
 }
 
 const db1 = false
+
+/* vim: set noai ts=4 sw=4: */

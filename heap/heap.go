@@ -1,19 +1,21 @@
+package heap
+
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // Copyright (C) 2021 Philip Schlump. All rights reserved.
 
-package heap
-
 // xyzzy - TODO - how to append an array of T
 // xyzzy - TODO - how to append sorted array of T
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/pschlump/MiscLib"
+	"github.com/pschlump/dbgo"
 	"github.com/pschlump/godebug"
 	"github.com/pschlump/pluto/comparable"
 )
@@ -277,6 +279,10 @@ func (hp *Heap[T]) Heapify(n, i int) {
 		// Recursively heapify the affected sub-tree
 		hp.Heapify(n, largest)
 	}
+}
+
+func (hp *Heap[T]) Dump(fp *os.File) {
+	fmt.Fprintf(fp, "%s\n", dbgo.SVarI(hp.data))
 }
 
 const db10 = false
