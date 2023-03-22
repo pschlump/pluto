@@ -1,6 +1,8 @@
 package g_lib
 
 import (
+	"sort"
+
 	"golang.org/x/exp/constraints"
 )
 
@@ -102,4 +104,10 @@ func GetMapKeys[K comparable, V any](m map[K]V) []K {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+func SortSlice[T constraints.Ordered](s []T) {
+	sort.Slice(s, func(i, j int) bool {
+		return s[i] < s[j]
+	})
 }

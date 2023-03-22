@@ -167,6 +167,19 @@ func (tt *HashTab[T]) Dump(fo io.Writer) {
 	}
 }
 
+// type ApplyFunction[T comparable.Comparable] func(pos, depth int, data *T, userData interface{}) bool
+// func (tt *BinaryTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) {
+
+func (tt *HashTab[T]) Walk(fx binary_tree.ApplyFunction[T], userData interface{}) {
+	tt.lock.RLock()
+	defer tt.lock.RUnlock()
+	for _, v := range tt.buckets {
+		if v.Length() > 0 {
+			v.WalkInOrder(fx, userData)
+		}
+	}
+}
+
 // Delete an element from the hash_tab. The element needs to have been
 // located with "Search" or as a result of a match using the Walk function.
 // Complexity is O(1)
