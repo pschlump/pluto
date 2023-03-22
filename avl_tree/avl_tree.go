@@ -37,7 +37,7 @@ Basic operations on a AVL Binary Tree.
 
 import (
 	"fmt"
-	"os"
+	"io"
 	"strings"
 
 	"github.com/pschlump/godebug"
@@ -400,7 +400,7 @@ func (tt *AvlTree[T]) Search(find *T) (item *T) {
 }
 
 // Dump will print out the tree to the file `fo`.
-func (tt *AvlTree[T]) Dump(fo *os.File) {
+func (tt *AvlTree[T]) Dump(fo io.Writer) {
 	// tt.lock.RLock()
 	// defer tt.lock.RUnlock()
 
@@ -413,7 +413,7 @@ func (tt *AvlTree[T]) Dump(fo *os.File) {
 		if (*cur).left != nil {
 			inorderTraversal((*cur).left, n+1)
 		}
-		fmt.Printf("%s%v%s (left=%p/%p, right=%p/%p) self=%p\n", strings.Repeat(" ", 4*n), *((*cur).data), strings.Repeat(" ", k-(4*n)), (*cur).left, &((*cur).left), (*cur).right, &((*cur).right), cur)
+		fmt.Fprintf(fo, "%s%v%s (left=%p/%p, right=%p/%p) self=%p\n", strings.Repeat(" ", 4*n), *((*cur).data), strings.Repeat(" ", k-(4*n)), (*cur).left, &((*cur).left), (*cur).right, &((*cur).right), cur)
 		if (*cur).right != nil {
 			inorderTraversal((*cur).right, n+1)
 		}

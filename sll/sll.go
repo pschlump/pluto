@@ -16,7 +16,7 @@ Basic operations on a Singly Linked List (SLL)
 import (
 	"errors"
 	"fmt"
-	"os"
+	"io"
 
 	"github.com/pschlump/pluto/comparable"
 )
@@ -224,10 +224,10 @@ func (ns *Sll[T]) Truncate() {
 	return
 }
 
-func (tt *Sll[T]) Dump(fo *os.File) {
+func (tt *Sll[T]) Dump(fp io.Writer) {
 	i := 0
 	for p := tt.head; p != nil; p = p.next {
-		fmt.Printf("%d: %+v\n", i, *(p.data))
+		fmt.Fprintf(fp, "%d: %+v\n", i, *(p.data))
 		i++
 	}
 }

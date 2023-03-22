@@ -48,7 +48,7 @@ locks so that it is thread safe.  It has the exact same interface.
 import (
 	"errors"
 	"fmt"
-	"os"
+	"io"
 
 	"github.com/pschlump/pluto/comparable"
 )
@@ -451,10 +451,10 @@ func (ns *Dll[T]) Index(sub int) (rv *DllElement[T], err error) {
 	// return nil, ErrOutOfRange
 }
 
-func (tt *Dll[T]) Dump(fo *os.File) {
+func (tt *Dll[T]) Dump(fo io.Writer) {
 	i := 0
 	for p := tt.head; p != nil; p = p.next {
-		fmt.Printf("%d: %+v\n", i, *(p.Data))
+		fmt.Fprintf(fo, "%d: %+v\n", i, *(p.Data))
 		i++
 	}
 }

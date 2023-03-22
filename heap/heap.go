@@ -11,7 +11,7 @@ package heap
 
 import (
 	"fmt"
-	"os"
+	"io"
 	"strings"
 
 	"github.com/pschlump/MiscLib"
@@ -65,7 +65,10 @@ func (hp *Heap[T]) Pop() (rv *T) {
 }
 
 func (hp *Heap[T]) Peek() (rv *T) {
-	return hp.data[0]
+	if len(hp.data) > 0 {
+		return hp.data[0]
+	}
+	return nil
 }
 
 func (hp *Heap[T]) Truncate() {
@@ -281,8 +284,21 @@ func (hp *Heap[T]) Heapify(n, i int) {
 	}
 }
 
-func (hp *Heap[T]) Dump(fp *os.File) {
+func (hp *Heap[T]) Dump(fp io.Writer) {
 	fmt.Fprintf(fp, "%s\n", dbgo.SVarI(hp.data))
 }
 
+/*
+panic: runtime error: index out of range [0] with length 0
+
+goroutine 13 [running]:
+github.com/pschlump/pluto/heap.(*Heap[...]).Peek(0xc000466540?)
+	/Users/philip/go/src/github.com/pschlump/pluto/heap/heap.go:68 +0x2f
+main.GetSetDelNew.func11()
+	/Users/philip/go/src/www.2c-why.com/ultra/ultra-server/get-set-del.go:330 +0x13b
+main.TimedDispatch()
+	/Users/philip/go/src/www.2c-why.com/ultra/ultra-server/time.go:24 +0xc2
+created by main.main
+	/Users/philip/go/src/www.2c-why.com/ultra/ultra-server/main.go:644 +0x276a
+*/
 const db10 = false

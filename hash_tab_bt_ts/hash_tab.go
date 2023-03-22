@@ -24,7 +24,7 @@ Basic operations on a Hash Table.
 import (
 	"fmt"
 	"hash/fnv"
-	"os"
+	"io"
 	"sync"
 
 	"github.com/pschlump/MiscLib"
@@ -115,6 +115,13 @@ func (tt *HashTab[T]) Length() int {
 func (tt *HashTab[T]) Search(find *T) (rv *T) {
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
+	return tt.NlSearch(find)
+}
+
+// Search will walk the tree looking for `find` and retrn the found item
+// if it is in the tree. If it is not found then `nil` will be returned.
+// Complexity is O(log n)/k.
+func (tt *HashTab[T]) NlSearch(find *T) (rv *T) {
 	if (*tt).nlIsEmpty() {
 		return nil
 	}
@@ -129,15 +136,32 @@ func (tt *HashTab[T]) Search(find *T) (rv *T) {
 	return
 }
 
+// ht.WriteLock()
+// ht.WriteUnlock()
+// ht.ReadLock()
+// ht.ReadUnlock()
+func (tt *HashTab[T]) WriteLock() {
+	tt.lock.Lock()
+}
+func (tt *HashTab[T]) WriteUnlock() {
+	tt.lock.Unlock()
+}
+func (tt *HashTab[T]) ReadLock() {
+	tt.lock.RLock()
+}
+func (tt *HashTab[T]) ReadUnlock() {
+	tt.lock.RUnlock()
+}
+
 // Dump will print out the hash table to the file `fo`.
 // Complexity is O(n).
-func (tt *HashTab[T]) Dump(fo *os.File) {
+func (tt *HashTab[T]) Dump(fo io.Writer) {
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
-	fmt.Printf("Elements: %d, mod size:%d\n", tt.length, tt.size)
+	fmt.Fprintf(fo, "Elements: %d, mod size:%d\n", tt.length, tt.size)
 	for i, v := range tt.buckets {
 		if v.Length() > 0 {
-			fmt.Printf("bucket [%04d] = \n", i)
+			fmt.Fprintf(fo, "bucket [%04d] = \n", i)
 			v.Dump(fo)
 		}
 	}
@@ -149,6 +173,10 @@ func (tt *HashTab[T]) Dump(fo *os.File) {
 func (tt *HashTab[T]) Delete(find *T) (found bool) {
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
+	return tt.NlDelete(find)
+}
+
+func (tt *HashTab[T]) NlDelete(find *T) (found bool) {
 	if find == nil || (*tt).nlIsEmpty() {
 		return false
 	}

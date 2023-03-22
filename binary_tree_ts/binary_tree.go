@@ -36,7 +36,7 @@ Basic operations on a Binary Tree.
 
 import (
 	"fmt"
-	"os"
+	"io"
 	"strings"
 	"sync"
 
@@ -134,7 +134,6 @@ func (tt *BinaryTree[T]) Insert(item *T) (vv bool) {
 			node.left = (*root).left
 			node.right = (*root).right
 			(*root) = node
-			// dbgo.Printf("%(red)False at %(LF): %+v\n", *root)
 			return false
 		} else if c < 0 {
 			return insert(&((*root).left))
@@ -202,7 +201,7 @@ func (tt *BinaryTree[T]) Search(find *T) (item *T) {
 }
 
 // Dump will print out the tree to the file `fo`.
-func (tt *BinaryTree[T]) Dump(fo *os.File) {
+func (tt *BinaryTree[T]) Dump(fo io.Writer) {
 
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
@@ -216,7 +215,7 @@ func (tt *BinaryTree[T]) Dump(fo *os.File) {
 		if (*cur).left != nil {
 			inorderTraversal((*cur).left, n+1)
 		}
-		fmt.Printf("%s%v%s (left=%p/%p, right=%p/%p) self=%p\n", strings.Repeat(" ", 4*n), *((*cur).data), strings.Repeat(" ", k-(4*n)), (*cur).left, &((*cur).left), (*cur).right, &((*cur).right), cur)
+		fmt.Fprintf(fo, "%s%v%s (left=%p/%p, right=%p/%p) self=%p\n", strings.Repeat(" ", 4*n), *((*cur).data), strings.Repeat(" ", k-(4*n)), (*cur).left, &((*cur).left), (*cur).right, &((*cur).right), cur)
 		if (*cur).right != nil {
 			inorderTraversal((*cur).right, n+1)
 		}
@@ -638,8 +637,90 @@ func (tt *Bi8naryTree[T]) DeleteMatch(fx ApplyFunction[T], userData interface{})
 }
 */
 
+func (tt *BinaryTree[T]) DeleteMatch(find *T, fx func(a, b *T) int) (found bool) {
+	if tt == nil {
+		panic("tree sholud not be a nil")
+	}
+
+	tt.lock.Lock()
+	defer tt.lock.Unlock()
+
+	return tt.nlDeleteMatch(find, fx)
+}
+
+func (tt *BinaryTree[T]) nlDeleteMatch(find *T, fx func(a, b *T) int) (found bool) {
+
+	if (*tt).nlIsEmpty() {
+		return false
+	}
+
+	findLeftMostInRightSubtree := func(parent **BinaryTreeElement[T]) (found bool, pAtIt **BinaryTreeElement[T]) {
+		// fmt.Printf ( "%sFindLeftMost/At Top: at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+		this := **parent
+		if *parent == nil {
+			// fmt.Printf ( "%sFindLeftMost/no tree: at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+			return
+		}
+		for this.right != nil {
+			// fmt.Printf ( "%sAdvance 1 step. at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+			parent = &(this.right)
+			this = **parent
+		}
+		// fmt.Printf ( "%sat bottom at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+		found = true
+		pAtIt = parent
+		return
+	}
+
+	// Iterative search through tree (can be used above)
+	cur := &tt.root // ptr to ptr to tree
+	for tt != nil {
+		// fmt.Printf ( "at:%s\n", godebug.LF())
+		c := fx(find, (*cur).data) // OLD: c := (*find).Compare(*(*cur).data)
+		if c == 0 {
+			// fmt.Printf ( "FOUND! now remove it! at:%s\n", godebug.LF())
+			(*tt).length--
+			if (*cur).left == nil && (*cur).right == nil {
+				// fmt.Printf ( "at:%s\n", godebug.LF())
+				(*cur) = nil // just delete the node, it has no children.
+			} else if (*cur).left != nil && (*cur).right == nil {
+				// fmt.Printf ( "at:%s\n", godebug.LF())
+				(*cur) = (*cur).left // Has only left children, promote them.
+			} else if (*cur).left == nil && (*cur).right != nil {
+				// fmt.Printf ( "at:%s\n", godebug.LF())
+				(*cur) = (*cur).right // Has only right children, promote them.
+			} else { // has both children.
+				// fmt.Printf ( "at:%s\n", godebug.LF())
+				// Has only right children, promote them.
+				found, pAtIt := findLeftMostInRightSubtree(&((*cur).right)) // Find lft mos of right sub-tree
+				if !found {
+					// fmt.Printf ( "%sAbout to Panic: Failed to have a subtree. AT:%s%s\n", MiscLib.ColorRed, godebug.LF(), MiscLib.ColorReset)
+					panic("Can't have a missing sub-tree.")
+				}
+				// fmt.Printf ( "at:%s\n", godebug.LF())
+				(*cur).data = (*pAtIt).data // promote node's data.
+				// fmt.Printf ( "at:%s\n", godebug.LF())
+				(*pAtIt) = (*pAtIt).right // Left most can have a right sub-tree - but it is left most so it can't have a more left tree.
+				// fmt.Printf ( "at:%s\n", godebug.LF())
+			}
+			return true
+		}
+		// fmt.Printf ( "at:%s\n", godebug.LF())
+		if c < 0 && (*cur).left != nil {
+			// fmt.Printf ( "Go Left at:%s\n", godebug.LF())
+			cur = &((*cur).left)
+		} else if c > 0 && (*cur).right != nil {
+			// fmt.Printf ( "Go Right at:%s\n", godebug.LF())
+			cur = &((*cur).right)
+		} else {
+			// fmt.Printf ( "not found - in loop - at:%s\n", godebug.LF())
+			break
+		}
+	}
+	// fmt.Printf ( "NOT Found --- at:%s\n", godebug.LF())
+	return false
+}
+
 const db1 = false // print in IsEmpty
 
-/*
-./binary_tree.go:491:9: undefined: nlDepth
 /* vim: set noai ts=4 sw=4: */

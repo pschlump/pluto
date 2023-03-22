@@ -24,7 +24,7 @@ Basic operations on a Hash Table.
 import (
 	"fmt"
 	"hash/fnv"
-	"os"
+	"io"
 
 	"github.com/pschlump/pluto/comparable"
 	"github.com/pschlump/pluto/dll"
@@ -111,12 +111,12 @@ func (tt *HashTab[T]) Search(find *T) (rv *dll.DllElement[T]) {
 
 // Dump will print out the hash table to the file `fo`.
 // Complexity is O(n).
-func (tt *HashTab[T]) Dump(fo *os.File) {
-	fmt.Printf("Elements: %d, mod size:%d\n", tt.length, tt.size)
+func (tt *HashTab[T]) Dump(fp io.Writer) {
+	fmt.Fprintf(fp, "Elements: %d, mod size:%d\n", tt.length, tt.size)
 	for i, v := range tt.buckets {
 		if v.Length() > 0 {
-			fmt.Printf("bucket [%04d] = \n", i)
-			v.Dump(fo)
+			fmt.Fprintf(fp, "bucket [%04d] = \n", i)
+			v.Dump(fp)
 		}
 	}
 }
