@@ -1,52 +1,47 @@
 package hash_grow_ts
 
 /*
-Copyright (C) Philip Schlump, 2012-2021.
+Copyright (C) Philip Schlump, 2023.
 
-BSD 3 Clause Licensed.
+BSD 3 Clause Licensed. See ../LICENSE
 */
 
 /*
 
 Basic operations on a Hash Table.
 
-* 	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
+* 	Insert - create a new element in tree.														O(log|2(n))
+ 	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
 * 	IsEmpty — Returns true if the linked list is empty											O(1)
 * 	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
-* 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n/k) where k is # of buckets.
+ 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n/k) where k is # of buckets.
 * 	Truncate - Delete all the nodes in list. 													O(1)
-
-	Walk - Walk the table
-	Print - Using Walk to print out the contents of the table.
+	Walk - Walk the table																		O(n)
+	Print - Using Walk to print out the contents of the table.									O(n)
 
 */
 
 import (
 	"fmt"
 	"hash/fnv"
-	"math/rand"
+	"io"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/pschlump/MiscLib"
 	"github.com/pschlump/dbgo"
 	"github.com/pschlump/pluto/comparable"
 )
 
-type FlagType struct {
-	IsNotData bool
-	Mixin     string // data to mixin if collision
-}
-
 // HashTab is a generic binary tree
 type HashTab[T comparable.Comparable] struct {
 	buckets             []*T // the table
-	flags               []FlagType
+	size                int  // Modulo size for table	Current Size!
+	lock                sync.RWMutex
+	nUsed               int     // Number of used slots in table
 	length              int     // # of elements in table
 	saturationThreshold float64 // Proportion before grow of table. (default 0.5)
-	size                int     // Modulo size for table	Current Size!
-	lock                sync.RWMutex
+
 }
 
 type Hashable interface {
@@ -66,7 +61,6 @@ func NewHashTab[T comparable.Comparable](n int, saturation float64) *HashTab[T] 
 		size:                n,
 		saturationThreshold: saturation,
 		buckets:             make([]*T, n, n),
-		flags:               make([]FlagType, n, n),
 	}
 }
 
@@ -89,8 +83,6 @@ func (tt *HashTab[T]) Truncate() {
 	defer tt.lock.Unlock()
 	for i := 0; i < tt.size; i++ {
 		tt.buckets[i] = nil
-		tt.flags[i].IsNotData = false
-		tt.flags[i].Mixin = ""
 	}
 	tt.length = 0
 }
@@ -102,126 +94,62 @@ func (tt *HashTab[T]) Insert(item *T) {
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
 	h := hash(item) % tt.size
-	new_key := false
-	np := 0
 
 	dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-	if tt.buckets[h] == nil {
-		dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-		tt.buckets[h] = item
-		tt.length++
-		new_key = true
-	} else if (*item).Compare(*tt.buckets[h]) == 0 {
-		dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-		tt.buckets[h] = item // Replace, This means that you don't have a new key.
-	} else {
-		dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-		// collision, something already at tt.buckets[h] (original)
-		oh := h
-		mixin := genRandomMixin()
-		dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF) original mixin ->%s<-\n", mixin)
-		tt.flags[oh] = FlagType{
-			IsNotData: true,
-			Mixin:     mixin,
-		}
-		// must_split := false
-		np = 0
-		for np < 20 { // likely number of loops iterations is less than log 2 decreasing proability because table is less than 1/2 full.
+	var insertNewItem = func(hh int, itemx *T, buckets []*T) {
+
+		if tt.buckets[hh] == nil {
 			dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-			h = rehash(item, mixin) % tt.size
-			if tt.buckets[h] == nil { // Found an empty, so put it in and save.
-				dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-				tt.buckets[h] = item
-				tt.flags[oh] = FlagType{
-					IsNotData: true,
-					Mixin:     mixin,
-				}
-				break
-			} else if tt.flags[h].IsNotData == false { // Already a colision
-				mixin = tt.flags[h].Mixin
-				dbgo.Fprintf(os.Stderr, "%(yellow)AT:%(LF) -- new mixin ->%s<-\n", mixin)
-				np++
-			} else {
-				// tt.bucket[h] != nil and tt.flags[h].IsNotData == true, this imples a non-colision.
-				dbgo.Fprintf(os.Stderr, "%(red)AT:%(LF)\n")
-				mixin := genRandomMixin()
-				tt.flags[oh] = FlagType{
-					IsNotData: true,
-					Mixin:     mixin,
-				}
-				np++
-			}
-		}
-		if np >= 20 {
-			// stick in anywhere, will split
-			dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-		} else {
-			dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-			new_key = true
+			tt.buckets[hh] = itemx
 			tt.length++
-		}
-	}
-
-	dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-	if new_key || np >= 20 {
-		dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-		if (((float64)(tt.length))/((float64)(tt.size))) > tt.saturationThreshold || np >= 20 {
+		} else if (*itemx).Compare(*tt.buckets[hh]) == 0 {
 			dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-			dbgo.Fprintf(os.Stderr, "%(yellow)Passed Threshold for size, will double.......................................................\n")
-			n := tt.size * 2 // xyzzy - improve this., should be prime lookup table and double size, then go up to nex larger value.
-			dbgo.Fprintf(os.Stderr, "%(yellow)    new size(n) = %d\n", n)
-			newBuckets := make([]*T, n, n)
-			newFlags := make([]FlagType, n, n)
-			// xyzzy - Rehash, double in size etc.
-			dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-			for i := 0; i < tt.size; i++ {
+			tt.buckets[hh] = itemx // Replace, This means that you don't have a new key.
+		} else {
+			dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF) -- walk down table looking for empty slot (modulo size of table)\n")
+			// collision, something already at tt.buckets[hh] (original)
+			np := hh + 1
+			if np >= tt.size {
+				np = 0
+			}
+			for np < tt.size {
 				dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-				item := tt.buckets[h]
-				h := hash(item) % n
-				if newBuckets[h] == nil {
+				if tt.buckets[np] == nil { // Found an empty, so put it in and leave loop
 					dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-					newBuckets[h] = item
-				} else {
-					dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-					oh := h // old h, save for later
-					for {   // likely number of loops iterations is (log 2)/2 decreasing proability.
-						dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-						mixin := genRandomMixin()
-						h = rehash(item, mixin) % n
-						if newBuckets[h] == nil {
-							newFlags[oh] = FlagType{
-								IsNotData: true,
-								Mixin:     mixin,
-							}
-							break
-						} // xyzzy - error - run test.
-					}
+					tt.buckets[np] = itemx
+					tt.length++
+					break
+				} else if (*itemx).Compare(*tt.buckets[np]) == 0 {
+					tt.buckets[np] = itemx
+					break
+				}
+				np++
+				if np >= tt.size {
+					np = 0 // wrap back to top
 				}
 			}
-			dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-			tt.buckets = newBuckets
-			tt.flags = newFlags
-			tt.size = n
 		}
+
 	}
-}
 
-func genRandomMixin() string {
-	return RandStringRunes(4)
-}
+	insertNewItem(h, item, tt.buckets)
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
-var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-func RandStringRunes(n int) string {
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
+	if (((float64)(tt.length)) / ((float64)(tt.size))) > tt.saturationThreshold {
+		dbgo.Fprintf(os.Stderr, "%(yellow)Passed Threshold for size, will double.......................................................\n")
+		n := tt.size * 2 // xyzzy - improve this., should be prime lookup table and double size, then go up to nex larger value.
+		dbgo.Fprintf(os.Stderr, "%(yellow)    new size(n) = %d\n", n)
+		newBuckets := make([]*T, n, n)
+		oldBuckets := tt.buckets
+		tt.size = n
+		tt.buckets = newBuckets
+		for i := 0; i < tt.size; i++ {
+			item := oldBuckets[i]
+			h := hash(item) % tt.size
+			insertNewItem(h, item, newBuckets)
+		}
+		dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
 	}
-	return string(b)
 }
 
 // Length returns the number of elements in the list.
@@ -257,7 +185,10 @@ func (tt *HashTab[T]) NlSearch(find *T) (rv *T) {
 	if db1 {
 		fmt.Printf("%sh=%d - for ->%+v<-%s\n", MiscLib.ColorYellow, h, find, MiscLib.ColorReset)
 	}
-	// xyzzy TODO - fix
+	// xyzzy TODO - fix -- see if match, if not walk down until match or nil
+	// xyzzy TODO - fix -- see if match, if not walk down until match or nil
+	// xyzzy TODO - fix -- see if match, if not walk down until match or nil
+	// xyzzy TODO - fix -- see if match, if not walk down until match or nil
 	// rv = tt.buckets[h].Search(find) // func (ns *BinaryTree[T]) Search(t *T) (rv *BinaryTreeElement[T], pos int) {
 	if rv == nil {
 		return nil
@@ -284,12 +215,12 @@ func (tt *HashTab[T]) ReadUnlock() {
 
 // Dump will print out the hash table to the file `fo`.
 // Complexity is O(n).
-func (tt *HashTab[T]) Dump(fo io.Write) {
+func (tt *HashTab[T]) Dump(fo io.Writer) {
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 	fmt.Printf("Elements: %d, mod size:%d\n", tt.length, tt.size)
 	for i, v := range tt.buckets {
-		fmt.Fprintf(fp, "bucket [%04d] = %v\n", i, v) // v.Dump(fo) // xyzzy TODO - fix
+		fmt.Fprintf(fo, "bucket [%04d] = %v\n", i, v) // v.Dump(fo) // xyzzy TODO - fix
 	}
 }
 
@@ -308,7 +239,10 @@ func (tt *HashTab[T]) NlDelete(find *T) (found bool) {
 	}
 	h := hash(find) % tt.size
 	_ = h
-	// xyzzy TODO - fix
+	// xyzzy TODO - fix		-- remove, then close up if duplicate hash - walk donw list until null (wrap too)
+	// xyzzy TODO - fix		-- remove, then close up if duplicate hash - walk donw list until null (wrap too)
+	// xyzzy TODO - fix		-- remove, then close up if duplicate hash - walk donw list until null (wrap too)
+	// xyzzy TODO - fix		-- remove, then close up if duplicate hash - walk donw list until null (wrap too)
 	// found = tt.buckets[h].Delete(find)
 	if found {
 		tt.length--
@@ -320,28 +254,6 @@ func hash(x interface{}) (rv int) {
 	hashstr := func(s string) int {
 		h := fnv.New32a()
 		h.Write([]byte(s))
-		return int(h.Sum32())
-	}
-	if v, ok := x.(Hashable); ok {
-		h := v.HashKey(x)
-		return int(h)
-	}
-	if v, ok := x.(string); ok {
-		h := hashstr(v)
-		return h
-	}
-	if v, ok := x.(fmt.Stringer); ok {
-		h := hashstr(v.String())
-		return int(h)
-	}
-	panic(fmt.Sprintf("Invalid type, %T needs to be Stringer or Hashable interface\n", x))
-}
-
-func rehash(x interface{}, ss string) (rv int) {
-	hashstr := func(s string) int {
-		h := fnv.New32a()
-		h.Write([]byte(s))
-		h.Write([]byte(ss))
 		return int(h.Sum32())
 	}
 	if v, ok := x.(Hashable); ok {
