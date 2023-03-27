@@ -10,14 +10,17 @@ BSD 3 Clause Licensed. See ../LICENSE
 
 Basic operations on a Hash Table.
 
-* 	Insert - create a new element in tree.														O(log|2(n))
- 	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
++ 	Insert - create a new element in tree.														O(log|2(n))
++ 	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(log|2(n))
 * 	IsEmpty — Returns true if the linked list is empty											O(1)
-* 	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
- 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n/k) where k is # of buckets.
-* 	Truncate - Delete all the nodes in list. 													O(1)
-	Walk - Walk the table																		O(n)
-	Print - Using Walk to print out the contents of the table.									O(n)
++ 	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
++ 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n/k) where k is # of buckets.
++ 	Truncate - Delete all the nodes in list. 													O(1)
++	Walk - Walk the table																		O(n)
++	Print - Using Walk to print out the contents of the table.									O(n)
+
+Possibly change to an extensible size with layers, so max dups in a layer or saturation causes
+geneation of a new layer - and not a re-hash of all existing keys.
 
 */
 
@@ -35,13 +38,12 @@ import (
 
 // HashTab is a generic binary tree
 type HashTab[T comparable.Comparable] struct {
-	buckets             []*T // the table
-	size                int  // Modulo size for table	Current Size!
+	buckets             []*T  // the table
+	orignal_hash        []int // the original hash values (used during delete, search)
+	size                int   // Modulo size for table	Current Size!
 	lock                sync.RWMutex
-	nUsed               int     // Number of used slots in table
 	length              int     // # of elements in table
 	saturationThreshold float64 // Proportion before grow of table. (default 0.5)
-
 }
 
 type Hashable interface {
@@ -137,7 +139,7 @@ func (tt *HashTab[T]) Insert(item *T) {
 	dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
 	if (((float64)(tt.length)) / ((float64)(tt.size))) > tt.saturationThreshold {
 		dbgo.Fprintf(os.Stderr, "%(yellow)Passed Threshold for size, will double.......................................................\n")
-		n := tt.size * 2 // xyzzy - improve this., should be prime lookup table and double size, then go up to nex larger value.
+		n := tt.size * 2
 		dbgo.Fprintf(os.Stderr, "%(yellow)    new size(n) = %d\n", n)
 		newBuckets := make([]*T, n, n)
 		oldBuckets := tt.buckets
@@ -185,13 +187,17 @@ func (tt *HashTab[T]) NlSearch(find *T) (rv *T) {
 	if db1 {
 		fmt.Printf("%sh=%d - for ->%+v<-%s\n", MiscLib.ColorYellow, h, find, MiscLib.ColorReset)
 	}
-	// xyzzy TODO - fix -- see if match, if not walk down until match or nil
-	// xyzzy TODO - fix -- see if match, if not walk down until match or nil
-	// xyzzy TODO - fix -- see if match, if not walk down until match or nil
-	// xyzzy TODO - fix -- see if match, if not walk down until match or nil
-	// rv = tt.buckets[h].Search(find) // func (ns *BinaryTree[T]) Search(t *T) (rv *BinaryTreeElement[T], pos int) {
-	if rv == nil {
-		return nil
+	for {
+		if tt.buckets[h] == nil {
+			return // not found
+		} else if (*find).Compare(*tt.buckets[h]) == 0 {
+			rv = tt.buckets[h] // found
+			return
+		}
+		h++
+		if h >= tt.size {
+			h = 0 // wrap back to top
+		}
 	}
 	return
 }
@@ -220,7 +226,7 @@ func (tt *HashTab[T]) Dump(fo io.Writer) {
 	defer tt.lock.RUnlock()
 	fmt.Printf("Elements: %d, mod size:%d\n", tt.length, tt.size)
 	for i, v := range tt.buckets {
-		fmt.Fprintf(fo, "bucket [%04d] = %v\n", i, v) // v.Dump(fo) // xyzzy TODO - fix
+		fmt.Fprintf(fo, "bucket [%04d] = %v\n", i, v) // v.Dump(fo) // Xyzzy TODO - fix
 	}
 }
 
@@ -238,12 +244,79 @@ func (tt *HashTab[T]) NlDelete(find *T) (found bool) {
 		return false
 	}
 	h := hash(find) % tt.size
-	_ = h
-	// xyzzy TODO - fix		-- remove, then close up if duplicate hash - walk donw list until null (wrap too)
-	// xyzzy TODO - fix		-- remove, then close up if duplicate hash - walk donw list until null (wrap too)
-	// xyzzy TODO - fix		-- remove, then close up if duplicate hash - walk donw list until null (wrap too)
-	// xyzzy TODO - fix		-- remove, then close up if duplicate hash - walk donw list until null (wrap too)
-	// found = tt.buckets[h].Delete(find)
+	if db1 {
+		fmt.Printf("%sh=%d - for ->%+v<-%s $(LF)\n", MiscLib.ColorYellow, h, find, MiscLib.ColorReset)
+	}
+	for {
+		if tt.buckets[h] == nil {
+			return false
+		} else if (*find).Compare(*tt.buckets[h]) == 0 {
+			tt.buckets[h] = nil // found, delete the node we want to et rid of.
+			dbgo.Printf("%(LF) h=%d \n", h)
+
+			// now we need to cleanup the empty stpot at tt.buckets[h]
+
+			// Must move up - and re-hash stuff ! unilt NIL found. ( 2nd loop ! )
+			// Find the "end" where our duplicates end.
+			h2 := h // From Locaiton in buckets
+			he := h // End where the first NIL is (may be less than h2)
+			for {
+				h2++
+				if h2 >= tt.size {
+					h2 = 0 // wrap back to top
+				}
+				he = h2
+				if tt.buckets[h2] == nil {
+					break
+				}
+			}
+			dbgo.Printf("%(LF) h2=%d he=%d\n", h2, he)
+
+			h2 = h // From Locaiton in buckets
+			for {
+				oh := h2
+				h2++
+				if h2 >= tt.size {
+					h2 = 0 // wrap back to top
+				}
+
+				dbgo.Printf("%(LF) h2=%d oh=%d\n", h2, oh)
+				if h2 > oh { // Not Wraped Arund
+					// xyzzy TODO -------------------------------- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+					//               +--------------------- oh
+					//               |                +---- he
+					//               |                |
+					//               v                v
+					// Before:    A1 A2 b A3 b b c A4 __
+					// Delete '2nd' A
+					// Before:    A1 __ b A3 b c c A4 __
+					// Move Up:   A1 A3 b A4 b b c __ __
+					cur := tt.buckets[h2]
+					hx := hash(cur) % tt.size
+					if hx >= h && hx < he {
+						// thiis is icky spot. -- xyzzy TODO
+						dbgo.Printf("%(LF) hx=%d h=%d he=%d\n", hx, h, he)
+					} else {
+						// thiis is icky spot. -- xyzzy TODO
+						dbgo.Printf("%(LF) hx=%d h=%d he=%d\n", hx, h, he)
+					}
+				} else {
+					dbgo.Printf("%(LF) h2=%d oh=%d\n", h2, oh)
+				}
+
+				tt.buckets[h2] = tt.buckets[oh]
+				tt.buckets[oh] = nil
+				if tt.buckets[h2] == nil {
+					break
+				}
+			}
+			return true
+		}
+		h++
+		if h >= tt.size {
+			h = 0 // wrap back to top
+		}
+	}
 	if found {
 		tt.length--
 	}
