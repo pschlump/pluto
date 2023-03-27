@@ -1,0 +1,2 @@
+./hash_tab.go:148:15: oldOriginal declared but not used
+./hash_tab.go:153:31: undefined: oldOrignal
