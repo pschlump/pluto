@@ -72,11 +72,17 @@ func (aa TestData) HashKey(x interface{}) (rv int) {
 	if v, ok := x.(*TestData); ok {
 		// fmt.Printf("%s1st case%s\n", MiscLib.ColorRed, MiscLib.ColorReset)
 		rv = HashStr.HashStr([]byte(v.S))
+		if rv == 0 {
+			rv = 1
+		}
 		return
 	}
 	if v, ok := x.(TestData); ok {
 		// fmt.Printf("%s2nd case%s\n", MiscLib.ColorRed, MiscLib.ColorReset)
 		rv = HashStr.HashStr([]byte(v.S))
+		if rv == 0 {
+			rv = 1
+		}
 		return
 	}
 	return
