@@ -16,7 +16,7 @@ Basic operations on a Hash Table.
 * 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n/k) where k is # of buckets.
 * 	Truncate - Delete all the nodes in list. 													O(1)
 
-	Walk - Walk the table
+*	Walk - Walk the table
 	Print - Using Walk to print out the contents of the table.
 
 */

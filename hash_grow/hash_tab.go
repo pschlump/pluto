@@ -33,11 +33,12 @@ import (
 
 	"github.com/pschlump/MiscLib"
 	"github.com/pschlump/dbgo"
-	"github.com/pschlump/pluto/binary_tree"
+	"github.com/pschlump/pluto/binary_tree_ts"
 	"github.com/pschlump/pluto/comparable"
 )
 
-// HashTab is a generic binary tree
+// HashTab is a generic hash table that grows the underlying ttable when the number of
+// entries exceeds a threshold.    The table is doulbed in size.
 type HashTab[T comparable.Comparable] struct {
 	buckets             []*T  // the table
 	originalHash        []int // the original hash values (used during delete, search)
@@ -68,7 +69,7 @@ func NewHashTab[T comparable.Comparable](n int, saturation float64) *HashTab[T] 
 	}
 }
 
-// IsEmpty will return true if the binary-tree is empty
+// IsEmpty will return true if the hash table is empty
 // Complexity is O(1).
 func (tt HashTab[T]) IsEmpty() bool {
 	tt.lock.RLock()
@@ -321,7 +322,7 @@ func (tt *HashTab[T]) NlDelete(find *T) (found bool) {
 	return
 }
 
-func (tt *HashTab[T]) Walk(fx binary_tree.ApplyFunction[T], userData interface{}) (b bool) {
+func (tt *HashTab[T]) Walk(fx binary_tree_ts.ApplyFunction[T], userData interface{}) (b bool) {
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 	b = true
