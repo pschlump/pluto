@@ -98,41 +98,42 @@ func (tt *HashTab[T]) Insert(item *T) {
 	defer tt.lock.Unlock()
 	rh := hash(item)
 
+	// Increment a position in table modulo the size of the table.
+	var incSize = func(xx int) (rv int) {
+		rv = xx + 1
+		if rv >= tt.size {
+			rv = 0
+		}
+		return
+	}
+
 	dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
 	var insertNewItem = func(rh int, itemx *T, buckets []*T, originalHash []int) {
 		hh := rh % tt.size
-		if tt.buckets[hh] == nil {
+		if buckets[hh] == nil {
 			dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
 			buckets[hh] = itemx
 			originalHash[hh] = rh
 			tt.length++
-		} else if (*itemx).Compare(*tt.buckets[hh]) == 0 {
+		} else if (*itemx).Compare(*buckets[hh]) == 0 {
 			dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
 			buckets[hh] = itemx // Replace, This means that you don't have a new key.
 			originalHash[hh] = rh
 		} else {
 			dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF) -- walk down table looking for empty slot (modulo size of table)\n")
 			// collision, something already at tt.buckets[hh] (original)
-			np := hh + 1
-			if np >= tt.size {
-				np = 0
-			}
-			for np < tt.size {
+			for np := incSize(hh); np < tt.size; np = incSize(np) {
 				dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-				if tt.buckets[np] == nil { // Found an empty, so put it in and leave loop
+				if buckets[np] == nil { // Found an empty, so put it in and leave loop
 					dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
 					buckets[np] = itemx
 					originalHash[np] = rh
 					tt.length++
 					break
-				} else if (*itemx).Compare(*tt.buckets[np]) == 0 {
+				} else if (*itemx).Compare(*buckets[np]) == 0 {
 					buckets[np] = itemx
 					originalHash[np] = rh
 					break
-				}
-				np++
-				if np >= tt.size {
-					np = 0 // wrap back to top
 				}
 			}
 		}
@@ -143,15 +144,19 @@ func (tt *HashTab[T]) Insert(item *T) {
 	dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
 	if (((float64)(tt.length)) / ((float64)(tt.size))) > tt.saturationThreshold {
 		dbgo.Fprintf(os.Stderr, "%(yellow)Passed Threshold for size, will double.......................................................\n")
+		originalSize := tt.size
 		n := tt.size * 2 // Double the size
 		dbgo.Fprintf(os.Stderr, "%(yellow)    new size(n) = %d\n", n)
 		oldBuckets, oldOriginal := tt.buckets, tt.originalHash
 		tt.size = n
+		tt.length = 0
 		tt.buckets = make([]*T, n, n)
 		tt.originalHash = make([]int, n, n)
-		for i := 0; i < tt.size; i++ {
-			item, rh := oldBuckets[i], oldOriginal[i]
-			insertNewItem(rh, item, tt.buckets, tt.originalHash)
+		for i := 0; i < originalSize; i++ {
+			if oldBuckets[i] != nil {
+				item, rh := oldBuckets[i], oldOriginal[i]
+				insertNewItem(rh, item, tt.buckets, tt.originalHash)
+			}
 		}
 		dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
 	}
