@@ -10,12 +10,12 @@ BSD 3 Clause Licensed. See ../LICENSE
 
 Basic operations on a Hash Table.
 
-+ 	Insert - create a new element in tree.														O(log|2(n))
+* 	Insert - create a new element in tree.														O(log|2(n))
 + 	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(log|2(n))
 * 	IsEmpty — Returns true if the linked list is empty											O(1)
-+ 	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
-+ 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n/k) where k is # of buckets.
-+ 	Truncate - Delete all the nodes in list. 													O(1)
+* 	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
+* 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n/k) where k is # of buckets.
+* 	Truncate - Delete all the nodes in list. 													O(1)
 +	Walk - Walk the table																		O(n)
 +	Print - Using Walk to print out the contents of the table.									O(n)
 
