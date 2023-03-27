@@ -91,7 +91,7 @@ func TestHashFunction(t *testing.T) {
 	}
 }
 
-func TestTest(t *testing.T) {
+func TestTest1(t *testing.T) {
 
 	ht := NewHashTab[TestData](7, 0)
 
@@ -143,12 +143,6 @@ func TestTest(t *testing.T) {
 		fmt.Printf("%s --------- test done ---------- at:%s %s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
 	}
 
-	// =================================================================================================================================================================================
-	// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-	return
-	// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-	// =================================================================================================================================================================================
-
 	// Delete
 	found := ht.Delete(it) // func (tt *HashTab[T]) Delete(find *T) (found bool) {
 	if !found {
@@ -173,6 +167,12 @@ func TestTest(t *testing.T) {
 		t.Errorf("Expected length of 40, got %d", ht.Len())
 	}
 
+	// =================================================================================================================================================================================
+	// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+	// return
+	// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+	// =================================================================================================================================================================================
+
 	// Search - find
 	it = ht.Search(&TestData{S: "abcd"})
 	if it == nil {
@@ -193,6 +193,61 @@ func TestTest(t *testing.T) {
 		t.Errorf("Expected to NOT find it, did not")
 	}
 
+}
+
+func TestTest2(t *testing.T) {
+
+	ht := NewHashTab[TestData](7, 0)
+
+	//	if !ht.IsEmpty() {
+	//		t.Errorf("Expected empty hash-tab after decleration, failed to get one.")
+	//	}
+
+	for i := 0; i < 40; i++ {
+		ht.Insert(&TestData{S: fmt.Sprintf("%4d", i)})
+	}
+	if ht.Len() != 40 {
+		t.Errorf("Expected length of 40, got %d", ht.Len())
+	}
+	dbgo.Fprintf(os.Stderr, "---------------------\n")
+	for i := 0; i < 40; i++ {
+		ht.Insert(&TestData{S: fmt.Sprintf("%4d", i)})
+	}
+	if ht.Len() != 40 {
+		t.Errorf("Expected length of 40, got %d", ht.Len())
+	}
+
+	fmt.Printf("------------- before ---------------------------\n")
+	ht.Dump(os.Stdout)
+
+	// Delete
+	it := ht.Search(&TestData{S: "  13"})
+	found := ht.Delete(it) // func (tt *HashTab[T]) Delete(find *T) (found bool) {
+	if !found {
+		t.Errorf("Expected to delete it, did not")
+	}
+
+	// xyzzy TODO - check the tt.bucket[93] should be nil, with tt.originalHahs[93] == 93
+
+	fmt.Printf("------------- after Delete of '  13' no move, no dup ---------------------------\n")
+	ht.Dump(os.Stdout)
+
+	it = ht.Search(&TestData{S: "   6"})
+	found = ht.Delete(it) // func (tt *HashTab[T]) Delete(find *T) (found bool) {
+	if !found {
+		t.Errorf("Expected to delete it, did not")
+	}
+
+	// xyzzy TODO - check the tt.bucket[93] ...  see output and validate.
+
+	fmt.Printf("------------- after Delete of '   6' move up ---------------------------\n")
+	ht.Dump(os.Stdout)
+
+	// Search - find
+	it = ht.Search(&TestData{S: "  38"})
+	if it == nil {
+		t.Errorf("Expected to find it, did not")
+	}
 }
 
 const db2 = false

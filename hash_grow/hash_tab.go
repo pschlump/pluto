@@ -11,13 +11,13 @@ BSD 3 Clause Licensed. See ../LICENSE
 Basic operations on a Hash Table.
 
 * 	Insert - create a new element in tree.														O(log|2(n))
-  	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(log|2(n))
+*  	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(log|2(n))
 * 	IsEmpty — Returns true if the linked list is empty											O(1)
 * 	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
 * 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n/k) where k is # of buckets.
 * 	Truncate - Delete all the nodes in list. 													O(1)
 +	Walk - Walk the table																		O(n)
-+	Print - Using Walk to print out the contents of the table.									O(n)
+ 	Print - Using Walk to print out the contents of the table.									O(n)
 
 Possibly change to an extensible size with layers, so max dups in a layer or saturation causes
 geneation of a new layer - and not a re-hash of all existing keys.
@@ -197,9 +197,11 @@ func (tt *HashTab[T]) NlSearch(find *T) (rv *T) {
 		fmt.Printf("%sh=%d - for ->%+v<-%s\n", MiscLib.ColorYellow, h, find, MiscLib.ColorReset)
 	}
 	for {
-		if tt.buckets[h] == nil {
+		// if tt.buckets[h] == nil { 			// Delete of duplicates overlaping with duplicates fix.
+		if tt.originalHash[h] == 0 {
 			return // not found
-		} else if (*find).Compare(*tt.buckets[h]) == 0 {
+			// } else if (*find).Compare(*tt.buckets[h]) == 0 { 			// Delete of duplicates overlaping with duplicates fix.
+		} else if tt.buckets[h] != nil && (*find).Compare(*tt.buckets[h]) == 0 {
 			rv = tt.buckets[h] // found
 			return
 		}
@@ -235,7 +237,7 @@ func (tt *HashTab[T]) Dump(fo io.Writer) {
 	defer tt.lock.RUnlock()
 	fmt.Printf("Elements: %d, mod size:%d\n", tt.length, tt.size)
 	for i, v := range tt.buckets {
-		fmt.Fprintf(fo, "bucket [%04d] = %v\n", i, v) // v.Dump(fo) // Xyzzy TODO - fix
+		fmt.Fprintf(fo, "bucket [%04d] h=%d h%%size=%d = %v\n", i, tt.originalHash[i], tt.originalHash[i]%tt.size, v) // v.Dump(fo) // Xyzzy TODO - fix
 	}
 }
 
@@ -268,9 +270,11 @@ func (tt *HashTab[T]) NlDelete(find *T) (found bool) {
 		fmt.Printf("%sh=%d - for ->%+v<-%s $(LF)\n", MiscLib.ColorYellow, h, find, MiscLib.ColorReset)
 	}
 	for {
-		if tt.buckets[h] == nil {
+		// if tt.buckets[h] == nil {
+		if tt.originalHash[h] == 0 {
 			return false
-		} else if (*find).Compare(*tt.buckets[h]) == 0 {
+			// } else if (*find).Compare(*tt.buckets[h]) == 0 {
+		} else if tt.buckets[h] != nil && (*find).Compare(*tt.buckets[h]) == 0 {
 			tt.buckets[h] = nil // found, delete the node we want to et rid of.
 			tt.length--         // one less node
 			found = true        // we found it
