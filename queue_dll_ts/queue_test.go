@@ -6,12 +6,37 @@ Copyright (C) Philip Schlump, 2012-2023.
 BSD 3 Clause Licensed.
 */
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+
+	"github.com/pschlump/pluto/comparable"
+)
+
+type TestDemo struct {
+	S string
+}
+
+var _ comparable.Equality = (*TestDemo)(nil)
+
+func (aa TestDemo) IsEqual(x comparable.Equality) bool {
+	if bb, ok := x.(TestDemo); ok {
+		if aa.S == bb.S {
+			return true
+		}
+		return false
+	} else if bb, ok := x.(*TestDemo); ok {
+		if aa.S == bb.S {
+			return true
+		}
+		return false
+	} else {
+		panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
+	}
+	// return false
+}
 
 func TestQueue001(t *testing.T) {
-	type TestDemo struct {
-		S string
-	}
 
 	var Que1 Queue[TestDemo]
 
@@ -19,7 +44,7 @@ func TestQueue001(t *testing.T) {
 		t.Errorf("Expected empty queue after decleration, failed to get one.")
 	}
 
-	Que1.Push(TestDemo{S: "hi"})
+	Que1.Push(&TestDemo{S: "hi"})
 
 	if Que1.IsEmpty() {
 		t.Errorf("Expected non-empty queue after 1st push, failed to get one.")
@@ -34,8 +59,8 @@ func TestQueue001(t *testing.T) {
 		t.Errorf("Unexpectd lack of error after pop on empty queue")
 	}
 
-	Que1.Push(TestDemo{S: "hi2"})
-	Que1.Push(TestDemo{S: "hi3"})
+	Que1.Push(&TestDemo{S: "hi2"})
+	Que1.Push(&TestDemo{S: "hi3"})
 
 	got := Que1.Length()
 	expect := 2

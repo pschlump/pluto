@@ -122,15 +122,4 @@ func (ns *Queue[T]) Truncate() {
 	(*ns).data.Truncate()
 }
 
-/*
-./queue.go:45:20: (*ns).data.Length undefined (type dllts.DllElement[T] has no field or method Length)
-./queue.go:49:20: (*ns).data.Length undefined (type dllts.DllElement[T] has no field or method Length)
-./queue.go:57:13: (*ns).data.AppendAtTail undefined (type dllts.DllElement[T] has no field or method AppendAtTail)
-./queue.go:65:13: (*ns).data.AppendAtTail undefined (type dllts.DllElement[T] has no field or method AppendAtTail)
-./queue.go:79:23: (*ns).data.Pop undefined (type dllts.DllElement[T] has no field or method Pop)
-./queue.go:88:20: (*ns).data.Length undefined (type dllts.DllElement[T] has no field or method Length)
-./queue.go:97:21: (*ns).data.Peek undefined (type dllts.DllElement[T] has no field or method Peek)
-./queue.go:113:20: (*ns).data.Pop undefined (type dllts.DllElement[T] has no field or method Pop)
-./queue.go:122:20: (*ns).data.Truncate undefined (type dllts.DllElement[T] has no field or method Truncate)
-
 /* vim: set noai ts=4 sw=4: */
