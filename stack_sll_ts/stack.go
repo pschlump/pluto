@@ -6,13 +6,6 @@ Copyright (C) Philip Schlump, 2012-2021.
 BSD 3 Clause Licensed.
 */
 
-import (
-	"errors"
-
-	"github.com/pschlump/pluto/comparable"
-	"github.com/pschlump/pluto/sllts"
-)
-
 /*
 Basic operations on a stack:
 
@@ -21,11 +14,18 @@ Basic operations on a stack:
 *	IsEmpty — Returns true if the stack is empty
 *	Peek — Returns the top element without removing from the stack
 
+Note: This is a subset of the operations that happen on the `sll_ts` so you can just use the
+singly linked list (thread safe) instead.
 */
+
+import (
+	"github.com/pschlump/pluto/comparable"
+	"github.com/pschlump/pluto/sll_ts"
+)
 
 // Stack is a generic type buildt on top of a slice
 type Stack[T comparable.Equality] struct {
-	data sllts.Sll[T]
+	data sll_ts.Sll[T]
 }
 
 // IsEmpty will return true if the stack is empty
@@ -37,9 +37,6 @@ func (ns *Stack[T]) IsEmpty() bool {
 func (ns *Stack[T]) Push(t *T) {
 	ns.data.Push(t)
 }
-
-// An error to indicate that the stack is empty
-var ErrEmptyStack = errors.New("Empty Stack")
 
 // Pop will remove the top element from the stack.  An error is returned if the stack is empty.
 func (ns *Stack[T]) Pop() (rv *T, err error) {

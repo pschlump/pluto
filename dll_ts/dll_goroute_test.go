@@ -1,4 +1,4 @@
-package dllts_test
+package dll_ts_test
 
 /*
 Copyright (C) Philip Schlump, 2012-2021.
@@ -13,7 +13,7 @@ import (
 
 	"github.com/pschlump/godebug"
 	"github.com/pschlump/pluto/comparable"
-	"github.com/pschlump/pluto/dllts"
+	"github.com/pschlump/pluto/dll_ts"
 )
 
 type TestDemo struct {
@@ -47,7 +47,7 @@ func (aa TestDemo) IsEqual(x comparable.Equality) bool {
 
 func TestDllGoroutines(t *testing.T) {
 
-	var Dll1 dllts.Dll[TestDemo]
+	var Dll1 dll_ts.Dll[TestDemo]
 
 	if db7 {
 		fmt.Printf("AT: %s\n", godebug.LF())

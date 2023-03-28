@@ -1,4 +1,4 @@
-package dllts
+package dll_ts
 
 /*
 Copyright (C) Philip Schlump, 2012-2021.

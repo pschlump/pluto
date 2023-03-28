@@ -1,4 +1,4 @@
-package sllts
+package sll_ts
 
 /*
 Copyright (C) Philip Schlump, 2012-2021.

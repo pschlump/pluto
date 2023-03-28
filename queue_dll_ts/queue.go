@@ -25,12 +25,12 @@ import (
 	"errors"
 
 	"github.com/pschlump/pluto/comparable"
-	"github.com/pschlump/pluto/dllts"
+	"github.com/pschlump/pluto/dll_ts"
 )
 
 // Queue is a generic type buildt on top of a generic DLL
 type Queue[T comparable.Equality] struct {
-	data dllts.Dll[T]
+	data dll_ts.Dll[T]
 }
 
 // IsEmpty will return true if the queue is empty
