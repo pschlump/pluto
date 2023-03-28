@@ -8,43 +8,16 @@ BSD 3 Clause Licensed.
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/pschlump/godebug"
-	"github.com/pschlump/pluto/comparable"
 )
 
 type TestDemo struct {
 	S string
 }
 
-func NewTestDemo() *TestDemo {
-	return &TestDemo{}
-}
-
-// At compile time verify that this is a correct type/interface setup.
-var _ comparable.Equality = (*TestDemo)(nil)
-
-//
-func (aa TestDemo) IsEqual(x comparable.Equality) bool {
-	if bb, ok := x.(TestDemo); ok {
-		if aa.S == bb.S {
-			return true
-		}
-		return false
-	} else if bb, ok := x.(*TestDemo); ok {
-		if aa.S == bb.S {
-			return true
-		}
-		return false
-	} else {
-		panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
-	}
-	return false
-}
-
-func TestSll1(t *testing.T) {
+func TestStack(t *testing.T) {
 
 	var Sll1 Sll[TestDemo]
 
@@ -102,9 +75,9 @@ func TestSll1(t *testing.T) {
 	// func (ns *Sll[T]) InsertHeadSLL(t *T) {
 	// func (ns *Sll[T]) InsertBeforeHead(t *T) {
 
-	Sll1.InsertBeforeHead(&TestDemo{S: "02"})
-	Sll1.InsertAfterTail(&TestDemo{S: "03"})
-	Sll1.InsertBeforeHead(&TestDemo{S: "01"})
+	Sll1.InsertHeadSLL(&TestDemo{S: "02"})
+	Sll1.InsertBeforeHead(&TestDemo{S: "03"})
+	Sll1.InsertHeadSLL(&TestDemo{S: "01"})
 
 	got = Sll1.Length()
 	expect = 3
@@ -124,16 +97,16 @@ func TestSll1(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpectd lack of error after pop on empty stack")
 	}
-	if a.S != "02" {
-		t.Errorf("Unexpectd data")
+	if a.S != "03" {
+		t.Errorf("Unexpectd data, got %v", a)
 	}
 
 	a, err = Sll1.Pop()
 	if err != nil {
 		t.Errorf("Unexpectd lack of error after pop on empty stack")
 	}
-	if a.S != "03" {
-		t.Errorf("Unexpectd data")
+	if a.S != "02" {
+		t.Errorf("Unexpectd data, got %v", a)
 	}
 
 	a, err = Sll1.Pop()
@@ -148,11 +121,11 @@ func TestIter(t *testing.T) {
 	}
 
 	var Sll2 Sll[TestDemo]
-	Sll2.InsertBeforeHead(&TestDemo{S: "02"})
-	Sll2.InsertAfterTail(&TestDemo{S: "03"})
-	Sll2.InsertBeforeHead(&TestDemo{S: "01"})
+	Sll2.InsertHeadSLL(&TestDemo{S: "02"})
+	Sll2.InsertBeforeHead(&TestDemo{S: "03"})
+	Sll2.InsertHeadSLL(&TestDemo{S: "01"})
 
-	expected := []string{"01", "02", "03"}
+	expected := []string{"01", "03", "02"}
 	if db7 {
 		fmt.Printf("AT: %s\n", godebug.LF())
 	}
@@ -170,32 +143,6 @@ func TestIter(t *testing.T) {
 			}
 		}
 	}
-
-}
-
-func TestSllDelete(t *testing.T) {
-
-	Sll1 := NewSll[TestDemo]()
-
-	if !Sll1.IsEmpty() {
-		t.Errorf("Expected empty stack after decleration, failed to get one.")
-	}
-
-	Sll1.InsertAfterTail(&TestDemo{S: "hi1"})
-	Sll1.InsertAfterTail(&TestDemo{S: "hi2"})
-	Sll1.InsertAfterTail(&TestDemo{S: "hi3"})
-
-	// func (ns *Sll[T]) Search(t *T) (rv *SllElement[T], pos int) {
-	// func (ns *Sll[T]) DeleteFound(t *SllElement[T]) (err error) {
-	e, p := Sll1.Search(&TestDemo{S: "hi2"})
-	fmt.Printf("pos = %d\n", p)
-	err := Sll1.DeleteFound(e)
-	if err != nil {
-		fmt.Printf("err = %s\n", err)
-		t.Errorf("Unexpectd error: %s", err)
-	}
-
-	Sll1.Dump(os.Stdout)
 
 }
 

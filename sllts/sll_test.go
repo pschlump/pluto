@@ -53,7 +53,7 @@ func TestStack(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpectd error on non-empty stack")
 	}
-	if ss.S != "hi2" {
+	if ss.S != "hi3" {
 		t.Errorf("Expected %s got %s", "hi3", ss.S)
 	}
 
@@ -61,8 +61,8 @@ func TestStack(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpectd error on non-empty stack")
 	}
-	if ss.S != "hi3" {
-		t.Errorf("Expected %s got %s", "hi3", ss.S)
+	if ss.S != "hi2" {
+		t.Errorf("Expected %s got %s", "hi2", ss.S)
 	}
 
 	Sll1.Truncate()
@@ -97,16 +97,16 @@ func TestStack(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpectd lack of error after pop on empty stack")
 	}
-	if a.S != "02" {
-		t.Errorf("Unexpectd data")
+	if a.S != "03" {
+		t.Errorf("Unexpectd data, got %v", a)
 	}
 
 	a, err = Sll1.Pop()
 	if err != nil {
 		t.Errorf("Unexpectd lack of error after pop on empty stack")
 	}
-	if a.S != "03" {
-		t.Errorf("Unexpectd data")
+	if a.S != "02" {
+		t.Errorf("Unexpectd data, got %v", a)
 	}
 
 	a, err = Sll1.Pop()
@@ -125,7 +125,7 @@ func TestIter(t *testing.T) {
 	Sll2.InsertBeforeHead(&TestDemo{S: "03"})
 	Sll2.InsertHeadSLL(&TestDemo{S: "01"})
 
-	expected := []string{"01", "02", "03"}
+	expected := []string{"01", "03", "02"}
 	if db7 {
 		fmt.Printf("AT: %s\n", godebug.LF())
 	}
