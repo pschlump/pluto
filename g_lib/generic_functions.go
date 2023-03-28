@@ -111,3 +111,5 @@ func SortSlice[T constraints.Ordered](s []T) {
 		return s[i] < s[j]
 	})
 }
+
+/* vim: set noai ts=4 sw=4: */

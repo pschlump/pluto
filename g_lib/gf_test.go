@@ -116,3 +116,49 @@ func TestAbs(t *testing.T) {
 		t.Errorf("Abs failed")
 	}
 }
+
+func TestMapKeys(t *testing.T) {
+	ex := make(map[string]int)
+	ex["abc"] = 44
+	ex["bob"] = 44
+	ex["nope"] = 44
+	exKey := GetMapKeys(ex)
+
+	if len(exKey) != 3 {
+		t.Errorf("Incorrect Length of Slice, should be 3, got %d", len(exKey))
+	}
+	if !InArray("bob", exKey) {
+		t.Errorf("Failed to find 'bob' in %s", exKey)
+	}
+	if !InArray("abc", exKey) {
+		t.Errorf("Failed to find 'abc' in %s", exKey)
+	}
+	if !InArray("nope", exKey) {
+		t.Errorf("Failed to find 'nope' in %s", exKey)
+	}
+}
+
+/*
+func SortSlice[T constraints.Ordered](s []T) {
+	sort.Slice(s, func(i, j int) bool {
+		return s[i] < s[j]
+	})
+}
+*/
+
+func TestSort(t *testing.T) {
+	ss := []string{"c", "a", "d", "z", "r"}
+	SortSlice(ss)
+	// fmt.Printf("%s\n", ss)
+	sorted := []string{"a", "c", "d", "r", "z"}
+	if len(ss) != len(sorted) {
+		t.Errorf("Incorrect Length of Slice, should be %d, got %d", len(sorted), len(ss))
+	}
+	for i := 0; i < len(ss); i++ {
+		if ss[i] != sorted[i] {
+			t.Errorf("Incorrect data , should be ->%s<-, got ->%s<-", sorted[i], ss[i])
+		}
+	}
+}
+
+/* vim: set noai ts=4 sw=4: */
