@@ -3,11 +3,11 @@
 
 .PHONY: all
 all:
-	gotip build
+	go build
 
 .PHONY: test
 test: all
-	gotip test
+	go test
 
 race:
 	go test -race

@@ -3,11 +3,11 @@
 
 .PHONY: all
 all:
-	gotip build
+	go build
 
 .PHONY: test
 test: all
-	gotip test
+	go test
 
 setup:
 	go get golang.org/x/exp/constraints

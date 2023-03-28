@@ -11,10 +11,31 @@ import (
 	"testing"
 
 	"github.com/pschlump/godebug"
+	"github.com/pschlump/pluto/comparable"
 )
 
 type TestDemo struct {
 	S string
+}
+
+var _ comparable.Equality = (*TestDemo)(nil)
+
+//
+func (aa TestDemo) IsEqual(x comparable.Equality) bool {
+	if bb, ok := x.(TestDemo); ok {
+		if aa.S == bb.S {
+			return true
+		}
+		return false
+	} else if bb, ok := x.(*TestDemo); ok {
+		if aa.S == bb.S {
+			return true
+		}
+		return false
+	} else {
+		panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
+	}
+	// return false
 }
 
 func TestStack(t *testing.T) {
@@ -53,7 +74,7 @@ func TestStack(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpectd error on non-empty stack")
 	}
-	if ss.S != "hi2" {
+	if ss.S != "hi3" {
 		t.Errorf("Expected %s got %s", "hi3", ss.S)
 	}
 
@@ -61,8 +82,8 @@ func TestStack(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpectd error on non-empty stack")
 	}
-	if ss.S != "hi3" {
-		t.Errorf("Expected %s got %s", "hi3", ss.S)
+	if ss.S != "hi2" {
+		t.Errorf("Expected %s got %s", "hi2", ss.S)
 	}
 
 	Sll1.Truncate()
@@ -75,9 +96,9 @@ func TestStack(t *testing.T) {
 	// func (ns *Sll[T]) InsertHeadSLL(t *T) {
 	// func (ns *Sll[T]) InsertBeforeHead(t *T) {
 
-	Sll1.InsertHeadSLL(&TestDemo{S: "02"})
 	Sll1.InsertBeforeHead(&TestDemo{S: "03"})
-	Sll1.InsertHeadSLL(&TestDemo{S: "01"})
+	Sll1.InsertBeforeHead(&TestDemo{S: "02"})
+	Sll1.InsertBeforeHead(&TestDemo{S: "01"})
 
 	got = Sll1.Length()
 	expect = 3
@@ -121,9 +142,9 @@ func TestIter(t *testing.T) {
 	}
 
 	var Sll2 Sll[TestDemo]
-	Sll2.InsertHeadSLL(&TestDemo{S: "02"})
 	Sll2.InsertBeforeHead(&TestDemo{S: "03"})
-	Sll2.InsertHeadSLL(&TestDemo{S: "01"})
+	Sll2.InsertBeforeHead(&TestDemo{S: "02"})
+	Sll2.InsertBeforeHead(&TestDemo{S: "01"})
 
 	expected := []string{"01", "02", "03"}
 	if db7 {

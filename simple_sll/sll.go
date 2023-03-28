@@ -15,22 +15,24 @@ Basic operations on a Singly Linked List (SLL)
 
 import (
 	"errors"
+
+	"github.com/pschlump/pluto/comparable"
 )
 
 // A node in the singly linked list
-type SllElement[T any] struct {
+type SllElement[T comparable.Equality] struct {
 	next *SllElement[T]
 	data *T
 }
 
 // Sll is a generic type buildt on top of a slice
-type Sll[T any] struct {
+type Sll[T comparable.Equality] struct {
 	head, tail *SllElement[T]
 	length     int
 }
 
 // An iteration type that allows a for loop to walk the list.
-type SllIter[T any] struct {
+type SllIter[T comparable.Equality] struct {
 	cur *SllElement[T]
 	sll *Sll[T]
 	pos int
@@ -40,7 +42,7 @@ type SllIter[T any] struct {
 
 // Create a new SLL and return it.
 // Complexity is O(1).
-func NewSll[T any]() *Sll[T] {
+func NewSll[T comparable.Equality]() *Sll[T] {
 	return &Sll[T]{
 		head:   nil,
 		tail:   nil,
