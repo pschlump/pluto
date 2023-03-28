@@ -25,5 +25,5 @@ test:
 	( cd queue_ts ; go vet ; make test )
 	( cd simple_sll ; go vet ; make test )
 	( cd stack_sll_ts ; go vet ; make test )
+	( cd dag ; go vet ; make test )
 
-# dag

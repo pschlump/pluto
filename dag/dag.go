@@ -30,7 +30,6 @@ The algorythm is a non-recursive depth-first search.
 import (
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/pschlump/pluto/comparable"
@@ -132,8 +131,8 @@ func (tt *DirectedAcyclicGraph[T]) Search(find T) (item *T) {
 
 // Dump will print out the tree to the file `fo`.
 func (tt *DirectedAcyclicGraph[T]) Dump(fo io.Writer) {
-	var inorderTraversal func(cur *DirectedAcyclicGraphNode[T], n int, fo *os.File)
-	inorderTraversal = func(cur *DirectedAcyclicGraphNode[T], n int, fo *os.File) {
+	var inorderTraversal func(cur *DirectedAcyclicGraphNode[T], n int, fo io.Writer)
+	inorderTraversal = func(cur *DirectedAcyclicGraphNode[T], n int, fo io.Writer) {
 		if cur == nil {
 			return
 		}
