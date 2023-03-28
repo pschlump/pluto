@@ -43,10 +43,6 @@ var ErrEmptyStack = errors.New("Empty Stack")
 
 // Pop will remove the top element from the stack.  An error is returned if the stack is empty.
 func (ns *Stack[T]) Pop() (rv *T, err error) {
-	if ns.IsEmpty() {
-		err = ErrEmptyStack
-		return
-	}
 	return ns.data.Pop()
 }
 
@@ -58,11 +54,7 @@ func (ns *Stack[T]) Length() int {
 // Peek returns the top element of the stack or an error indicating that the stack is empty.
 // Some times this is refered to a 'Top'
 func (ns *Stack[T]) Peek() (*T, error) {
-	if !ns.IsEmpty() {
-		// return &((*ns)[len(*ns)-1]), nil
-		return ns.data.Peek()
-	}
-	return nil, ErrEmptyStack
+	return ns.data.Peek()
 }
 
 // Truncate removes all data from the list.

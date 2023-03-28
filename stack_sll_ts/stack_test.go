@@ -55,11 +55,11 @@ func TestStack(t *testing.T) {
 		t.Errorf("Unexpectd empty stack error after 1 pop")
 	}
 	if x.S != "there" {
-		t.Errorf("Unexpectd value")
+		t.Errorf("Unexpectd value, of %q got %v", "there", x)
 	}
 	x, _ = Stk1.Pop()
 	if x.S != "hi" {
-		t.Errorf("Unexpectd value")
+		t.Errorf("Unexpectd value, of %q got %v", "hi", x)
 	}
 	x, err = Stk1.Pop()
 	if err == nil {

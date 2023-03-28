@@ -135,6 +135,22 @@ func (ns *Sll[T]) InsertBeforeHead(t *T) {
 		(*ns).tail = &x
 		(*ns).length = 1
 	} else {
+		x.next = ns.head
+		ns.head = &x
+		ns.length++
+	}
+}
+
+// InsertAfterTail will append a new node to the end of the list.
+func (ns *Sll[T]) InsertAfterTail(t *T) {
+	(*ns).mu.Lock()
+	defer (*ns).mu.Unlock()
+	x := SllElement[T]{data: t} // Create the node
+	if (*ns).head == nil {
+		(*ns).head = &x
+		(*ns).tail = &x
+		(*ns).length = 1
+	} else {
 		(*ns).tail.next = &x
 		(*ns).tail = &x
 		(*ns).length++
