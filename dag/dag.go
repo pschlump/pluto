@@ -1,7 +1,7 @@
 package dag
 
 /*
-Copyright (C) Philip Schlump, 2012-2021.
+Copyright (C) Philip Schlump, 2012-2023.
 
 BSD 3 Clause Licensed.
 */
