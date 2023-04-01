@@ -25,6 +25,7 @@ This list has head-and-tail pointers.
 *	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n) n/2
 *	Truncate - Delete all the nodes in list. 													O(1)
 *	Walk - Iterate from head to tail of list. 													O(n)
+!	SortList - Sott all values on list															O(n)+Sort Cost
 
 With the basic stack operations it also can be used as a stack:
 *	Push — Inserts an element at the top														O(1)
@@ -115,7 +116,9 @@ func (ns *Dll[T]) Rear() *DllIter[T] {
 }
 
 // Current will take the node returned from Search or RevrseSearch
-// 		func (ns *Dll[T]) Search( t *T ) (rv *DllElement[T], pos int) {
+//
+//	func (ns *Dll[T]) Search( t *T ) (rv *DllElement[T], pos int) {
+//
 // and allow you to start an iteration process from that point.
 func (ns *Dll[T]) Current(el *DllElement[T], pos int) *DllIter[T] {
 	return &DllIter[T]{

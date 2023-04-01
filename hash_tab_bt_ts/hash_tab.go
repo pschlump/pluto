@@ -90,8 +90,8 @@ func (tt *HashTab[T]) Insert(item *T) {
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
 	h := hash(item) % tt.size
-	is_new := tt.buckets[h].Insert(item)
-	if is_new {
+	isNew := tt.buckets[h].Insert(item)
+	if isNew {
 		(*tt).length++
 	}
 }

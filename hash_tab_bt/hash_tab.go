@@ -78,8 +78,8 @@ func (tt *HashTab[T]) Truncate() {
 // Complexity is O(log n)/k.
 func (tt *HashTab[T]) Insert(item *T) {
 	h := hash(item) % tt.size
-	is_new := tt.buckets[h].Insert(item)
-	if is_new {
+	isNew := tt.buckets[h].Insert(item)
+	if isNew {
 		(*tt).length++
 	}
 }

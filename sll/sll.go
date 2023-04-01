@@ -7,9 +7,9 @@ BSD 3 Clause Licensed.
 
 Basic operations on a Singly Linked List (SLL)
 
-	IsEmpty() — Returns true if the sll is empty
+*	IsEmpty() — Returns true if the sll is empty
 	AppendSLL(t T) -
- 	Length() int -
+* 	Length() int -
 
 */
 
@@ -68,7 +68,9 @@ func (ns *Sll[T]) Front() *SllIter[T] {
 }
 
 // Current will take the node returned from Search or RevrseSearch
-// 		func (ns *Sll[T]) Search( t *T ) (rv *SllElement[T], pos int) {
+//
+//	func (ns *Sll[T]) Search( t *T ) (rv *SllElement[T], pos int) {
+//
 // and allow you to start an iteration process from that point.
 func (ns *Sll[T]) Current(el *SllElement[T], pos int) *SllIter[T] {
 	return &SllIter[T]{

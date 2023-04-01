@@ -1,12 +1,11 @@
 package stack
 
 /*
-Copyright (C) Philip Schlump, 2012-2021.
+
+Copyright (C) Philip Schlump, 2023.
 
 BSD 3 Clause Licensed.
-*/
 
-/*
 Basic operations on a stack:
 
 *	Push — Inserts an element at the top
@@ -16,6 +15,7 @@ Basic operations on a stack:
 
 Note: This is a subset of the operations that happen on the `sll_ts` so you can just use the
 singly linked list (thread safe) instead.
+
 */
 
 import (
