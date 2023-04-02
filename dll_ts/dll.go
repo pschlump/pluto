@@ -27,6 +27,7 @@ This list has head-and-tail pointers.
 *	Truncate - Delete all the nodes in list. 													O(1)
 *	Walk - Iterate from head to tail of list. 													O(n)
 !	SortList - Sott all values on list															O(n)+Sort Cost
+*	Trim - Cut list to specified length - list is unchanged if longer than this length.			O(n) n passed
 
 With the basic stack operations it also can be used as a stack:
 *	Push — Inserts an element at the top														O(1)
@@ -52,6 +53,7 @@ import (
 	"sync"
 
 	"github.com/pschlump/pluto/comparable"
+	"github.com/pschlump/pluto/g_lib"
 )
 
 // A node in the doubly linked list
@@ -506,3 +508,63 @@ func (ns *Dll[T]) Index(sub int) (rv *DllElement[T], err error) {
 
 	// return nil, ErrOutOfRange
 }
+
+// Trim will Cut list to specified length - list is unchanged if longer than this length.
+// If n < 0 then this is a NOP.
+// Order: O(n) n passed
+func (ns *Dll[T]) Trim(n int) (err error) {
+	(*ns).mu.Lock()
+	defer (*ns).mu.Unlock()
+	return (*ns).noLockTrim(n)
+}
+
+// noLlockTrim will Cut list to specified length - list is unchanged if longer than this length.
+// If n < 0 then this is a NOP.
+// Order: O(n) n passed
+func (ns *Dll[T]) noLockTrim(n int) (err error) {
+	if ns.length == 0 {
+		return ErrEmptyDll
+	}
+	if ns.length <= n { // Truncate
+		return
+	}
+	tmp := ns.head
+	for i := 0; i < n && tmp != nil; i++ {
+		tmp = tmp.next
+	}
+	ns.tail = tmp
+	ns.tail.next = nil
+	ns.length = g_lib.Max(n, 0)
+	return
+}
+
+// Trim will Cut list to specified length - list is unchanged if longer than this length.
+// If n < 0 then this is a NOP.
+// Order: O(n) n passed
+func (ns *Dll[T]) TrimTail(n int) (err error) {
+	(*ns).mu.Lock()
+	defer (*ns).mu.Unlock()
+	return (*ns).noLockTrimTail(n)
+}
+
+// noLlockTrim will Cut list to specified length - list is unchanged if longer than this length.
+// If n < 0 then this is a NOP.
+// Order: O(n) n passed
+func (ns *Dll[T]) noLockTrimTail(n int) (err error) {
+	if ns.length == 0 {
+		return ErrEmptyDll
+	}
+	if ns.length <= n { // Truncate
+		return
+	}
+	tmp := ns.tail
+	for i := 0; i < n && tmp != nil; i++ {
+		tmp = tmp.prev
+	}
+	ns.head = tmp
+	ns.head.prev = nil
+	ns.length = g_lib.Max(n, 0)
+	return
+}
+
+/* vim: set noai ts=4 sw=4: */

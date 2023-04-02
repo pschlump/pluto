@@ -25,7 +25,6 @@ func NewTestDemo() *TestDemo {
 // At compile time verify that this is a correct type/interface setup.
 var _ comparable.Equality = (*TestDemo)(nil)
 
-//
 func (aa TestDemo) IsEqual(x comparable.Equality) bool {
 	if bb, ok := x.(TestDemo); ok {
 		if aa.S == bb.S {
@@ -435,6 +434,146 @@ func TestIter(t *testing.T) {
 				t.Errorf("Unexpectd Value got ->%s<- expectd ->%s<- at pos %d\n", ii.Value().S, expected[j], j)
 			}
 		}
+	}
+
+}
+
+// func (ns *Dll[T]) Trim(n int) (err error) {
+func TestDllLTrim(t *testing.T) {
+
+	var Dll1 Dll[TestDemo]
+
+	Dll1.AppendAtTail(&TestDemo{S: "aa"})
+	Dll1.AppendAtTail(&TestDemo{S: "bb"})
+	Dll1.AppendAtTail(&TestDemo{S: "cc"})
+	Dll1.AppendAtTail(&TestDemo{S: "dd"})
+
+	got := Dll1.Length()
+	expect := 4
+	if got != expect {
+		t.Errorf("Expected length of %d got %d", expect, got)
+	}
+
+	Dll1.Trim(3)
+
+	got = Dll1.Length()
+	expect = 3
+	if got != expect {
+		t.Errorf("Expected length of %d got %d", expect, got)
+	}
+
+	Dll1.Trim(3)
+
+	got = Dll1.Length()
+	expect = 3
+	if got != expect {
+		t.Errorf("Expected length of %d got %d", expect, got)
+	}
+
+	Dll1.Trim(4)
+
+	got = Dll1.Length()
+	expect = 3
+	if got != expect {
+		t.Errorf("Expected length of %d got %d", expect, got)
+	}
+
+	Dll1.Trim(1)
+
+	got = Dll1.Length()
+	expect = 1
+	if got != expect {
+		t.Errorf("Expected length of %d got %d", expect, got)
+	}
+
+	Dll1.Trim(0)
+
+	got = Dll1.Length()
+	expect = 0
+	if got != expect {
+		t.Errorf("Expected length of %d got %d", expect, got)
+	}
+
+	Dll1.AppendAtTail(&TestDemo{S: "aa"})
+	Dll1.AppendAtTail(&TestDemo{S: "bb"})
+	Dll1.AppendAtTail(&TestDemo{S: "cc"})
+	Dll1.AppendAtTail(&TestDemo{S: "dd"})
+	Dll1.Trim(-1)
+
+	got = Dll1.Length()
+	expect = 0
+	if got != expect {
+		t.Errorf("Expected length of %d got %d", expect, got)
+	}
+
+}
+
+// func (ns *Dll[T]) TrimTail(n int) (err error) {
+func TestDllRTrim(t *testing.T) {
+
+	var Dll1 Dll[TestDemo]
+
+	Dll1.AppendAtTail(&TestDemo{S: "aa"})
+	Dll1.AppendAtTail(&TestDemo{S: "bb"})
+	Dll1.AppendAtTail(&TestDemo{S: "cc"})
+	Dll1.AppendAtTail(&TestDemo{S: "dd"})
+
+	got := Dll1.Length()
+	expect := 4
+	if got != expect {
+		t.Errorf("Expected length of %d got %d", expect, got)
+	}
+
+	Dll1.TrimTail(3)
+
+	got = Dll1.Length()
+	expect = 3
+	if got != expect {
+		t.Errorf("Expected length of %d got %d", expect, got)
+	}
+
+	Dll1.TrimTail(3)
+
+	got = Dll1.Length()
+	expect = 3
+	if got != expect {
+		t.Errorf("Expected length of %d got %d", expect, got)
+	}
+
+	Dll1.TrimTail(4)
+
+	got = Dll1.Length()
+	expect = 3
+	if got != expect {
+		t.Errorf("Expected length of %d got %d", expect, got)
+	}
+
+	Dll1.TrimTail(1)
+
+	got = Dll1.Length()
+	expect = 1
+	if got != expect {
+		t.Errorf("Expected length of %d got %d", expect, got)
+	}
+
+	Dll1.TrimTail(0)
+
+	got = Dll1.Length()
+	expect = 0
+	if got != expect {
+		t.Errorf("Expected length of %d got %d", expect, got)
+	}
+
+	Dll1.AppendAtTail(&TestDemo{S: "aa"})
+	Dll1.AppendAtTail(&TestDemo{S: "bb"})
+	Dll1.AppendAtTail(&TestDemo{S: "cc"})
+	Dll1.AppendAtTail(&TestDemo{S: "dd"})
+	Dll1.TrimTail(-1)
+
+	got = Dll1.Length()
+	expect = 0
+	if got != expect {
+		t.Errorf("Expected length of %d got %d", expect, got)
 	}
 
 }
