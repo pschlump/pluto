@@ -528,13 +528,14 @@ func (ns *Dll[T]) noLockTrim(n int) (err error) {
 	if ns.length <= n { // Truncate
 		return
 	}
+	n-- // convert from Length to index
 	tmp := ns.head
 	for i := 0; i < n && tmp != nil; i++ {
 		tmp = tmp.next
 	}
 	ns.tail = tmp
 	ns.tail.next = nil
-	ns.length = g_lib.Max(n, 0)
+	ns.length = g_lib.Max(n+1, 0)
 	return
 }
 
@@ -557,13 +558,14 @@ func (ns *Dll[T]) noLockTrimTail(n int) (err error) {
 	if ns.length <= n { // Truncate
 		return
 	}
+	n-- // convert from Length to index
 	tmp := ns.tail
 	for i := 0; i < n && tmp != nil; i++ {
 		tmp = tmp.prev
 	}
 	ns.head = tmp
 	ns.head.prev = nil
-	ns.length = g_lib.Max(n, 0)
+	ns.length = g_lib.Max(n+1, 0)
 	return
 }
 

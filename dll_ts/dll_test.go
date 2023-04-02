@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/pschlump/dbgo"
 	"github.com/pschlump/godebug"
 	"github.com/pschlump/pluto/comparable"
 )
@@ -463,6 +464,20 @@ func TestDllLTrim(t *testing.T) {
 	}
 
 	Dll1.Trim(3)
+
+	Value := make([]string, 0, Dll1.Length())
+	Dll1.Walk(func(pos int, data TestDemo, userData interface{}) bool {
+		Value = append(Value, data.S)
+		return false // not found, keep iterating
+	}, nil)
+
+	expect = 3
+	if len(Value) != 3 {
+		t.Errorf("Expected length(by observation) of %d got %d", expect, len(Value))
+	}
+	if dbgo.SVar(Value) != `["aa","bb","cc"]` {
+		t.Errorf("Expected `[\"aa\",\"bb\",\"cc\"]` got %s\n", dbgo.SVar(Value))
+	}
 
 	got = Dll1.Length()
 	expect = 3
