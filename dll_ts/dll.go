@@ -19,6 +19,7 @@ This list has head-and-tail pointers.
 *	Peek - Look at data at head of list.														O(1)
 *	Pop	- Remove and return from the head of the list.											O(1)
 *	Push - Insert at the head of the list.														O(1)
+* 	PopTail - Remvoe the element at the end of the DLL.											O(1)
 *	ReverseList - Reverse all the nodes in list. 												O(n)
 *	ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
 *	ReverseWalk - Iterate from tail to head of list. 											O(n)
