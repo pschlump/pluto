@@ -403,6 +403,45 @@ func TestDll(t *testing.T) {
 
 }
 
+func TestSearch(t *testing.T) {
+
+	var Dll1 Dll[TestDemo]
+
+	Dll1.InsertBeforeHead(&TestDemo{S: "a2"})
+	Dll1.AppendAtTail(&TestDemo{S: "a3"})
+	Dll1.InsertBeforeHead(&TestDemo{S: "a1"})
+	Dll1.AppendAtTail(&TestDemo{S: "a4"})
+	Dll1.AppendAtTail(&TestDemo{S: "a5"})
+	Dll1.AppendAtTail(&TestDemo{S: "a6"})
+	Dll1.AppendAtTail(&TestDemo{S: "a7"})
+	Dll1.AppendAtTail(&TestDemo{S: "a8"})
+	Dll1.AppendAtTail(&TestDemo{S: "a9"})
+
+	if Dll1.Length() != 9 {
+		t.Errorf("Unexpectd length, after search/delete, expected %d got %d", 9, Dll1.Length())
+	}
+
+	x := TestDemo{S: "a2"}
+	err := Dll1.DeleteSearch(&x)
+	if err != nil {
+		t.Errorf("Unexpected errr:%s\n", err)
+	}
+
+	if Dll1.Length() != 8 {
+		t.Errorf("Unexpectd length, after search/delete, expected %d got %d", 8, Dll1.Length())
+	}
+
+	y := TestDemo{S: "bb"}
+	err = Dll1.DeleteSearch(&y)
+	if err == nil {
+		t.Errorf("Unexpectd lack of error")
+	}
+
+	if Dll1.Length() != 8 {
+		t.Errorf("Unexpectd length, after search/delete, expected %d got %d", 8, Dll1.Length())
+	}
+}
+
 func TestIndex(t *testing.T) {
 
 	var Dll1 Dll[TestDemo]

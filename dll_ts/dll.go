@@ -407,6 +407,9 @@ func (ns *Dll[T]) Search(t *T) (rv *DllElement[T], pos int) {
 	return nil, -1 // not found
 }
 
+// DeleteSearch will search for a node matching the supplied 't' and if a match is found then that
+// node will be deleted.   The search is a linear search from the head.  If it is not foudn then
+// an error is returned.
 func (ns *Dll[T]) DeleteSearch(t *T) (err error) {
 	ns.mu.Lock()
 	defer ns.mu.Unlock()
