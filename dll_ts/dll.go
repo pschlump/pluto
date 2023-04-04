@@ -1,7 +1,7 @@
 package dll_ts
 
 /*
-Copyright (C) Philip Schlump, 2012-2021.
+Copyright (C) Philip Schlump, 2012-2023.
 
 BSD 3 Clause Licensed.
 
@@ -13,6 +13,7 @@ This list has head-and-tail pointers.
 *	DeleteAtHead — Deletes the first element of the linked list.  								O(1)
 *	DeleteAtTail — Deletes the last element of the linked list. 								O(1)
 *	Index - return the Nth item	in the list - in a format usable with Delete.					O(n) n/2
+*	IndexFromTail - return the Nth item	in the list - in a format usable with Delete.			O(n) n/2
 *	InsertBeforeHead — Inserts a new element before the current first ement of list.  			O(1)
 *	IsEmpty — Returns true if the linked list is empty											O(1)
 *	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
@@ -26,8 +27,13 @@ This list has head-and-tail pointers.
 *	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n) n/2
 *	Truncate - Delete all the nodes in list. 													O(1)
 *	Walk - Iterate from head to tail of list. 													O(n)
-!	SortList - Sott all values on list															O(n)+Sort Cost
 *	Trim - Cut list to specified length - list is unchanged if longer than this length.			O(n) n passed
+
+!	DeleteSearch — Deletes a specified element from the linked list Search from Head to Tail 	O(n)
+//	router.POST("/api/dSetUnion", func(c *gin.Context) { // Create a list with a set of data (passed list of data)
+//	router.POST("/api/dSetIntersection", func(c *gin.Context) { // Create a list with a set of data (passed list of data)
+//	router.POST("/api/dSetMinus", func(c *gin.Context) { // Create a list with a set of data (passed list of data)
+//	router.POST("/api/dConcat", func(c *gin.Context) { // Create a list with a set of data (passed list of data)
 
 With the basic stack operations it also can be used as a stack:
 *	Push — Inserts an element at the top														O(1)
@@ -501,6 +507,36 @@ func (ns *Dll[T]) Index(sub int) (rv *DllElement[T], err error) {
 		i := (*ns).length - 1
 		rv = (*ns).tail
 		for ; rv != nil && i > sub; rv = rv.prev {
+			i--
+		}
+		return
+	}
+
+	// return nil, ErrOutOfRange
+}
+
+// IndexFromTail will return the Nth item from the list.
+func (ns *Dll[T]) IndexFromTail(sub int) (rv *DllElement[T], err error) {
+	(*ns).mu.RLock()
+	defer (*ns).mu.RUnlock()
+	// if ns.IsEmpty() {
+	if (*ns).length == 0 {
+		return nil, ErrOutOfRange
+	}
+
+	if sub < 0 || sub >= (*ns).length {
+		return nil, ErrOutOfRange
+	} else if sub < ((*ns).length / 2) {
+		i := 0
+		rv = (*ns).tail
+		for ; i < sub; rv = rv.prev {
+			i++
+		}
+		return
+	} else {
+		i := (*ns).length - 1
+		rv = (*ns).head
+		for ; rv != nil && i > sub; rv = rv.next {
 			i--
 		}
 		return

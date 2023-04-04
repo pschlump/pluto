@@ -390,6 +390,63 @@ func TestDll(t *testing.T) {
 
 }
 
+func TestIndex(t *testing.T) {
+
+	var Dll1 Dll[TestDemo]
+
+	Dll1.InsertBeforeHead(&TestDemo{S: "a2"})
+	Dll1.AppendAtTail(&TestDemo{S: "a3"})
+	Dll1.InsertBeforeHead(&TestDemo{S: "a1"})
+	Dll1.AppendAtTail(&TestDemo{S: "a4"})
+	Dll1.AppendAtTail(&TestDemo{S: "a5"})
+	Dll1.AppendAtTail(&TestDemo{S: "a6"})
+	Dll1.AppendAtTail(&TestDemo{S: "a7"})
+	Dll1.AppendAtTail(&TestDemo{S: "a8"})
+	Dll1.AppendAtTail(&TestDemo{S: "a9"})
+
+	// List should be
+	//
+	//  [0]  [1]  [2]  [3]  [4]  [5]  [6]  [7]  [8]		From Head
+	//  [8]  [7]  [6]  [5]  [4]  [3]  [2]  [1]  [0]		From Tail
+	//  a1   a2   a3   a4   a5   a6   a7   a8   a9
+
+	rv, err := Dll1.Index(2)
+	if err != nil {
+		t.Errorf("Unexpectd error")
+	} else {
+		if (*rv).Data.S != "a3" {
+			t.Errorf("Unexpectd value, expected ->%s<- got ->%s<-", "01", (*rv).Data.S)
+		}
+	}
+
+	rv, err = Dll1.Index(6)
+	if err != nil {
+		t.Errorf("Unexpectd error")
+	} else {
+		if (*rv).Data.S != "a7" {
+			t.Errorf("Unexpectd value, expected ->%s<- got ->%s<-", "01", (*rv).Data.S)
+		}
+	}
+
+	rv, err = Dll1.IndexFromTail(2)
+	if err != nil {
+		t.Errorf("Unexpectd error")
+	} else {
+		if (*rv).Data.S != "a7" {
+			t.Errorf("Unexpectd value, expected ->%s<- got ->%s<-", "01", (*rv).Data.S)
+		}
+	}
+
+	rv, err = Dll1.IndexFromTail(6)
+	if err != nil {
+		t.Errorf("Unexpectd error")
+	} else {
+		if (*rv).Data.S != "a3" {
+			t.Errorf("Unexpectd value, expected ->%s<- got ->%s<-", "01", (*rv).Data.S)
+		}
+	}
+}
+
 func TestIter(t *testing.T) {
 	if db7 {
 		fmt.Printf("AT: %s\n", godebug.LF())
