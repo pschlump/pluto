@@ -123,8 +123,8 @@ func (tt AvlTree[T]) nlIsEmpty() bool {
 func (tt *AvlTree[T]) Truncate() {
 	// tt.lock.Lock()
 	// defer tt.lock.Unlock()
-	(*tt).root = nil
-	(*tt).length = 0
+	tt.root = nil
+	tt.length = 0
 }
 
 /*
@@ -198,7 +198,7 @@ func (tt *AvlTree[T]) Insert(item *T) {
 	// defer tt.lock.Unlock()
 
 	node := NewAvlTreeElement[T](item)
-	if (*tt).nlIsEmpty() {
+	if tt.nlIsEmpty() {
 		tt.root = node
 		tt.length = 1
 		return
@@ -347,7 +347,7 @@ func (tt *AvlTree[T]) Insert(item *T) {
 		}
 	}
 
-	insert(&((*tt).root))
+	insert(&(tt.root))
 
 }
 
@@ -355,7 +355,7 @@ func (tt *AvlTree[T]) Insert(item *T) {
 func (tt *AvlTree[T]) Length() int {
 	// tt.lock.RLock()
 	// defer tt.lock.RUnlock()
-	return (*tt).length
+	return tt.length
 }
 
 // Search will walk the tree looking for `find` and retrn the found item
@@ -368,7 +368,7 @@ func (tt *AvlTree[T]) Search(find *T) (item *T) {
 	// tt.lock.RLock()
 	// defer tt.lock.RUnlock()
 
-	if (*tt).nlIsEmpty() {
+	if tt.nlIsEmpty() {
 		return nil
 	}
 
@@ -434,7 +434,7 @@ func (tt *AvlTree[T]) Delete(find *T) (found bool) {
 
 func (tt *AvlTree[T]) nlDelete(find *T) (found bool) {
 
-	if (*tt).nlIsEmpty() {
+	if tt.nlIsEmpty() {
 		return false
 	}
 
@@ -463,7 +463,7 @@ func (tt *AvlTree[T]) nlDelete(find *T) (found bool) {
 		c := (*find).Compare(*(*cur).data)
 		if c == 0 {
 			// fmt.Printf ( "FOUND! now remove it! at:%s\n", godebug.LF())
-			(*tt).length--
+			tt.length--
 			if (*cur).left == nil && (*cur).right == nil {
 				// fmt.Printf ( "at:%s\n", godebug.LF())
 				(*cur) = nil // just delete the node, it has no children.
@@ -650,7 +650,7 @@ rb:
 		}
 	}
 
-	rebalance(&((*tt).root))
+	rebalance(&(tt.root))
 
 	return true
 }
@@ -675,7 +675,7 @@ func (tt *AvlTree[T]) FindMin() (item *T) {
 }
 
 func (tt *AvlTree[T]) nlFindMin() (item *T) {
-	if (*tt).nlIsEmpty() {
+	if tt.nlIsEmpty() {
 		return nil
 	}
 
@@ -704,7 +704,7 @@ func (tt *AvlTree[T]) FindMax() (item *T) {
 
 // nlFindMax returns the largest value in the tree without locking.
 func (tt *AvlTree[T]) nlFindMax() (item *T) {
-	if (*tt).nlIsEmpty() {
+	if tt.nlIsEmpty() {
 		return nil
 	}
 
@@ -727,7 +727,7 @@ func (tt *AvlTree[T]) DeleteAtHead() (found bool) {
 	// tt.lock.Lock()
 	// defer tt.lock.Unlock()
 
-	if (*tt).nlIsEmpty() {
+	if tt.nlIsEmpty() {
 		return false
 	}
 
@@ -744,7 +744,7 @@ func (tt *AvlTree[T]) DeleteAtTail() (found bool) {
 	// tt.lock.RLock()
 	// defer tt.lock.RUnlock()
 
-	if (*tt).nlIsEmpty() {
+	if tt.nlIsEmpty() {
 		return false
 	}
 
@@ -762,7 +762,7 @@ func (tt *AvlTree[T]) Reverse() {
 	// tt.lock.Lock()
 	// defer tt.lock.Unlock()
 
-	if (*tt).nlIsEmpty() {
+	if tt.nlIsEmpty() {
 		return
 	}
 
@@ -790,7 +790,7 @@ func (tt *AvlTree[T]) Index(pos int) (item *T) {
 	// tt.lock.RLock()
 	// defer tt.lock.RUnlock()
 
-	if (*tt).nlIsEmpty() {
+	if tt.nlIsEmpty() {
 		return nil
 	}
 
@@ -846,7 +846,7 @@ func (tt *AvlTree[T]) nlDepth() (d int) {
 	// tt.lock.RLock()
 	// defer tt.lock.RUnlock()
 
-	if (*tt).nlIsEmpty() {
+	if tt.nlIsEmpty() {
 		return 0
 	}
 
