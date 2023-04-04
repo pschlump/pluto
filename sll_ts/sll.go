@@ -50,7 +50,9 @@ func (ns *Sll[T]) Front() *SllIter[T] {
 }
 
 // Current will take the node returned from Search or RevrseSearch
-// 		func (ns *Sll[T]) Search( t *T ) (rv *SllElement[T], pos int) {
+//
+//	func (ns *Sll[T]) Search( t *T ) (rv *SllElement[T], pos int) {
+//
 // and allow you to start an iteration process from that point.
 func (ns *Sll[T]) Current(el *SllElement[T], pos int) *SllIter[T] {
 	return &SllIter[T]{
@@ -103,37 +105,37 @@ func (iter *SllIter[T]) Pos() int {
 // -------------------------------------------------------------------------------------------------------
 // IsEmpty will return true if the stack is empty
 func (ns *Sll[T]) IsEmpty() bool {
-	// return (*ns).head == nil
-	(*ns).mu.RLock()
-	defer (*ns).mu.RUnlock()
-	return (*ns).length == 0
+	// return ns.head == nil
+	ns.mu.RLock()
+	defer ns.mu.RUnlock()
+	return ns.length == 0
 }
 
 // InsertHeadSLL will append a new node to the end of the list.
 func (ns *Sll[T]) InsertHeadSLL(t *T) {
-	(*ns).mu.Lock()
-	defer (*ns).mu.Unlock()
+	ns.mu.Lock()
+	defer ns.mu.Unlock()
 	x := SllElement[T]{data: t} // Create the node
-	if (*ns).head == nil {
-		(*ns).head = &x
-		(*ns).tail = &x
-		(*ns).length = 1
+	if ns.head == nil {
+		ns.head = &x
+		ns.tail = &x
+		ns.length = 1
 	} else {
-		x.next = (*ns).head
-		(*ns).head = &x
-		(*ns).length++
+		x.next = ns.head
+		ns.head = &x
+		ns.length++
 	}
 }
 
 // InsertBeforeHead will append a new node to the end of the list.
 func (ns *Sll[T]) InsertBeforeHead(t *T) {
-	(*ns).mu.Lock()
-	defer (*ns).mu.Unlock()
+	ns.mu.Lock()
+	defer ns.mu.Unlock()
 	x := SllElement[T]{data: t} // Create the node
-	if (*ns).head == nil {
-		(*ns).head = &x
-		(*ns).tail = &x
-		(*ns).length = 1
+	if ns.head == nil {
+		ns.head = &x
+		ns.tail = &x
+		ns.length = 1
 	} else {
 		x.next = ns.head
 		ns.head = &x
@@ -143,17 +145,17 @@ func (ns *Sll[T]) InsertBeforeHead(t *T) {
 
 // InsertAfterTail will append a new node to the end of the list.
 func (ns *Sll[T]) InsertAfterTail(t *T) {
-	(*ns).mu.Lock()
-	defer (*ns).mu.Unlock()
+	ns.mu.Lock()
+	defer ns.mu.Unlock()
 	x := SllElement[T]{data: t} // Create the node
-	if (*ns).head == nil {
-		(*ns).head = &x
-		(*ns).tail = &x
-		(*ns).length = 1
+	if ns.head == nil {
+		ns.head = &x
+		ns.tail = &x
+		ns.length = 1
 	} else {
-		(*ns).tail.next = &x
-		(*ns).tail = &x
-		(*ns).length++
+		ns.tail.next = &x
+		ns.tail = &x
+		ns.length++
 	}
 }
 
@@ -164,9 +166,9 @@ func (ns *Sll[T]) Push(t *T) {
 
 // Length returns the number of elements in the list.
 func (ns *Sll[T]) Length() int {
-	(*ns).mu.RLock()
-	defer (*ns).mu.RUnlock()
-	return (*ns).length
+	ns.mu.RLock()
+	defer ns.mu.RUnlock()
+	return ns.length
 }
 
 // An error to indicate that the stack is empty
@@ -174,36 +176,36 @@ var ErrEmptySll = errors.New("Empty Sll")
 
 // Pop will remove the top element from the stack.  An error is returned if the stack is empty.
 func (ns *Sll[T]) Pop() (rv *T, err error) {
-	(*ns).mu.Lock()
-	defer (*ns).mu.Unlock()
+	ns.mu.Lock()
+	defer ns.mu.Unlock()
 	// if ns.IsEmpty() {
-	if (*ns).length == 0 {
+	if ns.length == 0 {
 		return nil, ErrEmptySll
 	}
-	rv = (*ns).head.data
-	(*ns).head = (*ns).head.next
-	(*ns).length--
+	rv = ns.head.data
+	ns.head = ns.head.next
+	ns.length--
 	return
 }
 
 // Peek returns the top element of the stack or an error indicating that the stack is empty.
 func (ns *Sll[T]) Peek() (rv *T, err error) {
-	(*ns).mu.RLock()
-	defer (*ns).mu.RUnlock()
+	ns.mu.RLock()
+	defer ns.mu.RUnlock()
 	// if ns.IsEmpty() {
-	if (*ns).length == 0 {
+	if ns.length == 0 {
 		return nil, ErrEmptySll
 	}
-	rv = (*ns).head.data
+	rv = ns.head.data
 	return
 }
 
 // Truncate removes all data from the list.
 func (ns *Sll[T]) Truncate() {
-	(*ns).mu.Lock()
-	defer (*ns).mu.Unlock()
-	(*ns).head = nil
-	(*ns).tail = nil
-	(*ns).length = 0
+	ns.mu.Lock()
+	defer ns.mu.Unlock()
+	ns.head = nil
+	ns.tail = nil
+	ns.length = 0
 	return
 }
