@@ -28,12 +28,7 @@ This list has head-and-tail pointers.
 *	Truncate - Delete all the nodes in list. 													O(1)
 *	Walk - Iterate from head to tail of list. 													O(n)
 *	Trim - Cut list to specified length - list is unchanged if longer than this length.			O(n) n passed
-
-!	DeleteSearch — Deletes a specified element from the linked list Search from Head to Tail 	O(n)
-//	router.POST("/api/dSetUnion", func(c *gin.Context) { // Create a list with a set of data (passed list of data)
-//	router.POST("/api/dSetIntersection", func(c *gin.Context) { // Create a list with a set of data (passed list of data)
-//	router.POST("/api/dSetMinus", func(c *gin.Context) { // Create a list with a set of data (passed list of data)
-//	router.POST("/api/dConcat", func(c *gin.Context) { // Create a list with a set of data (passed list of data)
+*	DeleteSearch — Deletes a specified element from the linked list Search from Head to Tail 	O(n)
 
 With the basic stack operations it also can be used as a stack:
 *	Push — Inserts an element at the top														O(1)
@@ -254,6 +249,7 @@ func (ns *Dll[T]) Length() int {
 }
 
 // An error to indicate that the DLL is empty
+var ErrNotFound = errors.New("Not Found")
 var ErrEmptyDll = errors.New("Empty Dll")
 var ErrInteralDll = errors.New("Interal Dll")
 var ErrOutOfRange = errors.New("Subscript Out of Range")
@@ -307,6 +303,10 @@ func (ns *Dll[T]) noLockPopTail() (rv *T, err error) {
 func (ns *Dll[T]) Delete(it *DllElement[T]) (err error) {
 	(*ns).mu.Lock()
 	defer (*ns).mu.Unlock()
+	return ns.noLockDelete(it)
+}
+
+func (ns *Dll[T]) noLockDelete(it *DllElement[T]) (err error) {
 	if (*ns).head == it && (*ns).tail == it {
 		(*ns).head = nil
 		(*ns).tail = nil
@@ -405,6 +405,25 @@ func (ns *Dll[T]) Search(t *T) (rv *DllElement[T], pos int) {
 		i++
 	}
 	return nil, -1 // not found
+}
+
+func (ns *Dll[T]) DeleteSearch(t *T) (err error) {
+	(*ns).mu.Lock()
+	defer (*ns).mu.Unlock()
+
+	// if ns.IsEmpty() {
+	if (*ns).length == 0 {
+		return ErrNotFound
+	}
+
+	i := 0
+	for p := (*ns).head; p != nil; p = p.next {
+		if (*p.Data).IsEqual(*t) { // IsEqual(b Equality) bool
+			return ns.noLockDelete(p)
+		}
+		i++
+	}
+	return ErrNotFound
 }
 
 // ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)

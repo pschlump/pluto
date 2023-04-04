@@ -287,22 +287,31 @@ func TestDll(t *testing.T) {
 	Dll1.InsertBeforeHead(&TestDemo{S: "02"})
 	Dll1.AppendAtTail(&TestDemo{S: "03"})
 	Dll1.InsertBeforeHead(&TestDemo{S: "01"})
+	// fmt.Printf("AT: %s\n", godebug.LF())
 
 	// Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
 	// func (ns *Dll[T]) Search( t *T ) (rv *DllElement[T], pos int) {
 	rv, pos = Dll1.Search(&TestDemo{S: "02"})
 	if db4 {
+		fmt.Printf("AT: %s\n", godebug.LF())
 		fmt.Printf("%+v, at locaiton %d\n", rv, pos)
 	}
 
 	// Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
 	// func (ns *Dll[T]) Delete( it *DllElement[T] ) ( err error ) {
+	// 	fmt.Printf("AT: %s\n", godebug.LF())
 	err = Dll1.Delete(rv)
+	// 	fmt.Printf("AT: %s\n", godebug.LF())
 
 	if Dll1.Length() != 2 {
 		t.Errorf("Unexpectd length, after search/delete, expected %d got %d", 2, Dll1.Length())
 	}
 
+	if db7 {
+		fmt.Printf("AT: %s\n", godebug.LF())
+	}
+
+	// 	fmt.Printf("AT: %s\n", godebug.LF())
 	// Print the nodes in a list.
 	fx = func(pos int, data TestDemo, userData interface{}) bool {
 		if db3 {
@@ -318,6 +327,7 @@ func TestDll(t *testing.T) {
 	}
 
 	Dll1.Truncate()
+	// 	fmt.Printf("AT: %s\n", godebug.LF())
 	Dll1.InsertBeforeHead(&TestDemo{S: "02"})
 	Dll1.AppendAtTail(&TestDemo{S: "03"})
 	Dll1.InsertBeforeHead(&TestDemo{S: "01"})
@@ -327,6 +337,9 @@ func TestDll(t *testing.T) {
 	rv, pos = Dll1.ReverseSearch(&TestDemo{S: "02"})
 	if db4 {
 		fmt.Printf("%+v, at locaiton %d\n", rv, pos)
+	}
+	if db7 {
+		fmt.Printf("AT: %s\n", godebug.LF())
 	}
 
 	// Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
@@ -448,6 +461,7 @@ func TestIndex(t *testing.T) {
 }
 
 func TestIter(t *testing.T) {
+
 	if db7 {
 		fmt.Printf("AT: %s\n", godebug.LF())
 	}
