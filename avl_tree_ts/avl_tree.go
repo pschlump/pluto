@@ -25,13 +25,18 @@ Basic operations on a AVL Binary Tree.
 *	Depth -> int to get deepest part of tree
 
 * 	DeleteAtHead — Deletes the first element of the linked list.  								O(log|2(n))
-		Delete ( FindMin ( ) )
+		=== Delete ( FindMin ( ) )
 * 	DeleteAtTail — Deletes the last element of the linked list. 								O(log|2(n))
-		Delete ( FindMax ( ) )
+		=== Delete ( FindMax ( ) )
 
-*	WalkInOrder
-+	WalkPreOrder
-+	WalkPostOrder
+*	WalkInOrder																					O(n)
++	WalkPreOrder																				O(n)
++	WalkPostOrder																				O(n)
+
++	Copy																						O(n)
++	Union																						O(n)
++	Minus																						O(n)
++	Intersect																					O(n)
 
 */
 
@@ -41,10 +46,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pschlump/godebug"
 	"github.com/pschlump/pluto/comparable"
 	"github.com/pschlump/pluto/g_lib"
-	// "github.com/pschlump/MiscLib"
 )
 
 type AvlTreeElement[T comparable.Comparable] struct {
@@ -53,15 +56,15 @@ type AvlTreeElement[T comparable.Comparable] struct {
 	left, right *AvlTreeElement[T]
 }
 
-// AvlTree is a generic binary tree
+// AvlTree is a generic binary tree that is balanced using the AVL rotation system.
 type AvlTree[T comparable.Comparable] struct {
 	root   *AvlTreeElement[T]
 	length int
 	lock   sync.RWMutex
 }
 
-// -------------------------------------------------------------------------------------------------------
-
+// NewAvlTreeElement will create a new node for the ACL Tree
+// Complexity is O(1).
 func NewAvlTreeElement[T comparable.Comparable](x *T) *AvlTreeElement[T] {
 	return &AvlTreeElement[T]{
 		data:   x,
@@ -71,6 +74,8 @@ func NewAvlTreeElement[T comparable.Comparable](x *T) *AvlTreeElement[T] {
 	}
 }
 
+// Height resturns the saved height from the node in the AVL tree.  This height is re-calculated as the tree is modified.
+// Complexity is O(1).
 func (tt *AvlTree[T]) Height(e *AvlTreeElement[T]) int {
 	if e == nil {
 		return 0
@@ -78,6 +83,8 @@ func (tt *AvlTree[T]) Height(e *AvlTreeElement[T]) int {
 	return e.height
 }
 
+// calcAvlBalance returns the difference in height between the left and right sub trees.  When this is more than 2 the
+// trees will be rotated to restore balance.
 // Complexity is O(1).
 func (tt *AvlTree[T]) calcAvlBalance(e *AvlTreeElement[T]) int {
 	if e == nil {
@@ -86,7 +93,7 @@ func (tt *AvlTree[T]) calcAvlBalance(e *AvlTreeElement[T]) int {
 	return tt.Height(e.left) - tt.Height(e.right)
 }
 
-// Create a new AvlTree and return it.
+// NewAvlTree will create a new AvlTree and return it.
 // Complexity is O(1).
 func NewAvlTree[T comparable.Comparable]() *AvlTree[T] {
 	return &AvlTree[T]{
@@ -95,18 +102,14 @@ func NewAvlTree[T comparable.Comparable]() *AvlTree[T] {
 	}
 }
 
+// Return the user data from the AVL tree node.
 // Complexity is O(1).
 func (ee *AvlTreeElement[T]) GetData() *T {
 	return ee.data
 }
 
-// -------------------------------------------------------------------------------------------------------
-
 // IsEmpty will return true if the binary-tree is empty
 func (tt *AvlTree[T]) IsEmpty() bool {
-	if db1 {
-		fmt.Printf("at:%s\n", godebug.LF())
-	}
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 	return tt.root == nil
@@ -114,9 +117,6 @@ func (tt *AvlTree[T]) IsEmpty() bool {
 
 // nlIsEmpty a no-lock interal version that will return true if the binary-tree is empty
 func (tt *AvlTree[T]) nlIsEmpty() bool {
-	if db1 {
-		fmt.Printf("at:%s\n", godebug.LF())
-	}
 	return tt.root == nil
 }
 
@@ -124,6 +124,10 @@ func (tt *AvlTree[T]) nlIsEmpty() bool {
 func (tt *AvlTree[T]) Truncate() {
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
+	tt.nlTruncate()
+}
+
+func (tt *AvlTree[T]) nlTruncate() {
 	(*tt).root = nil
 	(*tt).length = 0
 }
@@ -197,6 +201,11 @@ func (tt *AvlTree[T]) Insert(item *T) {
 
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
+
+	tt.nlInsert(item)
+}
+
+func (tt *AvlTree[T]) nlInsert(item *T) {
 
 	node := NewAvlTreeElement[T](item)
 	if (*tt).nlIsEmpty() {
@@ -353,6 +362,7 @@ func (tt *AvlTree[T]) Insert(item *T) {
 }
 
 // Length returns the number of elements in the list.
+// Complexity is O(1).
 func (tt *AvlTree[T]) Length() int {
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
@@ -361,6 +371,7 @@ func (tt *AvlTree[T]) Length() int {
 
 // Search will walk the tree looking for `find` and retrn the found item
 // if it is in the tree. If it is not found then `nil` will be returned.
+// Complexity is O(n log 2).
 func (tt *AvlTree[T]) Search(find *T) (item *T) {
 	if tt == nil {
 		panic("tree sholud not be a nil")
@@ -368,6 +379,11 @@ func (tt *AvlTree[T]) Search(find *T) (item *T) {
 
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
+
+	return tt.nlSearch(find)
+}
+
+func (tt *AvlTree[T]) nlSearch(find *T) (item *T) {
 
 	if (*tt).nlIsEmpty() {
 		return nil
@@ -401,6 +417,7 @@ func (tt *AvlTree[T]) Search(find *T) (item *T) {
 }
 
 // Dump will print out the tree to the file `fo`.
+// Complexity is O(n)
 func (tt *AvlTree[T]) Dump(fo io.Writer) {
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
@@ -422,6 +439,8 @@ func (tt *AvlTree[T]) Dump(fo io.Writer) {
 	inorderTraversal(tt.root, 0)
 }
 
+// Delete removes a node from the AVL tree if it matches the specified node.  True is returnd if a node is removed, false otherwise.
+// Complexity is O(n log 2)
 func (tt *AvlTree[T]) Delete(find *T) (found bool) {
 	if tt == nil {
 		panic("tree sholud not be a nil")
@@ -440,18 +459,14 @@ func (tt *AvlTree[T]) nlDelete(find *T) (found bool) {
 	}
 
 	findLeftMostInRightSubtree := func(parent **AvlTreeElement[T]) (found bool, pAtIt **AvlTreeElement[T]) {
-		// fmt.Printf ( "%sFindLeftMost/At Top: at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
 		this := **parent
 		if *parent == nil {
-			// fmt.Printf ( "%sFindLeftMost/no tree: at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
 			return
 		}
 		for this.right != nil {
-			// fmt.Printf ( "%sAdvance 1 step. at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
 			parent = &(this.right)
 			this = **parent
 		}
-		// fmt.Printf ( "%sat bottom at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
 		found = true
 		pAtIt = parent
 		return
@@ -460,46 +475,32 @@ func (tt *AvlTree[T]) nlDelete(find *T) (found bool) {
 	// Iterative search through tree (can be used above)
 	cur := &tt.root // ptr to ptr to tree
 	for tt != nil {
-		// fmt.Printf ( "at:%s\n", godebug.LF())
 		c := (*find).Compare(*(*cur).data)
 		if c == 0 {
-			// fmt.Printf ( "FOUND! now remove it! at:%s\n", godebug.LF())
 			(*tt).length--
 			if (*cur).left == nil && (*cur).right == nil {
-				// fmt.Printf ( "at:%s\n", godebug.LF())
 				(*cur) = nil // just delete the node, it has no children.
 			} else if (*cur).left != nil && (*cur).right == nil {
-				// fmt.Printf ( "at:%s\n", godebug.LF())
 				(*cur) = (*cur).left // Has only left children, promote them.
 			} else if (*cur).left == nil && (*cur).right != nil {
-				// fmt.Printf ( "at:%s\n", godebug.LF())
 				(*cur) = (*cur).right // Has only right children, promote them.
 			} else { // has both children.
-				// fmt.Printf ( "at:%s\n", godebug.LF())
 				// Has only right children, promote them.
 				found, pAtIt := findLeftMostInRightSubtree(&((*cur).right)) // Find lft mos of right sub-tree
 				if !found {
-					// fmt.Printf ( "%sAbout to Panic: Failed to have a subtree. AT:%s%s\n", MiscLib.ColorRed, godebug.LF(), MiscLib.ColorReset)
 					panic("Can't have a missing sub-tree.")
 				}
-				// fmt.Printf ( "at:%s\n", godebug.LF())
 				(*cur).data = (*pAtIt).data // promote node's data.
-				// fmt.Printf ( "at:%s\n", godebug.LF())
-				(*pAtIt) = (*pAtIt).right // Left most can have a right sub-tree - but it is left most so it can't have a more left tree.
-				// fmt.Printf ( "at:%s\n", godebug.LF())
+				(*pAtIt) = (*pAtIt).right   // Left most can have a right sub-tree - but it is left most so it can't have a more left tree.
 			}
 			// return true
 			goto rb
 		}
-		// fmt.Printf ( "at:%s\n", godebug.LF())
 		if c < 0 && (*cur).left != nil {
-			// fmt.Printf ( "Go Left at:%s\n", godebug.LF())
 			cur = &((*cur).left)
 		} else if c > 0 && (*cur).right != nil {
-			// fmt.Printf ( "Go Right at:%s\n", godebug.LF())
 			cur = &((*cur).right)
 		} else {
-			// fmt.Printf ( "not found - in loop - at:%s\n", godebug.LF())
 			break
 		}
 	}
@@ -664,6 +665,7 @@ rb:
     {09}
 */
 
+// FindMin searches the tree to find the minimum  node in the tree.
 func (tt *AvlTree[T]) FindMin() (item *T) {
 	if tt == nil {
 		panic("tree sholud not be a nil")
@@ -675,6 +677,7 @@ func (tt *AvlTree[T]) FindMin() (item *T) {
 	return tt.nlFindMin()
 }
 
+// nlFindMin is an internal routine that searches the tree to find the minimum  node in the tree.
 func (tt *AvlTree[T]) nlFindMin() (item *T) {
 	if (*tt).nlIsEmpty() {
 		return nil
@@ -720,6 +723,7 @@ func (tt *AvlTree[T]) nlFindMax() (item *T) {
 	return (*cur).data
 }
 
+// DeleteAtHead searches the tree to find the minimum node and removes it.
 func (tt *AvlTree[T]) DeleteAtHead() (found bool) {
 	if tt == nil {
 		panic("tree sholud not be a nil")
@@ -737,6 +741,7 @@ func (tt *AvlTree[T]) DeleteAtHead() (found bool) {
 	return true
 }
 
+// DeleteAtTail searches the tree to find the maximum node and removes it.
 func (tt *AvlTree[T]) DeleteAtTail() (found bool) {
 	if tt == nil {
 		panic("tree sholud not be a nil")
@@ -754,7 +759,8 @@ func (tt *AvlTree[T]) DeleteAtTail() (found bool) {
 	return true
 }
 
-// Reverse swaps the order of all the nodes in the AVL Tree
+// Reverse swaps the order of all the nodes in the AVL Tree.   This is a strange but useful operation
+// since it will render the tree un-usable for future inserts/updates unless it is reversed again.
 func (tt *AvlTree[T]) Reverse() {
 	if tt == nil {
 		panic("tree sholud not be a nil")
@@ -783,6 +789,7 @@ func (tt *AvlTree[T]) Reverse() {
 	postTraversal(tt.root)
 }
 
+// Index walks  the tree and returns the N-th item in the tree.
 func (tt *AvlTree[T]) Index(pos int) (item *T) {
 	if tt == nil {
 		panic("tree sholud not be a nil")
@@ -828,6 +835,7 @@ func (tt *AvlTree[T]) Index(pos int) (item *T) {
 	return
 }
 
+// Depth returns the maximum height of the tree.
 func (tt *AvlTree[T]) Depth() (d int) {
 	if tt == nil {
 		panic("tree sholud not be a nil")
@@ -843,9 +851,6 @@ func (tt *AvlTree[T]) nlDepth() (d int) {
 	if tt == nil {
 		panic("tree sholud not be a nil")
 	}
-
-	tt.lock.RLock()
-	defer tt.lock.RUnlock()
 
 	if (*tt).nlIsEmpty() {
 		return 0
@@ -874,11 +879,20 @@ func (tt *AvlTree[T]) nlDepth() (d int) {
 
 type ApplyFunction[T comparable.Comparable] func(pos, depth int, data *T, userData interface{}) bool
 
+// WalkInOrder walks the tree applying the function 'fx' to each node.  If 'fx' returns false then the
+// walk stops.
 func (tt *AvlTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) {
+	if tt == nil {
+		panic("tree sholud not be a nil")
+	}
 
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 
+	tt.WalkInOrder(fx, userData)
+}
+
+func (tt *AvlTree[T]) nlWalkInOrder(fx ApplyFunction[T], userData interface{}) {
 	p := 0
 	b := true
 	var inorderTraversal func(cur *AvlTreeElement[T], n int)
@@ -905,7 +919,12 @@ func (tt *AvlTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) {
 	inorderTraversal(tt.root, 0)
 }
 
+// WalkPreOrder walks the tree in pre-order applying the function 'fx' to each node.  If 'fx' returns false then the
+// walk stops.
 func (tt *AvlTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
+	if tt == nil {
+		panic("tree sholud not be a nil")
+	}
 
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
@@ -936,7 +955,12 @@ func (tt *AvlTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
 	preOrderTraversal(tt.root, 0)
 }
 
+// WalkPostOrder walks the tree in post-order applying the function 'fx' to each node.  If 'fx' returns false then the
+// walk stops.
 func (tt *AvlTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
+	if tt == nil {
+		panic("tree sholud not be a nil")
+	}
 
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
@@ -967,6 +991,93 @@ func (tt *AvlTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
 	postOrderTraversal(tt.root, 0)
 }
 
-const db1 = false // print in IsEmpty
+// Copy makes a deep copy of one tree to another.
+func (tt *AvlTree[T]) Copy(yy *AvlTree[T]) {
+	if tt == nil {
+		panic("tree sholud not be a nil")
+	}
+
+	tt.lock.Lock()
+	yy.lock.Lock()
+	defer yy.lock.Unlock()
+	defer tt.lock.Unlock()
+
+	tt.nlTruncate()
+	yy.nlWalkInOrder(func(_, _ int, data *T, _ interface{}) bool {
+		tt.nlInsert(data)
+		return true
+	}, nil)
+}
+
+// Union is a set union, tt = yy union zz.
+// Set union - if a duplicate then insert will use the new one.
+func (tt *AvlTree[T]) Union(yy, zz *AvlTree[T]) {
+	if tt == nil {
+		panic("tree sholud not be a nil")
+	}
+
+	tt.lock.Lock()
+	yy.lock.Lock()
+	zz.lock.Lock()
+	defer zz.lock.Unlock()
+	defer yy.lock.Unlock()
+	defer tt.lock.Unlock()
+
+	tt.nlTruncate()
+	yy.nlWalkInOrder(func(_, _ int, data *T, _ interface{}) bool {
+		tt.nlInsert(data)
+		return true
+	}, nil)
+	zz.nlWalkInOrder(func(_, _ int, data *T, _ interface{}) bool {
+		tt.nlInsert(data)
+		return true
+	}, nil)
+}
+
+// Minus is a set minus, tt = yy - zz.
+func (tt *AvlTree[T]) Minus(yy, zz *AvlTree[T]) {
+	if tt == nil {
+		panic("tree sholud not be a nil")
+	}
+
+	tt.lock.Lock()
+	yy.lock.Lock()
+	zz.lock.Lock()
+	defer zz.lock.Unlock()
+	defer yy.lock.Unlock()
+	defer tt.lock.Unlock()
+
+	tt.nlTruncate()
+	yy.nlWalkInOrder(func(_, _ int, data *T, _ interface{}) bool {
+		// func (tt *AvlTree[T]) Search(find *T) (item *T) {
+		if zz.nlSearch(data) != nil {
+			tt.nlInsert(data)
+		}
+		return true
+	}, nil)
+}
+
+// Intersect take the set intersection.  tt = yy intersect zz
+func (tt *AvlTree[T]) Intersect(yy, zz *AvlTree[T]) {
+	if tt == nil {
+		panic("tree sholud not be a nil")
+	}
+
+	tt.lock.Lock()
+	yy.lock.Lock()
+	zz.lock.Lock()
+	defer zz.lock.Unlock()
+	defer yy.lock.Unlock()
+	defer tt.lock.Unlock()
+
+	tt.nlTruncate()
+	yy.nlWalkInOrder(func(_, _ int, data *T, _ interface{}) bool {
+		// func (tt *AvlTree[T]) Search(find *T) (item *T) {
+		if zz.nlSearch(data) != nil {
+			tt.nlInsert(data)
+		}
+		return true
+	}, nil)
+}
 
 /* vim: set noai ts=4 sw=4: */

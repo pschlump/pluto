@@ -549,7 +549,9 @@ func TestTreeWalkInOrder(t *testing.T) {
 	}
 	Tree1.WalkInOrder(fx, nil)
 
-	fmt.Printf("Output: %s\n", x)
+	if db1 {
+		fmt.Printf("Output: %s\n", x)
+	}
 
 	// TODO -- automate correct answer.
 }
@@ -577,7 +579,9 @@ func TestTreeWalkPreOrder(t *testing.T) {
 	}
 	Tree1.WalkPreOrder(fx, nil)
 
-	fmt.Printf("PreOrder Output: %s\n", x)
+	if db1 {
+		fmt.Printf("PreOrder Output: %s\n", x)
+	}
 
 	// TODO -- automate correct answer.
 }
@@ -605,11 +609,14 @@ func TestTreeWalkPostOrder(t *testing.T) {
 	}
 	Tree1.WalkPostOrder(fx, nil)
 
-	fmt.Printf("PostOrder Output: %s\n", x)
+	if db1 {
+		fmt.Printf("PostOrder Output: %s\n", x)
+	}
 
 	// TODO -- automate correct answer.
 }
 
+const db1 = false
 const db2 = false
 const db3 = false
 const db4 = false
