@@ -616,6 +616,78 @@ func TestTreeWalkPostOrder(t *testing.T) {
 	// TODO -- automate correct answer.
 }
 
+func TestTreeCopy(t *testing.T) {
+	// type ApplyFunction[T comparable.Comparable] func ( pos, depth int, data *T, userData interface{} ) bool
+	// func (tt *AvlTree[T]) DeleteAtHead(find T) ( found bool ) {
+	var Tree1 AvlTree[TestTreeNode]
+	Tree1.Insert(&TestTreeNode{S: "05"})
+	Tree1.Insert(&TestTreeNode{S: "02"})
+	var Tree2 AvlTree[TestTreeNode]
+	Tree2.Insert(&TestTreeNode{S: "nn"})
+	Tree2.Insert(&TestTreeNode{S: "vv"})
+
+	if db10 {
+		fmt.Printf("at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
+		Tree2.Dump(os.Stdout)
+	}
+
+	Tree1.Copy(&Tree2)
+
+	var x []string
+	var fx ApplyFunction[TestTreeNode]
+	fx = func(pos, depth int, data *TestTreeNode, y interface{}) bool {
+		fmt.Printf("%d %d: %s\n", pos, depth, data.S)
+		return true
+	}
+	Tree1.WalkInOrder(fx, nil)
+
+	if db1 {
+		fmt.Printf("PostOrder Output: %s\n", x)
+	}
+
+	// TODO -- automate correct answer.
+}
+
+func TestTreeUnion(t *testing.T) {
+	// type ApplyFunction[T comparable.Comparable] func ( pos, depth int, data *T, userData interface{} ) bool
+	// func (tt *AvlTree[T]) DeleteAtHead(find T) ( found bool ) {
+	var Tree1 AvlTree[TestTreeNode]
+	Tree1.Insert(&TestTreeNode{S: "05"})
+	Tree1.Insert(&TestTreeNode{S: "02"})
+	var Tree2 AvlTree[TestTreeNode]
+	Tree2.Insert(&TestTreeNode{S: "nn"})
+	Tree2.Insert(&TestTreeNode{S: "vv"})
+	Tree2.Insert(&TestTreeNode{S: "bb"})
+	var Tree3 AvlTree[TestTreeNode]
+	Tree3.Insert(&TestTreeNode{S: "aa"})
+	Tree3.Insert(&TestTreeNode{S: "bb"})
+	Tree3.Insert(&TestTreeNode{S: "nn"})
+
+	if db10 {
+		fmt.Printf("at:%s tree=\n", godebug.LF())
+		Tree1.Dump(os.Stdout)
+		Tree2.Dump(os.Stdout)
+		Tree3.Dump(os.Stdout)
+	}
+
+	Tree1.Union(&Tree2, &Tree3)
+
+	var x []string
+	var fx ApplyFunction[TestTreeNode]
+	fx = func(pos, depth int, data *TestTreeNode, y interface{}) bool {
+		fmt.Printf("%d %d: %s\n", pos, depth, data.S)
+		return true
+	}
+	Tree1.WalkInOrder(fx, nil)
+
+	if db1 {
+		fmt.Printf("PostOrder Output: %s\n", x)
+	}
+
+	// TODO -- automate correct answer.
+}
+
 const db1 = false
 const db2 = false
 const db3 = false
@@ -623,3 +695,4 @@ const db4 = false
 const db5 = false
 const db6 = false
 const db7 = false
+const db10 = true

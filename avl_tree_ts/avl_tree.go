@@ -30,11 +30,11 @@ Basic operations on a AVL Binary Tree.
 		=== Delete ( FindMax ( ) )
 
 *	WalkInOrder																					O(n)
-+	WalkPreOrder																				O(n)
-+	WalkPostOrder																				O(n)
+*	WalkPreOrder																				O(n)
+*	WalkPostOrder																				O(n)
 
-+	Copy																						O(n)
-+	Union																						O(n)
+*	Copy																						O(n)
+*	Union																						O(n)
 +	Minus																						O(n)
 +	Intersect																					O(n)
 
@@ -881,6 +881,7 @@ type ApplyFunction[T comparable.Comparable] func(pos, depth int, data *T, userDa
 
 // WalkInOrder walks the tree applying the function 'fx' to each node.  If 'fx' returns false then the
 // walk stops.
+// Complexity is O(n).
 func (tt *AvlTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) {
 	if tt == nil {
 		panic("tree sholud not be a nil")
@@ -889,7 +890,7 @@ func (tt *AvlTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) {
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 
-	tt.WalkInOrder(fx, userData)
+	tt.nlWalkInOrder(fx, userData)
 }
 
 func (tt *AvlTree[T]) nlWalkInOrder(fx ApplyFunction[T], userData interface{}) {
@@ -921,6 +922,7 @@ func (tt *AvlTree[T]) nlWalkInOrder(fx ApplyFunction[T], userData interface{}) {
 
 // WalkPreOrder walks the tree in pre-order applying the function 'fx' to each node.  If 'fx' returns false then the
 // walk stops.
+// Complexity is O(n).
 func (tt *AvlTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
 	if tt == nil {
 		panic("tree sholud not be a nil")
@@ -957,6 +959,7 @@ func (tt *AvlTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
 
 // WalkPostOrder walks the tree in post-order applying the function 'fx' to each node.  If 'fx' returns false then the
 // walk stops.
+// Complexity is O(n).
 func (tt *AvlTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
 	if tt == nil {
 		panic("tree sholud not be a nil")
@@ -1011,6 +1014,7 @@ func (tt *AvlTree[T]) Copy(yy *AvlTree[T]) {
 
 // Union is a set union, tt = yy union zz.
 // Set union - if a duplicate then insert will use the new one.
+// Complexity is O(n).
 func (tt *AvlTree[T]) Union(yy, zz *AvlTree[T]) {
 	if tt == nil {
 		panic("tree sholud not be a nil")
@@ -1035,6 +1039,7 @@ func (tt *AvlTree[T]) Union(yy, zz *AvlTree[T]) {
 }
 
 // Minus is a set minus, tt = yy - zz.
+// Complexity is O(n).
 func (tt *AvlTree[T]) Minus(yy, zz *AvlTree[T]) {
 	if tt == nil {
 		panic("tree sholud not be a nil")
@@ -1058,6 +1063,7 @@ func (tt *AvlTree[T]) Minus(yy, zz *AvlTree[T]) {
 }
 
 // Intersect take the set intersection.  tt = yy intersect zz
+// Complexity is O(n).
 func (tt *AvlTree[T]) Intersect(yy, zz *AvlTree[T]) {
 	if tt == nil {
 		panic("tree sholud not be a nil")
