@@ -16,6 +16,7 @@ import (
 	"github.com/pschlump/MiscLib"
 	"github.com/pschlump/godebug"
 	"github.com/pschlump/pluto/comparable"
+	"github.com/pschlump/pluto/g_lib"
 )
 
 // TestTreeNode is an Inteface Matcing data type for the Nodes that supports the Comparable
@@ -688,6 +689,96 @@ func TestTreeUnion(t *testing.T) {
 	// TODO -- automate correct answer.
 }
 
+func TestTreeMinus(t *testing.T) {
+	// type ApplyFunction[T comparable.Comparable] func ( pos, depth int, data *T, userData interface{} ) bool
+	// func (tt *AvlTree[T]) DeleteAtHead(find T) ( found bool ) {
+	var Tree1 AvlTree[TestTreeNode]
+	Tree1.Insert(&TestTreeNode{S: "05"})
+	Tree1.Insert(&TestTreeNode{S: "02"})
+	var Tree2 AvlTree[TestTreeNode]
+	Tree2.Insert(&TestTreeNode{S: "nn"})
+	Tree2.Insert(&TestTreeNode{S: "vv"})
+	Tree2.Insert(&TestTreeNode{S: "bb"})
+	var Tree3 AvlTree[TestTreeNode]
+	Tree3.Insert(&TestTreeNode{S: "aa"})
+	Tree3.Insert(&TestTreeNode{S: "bb"})
+	Tree3.Insert(&TestTreeNode{S: "nn"})
+
+	if db10 {
+		fmt.Printf("Minus Test: at:%s tree=\n", godebug.LF())
+		fmt.Printf("Tree 1\n")
+		Tree1.Dump(os.Stdout)
+		fmt.Printf("Tree 2\n")
+		Tree2.Dump(os.Stdout)
+		fmt.Printf("Tree 3\n")
+		Tree3.Dump(os.Stdout)
+	}
+
+	Tree1.Minus(&Tree2, &Tree3)
+
+	// var x []string
+	var fx ApplyFunction[TestTreeNode]
+	fx = func(pos, depth int, data *TestTreeNode, y interface{}) bool {
+		fmt.Printf("%d %d: %s\n", pos, depth, data.S)
+		return true
+	}
+	Tree1.WalkInOrder(fx, nil)
+
+	// Should be [ nn, vv ]
+
+	// TODO -- automate correct answer.
+}
+
+func TestTreeIntersect(t *testing.T) {
+	// type ApplyFunction[T comparable.Comparable] func ( pos, depth int, data *T, userData interface{} ) bool
+	// func (tt *AvlTree[T]) DeleteAtHead(find T) ( found bool ) {
+	var Tree1 AvlTree[TestTreeNode]
+	Tree1.Insert(&TestTreeNode{S: "05"})
+	Tree1.Insert(&TestTreeNode{S: "02"})
+	var Tree2 AvlTree[TestTreeNode]
+	Tree2.Insert(&TestTreeNode{S: "nn"})
+	Tree2.Insert(&TestTreeNode{S: "vv"})
+	Tree2.Insert(&TestTreeNode{S: "bb"})
+	var Tree3 AvlTree[TestTreeNode]
+	Tree3.Insert(&TestTreeNode{S: "aa"})
+	Tree3.Insert(&TestTreeNode{S: "bb"})
+	Tree3.Insert(&TestTreeNode{S: "nn"})
+
+	if db11 {
+		fmt.Printf("Intersect Test: at:%s tree=\n", godebug.LF())
+		fmt.Printf("Tree 1\n")
+		Tree1.Dump(os.Stdout)
+		fmt.Printf("Tree 2\n")
+		Tree2.Dump(os.Stdout)
+		fmt.Printf("Tree 3\n")
+		Tree3.Dump(os.Stdout)
+	}
+
+	Tree1.Intersect(&Tree2, &Tree3)
+
+	var got []string
+	var fx ApplyFunction[TestTreeNode]
+	fx = func(pos, depth int, data *TestTreeNode, y interface{}) bool {
+		if db11 {
+			fmt.Printf("%d %d: %s\n", pos, depth, data.S)
+		}
+		got = append(got, data.S)
+		return true
+	}
+	Tree1.WalkInOrder(fx, nil)
+
+	expect := []string{"bb", "nn"}
+
+	if db11 {
+		fmt.Printf("array = %s\n", got)
+	}
+
+	// Should be [ nn, vv ]
+	if !g_lib.EqualSlice(expect, got) {
+		t.Errorf("Expected %s got %s - slices differ\n", expect, got)
+	}
+}
+
 const db1 = false
 const db2 = false
 const db3 = false
@@ -696,3 +787,4 @@ const db5 = false
 const db6 = false
 const db7 = false
 const db10 = true
+const db11 = false

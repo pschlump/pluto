@@ -112,4 +112,16 @@ func SortSlice[T constraints.Ordered](s []T) {
 	})
 }
 
+func EqualSlice[T comparable](s, t []T) bool {
+	if len(s) != len(t) {
+		return false
+	}
+	for ii := range s {
+		if s[ii] != t[ii] {
+			return false
+		}
+	}
+	return true
+}
+
 /* vim: set noai ts=4 sw=4: */

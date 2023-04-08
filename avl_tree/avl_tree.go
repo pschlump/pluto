@@ -8,7 +8,7 @@ BSD 3 Clause Licensed.
 
 /*
 
-Basic operations on a AVL Binary Tree.
+Basic operations on a AVL Binary Tree.  This is a no-lock, not thread safe version of the AVL tree.
 
 * 	Insert - create a new element in tree.														O(log|2(n))
 *		Duplicates replace the current node with a new node - this is not reported as

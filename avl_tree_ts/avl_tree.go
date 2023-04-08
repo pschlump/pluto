@@ -35,8 +35,8 @@ Basic operations on a AVL Binary Tree.
 
 *	Copy																						O(n)
 *	Union																						O(n)
-+	Minus																						O(n)
-+	Intersect																					O(n)
+?	Minus																						O(n)
+*	Intersect																					O(n)
 
 */
 
@@ -1053,9 +1053,9 @@ func (tt *AvlTree[T]) Minus(yy, zz *AvlTree[T]) {
 	defer tt.lock.Unlock()
 
 	tt.nlTruncate()
-	yy.nlWalkInOrder(func(_, _ int, data *T, _ interface{}) bool {
+	zz.nlWalkInOrder(func(_, _ int, data *T, _ interface{}) bool {
 		// func (tt *AvlTree[T]) Search(find *T) (item *T) {
-		if zz.nlSearch(data) != nil {
+		if yy.nlSearch(data) != nil {
 			tt.nlInsert(data)
 		}
 		return true
