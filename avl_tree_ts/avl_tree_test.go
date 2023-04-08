@@ -635,19 +635,23 @@ func TestTreeCopy(t *testing.T) {
 
 	Tree1.Copy(&Tree2)
 
-	var x []string
+	var got []string
 	var fx ApplyFunction[TestTreeNode]
 	fx = func(pos, depth int, data *TestTreeNode, y interface{}) bool {
-		fmt.Printf("%d %d: %s\n", pos, depth, data.S)
+		// fmt.Printf("%d %d: %s\n", pos, depth, data.S)
+		got = append(got, data.S)
 		return true
 	}
 	Tree1.WalkInOrder(fx, nil)
 
 	if db1 {
-		fmt.Printf("PostOrder Output: %s\n", x)
+		fmt.Printf("PostOrder Output: %s\n", got)
 	}
 
-	// TODO -- automate correct answer.
+	expect := []string{"nn", "vv"}
+	if !g_lib.EqualSlice(expect, got) {
+		t.Errorf("Expected %s got %s - slices differ\n", expect, got)
+	}
 }
 
 func TestTreeUnion(t *testing.T) {
@@ -674,19 +678,25 @@ func TestTreeUnion(t *testing.T) {
 
 	Tree1.Union(&Tree2, &Tree3)
 
-	var x []string
+	var got []string
 	var fx ApplyFunction[TestTreeNode]
 	fx = func(pos, depth int, data *TestTreeNode, y interface{}) bool {
-		fmt.Printf("%d %d: %s\n", pos, depth, data.S)
+		if db11 {
+			fmt.Printf("%d %d: %s\n", pos, depth, data.S)
+		}
+		got = append(got, data.S)
 		return true
 	}
 	Tree1.WalkInOrder(fx, nil)
 
 	if db1 {
-		fmt.Printf("PostOrder Output: %s\n", x)
+		fmt.Printf("PostOrder Output: %s\n", got)
 	}
 
-	// TODO -- automate correct answer.
+	expect := []string{"aa", "bb", "nn", "vv"}
+	if !g_lib.EqualSlice(expect, got) {
+		t.Errorf("Expected %s got %s - slices differ\n", expect, got)
+	}
 }
 
 func TestTreeMinus(t *testing.T) {
@@ -697,12 +707,12 @@ func TestTreeMinus(t *testing.T) {
 	Tree1.Insert(&TestTreeNode{S: "02"})
 	var Tree2 AvlTree[TestTreeNode]
 	Tree2.Insert(&TestTreeNode{S: "nn"})
-	Tree2.Insert(&TestTreeNode{S: "vv"})
-	Tree2.Insert(&TestTreeNode{S: "bb"})
+	Tree2.Insert(&TestTreeNode{S: "vvv"})
+	Tree2.Insert(&TestTreeNode{S: "bbbb"})
 	var Tree3 AvlTree[TestTreeNode]
-	Tree3.Insert(&TestTreeNode{S: "aa"})
-	Tree3.Insert(&TestTreeNode{S: "bb"})
-	Tree3.Insert(&TestTreeNode{S: "nn"})
+	Tree3.Insert(&TestTreeNode{S: "a"})
+	Tree3.Insert(&TestTreeNode{S: "bbbb"})
+	Tree3.Insert(&TestTreeNode{S: "nnnnn"})
 
 	if db10 {
 		fmt.Printf("Minus Test: at:%s tree=\n", godebug.LF())
@@ -716,17 +726,21 @@ func TestTreeMinus(t *testing.T) {
 
 	Tree1.Minus(&Tree2, &Tree3)
 
-	// var x []string
+	var got []string
 	var fx ApplyFunction[TestTreeNode]
 	fx = func(pos, depth int, data *TestTreeNode, y interface{}) bool {
-		fmt.Printf("%d %d: %s\n", pos, depth, data.S)
+		if db13 {
+			fmt.Printf("%d %d: %s\n", pos, depth, data.S)
+		}
+		got = append(got, data.S)
 		return true
 	}
 	Tree1.WalkInOrder(fx, nil)
 
-	// Should be [ nn, vv ]
-
-	// TODO -- automate correct answer.
+	expect := []string{"nn", "vvv"}
+	if !g_lib.EqualSlice(expect, got) {
+		t.Errorf("Expected %s got %s - slices differ\n", expect, got)
+	}
 }
 
 func TestTreeIntersect(t *testing.T) {
@@ -768,12 +782,6 @@ func TestTreeIntersect(t *testing.T) {
 	Tree1.WalkInOrder(fx, nil)
 
 	expect := []string{"bb", "nn"}
-
-	if db11 {
-		fmt.Printf("array = %s\n", got)
-	}
-
-	// Should be [ nn, vv ]
 	if !g_lib.EqualSlice(expect, got) {
 		t.Errorf("Expected %s got %s - slices differ\n", expect, got)
 	}
@@ -786,5 +794,6 @@ const db4 = false
 const db5 = false
 const db6 = false
 const db7 = false
-const db10 = true
+const db10 = false
 const db11 = false
+const db13 = false

@@ -1053,9 +1053,9 @@ func (tt *AvlTree[T]) Minus(yy, zz *AvlTree[T]) {
 	defer tt.lock.Unlock()
 
 	tt.nlTruncate()
-	zz.nlWalkInOrder(func(_, _ int, data *T, _ interface{}) bool {
+	yy.nlWalkInOrder(func(_, _ int, data *T, _ interface{}) bool {
 		// func (tt *AvlTree[T]) Search(find *T) (item *T) {
-		if yy.nlSearch(data) != nil {
+		if zz.nlSearch(data) == nil {
 			tt.nlInsert(data)
 		}
 		return true
