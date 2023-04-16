@@ -35,7 +35,7 @@ Basic operations on a AVL Binary Tree.
 
 *	Copy																						O(n)
 *	Union																						O(n)
-?	Minus																						O(n)
+*	Minus																						O(n)
 *	Intersect																					O(n)
 
 */

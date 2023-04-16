@@ -627,4 +627,22 @@ func (ns *Dll[T]) noLockTrimTail(n int) (err error) {
 	return
 }
 
+// xyzzy TODO - concat (which way, concat 2 into a new one? //
+func (ns *Dll[T]) Concat(yy *Dll[T]) {
+	if ns == nil {
+		panic("list sholud not be a nil")
+	}
+
+	ns.mu.Lock()
+	yy.mu.RLock()
+	defer yy.mu.RUnlock()
+	defer ns.mu.Unlock()
+
+	// Walk list and add to end of ns
+	for ptr := yy.head; ptr != nil; ptr = ptr.next {
+		ns.AppendAtTail(ptr.Data)
+	}
+
+}
+
 /* vim: set noai ts=4 sw=4: */

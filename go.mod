@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/pschlump/HashStr v1.0.0
 	github.com/pschlump/MiscLib v1.0.3
-	github.com/pschlump/dbgo v1.0.5
+	github.com/pschlump/dbgo v1.0.6
 	github.com/pschlump/godebug v1.0.4
 	golang.org/x/exp v0.0.0-20230304125523-9ff063c70017
 )
