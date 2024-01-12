@@ -33,6 +33,7 @@ import (
 	"github.com/pschlump/MiscLib"
 	"github.com/pschlump/pluto/binary_tree_ts"
 	"github.com/pschlump/pluto/comparable"
+	"github.com/pschlump/pluto/g_lib"
 )
 
 // HashTab is a generic hash table that grows the underlying ttable when the number of
@@ -191,7 +192,7 @@ func (tt *HashTab[T]) NlSearch(find *T) (rv *T) {
 	if tt.nlIsEmpty() {
 		return nil
 	}
-	h := hash(find) % tt.size
+	h := g_lib.Abs(hash(find) % tt.size)
 	if db1 {
 		fmt.Printf("%sh=%d - for ->%+v<-%s\n", MiscLib.ColorYellow, h, find, MiscLib.ColorReset)
 	}

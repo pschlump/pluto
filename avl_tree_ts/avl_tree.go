@@ -20,8 +20,8 @@ Basic operations on a AVL Binary Tree.
 * 	Reverse - Reverse all the nodes in list. 													O(n)
 * 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(log|2(n))
 * 	Truncate - Delete all the nodes in list. 													O(1)
-*	FindMin
-*	FindMax
+*	FindMin - Find the smallest element in the tree.
+*	FindMax - Find the largest element in the tree.
 *	Depth -> int to get deepest part of tree
 
 * 	DeleteAtHead — Deletes the first element of the linked list.  								O(log|2(n))
@@ -29,9 +29,9 @@ Basic operations on a AVL Binary Tree.
 * 	DeleteAtTail — Deletes the last element of the linked list. 								O(log|2(n))
 		=== Delete ( FindMax ( ) )
 
-*	WalkInOrder																					O(n)
-*	WalkPreOrder																				O(n)
-*	WalkPostOrder																				O(n)
+*	WalkInOrder	- Apply a function to all the nodes in the tree using an inorder traversal.		O(n)
+*	WalkPreOrder - Apply a function to all the nodes in the tree using a preorder traversal.	O(n)
+*	WalkPostOrder - Apply a function to all the nodes in the tree using a postorder traversal.	O(n)
 
 *	Copy																						O(n)
 *	Union																						O(n)

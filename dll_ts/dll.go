@@ -386,7 +386,6 @@ func (ns *Dll[T]) Truncate() {
 	return
 }
 
-// Walk - Iterate from head to tail of list. 												O(n)
 // Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
 // If the item is not found then a position of -1 is returned.
 func (ns *Dll[T]) Search(t *T) (rv *DllElement[T], pos int) {

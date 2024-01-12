@@ -24,6 +24,7 @@ import (
 	"io"
 
 	"github.com/pschlump/pluto/comparable"
+	"github.com/pschlump/pluto/g_lib"
 	"github.com/pschlump/pluto/sll"
 )
 
@@ -73,7 +74,7 @@ func (tt *HashTab[T]) Truncate() {
 // item the new item will replace the existing one.
 // Complexity is O(log n)/k.
 func (tt *HashTab[T]) Insert(item *T) {
-	h := tt.hash(item) % tt.size
+	h := g_lib.Abs(tt.hash(item) % tt.size)
 	tt.buckets[h].InsertBeforeHead(item)
 	(*tt).length++
 }
@@ -94,7 +95,7 @@ func (tt *HashTab[T]) Search(find *T) (item *T) {
 	if (*tt).IsEmpty() {
 		return nil
 	}
-	h := tt.hash(find) % tt.size
+	h := g_lib.Abs(tt.hash(find) % tt.size)
 	// func (ns *Dll[T]) Search( t *T ) (rv *DllElement[T], pos int) {
 	x, pos := tt.buckets[h].Search(find)
 	if pos < 0 {
@@ -120,7 +121,7 @@ func (tt *HashTab[T]) Delete(find *T) (found bool) {
 	if (*tt).IsEmpty() {
 		return false
 	}
-	h := tt.hash(find) % tt.size
+	h := g_lib.Abs(tt.hash(find) % tt.size)
 	it, pos := tt.buckets[h].Search(find)
 	if pos >= 0 {
 		err := tt.buckets[h].DeleteFound(it)

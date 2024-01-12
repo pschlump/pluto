@@ -44,7 +44,15 @@ func MaxArray[T constraints.Ordered](a []T) (rv T) {
 	return
 }
 
+func ifTrue[T any](on bool, a T, b T) (rv T) {
+	if on {
+		return a
+	}
+	return b
+}
+
 // InArray uses Dijkstra's "L" algorythm to search 'haystack' for 'needle'.  "L" is the linear search algorythm.
+// Exampel of Use:
 func InArray[T comparable](needle T, haystack []T) bool {
 	for _, val := range haystack {
 		if val == needle {

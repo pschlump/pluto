@@ -29,6 +29,7 @@ import (
 	"github.com/pschlump/MiscLib"
 	"github.com/pschlump/pluto/binary_tree"
 	"github.com/pschlump/pluto/comparable"
+	"github.com/pschlump/pluto/g_lib"
 )
 
 // HashTab is a generic binary tree
@@ -77,7 +78,7 @@ func (tt *HashTab[T]) Truncate() {
 // item the new item will replace the existing one.
 // Complexity is O(log n)/k.
 func (tt *HashTab[T]) Insert(item *T) {
-	h := hash(item) % tt.size
+	h := g_lib.Abs(hash(item) % tt.size)
 	isNew := tt.buckets[h].Insert(item)
 	if isNew {
 		(*tt).length++
@@ -100,7 +101,7 @@ func (tt *HashTab[T]) Search(find *T) (rv *T) {
 	if (*tt).IsEmpty() {
 		return nil
 	}
-	h := hash(find) % tt.size
+	h := g_lib.Abs(hash(find) % tt.size)
 	if db1 {
 		fmt.Printf("%sh=%d - for ->%+v<-%s\n", MiscLib.ColorYellow, h, find, MiscLib.ColorReset)
 	}
@@ -130,7 +131,7 @@ func (tt *HashTab[T]) Delete(find *T) (found bool) {
 	if find == nil || (*tt).IsEmpty() {
 		return false
 	}
-	h := hash(find) % tt.size
+	h := g_lib.Abs(hash(find) % tt.size)
 	found = tt.buckets[h].Delete(find)
 	if found {
 		(*tt).length--

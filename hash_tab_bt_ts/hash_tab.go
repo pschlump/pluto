@@ -30,6 +30,7 @@ import (
 	"github.com/pschlump/MiscLib"
 	binary_tree "github.com/pschlump/pluto/binary_tree_ts"
 	"github.com/pschlump/pluto/comparable"
+	"github.com/pschlump/pluto/g_lib"
 )
 
 // HashTab is a generic binary tree
@@ -89,7 +90,7 @@ func (tt *HashTab[T]) Truncate() {
 func (tt *HashTab[T]) Insert(item *T) {
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
-	h := hash(item) % tt.size
+	h := g_lib.Abs(hash(item) % tt.size)
 	isNew := tt.buckets[h].Insert(item)
 	if isNew {
 		(*tt).length++
@@ -118,6 +119,14 @@ func (tt *HashTab[T]) Search(find *T) (rv *T) {
 	return tt.NlSearch(find)
 }
 
+// if ok := ht.ItemExists(&DefinedItem{Name: in}); !ok {
+func (tt *HashTab[T]) ItemExists(find *T) (rv bool) {
+	if x := tt.Search(find); x != nil {
+		rv = true
+	}
+	return
+}
+
 // Search will walk the tree looking for `find` and retrn the found item
 // if it is in the tree. If it is not found then `nil` will be returned.
 // Complexity is O(log n)/k.
@@ -125,7 +134,7 @@ func (tt *HashTab[T]) NlSearch(find *T) (rv *T) {
 	if (*tt).nlIsEmpty() {
 		return nil
 	}
-	h := hash(find) % tt.size
+	h := g_lib.Abs(hash(find) % tt.size)
 	if db1 {
 		fmt.Printf("%sh=%d - for ->%+v<-%s\n", MiscLib.ColorYellow, h, find, MiscLib.ColorReset)
 	}
@@ -193,7 +202,7 @@ func (tt *HashTab[T]) NlDelete(find *T) (found bool) {
 	if find == nil || (*tt).nlIsEmpty() {
 		return false
 	}
-	h := hash(find) % tt.size
+	h := g_lib.Abs(hash(find) % tt.size)
 	found = tt.buckets[h].Delete(find)
 	if found {
 		(*tt).length--
