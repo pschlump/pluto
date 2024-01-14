@@ -10,6 +10,20 @@ import (
 	"testing"
 )
 
+func TestIfTrue(t *testing.T) {
+
+	x := IfTrue(true, 1, 2)
+	if x != 1 {
+		t.Errorf("If true falied")
+	}
+
+	y := IfTrue(false, "y", "n")
+	if y != "n" {
+		t.Errorf("If true falied")
+	}
+
+}
+
 func TestMinMax(t *testing.T) {
 
 	x := Min[int](3, 4)

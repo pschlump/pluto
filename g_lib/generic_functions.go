@@ -44,7 +44,7 @@ func MaxArray[T constraints.Ordered](a []T) (rv T) {
 	return
 }
 
-func ifTrue[T any](on bool, a T, b T) (rv T) {
+func IfTrue[T any](on bool, a T, b T) (rv T) {
 	if on {
 		return a
 	}
@@ -131,6 +131,14 @@ func EqualSlice[T comparable](s, t []T) bool {
 		}
 	}
 	return true
+}
+
+func SortedKeysForStringMap[T any](aMap map[string]T) (rv []string) {
+	for key := range aMap {
+		rv = append(rv, key)
+	}
+	sort.Strings(rv)
+	return
 }
 
 /* vim: set noai ts=4 sw=4: */
