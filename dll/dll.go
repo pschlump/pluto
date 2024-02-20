@@ -40,6 +40,12 @@ With the use of Enque can be used as a Queue.  This is a synonym for AppendAtTai
 * 	PopTail - Remvoe the element at the end of the DLL.											O(1)
 *	Enque - add to the tail so that DLL can be used as a Queue.									O(1)
 
+Additional go1.22 Functionality (replacements for Walk, ReverseWalk)
+All of this code can be found at the very bottom of this file. (except the type DllDeq)
+This replaces the DllIter type and Front/Done/Next/Value.
+
+*	DllSeq					The Type for the Iterator Sequence
+
 This version of the DLL is not suitable for concurrnet usage but ../DLLTs has mutex
 locks so that it is thread safe.  It has the exact same interface.
 
@@ -81,6 +87,8 @@ type DllIter[T comparable.Equality] struct {
 	dll *Dll[T]
 	pos int
 }
+
+type DllSeq[V comparable.Equality] func(yield func(V) bool)
 
 // -------------------------------------------------------------------------------------------------------
 
@@ -124,7 +132,9 @@ func (ns *Dll[T]) Rear() *DllIter[T] {
 }
 
 // Current will take the node returned from Search or RevrseSearch
-// 		func (ns *Dll[T]) Search( t *T ) (rv *DllElement[T], pos int) {
+//
+//	func (ns *Dll[T]) Search( t *T ) (rv *DllElement[T], pos int) {
+//
 // and allow you to start an iteration process from that point.
 func (ns *Dll[T]) Current(el *DllElement[T], pos int) *DllIter[T] {
 	return &DllIter[T]{
@@ -458,5 +468,23 @@ func (tt *Dll[T]) Dump(fo io.Writer) {
 		i++
 	}
 }
+
+// -----------------------------------------------------------------------------------------------------------
+// Go1.22 Iterator stuff
+
+// Type declared above
+// type DllSeq[V comparable.Equality] func(yield func(V) bool)
+
+/*
+func ( ns *Dll[T] ) All( yield func Dll[T] bool ) {
+	ii := 0
+	for nn := ns.Head; nn != nil; nn = nn->Next {
+			if !yield(ii, nn) {
+				return
+		}
+		ii++
+	}
+}
+*/
 
 /* vim: set noai ts=4 sw=4: */
