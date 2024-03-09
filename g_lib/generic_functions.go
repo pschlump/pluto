@@ -141,4 +141,8 @@ func SortedKeysForStringMap[T any](aMap map[string]T) (rv []string) {
 	return
 }
 
+func RemoveAt[T any](slice []T, pos int) []T {
+	return append(slice[:pos], slice[pos+1:]...) 
+}
+
 /* vim: set noai ts=4 sw=4: */

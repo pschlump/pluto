@@ -5,6 +5,36 @@ Caching Symbol Table (hash_tab.go)
 SymbolTable for a language project 
 
 
+https://go.dev/wiki/RangefuncExperiment
+
+
+GOEXPERIMENT=rangefunc go install my/program
+GOEXPERIMENT=rangefunc go build my/program
+GOEXPERIMENT=rangefunc go test my/program
+GOEXPERIMENT=rangefunc go test my/program -bench=.
+
+
+
+for k, v := range Iteratorfunc() {
+}
+
+
+
+package slices
+
+func Backward[E any](s []E) func(func(int, E) bool) {
+    return func(yield func(int, E) bool) {
+        for i := len(s)-1; i >= 0; i-- {
+            if !yield(i, s[i]) {
+                return
+            }
+        }
+    }
+}
+
+
+
+
 
 
 
