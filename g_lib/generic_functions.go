@@ -1,6 +1,7 @@
 package g_lib
 
 import (
+	"reflect"
 	"sort"
 
 	"golang.org/x/exp/constraints"
@@ -141,8 +142,19 @@ func SortedKeysForStringMap[T any](aMap map[string]T) (rv []string) {
 	return
 }
 
+// RemoveAt removes from `slice` the item at postion `pos`.  `pos` must be >= 0 and < len(slice).
 func RemoveAt[T any](slice []T, pos int) []T {
-	return append(slice[:pos], slice[pos+1:]...) 
+	return append(slice[:pos], slice[pos+1:]...)
+}
+
+// Remove will take 'needle' from 'haystack' if it matches based on reflect.DeepEqual
+func Remove[T any](haystack []T, needle T) (result []T) {
+	for _, item := range haystack {
+		if !reflect.DeepEqual(item, needle) {
+			result = append(result, item)
+		}
+	}
+	return
 }
 
 /* vim: set noai ts=4 sw=4: */
