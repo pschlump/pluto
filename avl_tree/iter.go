@@ -39,17 +39,17 @@ func (tt *AvlTree[T]) Front() (rv *AvlTreeIter[T]) {
 	// of setting up the "stk" stack.
 	findLeftMost := func(parent *AvlTreeElement[T]) (ptr *AvlTreeElement[T]) {
 		ptr = nil
-		// fmt.Printf ( "%sFindLeftMost/At Top: at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+		// fmt.Printf ( "%sFindLeftMost/At Top: at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
 		if parent == nil {
-			// fmt.Printf ( "%sFindLeftMost/no tree: at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+			// fmt.Printf ( "%sFindLeftMost/no tree: at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
 			return
 		}
 		for (*parent).left != nil {
-			// fmt.Printf ( "%sAdvance 1 step. at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+			// fmt.Printf ( "%sAdvance 1 step. at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
 			rv.stk.Push(parent)
 			parent = (*parent).left
 		}
-		// fmt.Printf ( "%sat bottom at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+		// fmt.Printf ( "%sat bottom at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
 		ptr = parent
 		return
 	}

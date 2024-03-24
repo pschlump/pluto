@@ -7,6 +7,7 @@ BSD 3 Clause Licensed.
 */
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -173,6 +174,35 @@ func TestSort(t *testing.T) {
 			t.Errorf("Incorrect data , should be ->%s<-, got ->%s<-", sorted[i], ss[i])
 		}
 	}
+}
+
+func TestRemoveAt(t *testing.T) {
+	a := []string{"a", "b", "c"}
+	b := RemoveAt(a, 0)
+	expected := []string{"b", "c"}
+	if !reflect.DeepEqual(b, expected) {
+		t.Errorf("Incorrect data , expected %v got %v", expected, b)
+	}
+	if !reflect.DeepEqual(a, []string{"a", "b", "c"}) {
+		t.Errorf("Incorrect input data , expected %v got %v", []string{"a", "b", "c"}, a)
+	}
+	// fmt.Printf("Before a=%v\n", a)
+	b = RemoveAt(a, 2)
+	expected = []string{"a", "b"}
+	if !reflect.DeepEqual(b, expected) {
+		t.Errorf("Incorrect data , expected %v got %v", expected, b)
+	}
+	b = RemoveAt(a, 1)
+	expected = []string{"a", "c"}
+	if !reflect.DeepEqual(b, expected) {
+		t.Errorf("Incorrect data , expected %v got %v", expected, b)
+	}
+}
+
+func TestRemove(t *testing.T) {
+}
+
+func TestRemoveComparable(t *testing.T) {
 }
 
 /* vim: set noai ts=4 sw=4: */

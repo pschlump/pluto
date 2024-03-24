@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/pschlump/godebug"
+	"github.com/pschlump/dbgo"
 )
 
 type TestDemo struct {
@@ -117,7 +117,7 @@ func TestStack(t *testing.T) {
 
 func TestIter(t *testing.T) {
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	var Sll2 Sll[TestDemo]
@@ -127,12 +127,12 @@ func TestIter(t *testing.T) {
 
 	expected := []string{"01", "03", "02"}
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	for ii := Sll2.Front(); !ii.Done(); ii.Next() {
 		if db6 {
-			fmt.Printf("at:%s pos %d value %+v\n", godebug.LF(), ii.Pos(), ii.Value())
+			fmt.Printf("at:%s pos %d value %+v\n", dbgo.LF(), ii.Pos(), ii.Value())
 		}
 		j := ii.Pos()
 		if j < 0 || j >= len(expected) {

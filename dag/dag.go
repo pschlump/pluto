@@ -34,7 +34,7 @@ import (
 
 	"github.com/pschlump/pluto/comparable"
 	"github.com/pschlump/pluto/g_lib"
-	// "github.com/pschlump/godebug"
+	// "github.com/pschlump/dbgo"
 	// "github.com/pschlump/MiscLib"
 )
 
@@ -156,18 +156,18 @@ func (tt *DirectedAcyclicGraph[T]) Delete(find T) (found bool) {
 	}
 
 	findLeftMostInRightSubtree := func(parent **DirectedAcyclicGraphNode[T]) (found bool, pAtIt **DirectedAcyclicGraphNode[T]) {
-		// fmt.Printf ( "%sFindLeftMost/At Top: at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+		// fmt.Printf ( "%sFindLeftMost/At Top: at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
 		this := **parent
 		if *parent == nil {
-			// fmt.Printf ( "%sFindLeftMost/no tree: at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+			// fmt.Printf ( "%sFindLeftMost/no tree: at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
 			return
 		}
 		for this.right != nil {
-			// fmt.Printf ( "%sAdvance 1 step. at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+			// fmt.Printf ( "%sAdvance 1 step. at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
 			parent = &(this.right)
 			this = **parent
 		}
-		// fmt.Printf ( "%sat bottom at:%s%s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+		// fmt.Printf ( "%sat bottom at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
 		found = true
 		pAtIt = parent
 		return
@@ -176,49 +176,49 @@ func (tt *DirectedAcyclicGraph[T]) Delete(find T) (found bool) {
 	// Iterative search through tree (can be used above)
 	cur := &tt.root // ptr to ptr to tree
 	for tt != nil {
-		// fmt.Printf ( "at:%s\n", godebug.LF())
+		// fmt.Printf ( "at:%s\n", dbgo.LF())
 		c := find.Compare(*(*cur).data)
 		if c == 0 {
-			// fmt.Printf ( "FOUND! now remove it! at:%s\n", godebug.LF())
+			// fmt.Printf ( "FOUND! now remove it! at:%s\n", dbgo.LF())
 			(*tt).length--
 			if (*cur).left == nil && (*cur).right == nil {
-				// fmt.Printf ( "at:%s\n", godebug.LF())
+				// fmt.Printf ( "at:%s\n", dbgo.LF())
 				(*cur) = nil // just delete the node, it has no children.
 			} else if (*cur).left != nil && (*cur).right == nil {
-				// fmt.Printf ( "at:%s\n", godebug.LF())
+				// fmt.Printf ( "at:%s\n", dbgo.LF())
 				(*cur) = (*cur).left // Has only left children, promote them.
 			} else if (*cur).left == nil && (*cur).right != nil {
-				// fmt.Printf ( "at:%s\n", godebug.LF())
+				// fmt.Printf ( "at:%s\n", dbgo.LF())
 				(*cur) = (*cur).right // Has only right children, promote them.
 			} else { // has both children.
-				// fmt.Printf ( "at:%s\n", godebug.LF())
+				// fmt.Printf ( "at:%s\n", dbgo.LF())
 				// Has only right children, promote them.
 				found, pAtIt := findLeftMostInRightSubtree(&((*cur).right)) // Find lft mos of right sub-tree
 				if !found {
-					// fmt.Printf ( "%sAbout to Panic: Failed to have a subtree. AT:%s%s\n", MiscLib.ColorRed, godebug.LF(), MiscLib.ColorReset)
+					// fmt.Printf ( "%sAbout to Panic: Failed to have a subtree. AT:%s%s\n", MiscLib.ColorRed, dbgo.LF(), MiscLib.ColorReset)
 					panic("Can't have a missing sub-tree.")
 				}
-				// fmt.Printf ( "at:%s\n", godebug.LF())
+				// fmt.Printf ( "at:%s\n", dbgo.LF())
 				(*cur).data = (*pAtIt).data // promote node's data.
-				// fmt.Printf ( "at:%s\n", godebug.LF())
+				// fmt.Printf ( "at:%s\n", dbgo.LF())
 				(*pAtIt) = (*pAtIt).right // Left most can have a right sub-tree - but it is left most so it can't have a more left tree.
-				// fmt.Printf ( "at:%s\n", godebug.LF())
+				// fmt.Printf ( "at:%s\n", dbgo.LF())
 			}
 			return true
 		}
-		// fmt.Printf ( "at:%s\n", godebug.LF())
+		// fmt.Printf ( "at:%s\n", dbgo.LF())
 		if c < 0 && (*cur).left != nil {
-			// fmt.Printf ( "Go Left at:%s\n", godebug.LF())
+			// fmt.Printf ( "Go Left at:%s\n", dbgo.LF())
 			cur = &((*cur).left)
 		} else if c > 0 && (*cur).right != nil {
-			// fmt.Printf ( "Go Right at:%s\n", godebug.LF())
+			// fmt.Printf ( "Go Right at:%s\n", dbgo.LF())
 			cur = &((*cur).right)
 		} else {
-			// fmt.Printf ( "not found - in loop - at:%s\n", godebug.LF())
+			// fmt.Printf ( "not found - in loop - at:%s\n", dbgo.LF())
 			break
 		}
 	}
-	// fmt.Printf ( "NOT Found --- at:%s\n", godebug.LF())
+	// fmt.Printf ( "NOT Found --- at:%s\n", dbgo.LF())
 	return false
 }
 
@@ -342,7 +342,7 @@ func (tt *DirectedAcyclicGraph[T]) Index(pos int) (item *T) {
 				inorderTraversal((*cur).left)
 			}
 		}
-		// fmt.Printf ( "InOrder - Before Set, Top n=%d, pos=%d,    value=%+v     at:%s\n", n, pos, item, godebug.LF() )
+		// fmt.Printf ( "InOrder - Before Set, Top n=%d, pos=%d,    value=%+v     at:%s\n", n, pos, item, dbgo.LF() )
 		if n == pos {
 			item = (*cur).data
 			// fmt.Printf ( "*********** Set \n")

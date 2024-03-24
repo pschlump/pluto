@@ -11,7 +11,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/pschlump/godebug"
+	"github.com/pschlump/dbgo"
 	"github.com/pschlump/pluto/comparable"
 )
 
@@ -49,7 +49,7 @@ func TestDll(t *testing.T) {
 	var Dll1 Dll[TestDemo]
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	if !Dll1.IsEmpty() {
@@ -59,7 +59,7 @@ func TestDll(t *testing.T) {
 	Dll1.AppendAtTail(&TestDemo{S: "hi"})
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	if Dll1.IsEmpty() {
@@ -67,7 +67,7 @@ func TestDll(t *testing.T) {
 	}
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	_, err := Dll1.Pop()
@@ -76,7 +76,7 @@ func TestDll(t *testing.T) {
 	}
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	_, err = Dll1.Pop()
@@ -88,7 +88,7 @@ func TestDll(t *testing.T) {
 	Dll1.AppendAtTail(&TestDemo{S: "hi3"})
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	got := Dll1.Length()
@@ -116,7 +116,7 @@ func TestDll(t *testing.T) {
 	// func (ns *Dll[T]) InsertBeforeHead(t *T) {
 	// func (ns *Dll[T]) AppendAtTail(t *T) {
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	Dll1.InsertBeforeHead(&TestDemo{S: "02"})
@@ -159,7 +159,7 @@ func TestDll(t *testing.T) {
 	}
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	// 	Test - DeleteAtHead
@@ -179,7 +179,7 @@ func TestDll(t *testing.T) {
 	}
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	// Test - ReverseList - Reverse all the nodes in list. 												O(n)
@@ -215,7 +215,7 @@ func TestDll(t *testing.T) {
 	}
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	// Walk - Iterate from head to tail of list. 													O(n)
@@ -252,7 +252,7 @@ func TestDll(t *testing.T) {
 	}
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	// ReverseWalk - Iterate from tail to head of list. 											O(n)
@@ -281,7 +281,7 @@ func TestDll(t *testing.T) {
 	*/
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	Dll1.Truncate()
@@ -315,7 +315,7 @@ func TestDll(t *testing.T) {
 
 	// ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	Dll1.Truncate()
@@ -341,7 +341,7 @@ func TestDll(t *testing.T) {
 	Dll1.Walk(fx, "02")
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	// func (ns *Dll[T]) Index(sub int) (rv *DllElement[T], err error) {
@@ -371,7 +371,7 @@ func TestDll(t *testing.T) {
 	}
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	rv, err = Dll1.Index(2)
@@ -418,7 +418,7 @@ func TestDll(t *testing.T) {
 
 func TestIter(t *testing.T) {
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	var Dll2 Dll[TestDemo]
@@ -428,12 +428,12 @@ func TestIter(t *testing.T) {
 
 	expected := []string{"01", "02", "03"}
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	for ii := Dll2.Front(); !ii.Done(); ii.Next() {
 		if db6 {
-			fmt.Printf("at:%s pos %d value %+v\n", godebug.LF(), ii.Pos(), ii.Value())
+			fmt.Printf("at:%s pos %d value %+v\n", dbgo.LF(), ii.Pos(), ii.Value())
 		}
 		j := ii.Pos()
 		if j < 0 || j >= len(expected) {
@@ -446,12 +446,12 @@ func TestIter(t *testing.T) {
 	}
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	for ii := Dll2.Rear(); !ii.Done(); ii.Prev() {
 		if db6 {
-			fmt.Printf("at:%s pos %d value %+v\n", godebug.LF(), ii.Pos(), ii.Value())
+			fmt.Printf("at:%s pos %d value %+v\n", dbgo.LF(), ii.Pos(), ii.Value())
 		}
 		j := ii.Pos()
 		if j < 0 || j >= len(expected) {

@@ -11,7 +11,7 @@ package heap_sort
 import (
 	// "fmt"
 
-	// "github.com/pschlump/godebug"
+	// "github.com/pschlump/dbgo"
 	// "github.com/pschlump/MiscLib"
 	"github.com/pschlump/pluto/comparable"
 	"github.com/pschlump/pluto/heap"

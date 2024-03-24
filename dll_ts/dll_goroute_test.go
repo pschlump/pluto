@@ -11,7 +11,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/pschlump/godebug"
+	"github.com/pschlump/dbgo"
 	"github.com/pschlump/pluto/comparable"
 	"github.com/pschlump/pluto/dll_ts"
 )
@@ -50,7 +50,7 @@ func TestDllGoroutines(t *testing.T) {
 	var Dll1 dll_ts.Dll[TestDemo]
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	var wg sync.WaitGroup
@@ -59,7 +59,7 @@ func TestDllGoroutines(t *testing.T) {
 
 	for i := 0; i < 40000; i++ {
 		if db7 {
-			fmt.Printf("In Loop at %d AT: %s\n", i, godebug.LF())
+			fmt.Printf("In Loop at %d AT: %s\n", i, dbgo.LF())
 		}
 		go func(n int) {
 			wg.Add(1)

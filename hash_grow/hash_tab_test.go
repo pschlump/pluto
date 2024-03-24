@@ -14,7 +14,7 @@ import (
 	"github.com/pschlump/HashStr"
 	"github.com/pschlump/MiscLib"
 	"github.com/pschlump/dbgo"
-	"github.com/pschlump/godebug"
+	"github.com/pschlump/dbgo"
 	"github.com/pschlump/pluto/comparable"
 )
 
@@ -136,17 +136,17 @@ func TestTest1(t *testing.T) {
 	// Search - find
 	// --------------------------------------------------------------------------------------------------------------------
 	if db2 {
-		fmt.Printf("%s --------- this one ---------- at:%s %s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+		fmt.Printf("%s --------- this one ---------- at:%s %s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
 	}
 	it := ht.Search(&TestData{S: "   8"})
 	if it == nil {
 		if db2 {
-			fmt.Printf("%s --------- error did not find it ---------- at:%s %s\n", MiscLib.ColorRed, godebug.LF(), MiscLib.ColorReset)
+			fmt.Printf("%s --------- error did not find it ---------- at:%s %s\n", MiscLib.ColorRed, dbgo.LF(), MiscLib.ColorReset)
 		}
 		t.Errorf("Expected to find it, did not")
 	}
 	if db2 {
-		fmt.Printf("%s --------- test done ---------- at:%s %s\n", MiscLib.ColorCyan, godebug.LF(), MiscLib.ColorReset)
+		fmt.Printf("%s --------- test done ---------- at:%s %s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
 	}
 
 	// Delete

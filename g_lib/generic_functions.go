@@ -142,8 +142,17 @@ func SortedKeysForStringMap[T any](aMap map[string]T) (rv []string) {
 	return
 }
 
-// RemoveAt removes from `slice` the item at postion `pos`.  `pos` must be >= 0 and < len(slice).
+// RemoveAt removes from `slice` the item at postion `pos`.  If pos is out of range it returns the original `slice`.
 func RemoveAt[T any](slice []T, pos int) []T {
+	if pos < 0 {
+		return slice
+	} else if pos >= len(slice) {
+		return slice
+	} else if pos == 0 {
+		return slice[1:]
+	} else if pos == len(slice)-1 {
+		return slice[0:pos]
+	}
 	return append(slice[:pos], slice[pos+1:]...)
 }
 
@@ -155,6 +164,27 @@ func Remove[T any](haystack []T, needle T) (result []T) {
 		}
 	}
 	return
+}
+
+func RemoveComparable[T comparable](slice []T, element T) (result []T) {
+	for _, item := range slice {
+		if item != element {
+			result = append(result, item)
+		}
+	}
+	return
+}
+
+func Unique[T comparable](s []T) []T {
+	inResult := make(map[T]bool)
+	var result []T
+	for _, str := range s {
+		if _, ok := inResult[str]; !ok {
+			inResult[str] = true
+			result = append(result, str)
+		}
+	}
+	return result
 }
 
 /* vim: set noai ts=4 sw=4: */

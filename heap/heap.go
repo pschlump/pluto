@@ -16,7 +16,7 @@ import (
 
 	"github.com/pschlump/MiscLib"
 	"github.com/pschlump/dbgo"
-	"github.com/pschlump/godebug"
+	"github.com/pschlump/dbgo"
 	"github.com/pschlump/pluto/comparable"
 )
 
@@ -166,7 +166,7 @@ func (hp *Heap[T]) Search(cmpVal *T) (rv *T, pos int, err error) {
 
 func (hp *Heap[T]) up(j int) {
 	if db10 {
-		fmt.Printf("%sup: (before) at:%s\n", MiscLib.ColorCyan, godebug.LF())
+		fmt.Printf("%sup: (before) at:%s\n", MiscLib.ColorCyan, dbgo.LF())
 		hp.printAsTree()
 	}
 	for {
@@ -179,7 +179,7 @@ func (hp *Heap[T]) up(j int) {
 		j = i
 	}
 	if db10 {
-		fmt.Printf("up: (after) at:%s\n", godebug.LF())
+		fmt.Printf("up: (after) at:%s\n", dbgo.LF())
 		hp.printAsTree()
 		fmt.Printf("%s\n", MiscLib.ColorReset)
 	}
@@ -187,7 +187,7 @@ func (hp *Heap[T]) up(j int) {
 
 func (hp *Heap[T]) down(i0, n int) (rv bool) {
 	if db10 {
-		fmt.Printf("%sdown: (before) at:%s\n", MiscLib.ColorYellow, godebug.LF())
+		fmt.Printf("%sdown: (before) at:%s\n", MiscLib.ColorYellow, dbgo.LF())
 		hp.printAsTree()
 	}
 	i := i0
@@ -210,7 +210,7 @@ func (hp *Heap[T]) down(i0, n int) (rv bool) {
 	}
 	rv = i > i0
 	if db10 {
-		fmt.Printf("down: (after) at:%s, will return %v\n", godebug.LF(), rv)
+		fmt.Printf("down: (after) at:%s, will return %v\n", dbgo.LF(), rv)
 		hp.printAsTree()
 		fmt.Printf("%s\n", MiscLib.ColorReset)
 	}
@@ -219,11 +219,11 @@ func (hp *Heap[T]) down(i0, n int) (rv bool) {
 
 // dump will print out the heap in JSON format.
 func (hp *Heap[T]) printAsJSON() {
-	fmt.Printf("Heap : %s\n", godebug.SVarI(hp.data))
+	fmt.Printf("Heap : %s\n", dbgo.SVarI(hp.data))
 }
 
 func (hp *Heap[T]) printAsTree() {
-	fmt.Printf("Heap As Tree: Left, Mid, Right Order: (%s), called from:%s\n", godebug.LF(), godebug.LF(-1))
+	fmt.Printf("Heap As Tree: Left, Mid, Right Order: (%s), called from:%s\n", dbgo.LF(), dbgo.LF(-1))
 
 	var printIt func(root, depth int)
 	printIt = func(i, depth int) {

@@ -389,30 +389,30 @@ func (tt *AvlTree[T]) nlSearch(find *T) (item *T) {
 		return nil
 	}
 
-	// fmt.Printf("at:%s\n", godebug.LF())
+	// fmt.Printf("at:%s\n", dbgo.LF())
 
 	// Iterative search through tree (can be used above)
 	cur := tt.root
 	for tt != nil {
-		// fmt.Printf(" at:%s ->%s<-\n", godebug.LF(), *cur.data)
+		// fmt.Printf(" at:%s ->%s<-\n", dbgo.LF(), *cur.data)
 		c := (*find).Compare(*cur.data)
 		if c == 0 {
-			// fmt.Printf("  %sfound%s at:%s\n", MiscLib.ColorGreen, MiscLib.ColorReset, godebug.LF())
+			// fmt.Printf("  %sfound%s at:%s\n", MiscLib.ColorGreen, MiscLib.ColorReset, dbgo.LF())
 			item = cur.data
 			return
 		}
 		if c < 0 && cur.left != nil {
-			// fmt.Printf("  left at:%s\n", godebug.LF())
+			// fmt.Printf("  left at:%s\n", dbgo.LF())
 			cur = (*cur).left
 		} else if c > 0 && cur.right != nil {
-			// fmt.Printf("  right at:%s\n", godebug.LF())
+			// fmt.Printf("  right at:%s\n", dbgo.LF())
 			cur = (*cur).right
 		} else {
-			// fmt.Printf("  ( not found / break loop ) at:%s\n", godebug.LF())
+			// fmt.Printf("  ( not found / break loop ) at:%s\n", dbgo.LF())
 			break
 		}
 	}
-	// fmt.Printf("all done at:%s\n", godebug.LF())
+	// fmt.Printf("all done at:%s\n", dbgo.LF())
 	return nil
 }
 
@@ -818,7 +818,7 @@ func (tt *AvlTree[T]) Index(pos int) (item *T) {
 				inorderTraversal((*cur).left)
 			}
 		}
-		// fmt.Printf ( "InOrder - Before Set, Top n=%d, pos=%d,    value=%+v     at:%s\n", n, pos, item, godebug.LF() )
+		// fmt.Printf ( "InOrder - Before Set, Top n=%d, pos=%d,    value=%+v     at:%s\n", n, pos, item, dbgo.LF() )
 		if n == pos {
 			item = (*cur).data
 			// fmt.Printf ( "*********** Set \n")

@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/pschlump/dbgo"
-	"github.com/pschlump/godebug"
+	"github.com/pschlump/dbgo"
 	"github.com/pschlump/pluto/comparable"
 )
 
@@ -48,7 +48,7 @@ func TestDll(t *testing.T) {
 	var Dll1 Dll[TestDemo]
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	if !Dll1.IsEmpty() {
@@ -58,7 +58,7 @@ func TestDll(t *testing.T) {
 	Dll1.AppendAtTail(&TestDemo{S: "hi"})
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	if Dll1.IsEmpty() {
@@ -66,7 +66,7 @@ func TestDll(t *testing.T) {
 	}
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	_, err := Dll1.Pop()
@@ -75,7 +75,7 @@ func TestDll(t *testing.T) {
 	}
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	_, err = Dll1.Pop()
@@ -87,7 +87,7 @@ func TestDll(t *testing.T) {
 	Dll1.AppendAtTail(&TestDemo{S: "hi3"})
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	got := Dll1.Length()
@@ -115,7 +115,7 @@ func TestDll(t *testing.T) {
 	// func (ns *Dll[T]) InsertBeforeHead(t *T) {
 	// func (ns *Dll[T]) AppendAtTail(t *T) {
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	Dll1.InsertBeforeHead(&TestDemo{S: "02"})
@@ -158,7 +158,7 @@ func TestDll(t *testing.T) {
 	}
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	// 	Test - DeleteAtHead
@@ -178,7 +178,7 @@ func TestDll(t *testing.T) {
 	}
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	// Test - ReverseList - Reverse all the nodes in list. 												O(n)
@@ -214,7 +214,7 @@ func TestDll(t *testing.T) {
 	}
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	// Walk - Iterate from head to tail of list. 													O(n)
@@ -251,7 +251,7 @@ func TestDll(t *testing.T) {
 	}
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	// ReverseWalk - Iterate from tail to head of list. 											O(n)
@@ -280,38 +280,38 @@ func TestDll(t *testing.T) {
 	*/
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	Dll1.Truncate()
 	Dll1.InsertBeforeHead(&TestDemo{S: "02"})
 	Dll1.AppendAtTail(&TestDemo{S: "03"})
 	Dll1.InsertBeforeHead(&TestDemo{S: "01"})
-	// fmt.Printf("AT: %s\n", godebug.LF())
+	// fmt.Printf("AT: %s\n", dbgo.LF())
 
 	// Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
 	// func (ns *Dll[T]) Search( t *T ) (rv *DllElement[T], pos int) {
 	rv, pos = Dll1.Search(&TestDemo{S: "02"})
 	if db4 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 		fmt.Printf("%+v, at locaiton %d\n", rv, pos)
 	}
 
 	// Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
 	// func (ns *Dll[T]) Delete( it *DllElement[T] ) ( err error ) {
-	// 	fmt.Printf("AT: %s\n", godebug.LF())
+	// 	fmt.Printf("AT: %s\n", dbgo.LF())
 	err = Dll1.Delete(rv)
-	// 	fmt.Printf("AT: %s\n", godebug.LF())
+	// 	fmt.Printf("AT: %s\n", dbgo.LF())
 
 	if Dll1.Length() != 2 {
 		t.Errorf("Unexpectd length, after search/delete, expected %d got %d", 2, Dll1.Length())
 	}
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
-	// 	fmt.Printf("AT: %s\n", godebug.LF())
+	// 	fmt.Printf("AT: %s\n", dbgo.LF())
 	// Print the nodes in a list.
 	fx = func(pos int, data TestDemo, userData interface{}) bool {
 		if db3 {
@@ -323,11 +323,11 @@ func TestDll(t *testing.T) {
 
 	// ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	Dll1.Truncate()
-	// 	fmt.Printf("AT: %s\n", godebug.LF())
+	// 	fmt.Printf("AT: %s\n", dbgo.LF())
 	Dll1.InsertBeforeHead(&TestDemo{S: "02"})
 	Dll1.AppendAtTail(&TestDemo{S: "03"})
 	Dll1.InsertBeforeHead(&TestDemo{S: "01"})
@@ -339,7 +339,7 @@ func TestDll(t *testing.T) {
 		fmt.Printf("%+v, at locaiton %d\n", rv, pos)
 	}
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	// Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
@@ -353,7 +353,7 @@ func TestDll(t *testing.T) {
 	Dll1.Walk(fx, "02")
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	// TODO
@@ -384,7 +384,7 @@ func TestDll(t *testing.T) {
 	}
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	rv, err = Dll1.Index(2)
@@ -502,7 +502,7 @@ func TestIndex(t *testing.T) {
 func TestIter(t *testing.T) {
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	var Dll2 Dll[TestDemo]
@@ -512,12 +512,12 @@ func TestIter(t *testing.T) {
 
 	expected := []string{"01", "02", "03"}
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	for ii := Dll2.Front(); !ii.Done(); ii.Next() {
 		if db6 {
-			fmt.Printf("at:%s pos %d value %+v\n", godebug.LF(), ii.Pos(), ii.Value())
+			fmt.Printf("at:%s pos %d value %+v\n", dbgo.LF(), ii.Pos(), ii.Value())
 		}
 		j := ii.Pos()
 		if j < 0 || j >= len(expected) {
@@ -530,12 +530,12 @@ func TestIter(t *testing.T) {
 	}
 
 	if db7 {
-		fmt.Printf("AT: %s\n", godebug.LF())
+		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
 	for ii := Dll2.Rear(); !ii.Done(); ii.Prev() {
 		if db6 {
-			fmt.Printf("at:%s pos %d value %+v\n", godebug.LF(), ii.Pos(), ii.Value())
+			fmt.Printf("at:%s pos %d value %+v\n", dbgo.LF(), ii.Pos(), ii.Value())
 		}
 		j := ii.Pos()
 		if j < 0 || j >= len(expected) {

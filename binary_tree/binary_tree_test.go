@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/pschlump/MiscLib"
-	"github.com/pschlump/godebug"
+	"github.com/pschlump/dbgo"
 	"github.com/pschlump/pluto/comparable"
 )
 
@@ -86,7 +86,7 @@ func TestTreeInsertSearch(t *testing.T) {
 	return
 
 	if db2 {
-		fmt.Printf("Test -- search for found item, at:%s\n", godebug.LF())
+		fmt.Printf("Test -- search for found item, at:%s\n", dbgo.LF())
 	}
 	ptr := Tree1.Search(&TestTreeNode{S: "12"})
 	if ptr == nil {
@@ -140,14 +140,14 @@ func TestTreeTruncate(t *testing.T) {
 	Tree1.Insert(&TestTreeNode{S: "00"})
 	Tree1.Insert(&TestTreeNode{S: "03"})
 	if db4 {
-		fmt.Printf("before Truncate at:%s tree=\n", godebug.LF())
+		fmt.Printf("before Truncate at:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 	Tree1.Truncate()
 	if Tree1.Length() != 0 {
 		t.Errorf("Expected empty tree")
 		if db4 {
-			fmt.Printf("Error: After Truncate at:%s tree=\n", godebug.LF())
+			fmt.Printf("Error: After Truncate at:%s tree=\n", dbgo.LF())
 			Tree1.Dump(os.Stdout)
 		}
 	}
@@ -183,7 +183,7 @@ func TestTreeDelete(t *testing.T) {
 	}
 	if size := Tree1.Length(); size != 0 {
 		t.Errorf("Expected to empty tree got, %d", size)
-		fmt.Printf("Shoudl be empty but is: at:%s tree=\n", godebug.LF())
+		fmt.Printf("Shoudl be empty but is: at:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
@@ -194,7 +194,7 @@ func TestTreeDelete(t *testing.T) {
 	found = Tree1.Delete(&TestTreeNode{S: "05"}) // Delete Tree with 1 side node.
 	if size := Tree1.Length(); size != 1 {
 		t.Errorf("Expected to tree contain 1 node got, %d", size)
-		fmt.Printf("Shoudl be single node, but is: at:%s tree=\n", godebug.LF())
+		fmt.Printf("Shoudl be single node, but is: at:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
@@ -206,7 +206,7 @@ func TestTreeDelete(t *testing.T) {
 	found = Tree1.Delete(&TestTreeNode{S: "05"}) // Delete Tree with 1 side node.
 	if size := Tree1.Length(); size != 1 {
 		t.Errorf("Expected to tree contain 1 node got, %d", size)
-		fmt.Printf("Shoudl be single node, but is: at:%s tree=\n", godebug.LF())
+		fmt.Printf("Shoudl be single node, but is: at:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
@@ -219,14 +219,14 @@ func TestTreeDelete(t *testing.T) {
 	found = Tree1.Delete(&TestTreeNode{S: "05"}) // Delete Tree with left and right children.
 	if size := Tree1.Length(); size != 2 {
 		t.Errorf("Expected to tree contain 2 nodes got, %d", size)
-		fmt.Printf("Shoudl be empty but is: at:%s tree=\n", godebug.LF())
+		fmt.Printf("Shoudl be empty but is: at:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 	// Should have a tree that looks like *(left is highter up)*
 	//		{03}
 	//	{08}
 	if db6 {
-		fmt.Printf("%sAfter delete with 2 nodes remaining: at:%s tree=%s\n", MiscLib.ColorYellow, godebug.LF(), MiscLib.ColorReset)
+		fmt.Printf("%sAfter delete with 2 nodes remaining: at:%s tree=%s\n", MiscLib.ColorYellow, dbgo.LF(), MiscLib.ColorReset)
 		Tree1.Dump(os.Stdout)
 	}
 
@@ -243,17 +243,17 @@ func TestTreeDelete(t *testing.T) {
 	Tree1.Insert(&TestTreeNode{S: "00"})
 	Tree1.Insert(&TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf("at:%s tree=\n", godebug.LF())
+		fmt.Printf("at:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 	if db5 {
-		fmt.Printf("\nOrignal Tree at:%s tree=\n", godebug.LF())
+		fmt.Printf("\nOrignal Tree at:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
 	found = Tree1.Delete(&TestTreeNode{S: "03"}) // Delete leaf
 	if db3 {
-		fmt.Printf("at:%s tree=\n", godebug.LF())
+		fmt.Printf("at:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 	if found == false {
@@ -264,7 +264,7 @@ func TestTreeDelete(t *testing.T) {
 	}
 
 	if db5 {
-		fmt.Printf("\nAfter 2nd Delete\nSo Far So Good AT:%s tree=\n", godebug.LF())
+		fmt.Printf("\nAfter 2nd Delete\nSo Far So Good AT:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
@@ -276,7 +276,7 @@ func TestTreeDelete(t *testing.T) {
 		t.Errorf("Expected to tree contain 3 nodes got, %d", size)
 	}
 	if db5 {
-		fmt.Printf("\nAfter 2nd Delete\nSo Far So Good AT:%s tree=\n", godebug.LF())
+		fmt.Printf("\nAfter 2nd Delete\nSo Far So Good AT:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
@@ -288,7 +288,7 @@ func TestTreeDelete(t *testing.T) {
 		t.Errorf("Expected to tree contain 2 nodes got, %d", size)
 	}
 	if db5 {
-		fmt.Printf("\nAfter 3rd Delete\nSo Far So Good AT:%s tree=\n", godebug.LF())
+		fmt.Printf("\nAfter 3rd Delete\nSo Far So Good AT:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
@@ -300,7 +300,7 @@ func TestTreeDelete(t *testing.T) {
 		t.Errorf("Expected to tree contain 1 nodes got, %d", size)
 	}
 	if db5 {
-		fmt.Printf("\nAfter 4rd Delete\nEnd at:%s tree=\n", godebug.LF())
+		fmt.Printf("\nAfter 4rd Delete\nEnd at:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 }
@@ -316,7 +316,7 @@ func TestTreeMinMax(t *testing.T) {
 	Tree1.Insert(&TestTreeNode{S: "00"})
 	Tree1.Insert(&TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf("at:%s tree=\n", godebug.LF())
+		fmt.Printf("at:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
@@ -341,7 +341,7 @@ func TestTreeDepth(t *testing.T) {
 	Tree1.Insert(&TestTreeNode{S: "00"})
 	Tree1.Insert(&TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf("at:%s tree=\n", godebug.LF())
+		fmt.Printf("at:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
@@ -361,7 +361,7 @@ func TestTreeIndex(t *testing.T) {
 	Tree1.Insert(&TestTreeNode{S: "00"})
 	Tree1.Insert(&TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf("at:%s tree=\n", godebug.LF())
+		fmt.Printf("at:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
@@ -400,7 +400,7 @@ func TestTreeRevese(t *testing.T) {
 	Tree1.Insert(&TestTreeNode{S: "00"})
 	Tree1.Insert(&TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf("at:%s tree=\n", godebug.LF())
+		fmt.Printf("at:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
@@ -426,7 +426,7 @@ func TestTreeDeleteAtTail(t *testing.T) {
 	Tree1.Insert(&TestTreeNode{S: "00"})
 	Tree1.Insert(&TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf("at:%s tree=\n", godebug.LF())
+		fmt.Printf("at:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
@@ -452,7 +452,7 @@ func TestTreeDeleteAtHead(t *testing.T) {
 	Tree1.Insert(&TestTreeNode{S: "00"})
 	Tree1.Insert(&TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf("at:%s tree=\n", godebug.LF())
+		fmt.Printf("at:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
@@ -484,7 +484,7 @@ func TestTreeWalkInOrder(t *testing.T) {
 	Tree1.Insert(&TestTreeNode{S: "00"})
 	Tree1.Insert(&TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf("at:%s tree=\n", godebug.LF())
+		fmt.Printf("at:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
@@ -512,7 +512,7 @@ func TestTreeWalkPreOrder(t *testing.T) {
 	Tree1.Insert(&TestTreeNode{S: "00"})
 	Tree1.Insert(&TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf("at:%s tree=\n", godebug.LF())
+		fmt.Printf("at:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
@@ -540,7 +540,7 @@ func TestTreeWalkPostOrder(t *testing.T) {
 	Tree1.Insert(&TestTreeNode{S: "00"})
 	Tree1.Insert(&TestTreeNode{S: "03"})
 	if db3 {
-		fmt.Printf("at:%s tree=\n", godebug.LF())
+		fmt.Printf("at:%s tree=\n", dbgo.LF())
 		Tree1.Dump(os.Stdout)
 	}
 
