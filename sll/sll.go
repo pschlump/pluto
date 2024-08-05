@@ -209,7 +209,7 @@ func (ns *Sll[T]) Search(t *T) (rv *SllElement[T], pos int) {
 	return nil, -1 // not found
 }
 
-// Peek returns the top element of the stack or an error indicating that the stack is empty.
+// Peek returns the top element of the stack or an error indicating that the stack is empty.		O(1)
 func (ns *Sll[T]) Peek() (rv *T, err error) {
 	if ns.IsEmpty() {
 		return nil, ErrEmptySll
@@ -218,7 +218,7 @@ func (ns *Sll[T]) Peek() (rv *T, err error) {
 	return
 }
 
-// Truncate removes all data from the list.
+// Truncate removes all data from the list. 		O(1)
 func (ns *Sll[T]) Truncate() {
 	(*ns).head = nil
 	(*ns).tail = nil
@@ -226,6 +226,7 @@ func (ns *Sll[T]) Truncate() {
 	return
 }
 
+// Dump prints out the list. 						O(n)
 func (tt *Sll[T]) Dump(fp io.Writer) {
 	i := 0
 	for p := tt.head; p != nil; p = p.next {
@@ -234,7 +235,7 @@ func (tt *Sll[T]) Dump(fp io.Writer) {
 	}
 }
 
-// Reverse - effeciently reverse direciotn on a list.
+// Reverse - effeciently reverse direciotn on a list.  O(n) with storage O(1)
 func (ns *Sll[T]) Reverse() {
 
 	var prev, next *SllElement[T]
@@ -246,4 +247,5 @@ func (ns *Sll[T]) Reverse() {
 	}
 
 	ns.head, ns.tail = ns.tail, ns.head
+
 }
