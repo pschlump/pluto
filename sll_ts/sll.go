@@ -15,6 +15,8 @@ Basic operations on a Singly Linked List (SLL)
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"sync"
 )
 
@@ -188,7 +190,7 @@ func (ns *Sll[T]) Pop() (rv *T, err error) {
 	return
 }
 
-// Peek returns the top element of the stack or an error indicating that the stack is empty.
+// Peek returns the top element of the stack or an error indicating that the stack is empty.   O(1)
 func (ns *Sll[T]) Peek() (rv *T, err error) {
 	ns.mu.RLock()
 	defer ns.mu.RUnlock()
@@ -200,7 +202,7 @@ func (ns *Sll[T]) Peek() (rv *T, err error) {
 	return
 }
 
-// Truncate removes all data from the list.
+// Truncate removes all data from the list.   O(1)
 func (ns *Sll[T]) Truncate() {
 	ns.mu.Lock()
 	defer ns.mu.Unlock()
@@ -208,4 +210,31 @@ func (ns *Sll[T]) Truncate() {
 	ns.tail = nil
 	ns.length = 0
 	return
+}
+
+// Dump prints out the list. 						O(n)
+func (tt *Sll[T]) Dump(fp io.Writer) {
+	i := 0
+	for p := tt.head; p != nil; p = p.next {
+		fmt.Fprintf(fp, "%d: %+v\n", i, *(p.data))
+		i++
+	}
+}
+
+// Reverse - effeciently reverse direciotn on a list.  O(n) with storage O(1)
+func (ns *Sll[T]) Reverse() {
+
+	ns.mu.Lock()
+	defer ns.mu.Unlock()
+
+	var prev, next *SllElement[T]
+	prev = nil
+	for cp := ns.head; cp != nil; cp = next {
+		next = cp.next // save next pointer at beginning
+		cp.next = prev
+		prev = cp
+	}
+
+	ns.head, ns.tail = ns.tail, ns.head
+
 }
