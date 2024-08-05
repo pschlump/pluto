@@ -8,6 +8,7 @@ BSD 3 Clause Licensed.
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/pschlump/dbgo"
@@ -163,5 +164,55 @@ func TestIter(t *testing.T) {
 
 }
 
+func TestReverse(t *testing.T) {
+	// Build a list with 3 items, 03, 02, 01
+	var Sll3 Sll[TestDemo]
+	Sll3.InsertAfterTail(&TestDemo{S: "03"})
+	Sll3.InsertAfterTail(&TestDemo{S: "02"})
+	Sll3.InsertAfterTail(&TestDemo{S: "01"})
+
+	if db8 {
+		Sll3.Dump(os.Stdout)
+	}
+
+	Sll3.Reverse()
+
+	if db8 {
+		Sll3.Dump(os.Stdout)
+	}
+
+	got := Sll3.Length()
+	expect := 3
+	if got != expect {
+		t.Errorf("Expected length of %d got %d", expect, got)
+	}
+
+	a, err := Sll3.Pop()
+	if err != nil {
+		t.Errorf("Unexpectd lack of error after pop on empty stack")
+	}
+	if a.S != "01" {
+		t.Errorf("Unexpectd data")
+	}
+
+	a, err = Sll3.Pop()
+	if err != nil {
+		t.Errorf("Unexpectd lack of error after pop on empty stack")
+	}
+	if a.S != "02" {
+		t.Errorf("Unexpectd data, got %v", a)
+	}
+
+	a, err = Sll3.Pop()
+	if err != nil {
+		t.Errorf("Unexpectd lack of error after pop on empty stack")
+	}
+	if a.S != "03" {
+		t.Errorf("Unexpectd data, got %v", a)
+	}
+
+}
+
 var db6 = false
 var db7 = false
+var db8 = false

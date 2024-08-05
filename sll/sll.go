@@ -233,3 +233,17 @@ func (tt *Sll[T]) Dump(fp io.Writer) {
 		i++
 	}
 }
+
+// Reverse - effeciently reverse direciotn on a list.
+func (ns *Sll[T]) Reverse() {
+
+	var prev, next *SllElement[T]
+	prev = nil
+	for cp := ns.head; cp != nil; cp = next {
+		next = cp.next // save next pointer at beginning
+		cp.next = prev
+		prev = cp
+	}
+
+	ns.head, ns.tail = ns.tail, ns.head
+}

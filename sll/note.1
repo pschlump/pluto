@@ -1,0 +1,14 @@
+
+Add
+
+Reverse - effeciently reverse direciotn on a list.
+
+// See: https://www.geeksforgeeks.org/reverse-a-linked-list/#
+
+prev := nil
+for cp := node.head; cp != nil; cp = next {
+	next := cp.next // save next pointer at beginning
+	cp.next = prev
+	prev = cp
+}
+
