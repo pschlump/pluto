@@ -469,6 +469,20 @@ func (tt *Dll[T]) Dump(fo io.Writer) {
 	}
 }
 
+// Reverse - effeciently reverse direciotn on a list.  O(n) with storage O(1)
+func (ns *Dll[T]) Reverse() {
+
+	var next *DllElement[T]
+
+	for cp := ns.head; cp != nil; cp = next {
+		next = cp.next // save next pointer at beginning
+		cp.next, cp.prev = cp.prev, cp.next
+	}
+
+	ns.head, ns.tail = ns.tail, ns.head
+
+}
+
 // -----------------------------------------------------------------------------------------------------------
 // Go1.22 Iterator stuff
 
@@ -476,13 +490,24 @@ func (tt *Dll[T]) Dump(fo io.Writer) {
 // type DllSeq[V comparable.Equality] func(yield func(V) bool)
 
 /*
-func ( ns *Dll[T] ) All( yield func Dll[T] bool ) {
+func All[T any]( yield func(ns *Dll[T]) ( Dll[T] , bool ) {
 	ii := 0
 	for nn := ns.Head; nn != nil; nn = nn->Next {
-			if !yield(ii, nn) {
-				return
+		if !yield(ii, nn) {
+			return
 		}
 		ii++
+	}
+}
+
+func ( ns * Dll[T]) All[E any](s []E) func(func(int, E) bool) {
+	return func(yield func(int, E) bool) {
+		for i := len(s) - 1; i >= 0; i-- {
+			if !yield(i, s[i]) {
+				// Where clean-up code goes
+				return
+			}
+		}
 	}
 }
 */

@@ -1,6 +1,9 @@
 module github.com/pschlump/pluto
 
-go 1.22.0
+// go 1.22.5
+// go 1.23.0
+
+go 1.23rc2
 
 require (
 	github.com/pschlump/HashStr v1.0.0
@@ -17,5 +20,3 @@ require (
 	github.com/pschlump/json v1.12.1 // indirect
 	golang.org/x/sys v0.18.0 // indirect
 )
-
-//

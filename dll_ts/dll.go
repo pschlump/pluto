@@ -644,4 +644,24 @@ func (ns *Dll[T]) Concat(yy *Dll[T]) {
 
 }
 
+// Reverse - effeciently reverse direciotn on a list.  O(n) with storage O(1)
+func (ns *Dll[T]) Reverse() {
+	if ns == nil {
+		panic("list sholud not be a nil")
+	}
+
+	var next *DllElement[T]
+
+	ns.mu.Lock()
+	defer ns.mu.Unlock()
+
+	for cp := ns.head; cp != nil; cp = next {
+		next = cp.next // save next pointer at beginning
+		cp.next, cp.prev = cp.prev, cp.next
+	}
+
+	ns.head, ns.tail = ns.tail, ns.head
+
+}
+
 /* vim: set noai ts=4 sw=4: */
