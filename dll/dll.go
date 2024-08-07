@@ -55,6 +55,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 
 	"github.com/pschlump/pluto/comparable"
 )
@@ -511,5 +512,27 @@ func ( ns * Dll[T]) All[E any](s []E) func(func(int, E) bool) {
 	}
 }
 */
+
+func (ns *Dll[T]) IterateOver() iter.Seq2[int, T] {
+	return func(yield func(int, T) bool) {
+		// for i, v := range items { // 					the loop control.....
+		for i, p := 0, (*ns).head; p != nil; i, p = i+1, p.next {
+			if !yield(i, *p.Data) {
+				return
+			}
+		}
+	}
+}
+
+func (ns *Dll[T]) IteratePtr() iter.Seq2[int, *T] {
+	return func(yield func(int, *T) bool) {
+		// for i, v := range items { // 					the loop control.....
+		for i, p := 0, (*ns).head; p != nil; i, p = i+1, p.next {
+			if !yield(i, p.Data) {
+				return
+			}
+		}
+	}
+}
 
 /* vim: set noai ts=4 sw=4: */

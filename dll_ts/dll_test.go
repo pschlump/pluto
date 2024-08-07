@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/pschlump/dbgo"
-	"github.com/pschlump/dbgo"
 	"github.com/pschlump/pluto/comparable"
 )
 

@@ -16,7 +16,6 @@ import (
 
 	"github.com/pschlump/MiscLib"
 	"github.com/pschlump/dbgo"
-	"github.com/pschlump/dbgo"
 	"github.com/pschlump/pluto/comparable"
 )
 
@@ -248,7 +247,6 @@ func (hp *Heap[T]) printAsTree() {
 // After 1..n AppendHeap operations a call to Heapify() is necessary to re-heap the heap.
 //
 // Example: `h.Heapify(h.Len(),0)` will re-build the entire heap.
-//
 func (hp *Heap[T]) AppendHeap(x []*T) {
 	hp.data = append(hp.data, x...)
 }
@@ -293,12 +291,19 @@ panic: runtime error: index out of range [0] with length 0
 
 goroutine 13 [running]:
 github.com/pschlump/pluto/heap.(*Heap[...]).Peek(0xc000466540?)
+
 	/Users/philip/go/src/github.com/pschlump/pluto/heap/heap.go:68 +0x2f
+
 main.GetSetDelNew.func11()
+
 	/Users/philip/go/src/www.2c-why.com/ultra/ultra-server/get-set-del.go:330 +0x13b
+
 main.TimedDispatch()
+
 	/Users/philip/go/src/www.2c-why.com/ultra/ultra-server/time.go:24 +0xc2
+
 created by main.main
+
 	/Users/philip/go/src/www.2c-why.com/ultra/ultra-server/main.go:644 +0x276a
 */
 const db10 = false

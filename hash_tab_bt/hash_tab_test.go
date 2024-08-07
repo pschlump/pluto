@@ -14,7 +14,6 @@ import (
 	"github.com/pschlump/HashStr"
 	"github.com/pschlump/MiscLib"
 	"github.com/pschlump/dbgo"
-	"github.com/pschlump/dbgo"
 	"github.com/pschlump/pluto/comparable"
 )
 
@@ -50,7 +49,6 @@ func (aa TestData) Compare(x comparable.Comparable) int {
 	return 0
 }
 
-//
 func (aa TestData) IsEqual(x comparable.Equality) bool {
 	if bb, ok := x.(TestData); ok {
 		if aa.S == bb.S {
