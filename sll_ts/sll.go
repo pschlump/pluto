@@ -240,6 +240,8 @@ func (ns *Sll[T]) Reverse() {
 
 }
 
+// xyzzy- TODO - how will an iterator interact with locks?
+
 func (ns *Sll[T]) IterateOver() iter.Seq2[int, T] {
 	return func(yield func(int, T) bool) {
 		// for i, v := range items { // 					the loop control.....
@@ -253,7 +255,6 @@ func (ns *Sll[T]) IterateOver() iter.Seq2[int, T] {
 
 func (ns *Sll[T]) IteratePtr() iter.Seq2[int, *T] {
 	return func(yield func(int, *T) bool) {
-		// for i, v := range items { // 					the loop control.....
 		for i, p := 0, (*ns).head; p != nil; i, p = i+1, p.next {
 			if !yield(i, p.data) {
 				return
