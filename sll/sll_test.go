@@ -213,6 +213,37 @@ func TestReverse(t *testing.T) {
 
 }
 
+// func (ns *Sll[T]) IterateOver(items []T) iter.Seq2[int, T] {
+func TestIterateOver(t *testing.T) {
+
+	var Sll3 Sll[TestDemo]
+	Sll3.InsertAfterTail(&TestDemo{S: "01"})
+	Sll3.InsertAfterTail(&TestDemo{S: "02"})
+	Sll3.InsertAfterTail(&TestDemo{S: "03"})
+
+	if db9 {
+		Sll3.Dump(os.Stdout)
+	}
+
+	j := 0
+	for i, v := range Sll3.IterateOver() {
+		if db9 {
+			dbgo.Printf("%d %v\n", i, v)
+		}
+		if i != j {
+			t.Errorf("Unexpectd position, expected %v got %v", j, i)
+		}
+		want := fmt.Sprintf("{%02d}", j+1)
+		got := fmt.Sprintf("%v", v)
+		if want != got {
+			t.Errorf("Unexpectd value at position, postion %d want %s got %s", j, want, got)
+		}
+		j++
+	}
+
+}
+
 var db6 = false
 var db7 = false
 var db8 = false
+var db9 = false

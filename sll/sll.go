@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 
 	"github.com/pschlump/pluto/comparable"
 )
@@ -248,4 +249,15 @@ func (ns *Sll[T]) Reverse() {
 
 	ns.head, ns.tail = ns.tail, ns.head
 
+}
+
+func (ns *Sll[T]) IterateOver() iter.Seq2[int, T] {
+	return func(yield func(int, T) bool) {
+		// for i, v := range items { // 					the loop control.....
+		for i, p := 0, (*ns).head; p != nil; i, p = i+1, p.next {
+			if !yield(i, *p.data) {
+				return
+			}
+		}
+	}
 }
