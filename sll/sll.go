@@ -1,7 +1,7 @@
 package sll
 
 /*
-Copyright (C) Philip Schlump, 2012-2021.
+Copyright (C) Philip Schlump, 2012-2024.
 
 BSD 3 Clause Licensed.
 

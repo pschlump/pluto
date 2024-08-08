@@ -1,7 +1,7 @@
 package dll
 
 /*
-Copyright (C) Philip Schlump, 2012-2021.
+Copyright (C) Philip Schlump, 2012-2024.
 
 BSD 3 Clause Licensed.
 */
@@ -26,7 +26,6 @@ func NewTestDemo() *TestDemo {
 // At compile time verify that this is a correct type/interface setup.
 var _ comparable.Equality = (*TestDemo)(nil)
 
-//
 func (aa TestDemo) IsEqual(x comparable.Equality) bool {
 	if bb, ok := x.(TestDemo); ok {
 		if aa.S == bb.S {

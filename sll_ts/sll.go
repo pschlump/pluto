@@ -1,7 +1,7 @@
 package sll_ts
 
 /*
-Copyright (C) Philip Schlump, 2012-2021.
+Copyright (C) Philip Schlump, 2012-2024.
 
 BSD 3 Clause Licensed.
 
@@ -240,7 +240,13 @@ func (ns *Sll[T]) Reverse() {
 
 }
 
-// xyzzy- TODO - how will an iterator interact with locks?
+func (ns *Sll[T]) Lock() {
+	ns.mu.Lock()
+}
+
+func (ns *Sll[T]) Unlock() {
+	ns.mu.Unlock()
+}
 
 func (ns *Sll[T]) IterateOver() iter.Seq2[int, T] {
 	return func(yield func(int, T) bool) {
