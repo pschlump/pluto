@@ -11,6 +11,7 @@ BSD 3 Clause Licensed.
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/pschlump/MiscLib"
@@ -554,7 +555,11 @@ func TestTreeWalkInOrder(t *testing.T) {
 		fmt.Printf("Output: %s\n", x)
 	}
 
-	// TODO -- automate correct answer.
+	//	Output: [00 02 03 05 09]
+	expect := []string{"00", "02", "03", "05", "09"}
+	if !reflect.DeepEqual(x, expect) {
+		t.Errorf("InOrder error, expcted %s got %s", expect, x)
+	}
 }
 
 func TestTreeWalkPreOrder(t *testing.T) {
@@ -584,7 +589,11 @@ func TestTreeWalkPreOrder(t *testing.T) {
 		fmt.Printf("PreOrder Output: %s\n", x)
 	}
 
-	// TODO -- automate correct answer.
+	//PreOrder Output: [05 02 00 03 09]
+	expect := []string{"05", "02", "00", "03", "09"}
+	if !reflect.DeepEqual(x, expect) {
+		t.Errorf("PreOrder error, expcted %s got %s", expect, x)
+	}
 }
 
 func TestTreeWalkPostOrder(t *testing.T) {
@@ -614,7 +623,11 @@ func TestTreeWalkPostOrder(t *testing.T) {
 		fmt.Printf("PostOrder Output: %s\n", x)
 	}
 
-	// TODO -- automate correct answer.
+	// PostOrder Output: [00 03 02 09 05]
+	expect := []string{"00", "03", "02", "09", "05"}
+	if !reflect.DeepEqual(x, expect) {
+		t.Errorf("PostOrder error, expcted %s got %s", expect, x)
+	}
 }
 
 func TestTreeCopy(t *testing.T) {

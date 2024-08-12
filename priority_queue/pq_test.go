@@ -28,7 +28,7 @@ func (aa PqTest) Compare(x comparable.Comparable) int {
 	} else {
 		panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
 	}
-	return 0
+	// return 0 -- detects as unreacable code in Go 1.23
 }
 
 func TestCreateHeap(t *testing.T) {

@@ -109,7 +109,9 @@ func TestTest1(t *testing.T) {
 	if ht.Len() != 40 {
 		t.Errorf("Expected length of 40, got %d", ht.Len())
 	}
-	dbgo.Fprintf(os.Stderr, "---------------------\n")
+	if db3 {
+		dbgo.Fprintf(os.Stderr, "---------------------\n")
+	}
 	for i := 0; i < 40; i++ {
 		ht.Insert(&TestData{S: fmt.Sprintf("%4d", i)})
 	}
@@ -117,7 +119,9 @@ func TestTest1(t *testing.T) {
 		t.Errorf("Expected length of 40, got %d", ht.Len())
 	}
 
-	ht.Dump(os.Stdout)
+	if db3 {
+		ht.Dump(os.Stdout)
+	}
 
 	// Check setup of hash tab
 	if ht.IsEmpty() {
@@ -213,7 +217,9 @@ func TestTest2(t *testing.T) {
 	if ht.Len() != 40 {
 		t.Errorf("Expected length of 40, got %d", ht.Len())
 	}
-	dbgo.Fprintf(os.Stderr, "---------------------\n")
+	if db3 {
+		dbgo.Fprintf(os.Stderr, "---------------------\n")
+	}
 	for i := 0; i < 40; i++ {
 		ht.Insert(&TestData{S: fmt.Sprintf("%4d", i)})
 	}
@@ -221,8 +227,10 @@ func TestTest2(t *testing.T) {
 		t.Errorf("Expected length of 40, got %d", ht.Len())
 	}
 
-	fmt.Printf("------------- before ---------------------------\n")
-	ht.Dump(os.Stdout)
+	if db3 {
+		fmt.Printf("------------- before ---------------------------\n")
+		ht.Dump(os.Stdout)
+	}
 
 	// Delete
 	it := ht.Search(&TestData{S: "  13"})
@@ -233,8 +241,10 @@ func TestTest2(t *testing.T) {
 
 	// xyzzy TODO - check the tt.bucket[93] should be nil, with tt.originalHahs[93] == 93
 
-	fmt.Printf("------------- after Delete of '  13' no move, no dup ---------------------------\n")
-	ht.Dump(os.Stdout)
+	if db3 {
+		fmt.Printf("------------- after Delete of '  13' no move, no dup ---------------------------\n")
+		ht.Dump(os.Stdout)
+	}
 
 	it = ht.Search(&TestData{S: "   6"})
 	found = ht.Delete(it) // func (tt *HashTab[T]) Delete(find *T) (found bool) {
@@ -244,8 +254,10 @@ func TestTest2(t *testing.T) {
 
 	// xyzzy TODO - check the tt.bucket[93] ...  see output and validate.
 
-	fmt.Printf("------------- after Delete of '   6' move up ---------------------------\n")
-	ht.Dump(os.Stdout)
+	if db3 {
+		fmt.Printf("------------- after Delete of '   6' move up ---------------------------\n")
+		ht.Dump(os.Stdout)
+	}
 
 	// Search - find
 	it = ht.Search(&TestData{S: "  38"})
@@ -255,3 +267,4 @@ func TestTest2(t *testing.T) {
 }
 
 const db2 = false
+const db3 = false

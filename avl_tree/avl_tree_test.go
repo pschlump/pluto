@@ -11,6 +11,7 @@ BSD 3 Clause Licensed.
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/pschlump/MiscLib"
@@ -549,9 +550,15 @@ func TestTreeWalkInOrder(t *testing.T) {
 	}
 	Tree1.WalkInOrder(fx, nil)
 
-	fmt.Printf("Output: %s\n", x)
+	if db8 {
+		fmt.Printf("Output: %s\n", x)
+	}
 
-	// TODO -- automate correct answer.
+	//	Output: [00 02 03 05 09]
+	expect := []string{"00", "02", "03", "05", "09"}
+	if !reflect.DeepEqual(x, expect) {
+		t.Errorf("InOrder error, expcted %s got %s", expect, x)
+	}
 }
 
 func TestTreeWalkPreOrder(t *testing.T) {
@@ -577,9 +584,15 @@ func TestTreeWalkPreOrder(t *testing.T) {
 	}
 	Tree1.WalkPreOrder(fx, nil)
 
-	fmt.Printf("PreOrder Output: %s\n", x)
+	if db8 {
+		fmt.Printf("PreOrder Output: %s\n", x)
+	}
 
-	// TODO -- automate correct answer.
+	//PreOrder Output: [05 02 00 03 09]
+	expect := []string{"05", "02", "00", "03", "09"}
+	if !reflect.DeepEqual(x, expect) {
+		t.Errorf("PreOrder error, expcted %s got %s", expect, x)
+	}
 }
 
 func TestTreeWalkPostOrder(t *testing.T) {
@@ -605,9 +618,15 @@ func TestTreeWalkPostOrder(t *testing.T) {
 	}
 	Tree1.WalkPostOrder(fx, nil)
 
-	fmt.Printf("PostOrder Output: %s\n", x)
+	if db8 {
+		fmt.Printf("PostOrder Output: %s\n", x)
+	}
 
-	// TODO -- automate correct answer.
+	// PostOrder Output: [00 03 02 09 05]
+	expect := []string{"00", "03", "02", "09", "05"}
+	if !reflect.DeepEqual(x, expect) {
+		t.Errorf("PostOrder error, expcted %s got %s", expect, x)
+	}
 }
 
 const db2 = false
@@ -616,3 +635,4 @@ const db4 = false
 const db5 = false
 const db6 = false
 const db7 = false
+const db8 = false

@@ -53,8 +53,6 @@ func (aa TestTreeNode) Compare(x comparable.Comparable) int {
 
 func TestTreeInsertSearch(t *testing.T) {
 
-	return
-
 	// Verify we can create a node.
 	ANode := NewTestTree()
 	_ = ANode
@@ -485,6 +483,7 @@ func TestTreeWalkInOrder(t *testing.T) {
 	if db7 {
 		fmt.Printf("Output: %s\n", x)
 	}
+
 	//	Output: [00 02 03 05 09]
 	expect := []string{"00", "02", "03", "05", "09"}
 	if !reflect.DeepEqual(x, expect) {

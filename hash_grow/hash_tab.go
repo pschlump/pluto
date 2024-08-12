@@ -70,13 +70,13 @@ func NewHashTab[T comparable.Comparable](n int, saturation float64) *HashTab[T] 
 
 // IsEmpty will return true if the hash table is empty
 // Complexity is O(1).
-func (tt HashTab[T]) IsEmpty() bool {
+func (tt *HashTab[T]) IsEmpty() bool {
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 	return tt.length == 0
 }
 
-func (tt HashTab[T]) nlIsEmpty() bool {
+func (tt *HashTab[T]) nlIsEmpty() bool {
 	return tt.length == 0
 }
 
@@ -210,7 +210,7 @@ func (tt *HashTab[T]) NlSearch(find *T) (rv *T) {
 			h = 0 // wrap back to top
 		}
 	}
-	return
+	// return	-- detected as unrachable as of Go 1.23, before this missing return
 }
 
 // ht.WriteLock()
@@ -318,7 +318,7 @@ func (tt *HashTab[T]) NlDelete(find *T) (found bool) {
 		}
 		h = incSize(h)
 	}
-	return
+	// return	-- detected as unrachable as of Go 1.23, before this missing return
 }
 
 func (tt *HashTab[T]) Walk(fx binary_tree_ts.ApplyFunction[T], userData interface{}) (b bool) {

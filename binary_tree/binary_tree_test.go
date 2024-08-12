@@ -9,6 +9,7 @@ BSD 3 Clause Licensed.
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/pschlump/MiscLib"
@@ -83,7 +84,7 @@ func TestTreeInsertSearch(t *testing.T) {
 		t.Errorf("Expected 1 node in tree, got %d", Tree1.Len())
 	}
 
-	return
+	// 	return
 
 	if db2 {
 		fmt.Printf("Test -- search for found item, at:%s\n", dbgo.LF())
@@ -123,7 +124,7 @@ func TestTreeInsertSearch(t *testing.T) {
 
 }
 
-// TEST TODO: func (tt *Binarytree[T]) Truncate()  {
+// Test tree truncate, very tree empty after build.
 func TestTreeTruncate(t *testing.T) {
 
 	var Tree1 BinaryTree[TestTreeNode]
@@ -496,9 +497,15 @@ func TestTreeWalkInOrder(t *testing.T) {
 	}
 	Tree1.WalkInOrder(fx, nil)
 
-	fmt.Printf("Output: %s\n", x)
+	if db8 {
+		fmt.Printf("Output: %s\n", x)
+	}
 
-	// TODO -- automate correct answer.
+	//	Output: [00 02 03 05 09]
+	expect := []string{"00", "02", "03", "05", "09"}
+	if !reflect.DeepEqual(x, expect) {
+		t.Errorf("InOrder error, expcted %s got %s", expect, x)
+	}
 }
 
 func TestTreeWalkPreOrder(t *testing.T) {
@@ -524,9 +531,15 @@ func TestTreeWalkPreOrder(t *testing.T) {
 	}
 	Tree1.WalkPreOrder(fx, nil)
 
-	fmt.Printf("PreOrder Output: %s\n", x)
+	if db8 {
+		fmt.Printf("PreOrder Output: %s\n", x)
+	}
 
-	// TODO -- automate correct answer.
+	//PreOrder Output: [05 02 00 03 09]
+	expect := []string{"05", "02", "00", "03", "09"}
+	if !reflect.DeepEqual(x, expect) {
+		t.Errorf("PreOrder error, expcted %s got %s", expect, x)
+	}
 }
 
 func TestTreeWalkPostOrder(t *testing.T) {
@@ -552,13 +565,21 @@ func TestTreeWalkPostOrder(t *testing.T) {
 	}
 	Tree1.WalkPostOrder(fx, nil)
 
-	fmt.Printf("PostOrder Output: %s\n", x)
+	if db8 {
+		fmt.Printf("PostOrder Output: %s\n", x)
+	}
 
-	// TODO -- automate correct answer.
+	// PostOrder Output: [00 03 02 09 05]
+	expect := []string{"00", "03", "02", "09", "05"}
+	if !reflect.DeepEqual(x, expect) {
+		t.Errorf("PostOrder error, expcted %s got %s", expect, x)
+	}
 }
 
 const db2 = false
+
 const db3 = false
 const db4 = false
 const db5 = false
 const db6 = false
+const db8 = false

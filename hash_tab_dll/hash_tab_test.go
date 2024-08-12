@@ -47,7 +47,6 @@ func (aa TestData) Compare(x comparable.Comparable) int {
 	return 0
 }
 
-//
 func (aa TestData) IsEqual(x comparable.Equality) bool {
 	if bb, ok := x.(TestData); ok {
 		if aa.S == bb.S {
@@ -89,7 +88,9 @@ func TestTest(t *testing.T) {
 		ht.Insert(&TestData{S: fmt.Sprintf("%4d", i)})
 	}
 
-	ht.Dump(os.Stdout)
+	if db8 {
+		ht.Dump(os.Stdout)
+	}
 
 	// Check setup of hash tab
 	if ht.IsEmpty() {
@@ -153,3 +154,5 @@ func TestTest(t *testing.T) {
 	}
 
 }
+
+const db8 = false

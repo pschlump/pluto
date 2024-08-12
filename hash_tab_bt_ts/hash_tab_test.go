@@ -103,7 +103,9 @@ func TestTest(t *testing.T) {
 	if ht.Len() != 40 {
 		t.Errorf("Expected length of 40, got %d", ht.Len())
 	}
-	dbgo.Fprintf(os.Stderr, "---------------------\n")
+	if db3 {
+		dbgo.Fprintf(os.Stderr, "---------------------\n")
+	}
 	for i := 0; i < 40; i++ {
 		ht.Insert(&TestData{S: fmt.Sprintf("%4d", i)})
 	}
@@ -111,7 +113,9 @@ func TestTest(t *testing.T) {
 		t.Errorf("Expected length of 40, got %d", ht.Len())
 	}
 
-	ht.Dump(os.Stdout)
+	if db3 {
+		ht.Dump(os.Stdout)
+	}
 
 	// Check setup of hash tab
 	if ht.IsEmpty() {
@@ -188,3 +192,4 @@ func TestTest(t *testing.T) {
 }
 
 const db2 = false
+const db3 = false

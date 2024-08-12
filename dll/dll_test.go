@@ -393,7 +393,9 @@ func TestDll(t *testing.T) {
 		t.Errorf("Failed to delete 02")
 	}
 
-	Dll1.Dump(os.Stdout)
+	if db7 {
+		Dll1.Dump(os.Stdout)
+	}
 
 	rv, err = Dll1.Index(0)
 	if err != nil {

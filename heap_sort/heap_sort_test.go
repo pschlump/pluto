@@ -26,7 +26,7 @@ func (aa SomeData) Compare(x comparable.Comparable) int {
 	} else {
 		panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
 	}
-	return 0
+	// return 0 --detects as unreachable in Go 1.23
 }
 
 func TestSortUp(t *testing.T) {

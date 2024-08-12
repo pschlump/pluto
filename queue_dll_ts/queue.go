@@ -19,8 +19,9 @@ This is the thread safe implementation.
 *	Enqueue() - Insert into the tail of the Queue.  Same as Push()								O(1)
 * 	Truncate - Delete all the nodes in list. 													O(1)
 
-Note: This is a subset of the operations that happen on the `dll_ts` so you can just use the
-doubley linked list (thread safe) instead.
+Note: This is a subset of the operations that are implemented on the `dll_ts`. This means that
+you can directly use ../dll_ts - but this may make code clearer that you are usinga Queue
+instad.
 
 */
 
@@ -75,5 +76,13 @@ func (ns *Queue[T]) Dequeue() (rv *T, err error) {
 func (ns *Queue[T]) Truncate() {
 	ns.data.Truncate()
 }
+
+// xyzzy - TODO - PushHead
+// xyzzy - TODO - PopTail
+
+// xyzzy - TODO - new iter for loop stuff
+// 	See ../dll.go
+//	 	func (ns *Dll[T]) IteratePtr() iter.Seq2[int, *T] {
+// 		func (ns *Dll[T]) IterateOver() iter.Seq2[int, T] {
 
 /* vim: set noai ts=4 sw=4: */
