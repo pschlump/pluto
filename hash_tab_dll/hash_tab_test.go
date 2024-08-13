@@ -61,7 +61,7 @@ func (aa TestData) IsEqual(x comparable.Equality) bool {
 	} else {
 		panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
 	}
-	return false
+	// return false -- 1.23 detects this as unraclable code
 }
 
 func (aa TestData) HashKey(x interface{}) (rv int) {
