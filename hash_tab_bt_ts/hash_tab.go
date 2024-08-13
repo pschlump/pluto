@@ -63,13 +63,13 @@ func NewHashTab[T comparable.Comparable](n int) *HashTab[T] {
 
 // IsEmpty will return true if the binary-tree is empty
 // Complexity is O(1).
-func (tt HashTab[T]) IsEmpty() bool {
+func (tt *HashTab[T]) IsEmpty() bool {
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 	return tt.length == 0
 }
 
-func (tt HashTab[T]) nlIsEmpty() bool {
+func (tt *HashTab[T]) nlIsEmpty() bool {
 	return tt.length == 0
 }
 
