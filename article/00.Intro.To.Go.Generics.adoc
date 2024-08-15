@@ -1,19 +1,20 @@
 
-= An Introduction to Go Generics.
+= An Introduction to Go Generics, Iterators and Interfaces
 
-For about a decade the Go language has not had generic types.
-Even without this it has proven to be a very useful language.
+For the first decade the Go language did not have generic types.  This was
+one of the major complaints that people from other languages claimed as
+a reason for not adopting Go.   Go added generics in version 1.18 and
+as of version 1.23 experimantal version has added a very clever implementation
+of iterators.
 
-NOTE: In 2022 Go 1.18 will add generics.  At the current time all of
-the code in this is being tested with the pre-relase go1.18beta1
-verions of go.   This will all be re-tested next year (Its December
-2021) when the official 1.18 version is released.
+The combination of these makes building a set of generic-based data types
+both useful and instructive.  Most of the examples of using Go generics
+are simple and fail to showcase the intracacies of Go generics.  This
+library is fundamentally different.  The interaction (good interaction) of
+Go generics, Go iterators, Go interfaces, and concurrency and Go routines.
 
-== Goals
-
-1. For the author of this to learn how to effectivly use go generics.
-2. To provide a set of clear examples of the use of go generics.
-3. To contribute to the Go community some useful code.
+This set of data structures includes some more advanced datastructues
+like AVL trees and why AVL was chosen instead of Red/Black balanced trees.
 
 
 

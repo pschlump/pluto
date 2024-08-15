@@ -5,58 +5,35 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="generator" content="libasciidoc">
-<title>An Introduction to Go Generics.</title>
+<title>An Introduction to Go Generics, Iterators and Interfaces</title>
 </head>
 <body class="article">
 <div id="header">
-<h1>An Introduction to Go Generics.</h1>
+<h1>An Introduction to Go Generics, Iterators and Interfaces</h1>
 </div>
 <div id="content">
-<div id="preamble">
-<div class="sectionbody">
 <div class="paragraph">
-<p>For about a decade the Go language has not had generic types.
-Even without this it has proven to be a very useful language.</p>
+<p>For the first decade the Go language did not have generic types.  This was
+one of the major complaints that people from other languages claimed as
+a reason for not adopting Go.   Go added generics in version 1.18 and
+as of version 1.23 experimantal version has added a very clever implementation
+of iterators.</p>
 </div>
-<div class="admonitionblock note">
-<table>
-<tr>
-<td class="icon">
-<div class="title">Note</div>
-</td>
-<td class="content">
-In 2022 Go 1.18 will add generics.  At the current time all of
-the code in this is being tested with the pre-relase go1.18beta1
-verions of go.   This will all be re-tested next year (Its December
-2021) when the official 1.18 version is released.
-</td>
-</tr>
-</table>
+<div class="paragraph">
+<p>The combination of these makes building a set of generic-based data types
+both useful and instructive.  Most of the examples of using Go generics
+are simple and fail to showcase the intracacies of Go generics.  This
+library is fundamentally different.  The interaction (good interaction) of
+Go generics, Go iterators, Go interfaces, and concurrency and Go routines.</p>
 </div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_goals">Goals</h2>
-<div class="sectionbody">
-<div class="olist arabic">
-<ol class="arabic">
-<li>
-<p>For the author of this to learn how to effectivly use go generics.</p>
-</li>
-<li>
-<p>To provide a set of clear examples of the use of go generics.</p>
-</li>
-<li>
-<p>To contribute to the Go community some useful code.</p>
-</li>
-</ol>
-</div>
-</div>
+<div class="paragraph">
+<p>This set of data structures includes some more advanced datastructues
+like AVL trees and why AVL was chosen instead of Red/Black balanced trees.</p>
 </div>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2021-12-17 07:57:14 -0700
+Last updated 2024-08-15 06:58:45 -0600
 </div>
 </div>
 </body>
