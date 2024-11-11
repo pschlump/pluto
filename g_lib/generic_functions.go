@@ -134,6 +134,7 @@ func EqualSlice[T comparable](s, t []T) bool {
 	return true
 }
 
+// SortedKeysForStringMap will Extract the keys from a map[string]interface{}, sort them and return the sorted slice.
 func SortedKeysForStringMap[T any](aMap map[string]T) (rv []string) {
 	for key := range aMap {
 		rv = append(rv, key)
@@ -183,6 +184,23 @@ func Unique[T comparable](s []T) []T {
 			inResult[str] = true
 			result = append(result, str)
 		}
+	}
+	return result
+}
+
+// ToBoolMap will convert a slice to a set of true flags in a map that can then be looked up in (or set to false to get rid of items)
+//
+// For eample,
+//
+//	x := []string{ "a", "b" }
+//
+// Will produce `x`, a map[string]bool with values of:
+//
+//	x == map[string]bool{ "a": true, "b": true }
+func ToBoolMap[T comparable](src []T) map[T]bool {
+	var result = make(map[T]bool)
+	for _, v := range src {
+		result[v] = true
 	}
 	return result
 }
