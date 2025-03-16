@@ -1,4 +1,6 @@
-package hash_grow_ts
+package hash_grow
+
+// Non locking hash table for use with a DLL for timeout.
 
 /*
 Copyright (C) Philip Schlump, 2023.
@@ -28,7 +30,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
-	"sync"
 
 	"github.com/pschlump/MiscLib"
 	"github.com/pschlump/pluto/binary_tree_ts"
@@ -39,12 +40,12 @@ import (
 // HashTab is a generic hash table that grows the underlying ttable when the number of
 // entries exceeds a threshold.    The table is doulbed in size.
 type HashTab[T comparable.Comparable] struct {
-	buckets             []*T  // the table
-	originalHash        []int // the original hash values (used during delete, search)
-	size                int   // Modulo size for table	Current Size!
-	lock                sync.RWMutex
+	buckets             []*T    // the table
+	originalHash        []int   // the original hash values (used during delete, search)
+	size                int     // Modulo size for table	Current Size!
 	length              int     // # of elements in table
 	saturationThreshold float64 // Proportion before grow of table. (default 0.5)
+	//lock                sync.RWMutex
 }
 
 type Hashable interface {
@@ -71,8 +72,8 @@ func NewHashTab[T comparable.Comparable](n int, saturation float64) *HashTab[T] 
 // IsEmpty will return true if the hash table is empty
 // Complexity is O(1).
 func (tt *HashTab[T]) IsEmpty() bool {
-	tt.lock.RLock()
-	defer tt.lock.RUnlock()
+	//tt.lock.RLock()
+	//defer tt.lock.RUnlock()
 	return tt.length == 0
 }
 
@@ -83,8 +84,8 @@ func (tt *HashTab[T]) nlIsEmpty() bool {
 // Truncate removes all data from the tree.
 // Complexity is O(1).
 func (tt *HashTab[T]) Truncate() {
-	tt.lock.Lock()
-	defer tt.lock.Unlock()
+	//tt.lock.Lock()
+	//defer tt.lock.Unlock()
 	for i := 0; i < tt.size; i++ {
 		tt.buckets[i] = nil
 	}
@@ -95,8 +96,8 @@ func (tt *HashTab[T]) Truncate() {
 // item the new item will replace the existing one.
 // Complexity is O(log n)/k.
 func (tt *HashTab[T]) Insert(item *T) {
-	tt.lock.Lock()
-	defer tt.lock.Unlock()
+	//tt.lock.Lock()
+	//defer tt.lock.Unlock()
 	rh := hash(item)
 
 	// Increment a position in table modulo the size of the table.
@@ -166,13 +167,13 @@ func (tt *HashTab[T]) Insert(item *T) {
 // Length returns the number of elements in the list.
 // Complexity is O(1).
 func (tt *HashTab[T]) Len() int {
-	tt.lock.RLock()
-	defer tt.lock.RUnlock()
+	//tt.lock.RLock()
+	//defer tt.lock.RUnlock()
 	return tt.length
 }
 func (tt *HashTab[T]) Length() int {
-	tt.lock.RLock()
-	defer tt.lock.RUnlock()
+	//tt.lock.RLock()
+	//defer tt.lock.RUnlock()
 	return tt.length
 }
 
@@ -180,8 +181,8 @@ func (tt *HashTab[T]) Length() int {
 // if it is in the tree. If it is not found then `nil` will be returned.
 // Complexity is O(log n)/k.
 func (tt *HashTab[T]) Search(find *T) (rv *T) {
-	tt.lock.RLock()
-	defer tt.lock.RUnlock()
+	//tt.lock.RLock()
+	//defer tt.lock.RUnlock()
 	return tt.NlSearch(find)
 }
 
@@ -217,6 +218,7 @@ func (tt *HashTab[T]) NlSearch(find *T) (rv *T) {
 // ht.WriteUnlock()
 // ht.ReadLock()
 // ht.ReadUnlock()
+/*
 func (tt *HashTab[T]) WriteLock() {
 	tt.lock.Lock()
 }
@@ -229,12 +231,13 @@ func (tt *HashTab[T]) ReadLock() {
 func (tt *HashTab[T]) ReadUnlock() {
 	tt.lock.RUnlock()
 }
+*/
 
 // Dump will print out the hash table to the file `fo`.
 // Complexity is O(n).
 func (tt *HashTab[T]) Dump(fo io.Writer) {
-	tt.lock.RLock()
-	defer tt.lock.RUnlock()
+	//tt.lock.RLock()
+	//defer tt.lock.RUnlock()
 	fmt.Printf("Elements: %d, mod size:%d\n", tt.length, tt.size)
 	for i, v := range tt.buckets {
 		fmt.Fprintf(fo, "bucket [%04d] h=%d h%%size=%d = %v\n", i, tt.originalHash[i], tt.originalHash[i]%tt.size, v) // v.Dump(fo) // Xyzzy TODO - fix
@@ -245,8 +248,8 @@ func (tt *HashTab[T]) Dump(fo io.Writer) {
 // located with "Search" or as a result of a match using the Walk function.
 // Complexity is O(1)
 func (tt *HashTab[T]) Delete(find *T) (found bool) {
-	tt.lock.Lock()
-	defer tt.lock.Unlock()
+	//tt.lock.Lock()
+	//defer tt.lock.Unlock()
 	return tt.NlDelete(find)
 }
 
@@ -322,8 +325,8 @@ func (tt *HashTab[T]) NlDelete(find *T) (found bool) {
 }
 
 func (tt *HashTab[T]) Walk(fx binary_tree_ts.ApplyFunction[T], userData interface{}) (b bool) {
-	tt.lock.RLock()
-	defer tt.lock.RUnlock()
+	//tt.lock.RLock()
+	//defer tt.lock.RUnlock()
 	b = true
 	if tt.nlIsEmpty() {
 		return

@@ -1,4 +1,6 @@
-package hash_grow_ts
+package hash_grow
+
+// Non-Locking version of hash_grow table.
 
 /*
 Copyright (C) Philip Schlump, 2012-2021.
