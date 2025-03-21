@@ -30,9 +30,10 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
+	"os"
 
 	"github.com/pschlump/MiscLib"
-	"github.com/pschlump/pluto/binary_tree_ts"
+	"github.com/pschlump/dbgo"
 	"github.com/pschlump/pluto/comparable"
 	"github.com/pschlump/pluto/g_lib"
 )
@@ -112,17 +113,18 @@ func (tt *HashTab[T]) Insert(item *T) {
 	// 	dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
 	var insertNewItem = func(rh int, itemx *T, buckets []*T, originalHash []int) {
 		hh := rh % tt.size
+		dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF), rh=%d tt.size=%d hh=%d, len(buckets)=%d\n", rh, hh, tt.size, len(buckets))
 		if buckets[hh] == nil {
-			// dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
+			dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF), hh=%d, len(buckets)=%d\n", hh, len(buckets))
 			buckets[hh] = itemx
 			originalHash[hh] = rh
 			tt.length++
 		} else if (*itemx).Compare(*buckets[hh]) == 0 {
-			// dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
+			dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
 			buckets[hh] = itemx // Replace, This means that you don't have a new key.
 			originalHash[hh] = rh
 		} else {
-			// dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF) -- walk down table looking for empty slot (modulo size of table)\n")
+			dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF) -- walk down table looking for empty slot (modulo size of table)\n")
 			// collision, something already at tt.buckets[hh] (original)
 			for np := incSize(hh); np < tt.size; np = incSize(np) {
 				// dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
@@ -193,7 +195,7 @@ func (tt *HashTab[T]) NlSearch(find *T) (rv *T) {
 	if tt.nlIsEmpty() {
 		return nil
 	}
-	h := g_lib.Abs(hash(find) % tt.size)
+	h := hash(find) % tt.size
 	if db1 {
 		fmt.Printf("%sh=%d - for ->%+v<-%s\n", MiscLib.ColorYellow, h, find, MiscLib.ColorReset)
 	}
@@ -324,7 +326,9 @@ func (tt *HashTab[T]) NlDelete(find *T) (found bool) {
 	// return	-- detected as unrachable as of Go 1.23, before this missing return
 }
 
-func (tt *HashTab[T]) Walk(fx binary_tree_ts.ApplyFunction[T], userData interface{}) (b bool) {
+type ApplyFunction[T comparable.Comparable] func(pos, depth int, data *T, userData interface{}) bool
+
+func (tt *HashTab[T]) Walk(fx ApplyFunction[T], userData interface{}) (b bool) {
 	//tt.lock.RLock()
 	//defer tt.lock.RUnlock()
 	b = true
@@ -346,21 +350,22 @@ func hash(x interface{}) (rv int) {
 	hashstr := func(s string) int {
 		h := fnv.New32a()
 		h.Write([]byte(s))
-		return int(h.Sum32())
+		return g_lib.Abs(int(h.Sum32()))
 	}
 	if v, ok := x.(Hashable); ok {
 		h := v.HashKey(x)
-		return int(h)
+		return g_lib.Abs(int(h))
 	}
 	if v, ok := x.(string); ok {
 		h := hashstr(v)
-		return h
+		return g_lib.Abs(h)
 	}
 	if v, ok := x.(fmt.Stringer); ok {
 		h := hashstr(v.String())
-		return int(h)
+		return g_lib.Abs(int(h))
 	}
-	panic(fmt.Sprintf("Invalid type, %T needs to be Stringer or Hashable interface\n", x))
+	fmt.Fprintf(os.Stderr, "Invalid type, %T needs to be string, Stringer or Hashable interface\n", x)
+	panic(fmt.Sprintf("Invalid type, %T needs to be string, Stringer or Hashable interface\n", x))
 }
 
 const db1 = false
