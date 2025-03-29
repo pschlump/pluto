@@ -18,8 +18,8 @@ Basic operations on a Hash Table.
 * 	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
 * 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n/k) where k is # of buckets.
 * 	Truncate - Delete all the nodes in list. 													O(1)
-+	Walk - Walk the table																		O(n)
- 	Print - Using Walk to print out the contents of the table.									O(n)
+*	Walk - Walk the table																		O(n)
+* 	Print - Using Walk to print out the contents of the table.									O(n)
 
 Possibly change to an extensible size with layers, so max dups in a layer or saturation causes
 geneation of a new layer - and not a re-hash of all existing keys.
@@ -110,21 +110,31 @@ func (tt *HashTab[T]) Insert(item *T) {
 		return
 	}
 
-	// 	dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
+	if db4 {
+		dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
+	}
 	var insertNewItem = func(rh int, itemx *T, buckets []*T, originalHash []int) {
 		hh := rh % tt.size
-		dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF), rh=%d tt.size=%d hh=%d, len(buckets)=%d\n", rh, hh, tt.size, len(buckets))
+		if db4 {
+			dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF), rh=%d tt.size=%d hh=%d, len(buckets)=%d\n", rh, hh, tt.size, len(buckets))
+		}
 		if buckets[hh] == nil {
-			dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF), hh=%d, len(buckets)=%d\n", hh, len(buckets))
+			if db4 {
+				dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF), hh=%d, len(buckets)=%d\n", hh, len(buckets))
+			}
 			buckets[hh] = itemx
 			originalHash[hh] = rh
 			tt.length++
 		} else if (*itemx).Compare(*buckets[hh]) == 0 {
-			dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
+			if db4 {
+				dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
+			}
 			buckets[hh] = itemx // Replace, This means that you don't have a new key.
 			originalHash[hh] = rh
 		} else {
-			dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF) -- walk down table looking for empty slot (modulo size of table)\n")
+			if db4 {
+				dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF) -- walk down table looking for empty slot (modulo size of table)\n")
+			}
 			// collision, something already at tt.buckets[hh] (original)
 			for np := incSize(hh); np < tt.size; np = incSize(np) {
 				// dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
@@ -368,6 +378,19 @@ func hash(x interface{}) (rv int) {
 	panic(fmt.Sprintf("Invalid type, %T needs to be string, Stringer or Hashable interface\n", x))
 }
 
+func (tt *HashTab[T]) Print(out io.Writer) {
+	// type ApplyFunction[T comparable.Comparable] func(pos, depth int, data *T, userData interface{}) bool
+	// var fx ApplyFunction[T]
+	// fx = func(pos, depth int, data *T, y interface{}) bool {
+	fx := func(pos, depth int, data *T, y interface{}) bool {
+		fmt.Fprintf(out, "%v\n", *tt.buckets[pos])
+		return true
+	}
+	// func (tt *HashTab[T]) Walk(fx binary_tree_ts.ApplyFunction[T], userData interface{}) (b bool) {
+	tt.Walk(fx, nil)
+}
+
 const db1 = false
+const db4 = false
 
 /* vim: set noai ts=4 sw=4: */
