@@ -137,9 +137,13 @@ func (tt *HashTab[T]) Insert(item *T) {
 			}
 			// collision, something already at tt.buckets[hh] (original)
 			for np := incSize(hh); np < tt.size; np = incSize(np) {
-				// dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
+				if db4 {
+					dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
+				}
 				if buckets[np] == nil { // Found an empty, so put it in and leave loop
-					// dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
+					if db4 {
+						dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
+					}
 					buckets[np] = itemx
 					originalHash[np] = rh
 					tt.length++
@@ -155,12 +159,18 @@ func (tt *HashTab[T]) Insert(item *T) {
 
 	insertNewItem(rh, item, tt.buckets, tt.originalHash)
 
-	// dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
+	if db4 {
+		dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
+	}
 	if (((float64)(tt.length)) / ((float64)(tt.size))) > tt.saturationThreshold {
-		// dbgo.Fprintf(os.Stderr, "%(yellow)Passed Threshold for size, will double.......................................................\n")
+		if db4 {
+			dbgo.Fprintf(os.Stderr, "%(yellow)Passed Threshold for size, will double.......................................................\n")
+		}
 		originalSize := tt.size
 		n := tt.size * 2 // Double the size
-		// dbgo.Fprintf(os.Stderr, "%(yellow)    new size(n) = %d\n", n)
+		if db4 {
+			dbgo.Fprintf(os.Stderr, "%(yellow)    new size(n) = %d\n", n)
+		}
 		oldBuckets, oldOriginal := tt.buckets, tt.originalHash
 		tt.size = n
 		tt.length = 0
@@ -172,7 +182,9 @@ func (tt *HashTab[T]) Insert(item *T) {
 				insertNewItem(rh, item, tt.buckets, tt.originalHash)
 			}
 		}
-		// dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
+		if db4 {
+			dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
+		}
 	}
 }
 
@@ -293,7 +305,9 @@ func (tt *HashTab[T]) NlDelete(find *T) (found bool) {
 			tt.buckets[h] = nil // found, delete the node we want to et rid of.
 			tt.length--         // one less node
 			found = true        // we found it
-			// dbgo.Printf("%(LF)%(green) We Fond and Deleted It:  h=%d, tt.length=%d \n", h, tt.length)
+			if db4 {
+				dbgo.Printf("%(LF)%(green) We Fond and Deleted It:  h=%d, tt.length=%d \n", h, tt.length)
+			}
 
 			// now we need to cleanup the empty stpot at tt.buckets[h]
 			// h -->> deleted slot, now nil.
@@ -303,7 +317,9 @@ func (tt *HashTab[T]) NlDelete(find *T) (found bool) {
 			h2 := h // To Locaiton in buckets
 			hf := h
 			oh := h
-			// dbgo.Printf("%(LF) h2=%d hf=%d oh=%d\n", h2, hf, oh)
+			if db4 {
+				dbgo.Printf("%(LF) h2=%d hf=%d oh=%d\n", h2, hf, oh)
+			}
 
 			// xyzzy TODO -------------------------------- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 			//               +--------------------- oh
@@ -317,7 +333,9 @@ func (tt *HashTab[T]) NlDelete(find *T) (found bool) {
 
 			for {
 				hf = incSize(hf)
-				// dbgo.Printf("%(LF) h2=%d hf=%d\n", h2, hf)
+				if db4 {
+					dbgo.Printf("%(LF) h2=%d hf=%d\n", h2, hf)
+				}
 				if tt.buckets[hf] == nil {
 					break
 				}

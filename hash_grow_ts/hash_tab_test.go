@@ -7,6 +7,7 @@ BSD 3 Clause Licensed.
 */
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"testing"
@@ -264,6 +265,68 @@ func TestTest2(t *testing.T) {
 	if it == nil {
 		t.Errorf("Expected to find it, did not")
 	}
+}
+
+func TestTestPrint(t *testing.T) {
+	expect := `{   3}
+{  10}
+{  26}
+{  39}
+{   2}
+{  31}
+{  36}
+{  35}
+{   4}
+{  21}
+{  34}
+{  11}
+{  17}
+{  20}
+{  30}
+{  33}
+{   9}
+{  37}
+{  22}
+{   0}
+{  19}
+{  12}
+{   5}
+{  27}
+{  16}
+{  32}
+{  23}
+{  15}
+{   7}
+{  29}
+{  14}
+{  13}
+{  18}
+{   6}
+{  25}
+{  28}
+{   1}
+{  38}
+{  24}
+{   8}
+`
+	ht := NewHashTab[TestData](7, 0)
+
+	//	if !ht.IsEmpty() {
+	//		t.Errorf("Expected empty hash-tab after decleration, failed to get one.")
+	//	}
+
+	for i := 0; i < 40; i++ {
+		ht.Insert(&TestData{S: fmt.Sprintf("%4d", i)})
+	}
+
+	// fmt.Printf("Print Test 0 (in hash order of data)\n")
+	buf := new(bytes.Buffer)
+	ht.Print(buf)
+	got := buf.String()
+	if got != expect {
+		t.Errorf("Expected ->%s<- got ->%s<-\n", expect, got)
+	}
+
 }
 
 const db2 = false

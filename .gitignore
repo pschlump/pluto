@@ -3,4 +3,8 @@ note
 y1
 iter0
 todo.md
--rwxr-xr-x 1 philip staff 53 Mar 16 08:40 sync-to-bellacoola.sh
+hydra/
+need-iter.1
+note.1
+sync-to-bellacoola.sh
+sync-to-victoria.sh
