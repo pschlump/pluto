@@ -1,3 +1,6 @@
+// Package comparable defines the Comparable and Equality interfaces used
+// throughout this module as constraints on the element types of the
+// generic data structures.
 package comparable
 
 /*

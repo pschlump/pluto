@@ -1,30 +1,44 @@
+# Pluto - generic data structures for Go.
+#
+# Each subdirectory is a package in the github.com/pschlump/pluto module.
 
-all:
+.PHONY: build test race cover bench lint tidy vet clean
 
+## build: compile all packages
+build:
+	go build ./...
+
+## vet: run go vet across all packages
+vet:
+	go vet ./...
+
+## test: run all unit tests
 test:
-	( echo binary_tree | color-cat -c yellow ; cd binary_tree ; go vet ; make test )
-	( echo binary_tree_ts | color-cat -c yellow ; cd binary_tree_ts ; go vet ; make test )
-	( echo dll | color-cat -c yellow ; cd dll ; go vet ; make test )
-	( echo dll_ts | color-cat -c yellow ; cd dll_ts ; go vet ; make test )
-	( echo g_lib | color-cat -c yellow ; cd g_lib ; go vet ; make test )
-	( echo queue | color-cat -c yellow ; cd queue ; go vet ; make test )
-	( echo sll | color-cat -c yellow ; cd sll ; go vet ; make test )
-	( echo sll_ts | color-cat -c yellow ; cd sll_ts ; go vet ; make test )
-	( echo stack | color-cat -c yellow ; cd stack ; go vet ; make test )
-	( echo heap | color-cat -c yellow ; cd heap ; go vet ; make test )
-	( echo heap_sort | color-cat -c yellow ; cd heap_sort ; go vet ; make test )
-	( echo priority_queue | color-cat -c yellow ; cd priority_queue ; go vet ; make test )
-	( echo hash_tab | color-cat -c yellow ; cd hash_tab ; go vet ; make test )
-	( echo hash_tab_bt | color-cat -c yellow ; cd hash_tab_bt ; go vet ; make test )
-	( echo hash_tab_bt_ts | color-cat -c yellow ; cd hash_tab_bt_ts ; go vet ; make test )
-	( echo hash_tab_dll | color-cat -c yellow ; cd hash_tab_dll ; go vet ; make test )
-	( echo avl_tree | color-cat -c yellow ; cd avl_tree ; go vet ; make test )
-	( echo avl_tree_ts | color-cat -c yellow ; cd avl_tree_ts ; go vet ; make test )
-	( echo hash_grow | color-cat -c yellow ; cd hash_grow ; go vet ; make test )
-	( echo hash_tab | color-cat -c yellow ; cd hash_tab ; go vet ; make test )
-	( echo queue_dll_ts | color-cat -c yellow ; cd queue_dll_ts ; go vet ; make test )
-	( echo queue_ts | color-cat -c yellow ; cd queue_ts ; go vet ; make test )
-	( echo simple_sll | color-cat -c yellow ; cd simple_sll ; go vet ; make test )
-	( echo stack_sll_ts | color-cat -c yellow ; cd stack_sll_ts ; go vet ; make test )
-	( echo dag | color-cat -c yellow ; cd dag ; go vet ; make test )
+	go test ./... -count=1
 
+## race: run all tests with the race detector
+race:
+	go test -race -count=1 ./...
+
+## cover: run tests and report per-package coverage
+cover:
+	go test -cover -count=1 ./...
+
+## bench: run all benchmarks
+bench:
+	go test -run='^$$' -bench=. -benchmem ./...
+
+## lint: run golangci-lint
+lint:
+	golangci-lint run ./...
+
+## tidy: tidy and verify module dependencies
+tidy:
+	go mod tidy
+
+## clean: remove build and coverage artefacts
+clean:
+	rm -f coverage.out
+	find . -name '*.test' -delete
+
+.DEFAULT_GOAL := build

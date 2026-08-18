@@ -20,22 +20,14 @@ type TestDemo struct {
 
 var _ comparable.Equality = (*TestDemo)(nil)
 
-//
 func (aa TestDemo) IsEqual(x comparable.Equality) bool {
 	if bb, ok := x.(TestDemo); ok {
-		if aa.S == bb.S {
-			return true
-		}
-		return false
+		return aa.S == bb.S
 	} else if bb, ok := x.(*TestDemo); ok {
-		if aa.S == bb.S {
-			return true
-		}
-		return false
+		return aa.S == bb.S
 	} else {
 		panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
 	}
-	// return false
 }
 
 func TestStack(t *testing.T) {
@@ -130,7 +122,7 @@ func TestStack(t *testing.T) {
 		t.Errorf("Unexpectd data")
 	}
 
-	a, err = Sll1.Pop()
+	_, err = Sll1.Pop()
 	if err == nil {
 		t.Errorf("Unexpectd lack of error after pop on empty stack")
 	}

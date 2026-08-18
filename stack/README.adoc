@@ -1,14 +1,66 @@
-
 = A generics based Go Stack.
 
-A simple stack with Push, Pop, Length, IsEmpty using Go generics.
+A simple generic LIFO stack with `Push`, `Pop`, `Peek`, `Length`, `IsEmpty`
+and `Truncate`, implemented on top of a slice.  Go 1.23+ range-over-func
+iterators (`All`, `Backward`) are provided for walking the stack.
 
-This requires version 1.18beta1 of Go to be compiled and used.
-
-This is a demo of how to use a generic in a type decleration and how to
-delcare methods on that generic type.  Specifically look at the decleration
-of `Stack[T any]` and also see how the functions are instanciated with
+This is a demo of how to use a generic in a type declaration and how to
+declare methods on that generic type.  Specifically look at the declaration
+of `Stack[T any]` and also see how the functions are instantiated with
 the generic type.
 
-The code is a conversion of an erlier `Stack` that used `interface{}`.
+The code is a conversion of an earlier `Stack` that used `interface{}`.
 
+== Complexity
+
+[cols="1,1,2"]
+|===
+|Operation |Cost |Notes
+
+|`Push`      |amortized O(1) |appends to the backing slice
+|`Pop`       |O(1) |zeroes the popped slot so the GC can reclaim the value
+|`Peek`      |O(1) |returns a pointer to the top element
+|`IsEmpty`   |O(1) |
+|`Length`    |O(1) |
+|`Truncate`  |O(1) |releases the backing array
+|`All`       |O(n) |iterates top to bottom
+|`Backward`  |O(n) |iterates bottom to top
+|===
+
+== Example
+
+[source,go]
+----
+package main
+
+import (
+	"fmt"
+
+	"github.com/pschlump/pluto/stack"
+)
+
+func main() {
+	var stk stack.Stack[int]
+
+	stk.Push(1)
+	stk.Push(2)
+	stk.Push(3)
+
+	top, _ := stk.Peek()
+	fmt.Println(*top) // 3
+
+	for i, v := range stk.All() { // 3, 2, 1 (top to bottom)
+		fmt.Println(i, v)
+	}
+
+	for !stk.IsEmpty() {
+		v, _ := stk.Pop()
+		fmt.Println(v) // 3, then 2, then 1
+	}
+}
+----
+
+== Thread Safety
+
+This package is *not* safe for concurrent use.  Use
+`github.com/pschlump/pluto/stack_sll_ts` for a thread-safe stack.

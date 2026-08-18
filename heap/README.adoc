@@ -1,0 +1,86 @@
+= heap — a generics based min-heap
+
+A generic min-heap for any type implementing
+`github.com/pschlump/pluto/comparable.Comparable`, using Go generics (this
+module targets Go 1.26).  `Pop` always removes and returns the *minimum*
+element, so the heap can be used directly as a priority queue.  The
+implementation is adapted from the standard library's `container/heap` and
+stores the data as a slice in breadth-first tree order.
+
+Use `NewHeap[T]()` to create a heap.
+
+== Operations
+
+|===
+| Operation | Description | Complexity
+
+| `Push(x)` | Insert an element | O(log n)
+| `Pop()` | Remove and return the minimum element (nil if empty) | O(log n)
+| `Peek()` | Return the minimum element without removing it (nil if empty) | O(1)
+| `Delete(ii)` | Remove and return the element at index `ii` (panics if out of range) | O(log n)
+| `Fix(ii, newValue)` | Replace element at `ii` and re-establish heap order | O(log n)
+| `SetValue(ii, newValue)` | Alias for `Fix` | O(log n)
+| `GetValue(ii)` | Return the element at index `ii` (panics if out of range) | O(1)
+| `Search(cmpVal)` | Linear scan; returns element and index, or nil, -1, nil | O(n)
+| `Len()` / `Length()` | Number of elements | O(1)
+| `Truncate()` | Remove all elements | O(1)
+| `AppendHeap(x)` | Append a slice of elements (heap order NOT maintained) | O(m)
+| `Heapify(n, i)` | Re-establish heap order in the sub-tree rooted at `i` | O(log n)
+| `All()` | Range-over-func iterator (Go 1.23+) in internal heap order | O(n)
+| `Dump(fp)` | Write the heap contents to `fp` | O(n)
+|===
+
+`Pop`, `Delete` and `Truncate` zero/release the removed elements so the
+garbage collector can reclaim them.
+
+After one or more `AppendHeap` calls the heap must be rebuilt before use:
+
+[source,go]
+----
+for i := h.Len()/2 - 1; i >= 0; i-- {
+	h.Heapify(h.Len(), i)
+}
+----
+
+== Example
+
+[source,go]
+----
+package main
+
+import (
+	"fmt"
+
+	"github.com/pschlump/pluto/comparable"
+	"github.com/pschlump/pluto/heap"
+)
+
+type item int
+
+func (a item) Compare(x comparable.Comparable) int {
+	return int(a) - int(x.(item))
+}
+
+func main() {
+	h := heap.NewHeap[item]()
+	for _, v := range []item{5, 2, 8, 1} {
+		v := v
+		h.Push(&v)
+	}
+
+	fmt.Println(*h.Peek()) // 1
+
+	for h.Len() > 0 {
+		fmt.Print(*h.Pop(), " ") // 1 2 5 8 (ascending order)
+	}
+}
+----
+
+NOTE: `All()` iterates in internal heap (breadth-first tree) order, *not*
+sorted order.  Consume the heap with `Pop` to get sorted order.
+
+== Thread safety
+
+This implementation is *not* thread safe.  There is currently no
+mutex-guarded `_ts` variant of this package; guard it externally with a
+`sync.Mutex` if it is shared between goroutines.

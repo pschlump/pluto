@@ -1,0 +1,95 @@
+# binary_tree
+
+Package `binary_tree` implements a generic, **unbalanced** binary search tree
+for any type that implements the `comparable.Comparable` interface (a
+`Compare(x Comparable) int` method).
+
+For a thread-safe version of the same API see
+[`binary_tree_ts`](../binary_tree_ts). For a self-balancing tree with
+guaranteed `O(log n)` operations see [`avl_tree`](../avl_tree).
+
+## Operations and Complexity
+
+Because the tree is not self-balancing, the "average" column assumes randomly
+ordered input; sorted input degenerates to a linked list.
+
+| Operation | Average | Worst case | Notes |
+|---|---|---|---|
+| `Insert` | O(log₂ n) | O(n) | duplicate replaces existing element, returns false |
+| `Search` | O(log₂ n) | O(n) | returns nil when not found |
+| `Delete` / `DeleteMatch` | O(log₂ n) | O(n) | returns false when not found |
+| `FindMin` / `FindMax` | O(log₂ n) | O(n) | nil on an empty tree |
+| `DeleteAtHead` / `DeleteAtTail` | O(log₂ n) | O(n) | removes the min / max element |
+| `IsEmpty`, `Len`, `Length` | O(1) | O(1) | |
+| `Truncate` | O(1) | O(1) | drops the whole tree |
+| `Index` | O(n) | O(n) | Nth element in in-order order |
+| `Depth` | O(n) | O(n) | levels in the deepest part; empty tree is 0 |
+| `Reverse` | O(n) | O(n) | swaps left/right children of every node |
+| `WalkInOrder` / `WalkPreOrder` / `WalkPostOrder`, `WalkFunc` | O(n) | O(n) | callback traversals |
+| `Front` iterator, `All`, `Backward` | O(n) total | O(n) total | see Iteration below |
+
+## Usage
+
+```go
+package main
+
+import (
+	"fmt"
+
+	"github.com/pschlump/pluto/binary_tree"
+	"github.com/pschlump/pluto/comparable"
+)
+
+type Str string
+
+func (s Str) Compare(x comparable.Comparable) int {
+	o := x.(Str)
+	if s < o {
+		return -1
+	} else if s > o {
+		return 1
+	}
+	return 0
+}
+
+func main() {
+	tree := binary_tree.NewBinaryTree[Str]()
+	bob, carol := Str("bob"), Str("carol")
+	tree.Insert(&bob)
+	tree.Insert(&carol)
+
+	found := tree.Search(&carol) // *Str, or nil
+	fmt.Println(*found)
+
+	// Range-over-func iteration (Go 1.23+), in ascending order:
+	for v := range tree.All() {
+		fmt.Println(*v)
+	}
+
+	tree.Delete(&bob)
+}
+```
+
+## Iteration
+
+Three styles are supported, all kept for compatibility:
+
+- `All()` / `Backward()` — Go 1.23 range-over-func iterators
+  (`iter.Seq[*T]`) in ascending / descending order. Preferred for new code.
+- `Front()` with `Value()` / `Next()` / `Done()` — old-style in-order
+  iterator.
+- `WalkInOrder` / `WalkPreOrder` / `WalkPostOrder` / `WalkFunc` —
+  callback-based traversals; returning `false` from an `ApplyFunction`
+  callback stops the walk.
+
+## Thread Safety
+
+`BinaryTree` is **not** safe for concurrent use. Use
+[`binary_tree_ts`](../binary_tree_ts), which guards every operation with a
+`sync.RWMutex`, when the tree is shared between goroutines.
+
+## Notes
+
+- Elements are stored as `*T`; the tree never copies the values.
+- `Truncate` and `Delete` drop all references to removed nodes so the GC can
+  reclaim them.

@@ -1,77 +1,108 @@
+// Package queue implements a generic FIFO (first-in, first-out) queue
+// on top of a slice.
+//
+// This implementation is NOT thread safe.  See github.com/pschlump/pluto/queue_ts
+// for a thread safe version with the exact same interface, or
+// github.com/pschlump/pluto/queue_dll_ts for an O(1) Pop/Dequeue implementation
+// built on a doubly linked list.
+//
+// Operations:
+//
+//	Push/Enqueue() — Inserts an element at the tail of the queue.			O(1) amortized
+//	Pop() — Removes the element at the head of the queue.					O(1)
+//	Dequeue() — Removes and returns the element at the head of the queue.	O(1)
+//	Peek() — Returns the element at the head of the queue without removing it. O(1)
+//	IsEmpty() — Returns true if the queue is empty.							O(1)
+//	Length() — Returns the number of elements in the queue.					O(1)
+//	Truncate() — Removes all elements from the queue.						O(1)
+//	All()/Backward() — Range-over-func iterators over the queue.			O(n)
+//
+// Copyright (C) Philip Schlump, 2012-2021.
+// BSD 3 Clause Licensed.
 package queue
-
-/*
-Copyright (C) Philip Schlump, 2012-2021.
-
-BSD 3 Clause Licensed.
-
-Basic operations on a Queue
-
-	Enqueue() — Inserts an element to the end of the queue (Same as "Push")
-	Dequeue() — Removes an element from the start of the queue (Same as "Peek" then "Pop")
-	IsEmpty() — Returns true if the queue is empty
-	Top() — Returns the first element of the queue (Same as "Peek")
-
-*/
 
 import (
 	"errors"
 )
 
-// Queue is a generic type buildt on top of a slice
+// Queue is a generic FIFO queue built on top of a slice.
+//
+// The zero value of Queue is an empty queue ready to use.
 type Queue[T any] struct {
 	data []T
 }
 
-// IsEmpty will return true if the stack is empty
-func (ns *Queue[T]) IsEmpty() bool {
-	return len((*ns).data) == 0
+// ErrEmptyQueue is an error to indicate that the queue is empty.
+var ErrEmptyQueue = errors.New("empty queue")
+
+// IsEmpty will return true if the queue is empty.
+func (q *Queue[T]) IsEmpty() bool {
+	return len(q.data) == 0
 }
 
-// Push will push new data of type [T any] onto the stack.
-func (ns *Queue[T]) Push(t T) {
-	(*ns).data = append((*ns).data, t)
+// Push will push new data of type [T any] onto the tail of the queue.
+func (q *Queue[T]) Push(t T) {
+	q.data = append(q.data, t)
 }
 
-// Enqueue is the same as Push. Enqueue will push new data of type [T any] onto the stack.
-func (ns *Queue[T]) Enqueue(t T) {
-	(*ns).data = append((*ns).data, t)
+// Enqueue is the same as Push. Enqueue will push new data of type [T any] onto the tail of the queue.
+func (q *Queue[T]) Enqueue(t T) {
+	q.data = append(q.data, t)
 }
 
-// An error to indicate that the stack is empty
-var ErrEmptyQueue = errors.New("Empty Queue")
-
-// Pop will remove the top element from the stack.  An error is returned if the stack is empty.
-func (ns *Queue[T]) Pop() error {
-	if ns.IsEmpty() {
+// Pop will remove the head element from the queue.  An error is returned if the queue is empty.
+func (q *Queue[T]) Pop() error {
+	if q.IsEmpty() {
 		return ErrEmptyQueue
 	}
-	// (*ns).data = (*ns).data[1:len((*ns).data)]
-	(*ns).data = (*ns).data[1:]
+	q.popHead()
 	return nil
 }
 
-// Length returns the number of elements in the stack.
-func (ns *Queue[T]) Length() int {
-	return len((*ns).data)
+// Dequeue removes and returns the head element from the queue (if there is one),
+// else it returns an error.
+//
+// The returned pointer refers to a copy of the element; the queue no longer
+// holds any reference to it.
+func (q *Queue[T]) Dequeue() (rv *T, err error) {
+	if q.IsEmpty() {
+		return nil, ErrEmptyQueue
+	}
+	v := q.data[0]
+	q.popHead()
+	return &v, nil
 }
 
-// Peek returns the top element of the stack or an error indicating that the stack is empty.
-func (ns *Queue[T]) Peek() (*T, error) {
-	if !ns.IsEmpty() {
-		return &((*ns).data[0]), nil
+// popHead removes the head element, zeroing the vacated slot so that the
+// backing array does not keep the element alive, and releasing the backing
+// array entirely when the queue becomes empty.
+func (q *Queue[T]) popHead() {
+	var zero T
+	q.data[0] = zero
+	q.data = q.data[1:]
+	if len(q.data) == 0 {
+		q.data = nil
 	}
-	return nil, ErrEmptyQueue
 }
 
-// Dequeue remove and return an element from the queue (if there is one), else return an error.
-func (ns *Queue[T]) Dequeue() (rv *T, err error) {
-	if ns.IsEmpty() {
-		err = ErrEmptyQueue
-		return
+// Length returns the number of elements in the queue.
+func (q *Queue[T]) Length() int {
+	return len(q.data)
+}
+
+// Peek returns the head element of the queue or an error indicating that the queue is empty.
+//
+// The returned pointer refers to the element inside the queue; mutating it
+// mutates the queued element.
+func (q *Queue[T]) Peek() (*T, error) {
+	if q.IsEmpty() {
+		return nil, ErrEmptyQueue
 	}
-	rv = &((*ns).data[0])
-	// (*ns).data = (*ns).data[1:len((*ns).data)]
-	(*ns).data = (*ns).data[1:]
-	return
+	return &(q.data[0]), nil
+}
+
+// Truncate removes all of the data from the queue, releasing the backing array.
+// Complexity is O(1).
+func (q *Queue[T]) Truncate() {
+	q.data = nil
 }

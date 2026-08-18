@@ -1,27 +1,35 @@
+// Package g_lib provides small generic utility functions: min/max, slice
+// searching and manipulation, set conversion, and map key extraction.
+//
+// All functions are safe for concurrent use; they operate only on their
+// arguments and keep no shared state.
 package g_lib
 
 import (
+	"cmp"
 	"reflect"
 	"sort"
-
-	"golang.org/x/exp/constraints"
 )
 
-func Min[T constraints.Ordered](a, b T) T {
+// Min returns the smaller of a and b.
+func Min[T cmp.Ordered](a, b T) T {
 	if a < b {
 		return a
 	}
 	return b
 }
 
-func Max[T constraints.Ordered](a, b T) T {
+// Max returns the larger of a and b.
+func Max[T cmp.Ordered](a, b T) T {
 	if a > b {
 		return a
 	}
 	return b
 }
 
-func MinArray[T constraints.Ordered](a []T) (rv T) {
+// MinArray returns the smallest element of a.  If a is empty it returns the
+// zero value of T.
+func MinArray[T cmp.Ordered](a []T) (rv T) {
 	if len(a) > 0 {
 		rv = a[0]
 	}
@@ -33,7 +41,9 @@ func MinArray[T constraints.Ordered](a []T) (rv T) {
 	return
 }
 
-func MaxArray[T constraints.Ordered](a []T) (rv T) {
+// MaxArray returns the largest element of a.  If a is empty it returns the
+// zero value of T.
+func MaxArray[T cmp.Ordered](a []T) (rv T) {
 	if len(a) > 0 {
 		rv = a[0]
 	}
@@ -45,15 +55,15 @@ func MaxArray[T constraints.Ordered](a []T) (rv T) {
 	return
 }
 
-func IfTrue[T any](on bool, a T, b T) (rv T) {
+// IfTrue returns a when on is true, otherwise b.
+func IfTrue[T any](on bool, a, b T) T {
 	if on {
 		return a
 	}
 	return b
 }
 
-// InArray uses Dijkstra's "L" algorythm to search 'haystack' for 'needle'.  "L" is the linear search algorythm.
-// Exampel of Use:
+// InArray reports whether needle occurs in haystack, using a linear search.
 func InArray[T comparable](needle T, haystack []T) bool {
 	for _, val := range haystack {
 		if val == needle {
@@ -63,6 +73,8 @@ func InArray[T comparable](needle T, haystack []T) bool {
 	return false
 }
 
+// LocationInArray returns the index of the first occurrence of needle in
+// haystack, or -1 if needle is not present.
 func LocationInArray[T comparable](needle T, haystack []T) int {
 	for ii, val := range haystack {
 		if val == needle {
@@ -72,6 +84,7 @@ func LocationInArray[T comparable](needle T, haystack []T) int {
 	return -1
 }
 
+// KeysForStringMap returns the keys of aMap in unspecified order.
 func KeysForStringMap[T any](aMap map[string]T) (rv []string) {
 	for key := range aMap {
 		rv = append(rv, key)
@@ -79,13 +92,15 @@ func KeysForStringMap[T any](aMap map[string]T) (rv []string) {
 	return
 }
 
+// Numeric is a constraint with a type set of all integer and
+// floating-point types.
 type Numeric interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64 |
 		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 |
 		~float32 | ~float64
 }
 
-// Signed is a constraint with a type set of all signed integer types.
+// SignedInteger is a constraint with a type set of all signed integer types.
 type SignedInteger interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64
 }
@@ -101,6 +116,8 @@ type Unsigned interface {
 	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
 }
 
+// Abs returns the absolute value of a.  Note that for the most negative
+// value of a signed integer type the result overflows and stays negative.
 func Abs[T SignedNumeric](a T) T {
 	if a < 0 {
 		return -a
@@ -108,6 +125,7 @@ func Abs[T SignedNumeric](a T) T {
 	return a
 }
 
+// GetMapKeys returns the keys of m in unspecified order.
 func GetMapKeys[K comparable, V any](m map[K]V) []K {
 	keys := make([]K, 0, len(m))
 	for k := range m {
@@ -116,12 +134,15 @@ func GetMapKeys[K comparable, V any](m map[K]V) []K {
 	return keys
 }
 
-func SortSlice[T constraints.Ordered](s []T) {
+// SortSlice sorts s in place in ascending order.
+func SortSlice[T cmp.Ordered](s []T) {
 	sort.Slice(s, func(i, j int) bool {
 		return s[i] < s[j]
 	})
 }
 
+// EqualSlice reports whether s and t have the same length and equal
+// elements in the same order.
 func EqualSlice[T comparable](s, t []T) bool {
 	if len(s) != len(t) {
 		return false
@@ -134,7 +155,8 @@ func EqualSlice[T comparable](s, t []T) bool {
 	return true
 }
 
-// SortedKeysForStringMap will Extract the keys from a map[string]interface{}, sort them and return the sorted slice.
+// SortedKeysForStringMap extracts the keys from aMap, sorts them, and
+// returns the sorted slice.
 func SortedKeysForStringMap[T any](aMap map[string]T) (rv []string) {
 	for key := range aMap {
 		rv = append(rv, key)
@@ -143,21 +165,20 @@ func SortedKeysForStringMap[T any](aMap map[string]T) (rv []string) {
 	return
 }
 
-// RemoveAt removes from `slice` the item at postion `pos`.  If pos is out of range it returns the original `slice`.
+// RemoveAt returns a copy of slice with the item at position pos removed.
+// If pos is out of range it returns slice unchanged.  The input slice is
+// never modified.
 func RemoveAt[T any](slice []T, pos int) []T {
-	if pos < 0 {
+	if pos < 0 || pos >= len(slice) {
 		return slice
-	} else if pos >= len(slice) {
-		return slice
-	} else if pos == 0 {
-		return slice[1:]
-	} else if pos == len(slice)-1 {
-		return slice[0:pos]
 	}
-	return append(slice[:pos], slice[pos+1:]...)
+	result := make([]T, 0, len(slice)-1)
+	result = append(result, slice[:pos]...)
+	return append(result, slice[pos+1:]...)
 }
 
-// Remove will take 'needle' from 'haystack' if it matches based on reflect.DeepEqual
+// Remove returns a new slice containing the items of haystack that are not
+// equal to needle, using reflect.DeepEqual for the comparison.
 func Remove[T any](haystack []T, needle T) (result []T) {
 	for _, item := range haystack {
 		if !reflect.DeepEqual(item, needle) {
@@ -167,6 +188,8 @@ func Remove[T any](haystack []T, needle T) (result []T) {
 	return
 }
 
+// RemoveComparable returns a new slice containing the items of slice that
+// are not equal to element.
 func RemoveComparable[T comparable](slice []T, element T) (result []T) {
 	for _, item := range slice {
 		if item != element {
@@ -176,6 +199,8 @@ func RemoveComparable[T comparable](slice []T, element T) (result []T) {
 	return
 }
 
+// Unique returns the elements of s with duplicates removed, preserving the
+// order of first occurrence.
 func Unique[T comparable](s []T) []T {
 	inResult := make(map[T]bool)
 	var result []T
@@ -188,17 +213,18 @@ func Unique[T comparable](s []T) []T {
 	return result
 }
 
-// ToBoolMap will convert a slice to a set of true flags in a map that can then be looked up in (or set to false to get rid of items)
+// ToBoolMap converts a slice to a set, represented as a map with true
+// values, suitable for membership tests.
 //
-// For eample,
+// For example,
 //
-//	x := []string{ "a", "b" }
+//	x := []string{"a", "b"}
 //
-// Will produce `x`, a map[string]bool with values of:
+// produces
 //
-//	x == map[string]bool{ "a": true, "b": true }
+//	map[string]bool{"a": true, "b": true}
 func ToBoolMap[T comparable](src []T) map[T]bool {
-	var result = make(map[T]bool)
+	result := make(map[T]bool, len(src))
 	for _, v := range src {
 		result[v] = true
 	}

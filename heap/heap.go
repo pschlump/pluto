@@ -1,13 +1,15 @@
-package heap
-
+// Package heap provides a generic min-heap for any type that implements
+// comparable.Comparable.  Pop always removes and returns the minimum
+// element.  The heap is stored as a slice in breadth-first tree order.
+//
+// The implementation is adapted from the standard library's container/heap.
+//
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // Copyright (C) 2021 Philip Schlump. All rights reserved.
-
-// xyzzy - TODO - how to append an array of T
-// xyzzy - TODO - how to append sorted array of T
+package heap
 
 import (
 	"fmt"
@@ -43,26 +45,24 @@ func (hp *Heap[T]) Push(x *T) {
 }
 
 // Pop removes and returns the minimum element (using comparable.Compare).
-// Pop is the same as hp.Remove(0).
+// Pop is the same as hp.Delete(0).  Pop on an empty heap returns nil.
 // Complexity is O(log n).
 func (hp *Heap[T]) Pop() (rv *T) {
-	if len(hp.data) == 0 {
+	n := len(hp.data) - 1
+	if n < 0 {
 		return nil
 	}
-	n := len(hp.data) - 1
-	hp.data[0], hp.data[n] = hp.data[n], hp.data[0] // (*hp).Swap(0, n)
-	hp.down(0, n)                                   //
-	rv = hp.data[n]                                 // Pop from sort
-	// if n == 0 || n == 1 {
-	if n == 0 {
-		hp.data = []*T{}
-	} else {
-		// hp.data = hp.data[:n-1]						// remove element
-		hp.data = hp.data[:n] // remove element
-	}
+	hp.data[0], hp.data[n] = hp.data[n], hp.data[0] // Swap min to the end
+	hp.down(0, n)                                   // Re-establish heap order
+	rv = hp.data[n]
+	hp.data[n] = nil // zero the slot so the GC can reclaim the popped element
+	hp.data = hp.data[:n]
 	return
 }
 
+// Peek returns the minimum element of the heap without removing it.
+// Peek on an empty heap returns nil.
+// Complexity is O(1).
 func (hp *Heap[T]) Peek() (rv *T) {
 	if len(hp.data) > 0 {
 		return hp.data[0]
@@ -70,11 +70,15 @@ func (hp *Heap[T]) Peek() (rv *T) {
 	return nil
 }
 
+// Truncate removes all elements from the heap, releasing the underlying
+// storage so the GC can reclaim it.
+// Complexity is O(1).
 func (hp *Heap[T]) Truncate() {
-	hp.data = []*T{}
+	hp.data = nil
 }
 
 // Delete removes and returns the element at the specified index `ii` from the heap.
+// It panics if `ii` is out of range.
 // Complexity is O(log n).
 func (hp *Heap[T]) Delete(ii int) (rv *T) {
 	if ii < 0 || ii >= len(hp.data) {
@@ -82,20 +86,21 @@ func (hp *Heap[T]) Delete(ii int) (rv *T) {
 	}
 	n := len(hp.data) - 1
 	if n != ii {
-		hp.data[ii], hp.data[n] = hp.data[n], hp.data[ii] // (*hp).Swap(ii, n)
-		if !hp.down(0, n) {
+		hp.data[ii], hp.data[n] = hp.data[n], hp.data[ii] // Swap ii with the last element
+		if !hp.down(ii, n) {
 			hp.up(ii)
 		}
 	}
-	rv = hp.data[0]       // Pop() from sort
-	hp.data = hp.data[1:] // remove element
+	rv = hp.data[n]
+	hp.data[n] = nil // zero the slot so the GC can reclaim the deleted element
+	hp.data = hp.data[:n]
 	return
 }
 
-// Fix re-establishes the heap ordering after a change to the value of the element at locaiton `ii`.
-// Changing the value of the element (indrement/decrement/update) at `ii` followed by a call to Fix()
-// is the same as hp.Delete(ii) and hp.Push(NewValue).  It is less expesive to call use the Fix
-// operation.
+// Fix re-establishes the heap ordering after the element at location `ii` has
+// been replaced by `newValue`.  It panics if `ii` is out of range.
+// Replacing the element at `ii` and calling Fix is cheaper than a Delete(ii)
+// followed by a Push(newValue).
 // Complexity is O(log n).
 func (hp *Heap[T]) Fix(ii int, newValue *T) {
 	if ii < 0 || ii >= len(hp.data) {
@@ -116,6 +121,9 @@ func (hp *Heap[T]) GetValue(ii int) (value *T) {
 	return hp.data[ii]
 }
 
+// SetValue replaces the element at index `ii` with `newValue` and
+// re-establishes the heap ordering.  It panics if `ii` is out of range.
+// Complexity is O(log n).
 func (hp *Heap[T]) SetValue(ii int, newValue *T) {
 	hp.Fix(ii, newValue)
 }
@@ -125,12 +133,20 @@ func (hp *Heap[T]) SetValue(ii int, newValue *T) {
 func (hp *Heap[T]) Len() int {
 	return len(hp.data)
 }
+
+// Length will return the number of items in the heap.  It is an alias for Len.
+// Complexity is O(1).
 func (hp *Heap[T]) Length() int {
 	return len(hp.data)
 }
 
+// Search performs a linear scan of the heap for an element equal to `cmpVal`
+// (per comparable.Compare).  It returns the element and its index, or
+// nil, -1, nil if no such element exists.  `err` is always nil and retained
+// for interface compatibility.
 // Complexity is O(n).
 func (hp *Heap[T]) Search(cmpVal *T) (rv *T, pos int, err error) {
+	pos = -1
 	for ii := 0; ii < len(hp.data); ii++ {
 		c := (*(hp.data[ii])).Compare(*cmpVal)
 		if c == 0 {
@@ -138,28 +154,6 @@ func (hp *Heap[T]) Search(cmpVal *T) (rv *T, pos int, err error) {
 			return
 		}
 	}
-	/*
-		var findIt func ( root int )
-		findIt = func ( i int ) {
-			if i < len(hp.data) {
-				c := (*(hp.data[i])).Compare(*cmpVal)
-				if c == 0 {
-					rv, pos = hp.data[i], i
-				} else if c < 0 {
-					l := 2 * i + 1 // left = 2*i + 1
-					if l < len(hp.data) {
-						findIt ( l )
-					}
-				} else {
-					r := 2 * i + 2 // right = 2*i + 2
-					if r < len(hp.data) {
-						findIt ( r )
-					}
-				}
-			}
-		}
-		findIt(0)
-	*/
 	return
 }
 
@@ -192,13 +186,11 @@ func (hp *Heap[T]) down(i0, n int) (rv bool) {
 	i := i0
 	for {
 		j1 := 2*i + 1
-		if j1 >= n || j1 < 0 {
+		if j1 >= n || j1 < 0 { // j1 < 0 guards against int overflow
 			break
 		}
 		j := j1 // choose the left child
-		j2 := j1 + 1
-		c0 := (*(hp.data[j2])).Compare(*(hp.data[j1]))
-		if j2 < n && c0 < 0 {
+		if j2 := j1 + 1; j2 < n && (*(hp.data[j2])).Compare(*(hp.data[j1])) < 0 {
 			j = j2 // choose the right child
 		}
 		if c := (*(hp.data[j])).Compare(*(hp.data[i])); c >= 0 {
@@ -216,7 +208,7 @@ func (hp *Heap[T]) down(i0, n int) (rv bool) {
 	return
 }
 
-// dump will print out the heap in JSON format.
+// printAsJSON will print out the heap in JSON format (debug only).
 func (hp *Heap[T]) printAsJSON() {
 	fmt.Printf("Heap : %s\n", dbgo.SVarI(hp.data))
 }
@@ -244,66 +236,41 @@ func (hp *Heap[T]) printAsTree() {
 }
 
 // AppendHeap appends a new set of data to the heap (and leaves the heap in a non-heap state).
-// After 1..n AppendHeap operations a call to Heapify() is necessary to re-heap the heap.
+// After 1..n AppendHeap operations the heap must be rebuilt, e.g. with:
 //
-// Example: `h.Heapify(h.Len(),0)` will re-build the entire heap.
+//	for i := h.Len()/2 - 1; i >= 0; i-- {
+//		h.Heapify(h.Len(), i)
+//	}
+//
+// Complexity is O(m) where m = len(x).
 func (hp *Heap[T]) AppendHeap(x []*T) {
 	hp.data = append(hp.data, x...)
 }
 
-// xyzzzy- Commnet- To heapify a subtree rooted with node i which is an index in arr[]. N is size of heap
-// Heapify starts at the sub-tree at 'i' and re-construts the heap.  This is useful after an AppendHeap operation.
-// `h.Heapify(h.Len(),0)` will re-build the entire heap.
+// Heapify re-establishes the min-heap ordering of the sub-tree rooted at index `i`,
+// treating `n` as the effective size of the heap (only indexes < n are considered).
+// It assumes the sub-trees below `i` already satisfy the heap property.
+// To rebuild the entire heap, call it for i = Len()/2-1 down to 0 (see AppendHeap).
+// Complexity is O(log n).
 func (hp *Heap[T]) Heapify(n, i int) {
-	largest := i // Initialize largest as root
-	l := 2*i + 1 // left = 2*i + 1
-	r := 2*i + 2 // right = 2*i + 2
-
-	// If left child is larger than root
-	// if (l < n && (*hp).data[l] > (*hp).data[largest]) {
-	c := (*(hp.data[l])).Compare(*(hp.data[largest]))
-	if l < n && c > 0 {
-		largest = l
+	smallest := i // Initialize smallest as root
+	l := 2*i + 1  // left = 2*i + 1
+	r := 2*i + 2  // right = 2*i + 2
+	if l < n && (*(hp.data[l])).Compare(*(hp.data[smallest])) < 0 {
+		smallest = l
 	}
-
-	// If right child is larger than largest so far
-	c = (*(hp.data[r])).Compare(*(hp.data[largest]))
-	if r < n && c > 0 {
-		largest = r
+	if r < n && (*(hp.data[r])).Compare(*(hp.data[smallest])) < 0 {
+		smallest = r
 	}
-
-	// If largest is not root
-	if largest != i {
-		// swap((*hp).data[i], (*hp).data[largest])
-		hp.data[i], hp.data[largest] = hp.data[largest], hp.data[i]
-
-		// Recursively heapify the affected sub-tree
-		hp.Heapify(n, largest)
+	if smallest != i {
+		hp.data[i], hp.data[smallest] = hp.data[smallest], hp.data[i]
+		hp.Heapify(n, smallest) // Recursively heapify the affected sub-tree
 	}
 }
 
+// Dump writes the contents of the heap (in internal slice order) to `fp`.
 func (hp *Heap[T]) Dump(fp io.Writer) {
-	fmt.Fprintf(fp, "%s\n", dbgo.SVarI(hp.data))
+	_, _ = fmt.Fprintf(fp, "%s\n", dbgo.SVarI(hp.data))
 }
 
-/*
-panic: runtime error: index out of range [0] with length 0
-
-goroutine 13 [running]:
-github.com/pschlump/pluto/heap.(*Heap[...]).Peek(0xc000466540?)
-
-	/Users/philip/go/src/github.com/pschlump/pluto/heap/heap.go:68 +0x2f
-
-main.GetSetDelNew.func11()
-
-	/Users/philip/go/src/www.2c-why.com/ultra/ultra-server/get-set-del.go:330 +0x13b
-
-main.TimedDispatch()
-
-	/Users/philip/go/src/www.2c-why.com/ultra/ultra-server/time.go:24 +0xc2
-
-created by main.main
-
-	/Users/philip/go/src/www.2c-why.com/ultra/ultra-server/main.go:644 +0x276a
-*/
 const db10 = false

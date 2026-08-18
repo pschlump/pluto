@@ -1,0 +1,98 @@
+# hash_tab_bt
+
+Package `hash_tab` — a generic hash table for Go where each bucket is a
+binary search tree (`github.com/pschlump/pluto/binary_tree`).  Because
+collisions are resolved by a tree rather than a linked list, lookups stay
+logarithmic even under heavy collisions.
+
+This is the **non-thread-safe** variant.  See
+[`hash_tab_bt_ts`](../hash_tab_bt_ts) for a thread-safe version with an
+identical API.
+
+## Overview
+
+- Generic over any `T` implementing `comparable.Comparable`.
+- Items are stored as `*T`; inserting an item equal to an existing one
+  replaces it.
+- The hash key is derived from the item itself: if `T` (or `*T`) implements
+  `Hashable` (`HashKey(x any) int`) that is used, otherwise
+  `fmt.Stringer`.  Items implementing neither cause a panic.
+- The number of buckets is fixed at construction (`NewHashTab(n)`, `n >= 5`).
+
+## Complexity
+
+| Operation   | Average        | Notes                                  |
+|-------------|----------------|----------------------------------------|
+| `Insert`    | O(log(n/k))    | k = number of buckets                  |
+| `Search`    | O(log(n/k))    |                                        |
+| `ItemExists`| O(log(n/k))    |                                        |
+| `Delete`    | O(log(n/k))    |                                        |
+| `IsEmpty`   | O(1)           |                                        |
+| `Len` / `Length` | O(1)      |                                        |
+| `Truncate`  | O(k)           | resets every bucket                    |
+| `Walk` / `WalkFunc` / `All` | O(n) | visit every element         |
+| `Dump`      | O(n)           |                                        |
+
+Worst case (all keys in one bucket) degenerates to the binary tree's
+O(n) per operation.
+
+## Example
+
+```go
+package main
+
+import (
+	"fmt"
+
+	hash_tab "github.com/pschlump/pluto/hash_tab_bt"
+)
+
+type Item struct{ Key string }
+
+func (a Item) Compare(x comparable.Comparable) int {
+	b := x.(Item)
+	switch {
+	case a.Key < b.Key:
+		return -1
+	case a.Key > b.Key:
+		return 1
+	}
+	return 0
+}
+
+func (a Item) HashKey(x any) int { /* ... hash of a.Key ... */ }
+
+func main() {
+	ht := hash_tab.NewHashTab[Item](97)
+	ht.Insert(&Item{Key: "alpha"})
+
+	if it := ht.Search(&Item{Key: "alpha"}); it != nil {
+		fmt.Println("found", it.Key)
+	}
+
+	// Go 1.23+ range-over-func iteration:
+	for item := range ht.All() {
+		fmt.Println(item.Key)
+	}
+
+	ht.Delete(&Item{Key: "alpha"})
+}
+```
+
+## Iteration
+
+Three styles are supported, all in bucket order (not sorted order):
+
+- `All()` — modern Go 1.23+ range-over-func iterator (`iter.Seq[*T]`).
+- `WalkFunc(fx func(*T))` — simple callback per element.
+- `Walk(fx binary_tree.ApplyFunction[T], userData any)` — callback with
+  position/depth, walking each bucket's tree in-order.
+
+## Thread safety
+
+This package is **not** safe for concurrent use.  The `WriteLock`,
+`WriteUnlock`, `ReadLock`, `ReadUnlock` methods and the `Nl`-prefixed
+methods (`NlSearch`, `NlDelete`) are no-ops/aliases that exist only so code
+written against the thread-safe `hash_tab_bt_ts` package compiles unchanged
+against this one.  Use `hash_tab_bt_ts` when the table is shared between
+goroutines.

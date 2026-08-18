@@ -27,15 +27,9 @@ var _ comparable.Equality = (*TestDemo)(nil)
 
 func (aa TestDemo) IsEqual(x comparable.Equality) bool {
 	if bb, ok := x.(TestDemo); ok {
-		if aa.S == bb.S {
-			return true
-		}
-		return false
+		return aa.S == bb.S
 	} else if bb, ok := x.(*TestDemo); ok {
-		if aa.S == bb.S {
-			return true
-		}
-		return false
+		return aa.S == bb.S
 	} else {
 		panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
 	}
@@ -151,7 +145,7 @@ func TestDll(t *testing.T) {
 		t.Errorf("Unexpectd data")
 	}
 
-	a, err = Dll1.Pop()
+	_, err = Dll1.Pop()
 	if err == nil {
 		t.Errorf("Unexpectd lack of error after pop on empty stack")
 	}
@@ -199,8 +193,8 @@ func TestDll(t *testing.T) {
 	Dll1.InsertBeforeHead(&TestDemo{S: "02"})
 	Dll1.AppendAtTail(&TestDemo{S: "03"})
 	Dll1.InsertBeforeHead(&TestDemo{S: "01"})
-	Dll1.DeleteAtTail()
-	Dll1.DeleteAtTail()
+	_ = Dll1.DeleteAtTail()
+	_ = Dll1.DeleteAtTail()
 	a, err = Dll1.Pop()
 	if err != nil {
 		t.Errorf("Unexpectd error after pop on empty stack")
@@ -230,10 +224,7 @@ func TestDll(t *testing.T) {
 			fmt.Printf("[%d] = %s\n", pos, data.S)
 		}
 		found = append(found, data.S)
-		if userData.(string) == data.S {
-			return true
-		}
-		return false
+		return userData.(string) == data.S
 	}
 	rv, pos := Dll1.Walk(fx, "02")
 	_, _ = rv, pos
@@ -296,10 +287,13 @@ func TestDll(t *testing.T) {
 		fmt.Printf("%+v, at locaiton %d\n", rv, pos)
 	}
 
-	// Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
-	// func (ns *Dll[T]) Delete( it *DllElement[T] ) ( err error ) {
+	// DeleteFound — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
+	// func (ns *Dll[T]) DeleteFound( it *DllElement[T] ) ( err error ) {
 	// 	fmt.Printf("AT: %s\n", dbgo.LF())
-	err = Dll1.Delete(rv)
+	err = Dll1.DeleteFound(rv)
+	if err != nil {
+		t.Errorf("Unexpectd error from DeleteFound")
+	}
 	// 	fmt.Printf("AT: %s\n", dbgo.LF())
 
 	if Dll1.Length() != 2 {
@@ -341,9 +335,12 @@ func TestDll(t *testing.T) {
 		fmt.Printf("AT: %s\n", dbgo.LF())
 	}
 
-	// Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
-	// func (ns *Dll[T]) Delete( it *DllElement[T] ) ( err error ) {
-	err = Dll1.Delete(rv)
+	// DeleteFound — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
+	// func (ns *Dll[T]) DeleteFound( it *DllElement[T] ) ( err error ) {
+	err = Dll1.DeleteFound(rv)
+	if err != nil {
+		t.Errorf("Unexpectd error from DeleteFound")
+	}
 
 	if Dll1.Length() != 2 {
 		t.Errorf("Unexpectd length, after search/delete, expected %d got %d", 2, Dll1.Length())
@@ -395,7 +392,7 @@ func TestDll(t *testing.T) {
 		}
 	}
 
-	rv, err = Dll1.Index(3)
+	_, err = Dll1.Index(3)
 	if err == nil {
 		t.Errorf("Unexpectd lack of error")
 	}
@@ -564,7 +561,7 @@ func TestDllLTrim(t *testing.T) {
 		t.Errorf("Expected length of %d got %d", expect, got)
 	}
 
-	Dll1.Trim(3)
+	_ = Dll1.Trim(3)
 
 	got = Dll1.Length()
 	expect = 3
@@ -572,7 +569,7 @@ func TestDllLTrim(t *testing.T) {
 		t.Errorf("Expected length of %d got %d", expect, got)
 	}
 
-	Dll1.Trim(3)
+	_ = Dll1.Trim(3)
 
 	Value := make([]string, 0, Dll1.Length())
 	Dll1.Walk(func(pos int, data TestDemo, userData interface{}) bool {
@@ -594,7 +591,7 @@ func TestDllLTrim(t *testing.T) {
 		t.Errorf("Expected length of %d got %d", expect, got)
 	}
 
-	Dll1.Trim(4)
+	_ = Dll1.Trim(4)
 
 	got = Dll1.Length()
 	expect = 3
@@ -602,7 +599,7 @@ func TestDllLTrim(t *testing.T) {
 		t.Errorf("Expected length of %d got %d", expect, got)
 	}
 
-	Dll1.Trim(1)
+	_ = Dll1.Trim(1)
 
 	got = Dll1.Length()
 	expect = 1
@@ -610,7 +607,7 @@ func TestDllLTrim(t *testing.T) {
 		t.Errorf("Expected length of %d got %d", expect, got)
 	}
 
-	Dll1.Trim(0)
+	_ = Dll1.Trim(0)
 
 	got = Dll1.Length()
 	expect = 0
@@ -622,7 +619,7 @@ func TestDllLTrim(t *testing.T) {
 	Dll1.AppendAtTail(&TestDemo{S: "bb"})
 	Dll1.AppendAtTail(&TestDemo{S: "cc"})
 	Dll1.AppendAtTail(&TestDemo{S: "dd"})
-	Dll1.Trim(-1)
+	_ = Dll1.Trim(-1)
 
 	got = Dll1.Length()
 	expect = 0
@@ -648,7 +645,7 @@ func TestDllRTrim(t *testing.T) {
 		t.Errorf("Expected length of %d got %d", expect, got)
 	}
 
-	Dll1.TrimTail(3)
+	_ = Dll1.TrimTail(3)
 
 	got = Dll1.Length()
 	expect = 3
@@ -656,7 +653,7 @@ func TestDllRTrim(t *testing.T) {
 		t.Errorf("Expected length of %d got %d", expect, got)
 	}
 
-	Dll1.TrimTail(3)
+	_ = Dll1.TrimTail(3)
 
 	got = Dll1.Length()
 	expect = 3
@@ -664,7 +661,7 @@ func TestDllRTrim(t *testing.T) {
 		t.Errorf("Expected length of %d got %d", expect, got)
 	}
 
-	Dll1.TrimTail(4)
+	_ = Dll1.TrimTail(4)
 
 	got = Dll1.Length()
 	expect = 3
@@ -672,7 +669,7 @@ func TestDllRTrim(t *testing.T) {
 		t.Errorf("Expected length of %d got %d", expect, got)
 	}
 
-	Dll1.TrimTail(1)
+	_ = Dll1.TrimTail(1)
 
 	got = Dll1.Length()
 	expect = 1
@@ -680,7 +677,7 @@ func TestDllRTrim(t *testing.T) {
 		t.Errorf("Expected length of %d got %d", expect, got)
 	}
 
-	Dll1.TrimTail(0)
+	_ = Dll1.TrimTail(0)
 
 	got = Dll1.Length()
 	expect = 0
@@ -692,7 +689,7 @@ func TestDllRTrim(t *testing.T) {
 	Dll1.AppendAtTail(&TestDemo{S: "bb"})
 	Dll1.AppendAtTail(&TestDemo{S: "cc"})
 	Dll1.AppendAtTail(&TestDemo{S: "dd"})
-	Dll1.TrimTail(-1)
+	_ = Dll1.TrimTail(-1)
 
 	got = Dll1.Length()
 	expect = 0

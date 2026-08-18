@@ -1,51 +1,102 @@
-# AVL Trees with Locks
+# AVL Tree — Thread-Safe
 
-If you have an application that is not subject to concurrency but still requires a balanced tree 
-use the `../avl_tree` version of this code.  They have the same interface.
+`avl_tree_ts` is a generic, self-balancing AVL binary search tree for Go
+1.23+ that is **safe for concurrent use**: every operation is guarded by an
+internal `sync.RWMutex`.  If your application is single-threaded, use the
+[`../avl_tree`](../avl_tree) package instead — it has the identical API
+without the locking overhead.
 
-AVL Trees are a balanced binary tree.  They are a little bit more complicated to implement than
-red-black balanced trees but in most cases perform a little better.   There is a difference in
-the amount of storage between them but this has no effect when the minimum amount of storage is
-1 byte in size.
+The heights of the two child subtrees of every node are kept within one of
+each other, so searches stay fast regardless of insertion order.  See
+[https://en.wikipedia.org/wiki/AVL_tree](https://en.wikipedia.org/wiki/AVL_tree)
+for the theory.
 
-With AVL Trees the depth of the tree is always within 1 of the maximum depth.  Searches, on average,
-benefit from this balance.
-
-Detailed analysis can be found at [https://en.wikipedia.org/wiki/AVL_tree](https://en.wikipedia.org/wiki/AVL_tree).
+The element type `T` must implement `comparable.Comparable` (a
+`Compare(T) int` method); elements are stored as `*T`.
 
 ## Operations
 
-### Insert
+| Operation | Description | Complexity |
+|---|---|---|
+| `Insert` | Add an element; duplicates replace the old data | O(log n) |
+| `Delete` | Remove an element; reports whether it was found | O(log n) |
+| `Search` | Return the stored element equal to the probe, or nil | O(log n) |
+| `FindMin` / `FindMax` | Return the smallest / largest element | O(log n) |
+| `DeleteAtHead` / `DeleteAtTail` | Remove the smallest / largest element | O(log n) |
+| `Index` | Return the Nth element in in-order sequence | O(n) |
+| `IsEmpty` / `Length` / `Depth` | Tree size and height queries | O(1) |
+| `Truncate` | Remove all elements | O(1) |
+| `Reverse` | Mirror the tree (mainly useful for testing) | O(n) |
+| `WalkInOrder` / `WalkPreOrder` / `WalkPostOrder` | Apply a function to every node | O(n) |
+| `Copy` / `Union` / `Minus` / `Intersect` | Whole-tree set operations | O(n log n) |
+| `Front` + `Next`/`Value`/`Done` | Old-style in-order iterator (snapshot) | O(n) total |
+| `All` / `Backward` | Go 1.23 range-over-func iterators (snapshot) | O(n) |
 
-Create a new element in tree. Duplicates replace the current node with a new node - this is not reported as
-an error.
+## Usage
 
-Time: O(log|2(n))
+```go
+package main
 
+import (
+	"fmt"
+
+	"github.com/pschlump/pluto/avl_tree_ts"
+	"github.com/pschlump/pluto/comparable"
+)
+
+type Key struct {
+	S string
+}
+
+// Compare implements comparable.Comparable.
+func (a Key) Compare(x comparable.Comparable) int {
+	b := x.(Key)
+	if a.S < b.S {
+		return -1
+	} else if a.S > b.S {
+		return 1
+	}
+	return 0
+}
+
+func main() {
+	var tree avl_tree_ts.AvlTree[Key]
+
+	tree.Insert(&Key{S: "05"})
+	tree.Insert(&Key{S: "02"})
+	tree.Insert(&Key{S: "09"})
+
+	if found := tree.Search(&Key{S: "02"}); found != nil {
+		fmt.Println("found:", found.S)
+	}
+
+	// In-order (sorted) iteration over a consistent snapshot.
+	for item := range tree.All() {
+		fmt.Println(item.S)
+	}
+
+	tree.Delete(&Key{S: "05"})
+}
 ```
 
-	var Tree1 AvlTree[DataType]
-    // ...
-    Tree1.Insert(&DataType{...})
+## Thread Safety
 
-```
+All public operations take the appropriate read or write lock, so the tree
+may be shared freely between goroutines.  Two caveats:
 
-* 	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(log|2(n))
-* 	Index - return the Nth item	in the list - in a format usable with Delete.					O(n)
-* 	IsEmpty — Returns true if the linked list is empty											O(1)
-* 	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
-* 	Reverse - Reverse all the nodes in list. 													O(n)
-* 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(log|2(n))
-* 	Truncate - Delete all the nodes in list. 													O(1)
-*	FindMin - Find the smallest element in the tree.
-*	FindMax - Find the largest element in the tree.
-*	Depth -> int to get deepest part of tree
+- **Iteration is snapshot-based.**  `Front()`, `All()` and `Backward()` take
+  a consistent snapshot of the tree data under the read lock, then iterate
+  over the snapshot without holding the lock.  Concurrent modifications made
+  after the snapshot is taken are not reflected in the iteration, and the
+  loop body never runs under the lock.
+- **Walk callbacks run under a read lock.**  The `fx` callback passed to
+  `WalkInOrder`/`WalkPreOrder`/`WalkPostOrder` is invoked while the tree's
+  read lock is held.  The callback must not call back into the same tree, or
+  it will deadlock.
+- `Copy`/`Union`/`Minus`/`Intersect` snapshot their sources under the source
+  trees' read locks before modifying the destination, so the destination may
+  safely alias a source (`t.Union(t, other)` is fine).
 
-* 	DeleteAtHead — Deletes the first element of the linked list.  								O(log|2(n))
-		=== Delete ( FindMin ( ) )
-* 	DeleteAtTail — Deletes the last element of the linked list. 								O(log|2(n))
-		=== Delete ( FindMax ( ) )
+## License
 
-*	WalkInOrder	- Apply a function to all the nodes in the tree using an inorder traversal.		O(n)
-*	WalkPreOrder - Apply a function to all the nodes in the tree using a preorder traversal.	O(n)
-*	WalkPostOrder - Apply a function to all the nodes in the tree using a postorder traversal.	O(n)
+Copyright (C) Philip Schlump, 2012-2021.  BSD 3 Clause Licensed.

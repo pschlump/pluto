@@ -1,15 +1,75 @@
+= queue_ts — a thread safe generics based FIFO queue
 
-= A generics based Go Queue.
+A generic FIFO (first-in, first-out) queue built on top of a slice, using
+Go generics (Go 1.18+; this module targets Go 1.26).
 
-A simple stack with Push, Pop, Length, IsEmpty using Go generics.
+This is the *thread safe* implementation: every operation is guarded by a
+`sync.RWMutex`.  It has the exact same interface as
+`github.com/pschlump/pluto/queue`.
 
-This requires version 1.18beta1 of Go to be compiled and used.
+The zero value of `Queue[T]` is an empty queue ready to use.
 
-This queue implemenation is based on using a slice and the
-performance will be significantly different when poping
-values thatn a queue based on a doublly linked list.  In this
-implentation a copy of the queued dat ais made each time a
-`Pop` occures.  This will result in an order(n) performance
-for this operation.
-A DLL based queue has a order(1) timing for the
-same operation.
+== Operations
+
+|===
+| Operation | Description | Complexity
+
+| `Push(t)` / `Enqueue(t)` | Insert an element at the tail | O(1) amortized
+| `Pop()` | Remove the head element | O(1)
+| `Dequeue()` | Remove and return the head element | O(1)
+| `Peek()` | Return the head element without removing it | O(1)
+| `IsEmpty()` | True if the queue is empty | O(1)
+| `Length()` | Number of elements | O(1)
+| `Truncate()` | Remove all elements | O(1)
+| `All()` / `Backward()` | Range-over-func iterators over a consistent snapshot | O(n)
+|===
+
+`Pop`, `Dequeue` and `Truncate` zero/release the removed elements so the
+garbage collector can reclaim them.
+
+`All` and `Backward` iterate over a snapshot taken under a read lock when
+the method is called; the lock is not held while the loop body runs, so it
+is safe to call other queue methods from inside the loop.
+
+== Example
+
+[source,go]
+----
+package main
+
+import (
+	"fmt"
+
+	queue "github.com/pschlump/pluto/queue_ts"
+)
+
+func main() {
+	var q queue.Queue[int]
+	q.Enqueue(1)
+	q.Enqueue(2)
+	q.Enqueue(3)
+
+	fmt.Println(q.Length()) // 3
+
+	for _, v := range q.All() {
+		fmt.Println(v) // 1, 2, 3
+	}
+
+	v, err := q.Dequeue() // v = 1, err = nil
+	_, _ = v, err
+}
+----
+
+== Thread safety
+
+This implementation is thread safe; all methods may be called concurrently
+from multiple goroutines.  Note that `Peek` returns a pointer to the head
+element that is only guaranteed valid while the element remains in the
+queue.  Run the tests with `go test -race` to validate usage.
+
+== Notes
+
+Because the queue is slice based, growth occasionally doubles the backing
+array and copies data (amortized O(1) `Push`).  A DLL based queue
+(`queue_dll_ts`) has strict O(1) costs for every operation but higher
+constant factors and per-element allocations.

@@ -1,15 +1,81 @@
+= queue_dll_ts — a thread safe generics based FIFO queue on a doubly linked list
 
-= A generics based Go Queue.
+A generic FIFO (first-in, first-out) queue built on top of the generic
+doubly linked list in `github.com/pschlump/pluto/dll_ts`.  The underlying
+list is thread safe, so this queue is safe for concurrent use.
 
-A simple stack with Push, Pop, Length, IsEmpty using Go generics.
+Unlike the slice based queues (`../queue`, `../queue_ts`) every operation
+is strictly O(1) with no memory copy cost.  Elements are stored as
+pointers: `Push`/`Enqueue` take a `*T` and `Peek`/`Dequeue` return a `*T`.
+The element type must implement `comparable.Equality`.
 
-This requires version 1.18beta1 of Go to be compiled and used.
+The zero value of `Queue[T]` is an empty queue ready to use.
 
-This queue implemenation is based on using a generic DLL and the
-performance will be significantly different when poping
-values thatn a queue based on a doublly linked list.  In this
-implentation a copy of the queued dat ais made each time a
-`Pop` occures.  This will result in an order(n) performance
-for this operation.
-A DLL based queue has a order(1) timing for the
-same operation.
+== Operations
+
+|===
+| Operation | Description | Complexity
+
+| `Push(t)` / `Enqueue(t)` | Insert an element at the tail | O(1)
+| `Pop()` | Remove the head element | O(1)
+| `Dequeue()` | Remove and return the head element | O(1)
+| `Peek()` | Return the head element without removing it | O(1)
+| `IsEmpty()` | True if the queue is empty | O(1)
+| `Length()` | Number of elements | O(1)
+| `Truncate()` | Remove all elements | O(1)
+| `All()` / `Backward()` | Range-over-func iterators (head→tail / tail→head) | O(n)
+|===
+
+== Example
+
+[source,go]
+----
+package main
+
+import (
+	"fmt"
+
+	"github.com/pschlump/pluto/comparable"
+	"github.com/pschlump/pluto/queue_dll_ts"
+)
+
+type Item struct {
+	Name string
+}
+
+func (a Item) IsEqual(x comparable.Equality) bool {
+	b, ok := x.(Item)
+	return ok && a.Name == b.Name
+}
+
+func main() {
+	var q queue_dll_ts.Queue[Item]
+	q.Enqueue(&Item{Name: "a"})
+	q.Enqueue(&Item{Name: "b"})
+
+	for _, v := range q.All() {
+		fmt.Println(v.Name) // a, b
+	}
+
+	v, err := q.Dequeue() // v.Name = "a", err = nil
+	_, _ = v, err
+}
+----
+
+== Thread safety
+
+This implementation is thread safe; all methods may be called concurrently
+from multiple goroutines (the underlying `dll_ts` list guards every
+operation with a `sync.RWMutex`).  `All` and `Backward` use the list's
+thread safe step-at-a-time iterator: safe to use concurrently, but not a
+consistent snapshot — elements pushed while iterating may be visited and
+elements popped by another goroutine may be skipped.  Run the tests with
+`go test -race` to validate usage.
+
+== Notes
+
+This package is a thin, queue-focused wrapper over `dll_ts`.  You can use
+`dll_ts` directly, but this wrapper makes the intent — a FIFO queue —
+explicit.  Each element requires a node allocation; if that cost matters
+and the queue is large, the slice based `queue_ts` may be faster in
+practice.

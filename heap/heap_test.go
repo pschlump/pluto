@@ -167,150 +167,243 @@ func TestWithDifferentElements(t *testing.T) {
 	}
 }
 
-/*
-
-func TestInit1(t *testing.T) {
-	h := new(myHeap)
-	for i := 20; i > 0; i-- {
-		h.Push(i) // all elements are different
+func TestPopPeekOnEmpty(t *testing.T) {
+	h := NewHeap[myHeap]()
+	if got := h.Pop(); got != nil {
+		t.Errorf("Pop on empty heap: expected nil, got %v", *got)
 	}
-	Init(h)
-	h.verify(t, 0)
-
-	for i := 1; h.Len() > 0; i++ {
-		x := Pop(h).(int)
-		h.verify(t, 0)
-		if x != i {
-			t.Errorf("%d.th pop got %d; want %d", i, x, i)
-		}
+	if got := h.Peek(); got != nil {
+		t.Errorf("Peek on empty heap: expected nil, got %v", *got)
+	}
+	if h.Len() != 0 || h.Length() != 0 {
+		t.Errorf("empty heap: expected length 0, got %d/%d", h.Len(), h.Length())
 	}
 }
 
-func Test(t *testing.T) {
-	h := new(myHeap)
-	h.verify(t, 0)
-
+func TestPeek(t *testing.T) {
+	h := NewHeap[myHeap]()
 	for i := 20; i > 10; i-- {
-		h.Push(i)
+		hv := myHeap(i)
+		h.Push(&hv)
 	}
-	Init(h)
+	h.verify(t, 0)
+	// Peek must return the minimum without removing it.
+	for i := 0; i < 3; i++ {
+		got := h.Peek()
+		if got == nil || int(*got) != 11 {
+			t.Fatalf("Peek: expected 11, got %v", got)
+		}
+		if h.Len() != 10 {
+			t.Fatalf("Peek changed length: expected 10, got %d", h.Len())
+		}
+	}
+}
+
+func TestDelete(t *testing.T) {
+	h := NewHeap[myHeap]()
+	for i := 30; i >= 1; i-- {
+		hv := myHeap(i)
+		h.Push(&hv)
+	}
 	h.verify(t, 0)
 
-	for i := 10; i > 0; i-- {
-		Push(h, i)
+	// Delete the last element (index == Len()-1 edge case).
+	last := h.GetValue(h.Len() - 1)
+	got := h.Delete(h.Len() - 1)
+	if got != last {
+		t.Errorf("Delete(last): expected %v, got %v", *last, *got)
+	}
+	if h.Len() != 29 {
+		t.Fatalf("Delete: expected length 29, got %d", h.Len())
+	}
+	h.verify(t, 0)
+
+	// Delete an interior element found via Search.
+	hv := myHeap(15)
+	_, pos, err := h.Search(&hv)
+	if err != nil || pos < 0 {
+		t.Fatalf("Search for 15 failed: pos=%d err=%v", pos, err)
+	}
+	got = h.Delete(pos)
+	if got == nil || int(*got) != 15 {
+		t.Fatalf("Delete(%d): expected 15, got %v", pos, got)
+	}
+	h.verify(t, 0)
+	if _, pos, _ := h.Search(&hv); pos != -1 {
+		t.Errorf("15 should be gone after Delete, found at pos %d", pos)
+	}
+
+	// Delete the remaining elements one at a time from the root.
+	prev := -1
+	for h.Len() > 0 {
+		x := h.Delete(0)
+		if x == nil {
+			t.Fatal("Delete(0) returned nil on a non-empty heap")
+		}
+		if int(*x) < prev {
+			t.Errorf("Delete(0) out of order: got %d after %d", int(*x), prev)
+		}
+		prev = int(*x)
 		h.verify(t, 0)
 	}
+	if h.Len() != 0 {
+		t.Errorf("expected empty heap, got length %d", h.Len())
+	}
+}
+
+func TestDeleteOutOfRangePanics(t *testing.T) {
+	h := NewHeap[myHeap]()
+	hv := myHeap(1)
+	h.Push(&hv)
+	for _, idx := range []int{-1, 1, 100} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("Delete(%d): expected panic, got none", idx)
+				}
+			}()
+			h.Delete(idx)
+		}()
+	}
+}
+
+func TestFixAndSetValue(t *testing.T) {
+	h := NewHeap[myHeap]()
+	for i := 200; i > 0; i -= 10 {
+		hv := myHeap(i)
+		h.Push(&hv)
+	}
+	h.verify(t, 0)
+
+	if got := h.Peek(); got == nil || int(*got) != 10 {
+		t.Fatalf("expected head to be 10, got %v", got)
+	}
+
+	// Replace the minimum with the largest value; it must sink to a leaf.
+	nv := myHeap(210)
+	h.SetValue(0, &nv)
+	h.verify(t, 0)
+	if got := h.Peek(); got == nil || int(*got) != 20 {
+		t.Fatalf("after SetValue: expected head 20, got %v", got)
+	}
+	if got := h.GetValue(0); got == nil || int(*got) != 20 {
+		t.Fatalf("GetValue(0): expected 20, got %v", got)
+	}
+
+	// Replace an interior element with a new minimum; it must rise to the top.
+	nv2 := myHeap(1)
+	h.Fix(5, &nv2)
+	h.verify(t, 0)
+	if got := h.Peek(); got == nil || int(*got) != 1 {
+		t.Fatalf("after Fix: expected head 1, got %v", got)
+	}
+}
+
+func TestAppendHeapAndHeapify(t *testing.T) {
+	h := NewHeap[myHeap]()
+	data := make([]*myHeap, 0, 500)
+	for i := 500; i >= 1; i-- {
+		hv := myHeap(i)
+		data = append(data, &hv)
+	}
+	h.AppendHeap(data)
+	for i := h.Len()/2 - 1; i >= 0; i-- {
+		h.Heapify(h.Len(), i)
+	}
+	h.verify(t, 0)
 
 	for i := 1; h.Len() > 0; i++ {
-		x := Pop(h).(int)
-		if i < 20 {
-			Push(h, 20+i)
+		x := h.Pop()
+		if x == nil {
+			t.Fatalf("%d.th Pop() returned nil", i)
 		}
-		h.verify(t, 0)
-		if x != i {
-			t.Errorf("%d.th pop got %d; want %d", i, x, i)
-		}
-	}
-}
-
-func TestRemove0(t *testing.T) {
-	h := new(myHeap)
-	for i := 0; i < 10; i++ {
-		h.Push(i)
-	}
-	h.verify(t, 0)
-
-	for h.Len() > 0 {
-		i := h.Len() - 1
-		x := Remove(h, i).(int)
-		if x != i {
-			t.Errorf("Remove(%d) got %d; want %d", i, x, i)
-		}
-		h.verify(t, 0)
-	}
-}
-
-func TestRemove1(t *testing.T) {
-	h := new(myHeap)
-	for i := 0; i < 10; i++ {
-		h.Push(i)
-	}
-	h.verify(t, 0)
-
-	for i := 0; h.Len() > 0; i++ {
-		x := Remove(h, 0).(int)
-		if x != i {
-			t.Errorf("Remove(0) got %d; want %d", x, i)
-		}
-		h.verify(t, 0)
-	}
-}
-
-func TestRemove2(t *testing.T) {
-	N := 10
-
-	h := new(myHeap)
-	for i := 0; i < N; i++ {
-		h.Push(i)
-	}
-	h.verify(t, 0)
-
-	m := make(map[int]bool)
-	for h.Len() > 0 {
-		m[Remove(h, (h.Len()-1)/2).(int)] = true
-		h.verify(t, 0)
-	}
-
-	if len(m) != N {
-		t.Errorf("len(m) = %d; want %d", len(m), N)
-	}
-	for i := 0; i < len(m); i++ {
-		if !m[i] {
-			t.Errorf("m[%d] doesn't exist", i)
+		if int(*x) != i {
+			t.Fatalf("%d.th Pop() got %d; expected %d", i, int(*x), i)
 		}
 	}
 }
 
-func BenchmarkDup(b *testing.B) {
-	const n = 10000
-	h := make(myHeap, 0, n)
+func TestAllIterator(t *testing.T) {
+	h := NewHeap[myHeap]()
+	seen := make(map[int]bool)
+	for i := 1; i <= 50; i++ {
+		hv := myHeap(i)
+		h.Push(&hv)
+		seen[i] = false
+	}
+
+	count := 0
+	for v := range h.All() {
+		if v == nil {
+			t.Fatal("All yielded a nil element")
+		}
+		if _, ok := seen[int(*v)]; !ok {
+			t.Fatalf("All yielded unexpected value %d", int(*v))
+		}
+		if seen[int(*v)] {
+			t.Fatalf("All yielded %d twice", int(*v))
+		}
+		seen[int(*v)] = true
+		count++
+	}
+	if count != 50 {
+		t.Errorf("All yielded %d elements, expected 50", count)
+	}
+
+	// Early break must stop the iteration.
+	count = 0
+	for range h.All() {
+		count++
+		break
+	}
+	if count != 1 {
+		t.Errorf("All with break yielded %d elements, expected 1", count)
+	}
+
+	// Empty heap yields nothing.
+	empty := NewHeap[myHeap]()
+	for range empty.All() {
+		t.Error("All on empty heap yielded an element")
+	}
+}
+
+func BenchmarkHeapPush(b *testing.B) {
+	h := NewHeap[myHeap]()
+	hv := myHeap(0)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		for j := 0; j < n; j++ {
-			Push(&h, 0) // all elements are the same
-		}
-		for h.Len() > 0 {
-			Pop(&h)
-		}
+		h.Push(&hv) // all elements are the same
 	}
 }
 
-func TestFix(t *testing.T) {
-	h := new(myHeap)
-	h.verify(t, 0)
-
-	for i := 200; i > 0; i -= 10 {
-		Push(h, i)
+func BenchmarkHeapPushPop(b *testing.B) {
+	vals := make([]*myHeap, b.N)
+	for i := range vals {
+		v := myHeap(i)
+		vals[i] = &v
 	}
-	h.verify(t, 0)
-
-	if (*h)[0] != 10 {
-		t.Fatalf("Expected head to be 10, was %d", (*h)[0])
+	h := NewHeap[myHeap]()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.Push(vals[i])
 	}
-	(*h)[0] = 210
-	Fix(h, 0)
-	h.verify(t, 0)
-
-	for i := 100; i > 0; i-- {
-		elem := rand.Intn(h.Len())
-		if i&1 == 0 {
-			(*h)[elem] *= 2
-		} else {
-			(*h)[elem] /= 2
-		}
-		Fix(h, elem)
-		h.verify(t, 0)
+	for i := 0; i < b.N; i++ {
+		h.Pop()
 	}
 }
-*/
+
+func BenchmarkHeapSearch(b *testing.B) {
+	const n = 10000
+	h := NewHeap[myHeap]()
+	for i := 0; i < n; i++ {
+		hv := myHeap(i)
+		h.Push(&hv)
+	}
+	needle := myHeap(n - 1) // worst case: found at the end
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = h.Search(&needle)
+	}
+}
 
 const db12 = false

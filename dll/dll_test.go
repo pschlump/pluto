@@ -28,15 +28,9 @@ var _ comparable.Equality = (*TestDemo)(nil)
 
 func (aa TestDemo) IsEqual(x comparable.Equality) bool {
 	if bb, ok := x.(TestDemo); ok {
-		if aa.S == bb.S {
-			return true
-		}
-		return false
+		return aa.S == bb.S
 	} else if bb, ok := x.(*TestDemo); ok {
-		if aa.S == bb.S {
-			return true
-		}
-		return false
+		return aa.S == bb.S
 	} else {
 		panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
 	}
@@ -152,7 +146,7 @@ func TestDll(t *testing.T) {
 		t.Errorf("Unexpectd data")
 	}
 
-	a, err = Dll1.Pop()
+	_, err = Dll1.Pop()
 	if err == nil {
 		t.Errorf("Unexpectd lack of error after pop on empty stack")
 	}
@@ -200,8 +194,8 @@ func TestDll(t *testing.T) {
 	Dll1.InsertBeforeHead(&TestDemo{S: "02"})
 	Dll1.AppendAtTail(&TestDemo{S: "03"})
 	Dll1.InsertBeforeHead(&TestDemo{S: "01"})
-	Dll1.DeleteAtTail()
-	Dll1.DeleteAtTail()
+	_ = Dll1.DeleteAtTail()
+	_ = Dll1.DeleteAtTail()
 	a, err = Dll1.Pop()
 	if err != nil {
 		t.Errorf("Unexpectd error after pop on empty stack")
@@ -231,10 +225,7 @@ func TestDll(t *testing.T) {
 			fmt.Printf("[%d] = %s\n", pos, data.S)
 		}
 		found = append(found, data.S)
-		if userData.(string) == data.S {
-			return true
-		}
-		return false
+		return userData.(string) == data.S
 	}
 	rv, pos := Dll1.Walk(fx, "02")
 	_, _ = rv, pos
@@ -298,6 +289,9 @@ func TestDll(t *testing.T) {
 	// Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
 	// func (ns *Dll[T]) Delete( it *DllElement[T] ) ( err error ) {
 	err = Dll1.DeleteFound(rv)
+	if err != nil {
+		t.Errorf("Unexpectd error from DeleteFound")
+	}
 
 	if Dll1.Length() != 2 {
 		t.Errorf("Unexpectd length, after search/delete, expected %d got %d", 2, Dll1.Length())
@@ -332,6 +326,9 @@ func TestDll(t *testing.T) {
 	// Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(1)
 	// func (ns *Dll[T]) Delete( it *DllElement[T] ) ( err error ) {
 	err = Dll1.DeleteFound(rv)
+	if err != nil {
+		t.Errorf("Unexpectd error from DeleteFound")
+	}
 
 	if Dll1.Length() != 2 {
 		t.Errorf("Unexpectd length, after search/delete, expected %d got %d", 2, Dll1.Length())
@@ -382,7 +379,7 @@ func TestDll(t *testing.T) {
 		}
 	}
 
-	rv, err = Dll1.Index(3)
+	_, err = Dll1.Index(3)
 	if err == nil {
 		t.Errorf("Unexpectd lack of error")
 	}

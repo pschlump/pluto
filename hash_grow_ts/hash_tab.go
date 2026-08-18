@@ -1,3 +1,10 @@
+// Package hash_grow_ts implements a generic hash table using open addressing
+// with linear probing.  The table automatically doubles in size when the
+// load factor exceeds a configurable saturation threshold (default 0.5).
+//
+// This is the thread-safe variant: every operation is guarded by a
+// sync.RWMutex.  Use github.com/pschlump/pluto/hash_grow for a non-locking
+// version with an identical API.
 package hash_grow_ts
 
 /*
@@ -8,19 +15,16 @@ BSD 3 Clause Licensed. See ../LICENSE
 
 /*
 
-Basic operations on a Hash Table.
+Basic operations on the hash table.
 
-* 	Insert - create a new element in tree.														O(log|2(n))
-*  	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(log|2(n))
-* 	IsEmpty — Returns true if the linked list is empty											O(1)
-* 	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
-* 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n/k) where k is # of buckets.
-* 	Truncate - Delete all the nodes in list. 													O(1)
-+	Walk - Walk the table																		O(n)
- 	Print - Using Walk to print out the contents of the table.									O(n)
-
-Possibly change to an extensible size with layers, so max dups in a layer or saturation causes
-geneation of a new layer - and not a re-hash of all existing keys.
+* 	Insert - add a new element to the table, replacing any existing equal element.	O(1) average, O(n) worst
+*  	Delete — Deletes a specified element from the table (element can be found via Search).	O(1) average, O(n) worst
+* 	IsEmpty — Returns true if the table is empty											O(1)
+* 	Length — Returns number of elements in the table.  0 length is an empty table.			O(1)
+* 	Search — Returns the given element from the table, or nil if not found.					O(1) average, O(n) worst
+* 	Truncate - Delete all the elements in the table. 										O(n)
+*	Walk - Walk the table																	O(n)
+*	Print - Using Walk to print out the contents of the table.								O(n)
 
 */
 
@@ -30,28 +34,31 @@ import (
 	"io"
 	"sync"
 
-	"github.com/pschlump/MiscLib"
-	"github.com/pschlump/pluto/binary_tree_ts"
 	"github.com/pschlump/pluto/comparable"
-	"github.com/pschlump/pluto/g_lib"
 )
 
-// HashTab is a generic hash table that grows the underlying ttable when the number of
-// entries exceeds a threshold.    The table is doulbed in size.
+// HashTab is a generic hash table that grows the underlying table when the number of
+// entries exceeds a threshold.  The table is doubled in size when it grows.
 type HashTab[T comparable.Comparable] struct {
 	buckets             []*T  // the table
 	originalHash        []int // the original hash values (used during delete, search)
-	size                int   // Modulo size for table	Current Size!
+	size                int   // modulo size for table - current size
 	lock                sync.RWMutex
-	length              int     // # of elements in table
-	saturationThreshold float64 // Proportion before grow of table. (default 0.5)
+	length              int     // number of elements in table
+	saturationThreshold float64 // load factor that triggers growth of the table (default 0.5)
 }
 
+// Hashable may be implemented by stored types to supply their own hash key.
+// It takes precedence over the string/fmt.Stringer based hashing.
 type Hashable interface {
-	HashKey(x interface{}) int
+	HashKey(x any) int
 }
 
-// Complexity is O(1).
+// NewHashTab creates a hash table with an initial size of `n` buckets (n must
+// be at least 5) and the given saturation threshold.  A saturation of 0 selects
+// the default of 0.5.
+//
+// Complexity is O(n) for the bucket allocation.
 func NewHashTab[T comparable.Comparable](n int, saturation float64) *HashTab[T] {
 	if n < 5 {
 		panic("n too small")
@@ -63,12 +70,12 @@ func NewHashTab[T comparable.Comparable](n int, saturation float64) *HashTab[T] 
 		length:              0,
 		size:                n,
 		saturationThreshold: saturation,
-		buckets:             make([]*T, n, n),
-		originalHash:        make([]int, n, n),
+		buckets:             make([]*T, n),
+		originalHash:        make([]int, n),
 	}
 }
 
-// IsEmpty will return true if the hash table is empty
+// IsEmpty will return true if the hash table is empty.
 // Complexity is O(1).
 func (tt *HashTab[T]) IsEmpty() bool {
 	tt.lock.RLock()
@@ -76,180 +83,143 @@ func (tt *HashTab[T]) IsEmpty() bool {
 	return tt.length == 0
 }
 
+// nlIsEmpty is IsEmpty without locking; the caller must hold the lock.
 func (tt *HashTab[T]) nlIsEmpty() bool {
 	return tt.length == 0
 }
 
-// Truncate removes all data from the tree.
-// Complexity is O(1).
+// Truncate removes all data from the table.  All bucket and hash slots are
+// cleared so the garbage collector can reclaim the stored elements.
+// Complexity is O(n).
 func (tt *HashTab[T]) Truncate() {
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
 	for i := 0; i < tt.size; i++ {
 		tt.buckets[i] = nil
+		tt.originalHash[i] = 0
 	}
 	tt.length = 0
 }
 
-// Insert will add a new item to the tree.  If it is a duplicate of an exiting
+// nextIndex returns the next position in the table, wrapping at the end.
+func (tt *HashTab[T]) nextIndex(xx int) (rv int) {
+	rv = xx + 1
+	if rv >= tt.size {
+		rv = 0
+	}
+	return
+}
+
+// Insert will add a new item to the table.  If it is a duplicate of an existing
 // item the new item will replace the existing one.
-// Complexity is O(log n)/k.
+// Complexity is O(1) average, O(n) worst case; growing the table is amortized O(1).
 func (tt *HashTab[T]) Insert(item *T) {
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
 	rh := hash(item)
 
-	// Increment a position in table modulo the size of the table.
-	var incSize = func(xx int) (rv int) {
-		rv = xx + 1
-		if rv >= tt.size {
-			rv = 0
-		}
-		return
-	}
+	insertNewItem(rh, item, tt)
 
-	// 	dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-	var insertNewItem = func(rh int, itemx *T, buckets []*T, originalHash []int) {
-		hh := rh % tt.size
-		if buckets[hh] == nil {
-			// dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-			buckets[hh] = itemx
-			originalHash[hh] = rh
-			tt.length++
-		} else if (*itemx).Compare(*buckets[hh]) == 0 {
-			// dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-			buckets[hh] = itemx // Replace, This means that you don't have a new key.
-			originalHash[hh] = rh
-		} else {
-			// dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF) -- walk down table looking for empty slot (modulo size of table)\n")
-			// collision, something already at tt.buckets[hh] (original)
-			for np := incSize(hh); np < tt.size; np = incSize(np) {
-				// dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-				if buckets[np] == nil { // Found an empty, so put it in and leave loop
-					// dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-					buckets[np] = itemx
-					originalHash[np] = rh
-					tt.length++
-					break
-				} else if (*itemx).Compare(*buckets[np]) == 0 {
-					buckets[np] = itemx
-					originalHash[np] = rh
-					break
-				}
-			}
-		}
-	}
-
-	insertNewItem(rh, item, tt.buckets, tt.originalHash)
-
-	// dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
-	if (((float64)(tt.length)) / ((float64)(tt.size))) > tt.saturationThreshold {
-		// dbgo.Fprintf(os.Stderr, "%(yellow)Passed Threshold for size, will double.......................................................\n")
+	// Grow (double) the table when the load factor passes the threshold.
+	if (float64(tt.length) / float64(tt.size)) > tt.saturationThreshold {
 		originalSize := tt.size
-		n := tt.size * 2 // Double the size
-		// dbgo.Fprintf(os.Stderr, "%(yellow)    new size(n) = %d\n", n)
+		n := tt.size * 2 // double the size
 		oldBuckets, oldOriginal := tt.buckets, tt.originalHash
 		tt.size = n
 		tt.length = 0
-		tt.buckets = make([]*T, n, n)
-		tt.originalHash = make([]int, n, n)
+		tt.buckets = make([]*T, n)
+		tt.originalHash = make([]int, n)
 		for i := 0; i < originalSize; i++ {
 			if oldBuckets[i] != nil {
 				item, rh := oldBuckets[i], oldOriginal[i]
-				insertNewItem(rh, item, tt.buckets, tt.originalHash)
+				insertNewItem(rh, item, tt)
 			}
 		}
-		// dbgo.Fprintf(os.Stderr, "%(cyan)AT:%(LF)\n")
 	}
 }
 
-// Length returns the number of elements in the list.
+// insertNewItem places `item` with raw hash `rh` into the table of `tt`,
+// replacing an equal item if one is found along the probe chain.
+func insertNewItem[T comparable.Comparable](rh int, item *T, tt *HashTab[T]) {
+	hh := rh % tt.size
+	if tt.buckets[hh] == nil {
+		tt.buckets[hh] = item
+		tt.originalHash[hh] = rh
+		tt.length++
+	} else if (*item).Compare(*tt.buckets[hh]) == 0 {
+		tt.buckets[hh] = item // Replace: an equal key is already present.
+		tt.originalHash[hh] = rh
+	} else {
+		// Collision: walk down the table looking for an equal item or an
+		// empty slot (modulo the size of the table).
+		for np := tt.nextIndex(hh); np < tt.size; np = tt.nextIndex(np) {
+			if tt.buckets[np] == nil { // Found an empty slot, put it in and leave the loop.
+				tt.buckets[np] = item
+				tt.originalHash[np] = rh
+				tt.length++
+				break
+			} else if (*item).Compare(*tt.buckets[np]) == 0 {
+				tt.buckets[np] = item
+				tt.originalHash[np] = rh
+				break
+			}
+		}
+	}
+}
+
+// Len returns the number of elements in the table.
 // Complexity is O(1).
 func (tt *HashTab[T]) Len() int {
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 	return tt.length
 }
+
+// Length returns the number of elements in the table.
+// Complexity is O(1).
 func (tt *HashTab[T]) Length() int {
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 	return tt.length
 }
 
-// Search will walk the tree looking for `find` and retrn the found item
-// if it is in the tree. If it is not found then `nil` will be returned.
-// Complexity is O(log n)/k.
+// Search will walk the table looking for `find` and return the found item
+// if it is in the table.  If it is not found then `nil` will be returned.
+// Complexity is O(1) average, O(n) worst case.
 func (tt *HashTab[T]) Search(find *T) (rv *T) {
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 	return tt.NlSearch(find)
 }
 
-// Search will walk the tree looking for `find` and retrn the found item
-// if it is in the tree. If it is not found then `nil` will be returned.
-// Complexity is O(log n)/k.
+// NlSearch is Search without locking; the caller must hold the lock.
 func (tt *HashTab[T]) NlSearch(find *T) (rv *T) {
-	if tt.nlIsEmpty() {
+	if find == nil || tt.nlIsEmpty() {
 		return nil
 	}
-	h := g_lib.Abs(hash(find) % tt.size)
-	if db1 {
-		fmt.Printf("%sh=%d - for ->%+v<-%s\n", MiscLib.ColorYellow, h, find, MiscLib.ColorReset)
-	}
+	h := hash(find) % tt.size
 	for {
-		// if tt.buckets[h] == nil { 			// Delete of duplicates overlaping with duplicates fix.
 		if tt.originalHash[h] == 0 {
 			return // not found
-			// } else if (*find).Compare(*tt.buckets[h]) == 0 { 			// Delete of duplicates overlaping with duplicates fix.
 		} else if tt.buckets[h] != nil && (*find).Compare(*tt.buckets[h]) == 0 {
 			rv = tt.buckets[h] // found
 			return
 		}
-		h++
-		if h >= tt.size {
-			h = 0 // wrap back to top
-		}
-	}
-	// return	-- detected as unrachable as of Go 1.23, before this missing return
-}
-
-// ht.WriteLock()
-// ht.WriteUnlock()
-// ht.ReadLock()
-// ht.ReadUnlock()
-func (tt *HashTab[T]) WriteLock() {
-	tt.lock.Lock()
-}
-func (tt *HashTab[T]) WriteUnlock() {
-	tt.lock.Unlock()
-}
-func (tt *HashTab[T]) ReadLock() {
-	tt.lock.RLock()
-}
-func (tt *HashTab[T]) ReadUnlock() {
-	tt.lock.RUnlock()
-}
-
-// Dump will print out the hash table to the file `fo`.
-// Complexity is O(n).
-func (tt *HashTab[T]) Dump(fo io.Writer) {
-	tt.lock.RLock()
-	defer tt.lock.RUnlock()
-	fmt.Printf("Elements: %d, mod size:%d\n", tt.length, tt.size)
-	for i, v := range tt.buckets {
-		fmt.Fprintf(fo, "bucket [%04d] h=%d h%%size=%d = %v\n", i, tt.originalHash[i], tt.originalHash[i]%tt.size, v) // v.Dump(fo) // Xyzzy TODO - fix
+		h = tt.nextIndex(h)
 	}
 }
 
-// Delete an element from the hash_tab. The element needs to have been
+// Delete an element from the table.  The element needs to have been
 // located with "Search" or as a result of a match using the Walk function.
-// Complexity is O(1)
+// Returns true if the element was found and removed.
+// Complexity is O(1) average, O(n) worst case.
 func (tt *HashTab[T]) Delete(find *T) (found bool) {
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
 	return tt.NlDelete(find)
 }
 
+// NlDelete is Delete without locking; the caller must hold the lock.
 func (tt *HashTab[T]) NlDelete(find *T) (found bool) {
 	if find == nil || tt.nlIsEmpty() {
 		return false
@@ -257,71 +227,69 @@ func (tt *HashTab[T]) NlDelete(find *T) (found bool) {
 	rh := hash(find)
 	h := rh % tt.size
 
-	// Increment a position in table modulo the size of the table.
-	var incSize = func(xx int) (rv int) {
-		rv = xx + 1
-		if rv >= tt.size {
-			rv = 0
-		}
-		return
-	}
-
-	if db1 {
-		fmt.Printf("%sh=%d - for ->%+v<-%s $(LF)\n", MiscLib.ColorYellow, h, find, MiscLib.ColorReset)
-	}
 	for {
-		// if tt.buckets[h] == nil {
 		if tt.originalHash[h] == 0 {
 			return false
-			// } else if (*find).Compare(*tt.buckets[h]) == 0 {
 		} else if tt.buckets[h] != nil && (*find).Compare(*tt.buckets[h]) == 0 {
-			tt.buckets[h] = nil // found, delete the node we want to et rid of.
-			tt.length--         // one less node
-			found = true        // we found it
-			// dbgo.Printf("%(LF)%(green) We Fond and Deleted It:  h=%d, tt.length=%d \n", h, tt.length)
+			tt.buckets[h] = nil // found, delete the element we want to get rid of.
+			tt.originalHash[h] = 0
+			tt.length-- // one less element
+			found = true
 
-			// now we need to cleanup the empty stpot at tt.buckets[h]
-			// h -->> deleted slot, now nil.
-
-			// Must move up - and re-hash stuff ! unilt NIL found. ( 2nd loop ! )
-			// Find the "end" where our duplicates end.
-			h2 := h // To Locaiton in buckets
-			hf := h
-			oh := h
-			// dbgo.Printf("%(LF) h2=%d hf=%d oh=%d\n", h2, hf, oh)
-
-			// xyzzy TODO -------------------------------- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-			//               +--------------------- oh
-			//               |                +---- he
-			//               |                |
-			//               v                v
+			// Backward-shift deletion: fill the gap at h with any following
+			// element whose probe sequence passes through the gap.  This keeps
+			// probe chains contiguous so Search can stop at the first truly
+			// empty (originalHash == 0) slot.
+			//
 			// Before:    A1 A2 b A3 b b c A4 __
 			// Delete '2nd' A
-			// Before:    A1 __ b A3 b c c A4 __
+			// Before:    A1 __ b A3 b b c A4 __
 			// Move Up:   A1 A3 b A4 b b c __ __
-
-			for {
-				hf = incSize(hf)
-				// dbgo.Printf("%(LF) h2=%d hf=%d\n", h2, hf)
+			gap := h
+			for hf := h; ; {
+				hf = tt.nextIndex(hf)
 				if tt.buckets[hf] == nil {
 					break
 				}
-				// if (tt.originalHash[h] % tt.size) == (tt.originalHash[hf] % tt.size) {
-				if oh == (tt.originalHash[hf] % tt.size) {
-					tt.buckets[h2] = tt.buckets[hf]
-					tt.originalHash[h2] = tt.originalHash[hf]
+				home := tt.originalHash[hf] % tt.size
+				if !inProbeRange(gap, hf, home) {
+					tt.buckets[gap] = tt.buckets[hf]
+					tt.originalHash[gap] = tt.originalHash[hf]
 					tt.buckets[hf] = nil
-					h2 = hf
+					tt.originalHash[hf] = 0
+					gap = hf
 				}
 			}
 			return
 		}
-		h = incSize(h)
+		h = tt.nextIndex(h)
 	}
-	// return	-- detected as unrachable as of Go 1.23, before this missing return
 }
 
-func (tt *HashTab[T]) Walk(fx binary_tree_ts.ApplyFunction[T], userData interface{}) (b bool) {
+// inProbeRange reports whether `home` is in the cyclic half-open interval
+// (gap, hf] of table positions.  An element at `hf` whose home position is in
+// this range never probed through `gap` and therefore must not be moved into
+// the gap.
+func inProbeRange(gap, hf, home int) bool {
+	if gap < hf {
+		return home > gap && home <= hf
+	}
+	return home > gap || home <= hf
+}
+
+// ApplyFunction is the callback type for Walk.  It is called with the bucket
+// position, a depth (always 0 for this flat table), the element and the user
+// data passed to Walk.  Returning false stops the walk.
+type ApplyFunction[T comparable.Comparable] func(pos, depth int, data *T, userData any) bool
+
+// Walk calls `fx` for each element in the table, in bucket order, until all
+// elements have been visited or `fx` returns false.  It returns true if the
+// walk ran to completion.
+//
+// The read lock is held for the duration of the walk, so `fx` must not call
+// other methods of the table.
+// Complexity is O(n).
+func (tt *HashTab[T]) Walk(fx ApplyFunction[T], userData any) (b bool) {
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 	b = true
@@ -339,27 +307,56 @@ func (tt *HashTab[T]) Walk(fx binary_tree_ts.ApplyFunction[T], userData interfac
 	return
 }
 
-func hash(x interface{}) (rv int) {
-	hashstr := func(s string) int {
-		h := fnv.New32a()
-		h.Write([]byte(s))
-		return int(h.Sum32())
+// Dump will print out the hash table, including empty buckets, to `fo`.
+// Complexity is O(n).
+func (tt *HashTab[T]) Dump(fo io.Writer) {
+	tt.lock.RLock()
+	defer tt.lock.RUnlock()
+	_, _ = fmt.Fprintf(fo, "Elements: %d, mod size:%d\n", tt.length, tt.size)
+	for i, v := range tt.buckets {
+		_, _ = fmt.Fprintf(fo, "bucket [%04d] h=%d h%%size=%d = %v\n", i, tt.originalHash[i], tt.originalHash[i]%tt.size, v)
 	}
-	if v, ok := x.(Hashable); ok {
-		h := v.HashKey(x)
-		return int(h)
-	}
-	if v, ok := x.(string); ok {
-		h := hashstr(v)
-		return h
-	}
-	if v, ok := x.(fmt.Stringer); ok {
-		h := hashstr(v.String())
-		return int(h)
-	}
-	panic(fmt.Sprintf("Invalid type, %T needs to be Stringer or Hashable interface\n", x))
 }
 
-const db1 = false
+// Print writes the elements of the table to `out`, one per line, in bucket
+// order.  Complexity is O(n).
+func (tt *HashTab[T]) Print(out io.Writer) {
+	fx := func(pos, depth int, data *T, y any) bool {
+		_, _ = fmt.Fprintf(out, "%v\n", *data)
+		return true
+	}
+	tt.Walk(fx, nil)
+}
+
+// hash returns a positive, non-zero hash key for `x`.  A zero or negative
+// value can never be returned: zero is used internally to mark empty slots
+// and a negative value would produce an invalid bucket index.
+func hash(x any) (rv int) {
+	hashString := func(s string) int {
+		h := fnv.New32a()
+		h.Write([]byte(s))
+		return absInt(int(h.Sum32()))
+	}
+	if v, ok := x.(Hashable); ok {
+		rv = absInt(v.HashKey(x))
+	} else if v, ok := x.(string); ok {
+		rv = hashString(v)
+	} else if v, ok := x.(fmt.Stringer); ok {
+		rv = hashString(v.String())
+	} else {
+		panic(fmt.Sprintf("Invalid type, %T needs to be string, Stringer or Hashable interface", x))
+	}
+	if rv == 0 {
+		rv = 1
+	}
+	return
+}
+
+func absInt(a int) int {
+	if a < 0 {
+		return -a
+	}
+	return a
+}
 
 /* vim: set noai ts=4 sw=4: */

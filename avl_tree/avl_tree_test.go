@@ -246,6 +246,9 @@ func TestTreeDelete(t *testing.T) {
 	Tree1.Insert(&TestTreeNode{S: "05"})
 	Tree1.Insert(&TestTreeNode{S: "03"})
 	found = Tree1.Delete(&TestTreeNode{S: "05"}) // Delete Tree with 1 side node.
+	if !found {
+		t.Errorf("Expected to find a node to delete, did not.")
+	}
 	if size := Tree1.Length(); size != 1 {
 		t.Errorf("Expected to tree contain 1 node got, %d", size)
 		fmt.Printf("Shoudl be single node, but is: at:%s tree=\n", dbgo.LF())
@@ -258,6 +261,9 @@ func TestTreeDelete(t *testing.T) {
 	Tree1.Insert(&TestTreeNode{S: "05"})
 	Tree1.Insert(&TestTreeNode{S: "08"})
 	found = Tree1.Delete(&TestTreeNode{S: "05"}) // Delete Tree with 1 side node.
+	if !found {
+		t.Errorf("Expected to find a node to delete, did not.")
+	}
 	if size := Tree1.Length(); size != 1 {
 		t.Errorf("Expected to tree contain 1 node got, %d", size)
 		fmt.Printf("Shoudl be single node, but is: at:%s tree=\n", dbgo.LF())
@@ -271,6 +277,9 @@ func TestTreeDelete(t *testing.T) {
 	Tree1.Insert(&TestTreeNode{S: "08"})
 	Tree1.Insert(&TestTreeNode{S: "03"})
 	found = Tree1.Delete(&TestTreeNode{S: "05"}) // Delete Tree with left and right children.
+	if !found {
+		t.Errorf("Expected to find a node to delete, did not.")
+	}
 	if size := Tree1.Length(); size != 2 {
 		t.Errorf("Expected to tree contain 2 nodes got, %d", size)
 		fmt.Printf("Shoudl be empty but is: at:%s tree=\n", dbgo.LF())
@@ -400,7 +409,7 @@ func TestTreeDepth(t *testing.T) {
 	}
 
 	n := Tree1.Depth()
-	if n == 3 {
+	if n != 3 {
 		t.Errorf("Unexpecd Depth, got %d expected 3", n)
 	}
 }
@@ -543,8 +552,7 @@ func TestTreeWalkInOrder(t *testing.T) {
 	}
 
 	var x []string
-	var fx ApplyFunction[TestTreeNode]
-	fx = func(pos, depth int, data *TestTreeNode, y interface{}) bool {
+	fx := func(pos, depth int, data *TestTreeNode, y interface{}) bool {
 		x = append(x, data.S)
 		return true
 	}
@@ -577,8 +585,7 @@ func TestTreeWalkPreOrder(t *testing.T) {
 	}
 
 	var x []string
-	var fx ApplyFunction[TestTreeNode]
-	fx = func(pos, depth int, data *TestTreeNode, y interface{}) bool {
+	fx := func(pos, depth int, data *TestTreeNode, y interface{}) bool {
 		x = append(x, data.S)
 		return true
 	}
@@ -611,8 +618,7 @@ func TestTreeWalkPostOrder(t *testing.T) {
 	}
 
 	var x []string
-	var fx ApplyFunction[TestTreeNode]
-	fx = func(pos, depth int, data *TestTreeNode, y interface{}) bool {
+	fx := func(pos, depth int, data *TestTreeNode, y interface{}) bool {
 		x = append(x, data.S)
 		return true
 	}

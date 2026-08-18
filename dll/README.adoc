@@ -1,5 +1,108 @@
+= dll — A generics based Go Doubly Linked List
+:toc:
 
-= A generics based Go Singly Linked List
+A generic doubly linked list (DLL) with head-and-tail pointers.  Element data
+is stored as a `*T` where `T` satisfies `comparable.Equality` (an
+`IsEqual(b Equality) bool` method).  The zero value of `Dll[T]` is an empty
+list ready to use; `NewDll[T]()` is also provided.
 
-A simple doubly linked list (DLL)  with IsEmpty, AppendSLL, HeadSLL, Length
+The list can be used directly, as a stack (`Push`/`Pop`/`Peek`), or as a
+queue (`Enqueue`/`Pop`/`PeekTail`).
 
+The thread-safe version of this package is in `../dll_ts`.  It has the exact
+same exported API, with every operation guarded by a `sync.RWMutex`.
+
+== Complexity
+
+[cols="2,1,4",options="header"]
+|===
+| Operation | Cost | Notes
+
+| `InsertBeforeHead`, `Push`       | O(1) | insert at head
+| `AppendAtTail`, `Enqueue`        | O(1) | append at tail
+| `Pop`, `DeleteAtHead`            | O(1) | remove from head
+| `PopTail`, `DeleteAtTail`        | O(1) | remove from tail
+| `Peek`, `PeekTail`               | O(1) | inspect head/tail
+| `IsEmpty`, `Length`              | O(1) |
+| `Index`, `IndexFromTail`         | O(n) | n/2 on average (walks from nearest end)
+| `Search`, `ReverseSearch`        | O(n) | linear, uses `IsEqual`
+| `Delete`, `DeleteSearch`         | O(n) | search + delete
+| `DeleteFound`                    | O(1) | delete element from `Search`/`Index`
+| `Walk`, `ReverseWalk`            | O(n) | callback iteration
+| `All`, `Backward`, `IterateOver`, `IteratePtr` | O(n) | Go 1.23+ range-over-func iterators
+| `Reverse`, `ReverseList`         | O(n) | O(1) extra storage
+| `Trim`, `TrimTail`               | O(n) | cut list to length n
+| `Concat`                         | O(n) | append a copy of another list
+| `Truncate`                       | O(1) | drop all elements
+|===
+
+== Example
+
+[source,go]
+----
+package main
+
+import (
+	"fmt"
+
+	"github.com/pschlump/pluto/comparable"
+	"github.com/pschlump/pluto/dll"
+)
+
+type Item struct {
+	Name string
+}
+
+func (aa Item) IsEqual(x comparable.Equality) bool {
+	if bb, ok := x.(Item); ok {
+		return aa.Name == bb.Name
+	}
+	return false
+}
+
+func main() {
+	l := dll.NewDll[Item]()
+
+	l.Push(&Item{Name: "head"})        // insert at head
+	l.Enqueue(&Item{Name: "tail"})     // append at tail
+
+	// Go 1.23+ range-over-func iteration
+	for i, v := range l.All() {
+		fmt.Println(i, v.Name)
+	}
+
+	v, err := l.Pop()                  // remove from head
+	if err != nil {
+		// empty list
+	}
+	_ = v
+
+	l.Truncate()                       // drop all elements
+}
+----
+
+== Iteration
+
+Four styles are supported, all kept for compatibility:
+
+1. `Front()`/`Rear()` + `Done()`/`Next()`/`Prev()`/`Value()` — the legacy
+   `DllIter` type.
+2. `Walk`/`ReverseWalk` callbacks.
+3. `All()`/`Backward()` — Go 1.23+ range-over-func iterators returning
+   `iter.Seq2[int, T]`.
+4. `IterateOver()` (legacy name for `All`) and `IteratePtr()` — range-over-func
+   iterators yielding values or `*T` pointers.
+
+== Thread Safety
+
+This package is NOT safe for concurrent use.  The `Lock`/`Unlock` methods
+exist only so that code written against the thread-safe `dll_ts` package can
+be compiled against this package; they are no-ops.  Use
+`github.com/pschlump/pluto/dll_ts` when a list is shared between goroutines.
+
+== Errors
+
+* `ErrEmptyDll` — operation requires a non-empty list.
+* `ErrNotFound` — search/delete failed to find the element.
+* `ErrOutOfRange` — subscript out of range for `Index`/`IndexFromTail`.
+* `ErrInternalDll` — internal inconsistency (should never happen).

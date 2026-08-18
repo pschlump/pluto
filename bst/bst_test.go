@@ -1,4 +1,4 @@
-package dag
+package bst
 
 /*
 Copyright (C) Philip Schlump, 2012-2024.
@@ -57,7 +57,7 @@ func TestTreeInsertSearch(t *testing.T) {
 	ANode := NewTestTree()
 	_ = ANode
 
-	var Tree1 DirectedAcyclicGraph[TestTreeNode]
+	var Tree1 BinarySearchTree[TestTreeNode]
 
 	if !Tree1.IsEmpty() {
 		t.Errorf("Expected empty tree after decleration, failed to get one.")
@@ -110,7 +110,7 @@ func TestTreeInsertSearch(t *testing.T) {
 // TEST TODO: func (tt *Binarytree[T]) Truncate()  {
 func TestTreeTruncate(t *testing.T) {
 
-	var Tree1 DirectedAcyclicGraph[TestTreeNode]
+	var Tree1 BinarySearchTree[TestTreeNode]
 
 	// Build this tree:
 	//			{00}
@@ -142,7 +142,7 @@ func TestTreeTruncate(t *testing.T) {
 // works through all possible configurations of trees.
 func TestTreeDelete(t *testing.T) {
 
-	var Tree1 DirectedAcyclicGraph[TestTreeNode]
+	var Tree1 BinarySearchTree[TestTreeNode]
 
 	// Build this tree (eventually):
 	//			{00}
@@ -176,6 +176,9 @@ func TestTreeDelete(t *testing.T) {
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "03"})
 	found = Tree1.Delete(TestTreeNode{S: "05"}) // Delete Tree with 1 side node.
+	if !found {
+		t.Errorf("Expected to find a node to delete, did not.")
+	}
 	if size := Tree1.Length(); size != 1 {
 		t.Errorf("Expected to tree contain 1 node got, %d", size)
 		fmt.Printf("Shoudl be single node, but is: at:%s tree=\n", dbgo.LF())
@@ -188,6 +191,9 @@ func TestTreeDelete(t *testing.T) {
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "08"})
 	found = Tree1.Delete(TestTreeNode{S: "05"}) // Delete Tree with 1 side node.
+	if !found {
+		t.Errorf("Expected to find a node to delete, did not.")
+	}
 	if size := Tree1.Length(); size != 1 {
 		t.Errorf("Expected to tree contain 1 node got, %d", size)
 		fmt.Printf("Shoudl be single node, but is: at:%s tree=\n", dbgo.LF())
@@ -201,6 +207,9 @@ func TestTreeDelete(t *testing.T) {
 	Tree1.Insert(TestTreeNode{S: "08"})
 	Tree1.Insert(TestTreeNode{S: "03"})
 	found = Tree1.Delete(TestTreeNode{S: "05"}) // Delete Tree with left and right children.
+	if !found {
+		t.Errorf("Expected to find a node to delete, did not.")
+	}
 	if size := Tree1.Length(); size != 2 {
 		t.Errorf("Expected to tree contain 2 nodes got, %d", size)
 		fmt.Printf("Shoudl be empty but is: at:%s tree=\n", dbgo.LF())
@@ -290,9 +299,9 @@ func TestTreeDelete(t *testing.T) {
 }
 
 func TestTreeMinMax(t *testing.T) {
-	// func (tt *DirectedAcyclicGraph[T]) FindMax() ( item *T ) {
-	// func (tt *DirectedAcyclicGraph[T]) FindMin() ( item *T ) {
-	var Tree1 DirectedAcyclicGraph[TestTreeNode]
+	// func (tt *BinarySearchTree[T]) FindMax() ( item *T ) {
+	// func (tt *BinarySearchTree[T]) FindMin() ( item *T ) {
+	var Tree1 BinarySearchTree[TestTreeNode]
 
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "02"})
@@ -316,8 +325,8 @@ func TestTreeMinMax(t *testing.T) {
 }
 
 func TestTreeDepth(t *testing.T) {
-	// func (tt *DirectedAcyclicGraph[T]) Depth() ( d int ) {
-	var Tree1 DirectedAcyclicGraph[TestTreeNode]
+	// func (tt *BinarySearchTree[T]) Depth() ( d int ) {
+	var Tree1 BinarySearchTree[TestTreeNode]
 
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "02"})
@@ -330,14 +339,14 @@ func TestTreeDepth(t *testing.T) {
 	}
 
 	n := Tree1.Depth()
-	if n == 3 {
+	if n != 3 {
 		t.Errorf("Unexpecd Depth, got %d expected 3", n)
 	}
 }
 
 func TestTreeIndex(t *testing.T) {
-	// func (tt *DirectedAcyclicGraph[T]) Index(pos int) ( item *T ) {
-	var Tree1 DirectedAcyclicGraph[TestTreeNode]
+	// func (tt *BinarySearchTree[T]) Index(pos int) ( item *T ) {
+	var Tree1 BinarySearchTree[TestTreeNode]
 
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "02"})
@@ -375,8 +384,8 @@ func TestTreeIndex(t *testing.T) {
 }
 
 func TestTreeRevese(t *testing.T) {
-	// func (tt *DirectedAcyclicGraph[T]) Reverse() {
-	var Tree1 DirectedAcyclicGraph[TestTreeNode]
+	// func (tt *BinarySearchTree[T]) Reverse() {
+	var Tree1 BinarySearchTree[TestTreeNode]
 
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "02"})
@@ -401,8 +410,8 @@ func TestTreeRevese(t *testing.T) {
 }
 
 func TestTreeDeleteAtTail(t *testing.T) {
-	// func (tt *DirectedAcyclicGraph[T]) DeleteAtTail(find T) ( found bool ) {
-	var Tree1 DirectedAcyclicGraph[TestTreeNode]
+	// func (tt *BinarySearchTree[T]) DeleteAtTail(find T) ( found bool ) {
+	var Tree1 BinarySearchTree[TestTreeNode]
 
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "02"})
@@ -427,8 +436,8 @@ func TestTreeDeleteAtTail(t *testing.T) {
 }
 
 func TestTreeDeleteAtHead(t *testing.T) {
-	// func (tt *DirectedAcyclicGraph[T]) DeleteAtHead(find T) ( found bool ) {
-	var Tree1 DirectedAcyclicGraph[TestTreeNode]
+	// func (tt *BinarySearchTree[T]) DeleteAtHead(find T) ( found bool ) {
+	var Tree1 BinarySearchTree[TestTreeNode]
 
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "02"})
@@ -453,14 +462,14 @@ func TestTreeDeleteAtHead(t *testing.T) {
 }
 
 /*
-func (tt *DirectedAcyclicGraph[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
-func (tt *DirectedAcyclicGraph[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
+func (tt *BinarySearchTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
+func (tt *BinarySearchTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
 */
 
 func TestTreeWalkInOrder(t *testing.T) {
 	// type ApplyFunction[T comparable.Comparable] func ( pos, depth int, data *T, userData interface{} ) bool
-	// func (tt *DirectedAcyclicGraph[T]) DeleteAtHead(find T) ( found bool ) {
-	var Tree1 DirectedAcyclicGraph[TestTreeNode]
+	// func (tt *BinarySearchTree[T]) DeleteAtHead(find T) ( found bool ) {
+	var Tree1 BinarySearchTree[TestTreeNode]
 
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "02"})
@@ -473,8 +482,7 @@ func TestTreeWalkInOrder(t *testing.T) {
 	}
 
 	var x []string
-	var fx ApplyFunction[TestTreeNode]
-	fx = func(pos, depth int, data *TestTreeNode, y interface{}) bool {
+	fx := func(pos, depth int, data *TestTreeNode, y interface{}) bool {
 		x = append(x, data.S)
 		return true
 	}
@@ -494,8 +502,8 @@ func TestTreeWalkInOrder(t *testing.T) {
 
 func TestTreeWalkPreOrder(t *testing.T) {
 	// type ApplyFunction[T comparable.Comparable] func ( pos, depth int, data *T, userData interface{} ) bool
-	// func (tt *DirectedAcyclicGraph[T]) DeleteAtHead(find T) ( found bool ) {
-	var Tree1 DirectedAcyclicGraph[TestTreeNode]
+	// func (tt *BinarySearchTree[T]) DeleteAtHead(find T) ( found bool ) {
+	var Tree1 BinarySearchTree[TestTreeNode]
 
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "02"})
@@ -508,8 +516,7 @@ func TestTreeWalkPreOrder(t *testing.T) {
 	}
 
 	var x []string
-	var fx ApplyFunction[TestTreeNode]
-	fx = func(pos, depth int, data *TestTreeNode, y interface{}) bool {
+	fx := func(pos, depth int, data *TestTreeNode, y interface{}) bool {
 		x = append(x, data.S)
 		return true
 	}
@@ -528,8 +535,8 @@ func TestTreeWalkPreOrder(t *testing.T) {
 
 func TestTreeWalkPostOrder(t *testing.T) {
 	// type ApplyFunction[T comparable.Comparable] func ( pos, depth int, data *T, userData interface{} ) bool
-	// func (tt *DirectedAcyclicGraph[T]) DeleteAtHead(find T) ( found bool ) {
-	var Tree1 DirectedAcyclicGraph[TestTreeNode]
+	// func (tt *BinarySearchTree[T]) DeleteAtHead(find T) ( found bool ) {
+	var Tree1 BinarySearchTree[TestTreeNode]
 
 	Tree1.Insert(TestTreeNode{S: "05"})
 	Tree1.Insert(TestTreeNode{S: "02"})
@@ -542,8 +549,7 @@ func TestTreeWalkPostOrder(t *testing.T) {
 	}
 
 	var x []string
-	var fx ApplyFunction[TestTreeNode]
-	fx = func(pos, depth int, data *TestTreeNode, y interface{}) bool {
+	fx := func(pos, depth int, data *TestTreeNode, y interface{}) bool {
 		x = append(x, data.S)
 		return true
 	}
@@ -566,3 +572,267 @@ const db4 = false
 const db5 = false
 const db6 = false
 const db7 = false
+
+// IntNode is a Comparable int used for focused tests and benchmarks.
+type IntNode int
+
+// At compile time verify that this is a correct type/interface setup.
+var _ comparable.Comparable = IntNode(0)
+
+// Compare implements the Compare function to satisfy the interface requirements.
+func (aa IntNode) Compare(x comparable.Comparable) int {
+	if bb, ok := x.(IntNode); ok {
+		if aa < bb {
+			return -1
+		} else if aa > bb {
+			return 1
+		}
+		return 0
+	}
+	panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
+}
+
+// Inserting a duplicate key must replace the stored item without losing the
+// existing children or changing the length.
+func TestTreeInsertDuplicate(t *testing.T) {
+	var tree BinarySearchTree[IntNode]
+
+	tree.Insert(IntNode(5))
+	tree.Insert(IntNode(2))
+	tree.Insert(IntNode(9))
+	tree.Insert(IntNode(5)) // duplicate of the root
+
+	if size := tree.Length(); size != 3 {
+		t.Errorf("Expected tree to contain 3 nodes after duplicate insert, got %d", size)
+	}
+	if tree.Search(IntNode(2)) == nil {
+		t.Errorf("Left child lost after duplicate insert at root")
+	}
+	if tree.Search(IntNode(9)) == nil {
+		t.Errorf("Right child lost after duplicate insert at root")
+	}
+	if got := *tree.Search(IntNode(5)); got != IntNode(5) {
+		t.Errorf("Expected to find 5 at root, got %d", got)
+	}
+}
+
+// Deleting a node with two children must promote the in-order successor
+// without losing the successor's sub-tree.
+func TestTreeDeleteTwoChildrenKeepsSubtree(t *testing.T) {
+	var tree BinarySearchTree[IntNode]
+
+	//            5
+	//        2       9
+	//              7   11
+	//                10  12
+	for _, v := range []IntNode{5, 2, 9, 7, 11, 10, 12} {
+		tree.Insert(v)
+	}
+
+	// Deleting 9 promotes its in-order successor 10; 11 and 12 must survive.
+	tree.Delete(IntNode(9))
+	if size := tree.Length(); size != 6 {
+		t.Errorf("Expected tree to contain 6 nodes after delete, got %d", size)
+	}
+	for _, v := range []IntNode{5, 2, 7, 10, 11, 12} {
+		if tree.Search(v) == nil {
+			t.Errorf("Node %d lost after deleting 9", v)
+		}
+	}
+	if tree.Search(IntNode(9)) != nil {
+		t.Errorf("Deleted node 9 still present in tree")
+	}
+
+	// In-order sequence must still be sorted.
+	var got []IntNode
+	for v := range tree.All() {
+		got = append(got, v)
+	}
+	expect := []IntNode{2, 5, 7, 10, 11, 12}
+	if !reflect.DeepEqual(got, expect) {
+		t.Errorf("In-order after delete, expected %v got %v", expect, got)
+	}
+}
+
+// Operations on an empty tree must behave sanely.
+func TestTreeEmptyOps(t *testing.T) {
+	var tree BinarySearchTree[IntNode]
+
+	if !tree.IsEmpty() {
+		t.Errorf("Expected empty tree")
+	}
+	if tree.Length() != 0 {
+		t.Errorf("Expected length 0, got %d", tree.Length())
+	}
+	if tree.Search(IntNode(1)) != nil {
+		t.Errorf("Expected nil search on empty tree")
+	}
+	if tree.Delete(IntNode(1)) {
+		t.Errorf("Expected delete to fail on empty tree")
+	}
+	if tree.FindMin() != nil || tree.FindMax() != nil {
+		t.Errorf("Expected nil min/max on empty tree")
+	}
+	if tree.DeleteAtHead() || tree.DeleteAtTail() {
+		t.Errorf("Expected DeleteAt* to fail on empty tree")
+	}
+	if tree.Depth() != 0 {
+		t.Errorf("Expected depth 0 on empty tree, got %d", tree.Depth())
+	}
+	if tree.Index(0) != nil {
+		t.Errorf("Expected nil index on empty tree")
+	}
+	tree.Reverse() // must not panic
+	n := 0
+	for range tree.All() {
+		n++
+	}
+	if n != 0 {
+		t.Errorf("Expected empty iteration on empty tree")
+	}
+}
+
+// Index must reject out-of-range positions.
+func TestTreeIndexOutOfRange(t *testing.T) {
+	var tree BinarySearchTree[IntNode]
+	for _, v := range []IntNode{5, 2, 9} {
+		tree.Insert(v)
+	}
+	if tree.Index(-1) != nil {
+		t.Errorf("Expected nil for negative index")
+	}
+	if tree.Index(3) != nil {
+		t.Errorf("Expected nil for index >= length")
+	}
+	if got := tree.Index(2); got == nil || *got != IntNode(9) {
+		t.Errorf("Expected 9 at index 2")
+	}
+}
+
+// All must iterate ascending; Backward must iterate descending; both must
+// honor early break.
+func TestTreeIterators(t *testing.T) {
+	var tree BinarySearchTree[IntNode]
+	for _, v := range []IntNode{5, 2, 9, 0, 3} {
+		tree.Insert(v)
+	}
+
+	var fwd []IntNode
+	for v := range tree.All() {
+		fwd = append(fwd, v)
+	}
+	if expect := []IntNode{0, 2, 3, 5, 9}; !reflect.DeepEqual(fwd, expect) {
+		t.Errorf("All: expected %v got %v", expect, fwd)
+	}
+
+	var bwd []IntNode
+	for v := range tree.Backward() {
+		bwd = append(bwd, v)
+	}
+	if expect := []IntNode{9, 5, 3, 2, 0}; !reflect.DeepEqual(bwd, expect) {
+		t.Errorf("Backward: expected %v got %v", expect, bwd)
+	}
+
+	// Early break: only the first item should be seen.
+	count := 0
+	for v := range tree.All() {
+		if v != IntNode(0) {
+			t.Errorf("All with break: expected first value 0, got %d", v)
+		}
+		count++
+		break
+	}
+	if count != 1 {
+		t.Errorf("All with break: expected 1 iteration, got %d", count)
+	}
+}
+
+// Reverse must mirror the tree so that in-order iteration is descending.
+func TestTreeReverseOrder(t *testing.T) {
+	var tree BinarySearchTree[IntNode]
+	for _, v := range []IntNode{5, 2, 9, 0, 3} {
+		tree.Insert(v)
+	}
+	tree.Reverse()
+
+	var got []IntNode
+	for v := range tree.All() {
+		got = append(got, v)
+	}
+	if expect := []IntNode{9, 5, 3, 2, 0}; !reflect.DeepEqual(got, expect) {
+		t.Errorf("After Reverse: expected %v got %v", expect, got)
+	}
+	if size := tree.Length(); size != 5 {
+		t.Errorf("Expected length 5 after Reverse, got %d", size)
+	}
+}
+
+// lcgKey produces a deterministic pseudo-random key stream so benchmarks
+// build reasonably bushy (non-degenerate) trees.
+func lcgKey(seed *uint32, mod int) IntNode {
+	*seed = *seed*48271 + 1
+	return IntNode(int(*seed) % mod)
+}
+
+func BenchmarkInsert(b *testing.B) {
+	var seed uint32 = 12345
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var tree BinarySearchTree[IntNode]
+		for j := 0; j < 1000; j++ {
+			tree.Insert(lcgKey(&seed, 100000))
+		}
+	}
+}
+
+func BenchmarkSearch(b *testing.B) {
+	var tree BinarySearchTree[IntNode]
+	var seed uint32 = 12345
+	const n = 10000
+	for j := 0; j < n; j++ {
+		tree.Insert(lcgKey(&seed, 10*n))
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		tree.Search(lcgKey(&seed, 10*n))
+	}
+}
+
+func BenchmarkDelete(b *testing.B) {
+	var seed uint32 = 12345
+	keys := make([]IntNode, 0, 1000)
+	var tree BinarySearchTree[IntNode]
+	for j := 0; j < 1000; j++ {
+		k := lcgKey(&seed, 100000)
+		keys = append(keys, k)
+		tree.Insert(k)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		var t2 BinarySearchTree[IntNode]
+		for _, k := range keys {
+			t2.Insert(k)
+		}
+		b.StartTimer()
+		for _, k := range keys {
+			t2.Delete(k)
+		}
+	}
+}
+
+func BenchmarkIterateAll(b *testing.B) {
+	var tree BinarySearchTree[IntNode]
+	var seed uint32 = 12345
+	for j := 0; j < 10000; j++ {
+		tree.Insert(lcgKey(&seed, 100000))
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		sum := 0
+		for v := range tree.All() {
+			sum += int(v)
+		}
+		_ = sum
+	}
+}

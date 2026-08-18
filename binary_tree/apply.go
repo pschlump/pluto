@@ -1,30 +1,25 @@
 package binary_tree
 
+// WalkFunc applies `Fx` to every element of the tree in pre-order
+// (node, left, right) order.
+// Complexity is O(n).
 func (tt *BinaryTree[T]) WalkFunc(Fx func(a *T)) {
-	//	for i := 0; i < tt.length; i++ {
-	//		if tt.buckets[i] != nil {
-	//			tt.buckets[i].WalkFunc(Fx)
-	//		}
-	//	}
 	if tt == nil {
-		panic("tree sholud not be a nil")
+		panic("binary_tree: WalkFunc called on a nil tree")
 	}
-	if (*tt).IsEmpty() {
+	if tt.IsEmpty() {
 		return
 	}
 
-	// Simple is recursive, can be replce with an iterative tree traversal.
-	var apply func(root **BinaryTreeElement[T])
-	apply = func(root **BinaryTreeElement[T]) {
-		if *root == nil {
+	var apply func(root *BinaryTreeElement[T])
+	apply = func(root *BinaryTreeElement[T]) {
+		if root == nil {
 			return
-		} else {
-			Fx((*root).data)
-			apply(&((*root).left))
-			apply(&((*root).right))
 		}
+		Fx(root.data)
+		apply(root.left)
+		apply(root.right)
 	}
 
-	apply(&((*tt).root))
-	return
+	apply(tt.root)
 }

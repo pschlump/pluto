@@ -1,106 +1,103 @@
 package avl_tree_ts
 
+/*
+Copyright (C) Philip Schlump, 2012-2021.
+
+BSD 3 Clause Licensed.
+*/
+
 import (
+	"iter"
+
 	"github.com/pschlump/pluto/comparable"
-	"github.com/pschlump/pluto/stack"
 )
 
-// Implement a state machine based on a YCombinator that allows
-// inorder iteration over a binary tree.
-
-// An iteration type that allows a for loop to walk the tree inorder.
+// AvlTreeIter is an old-style (Front/Value/Next/Done) iterator that walks the
+// tree in in-order (sorted) sequence.
 //
-// This is more moemory effecient than the Walk* functions becasue it
-// manages the stack interally.   It is a tiny bit faster than the
-// Walk* functions.
-//
-// The main benefit is that it can be used to make cleaner code.
+// To remain race-free the iterator operates on a snapshot of the tree data
+// taken under the read lock when Front is called; concurrent modifications of
+// the tree after that point are not reflected in the iteration.  For new code
+// prefer the range-over-func iterators All and Backward.
 type AvlTreeIter[T comparable.Comparable] struct {
-	cur  *AvlTreeElement[T] // Pointer to the current element.
-	tree *AvlTree[T]        // The root of the tree
-
-	// will need a "Stack" of nodes to be able to iterate
-	stk stack.Stack[*AvlTreeElement[T]]
+	items []*T // Snapshot of the tree data in in-order sequence.
+	pos   int  // Index of the current element.
 }
 
 // -------------------------------------------------------------------------------------------------------
 
-// Front will start at the inorder traversal beginning of the tree for iteration over tree.
+// Front returns an iterator positioned at the first (smallest) element of a
+// snapshot of the tree in in-order sequence.  On an empty tree the returned
+// iterator is immediately Done.
+// Complexity is O(n).
 func (tt *AvlTree[T]) Front() (rv *AvlTreeIter[T]) {
-	// Find the "head" lowest node in tree, point cur at this.
-	// Setup the "Stack" so can walk tree.
-
-	rv = &AvlTreeIter[T]{
-		tree: tt,
-	}
-
-	// findLeftMost is Local function that searches for the left most
-	// node (first inorder node) in the tree.  It has a side-effect
-	// of setting up the "stk" stack.
-	findLeftMost := func(parent *AvlTreeElement[T]) (ptr *AvlTreeElement[T]) {
-		ptr = nil
-		// fmt.Printf ( "%sFindLeftMost/At Top: at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
-		if parent == nil {
-			// fmt.Printf ( "%sFindLeftMost/no tree: at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
-			return
-		}
-		for (*parent).left != nil {
-			// fmt.Printf ( "%sAdvance 1 step. at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
-			rv.stk.Push(parent)
-			parent = (*parent).left
-		}
-		// fmt.Printf ( "%sat bottom at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
-		ptr = parent
-		return
-	}
-
-	rv.cur = findLeftMost(tt.root)
-	return
-}
-
-/*
-// Front will start at the last inorder traversal node beginning of the tree for iteration over tree.
-func (tt *AvlTree[T]) Rear() *AvlTreeIter[T] {
-	return &AvlTreeIter[T] {
-		cur: tt.tail,
-		tree: tt,
+	return &AvlTreeIter[T]{
+		items: tt.toSlice(),
 	}
 }
 
-// Current will take the node returned from Search or RevrseSearch
-// 		func (tt *AvlTree[T]) Search( t *T ) (rv *AvlTreeElement[T], pos int) {
-// and allow you to start an iteration process from that point.
-func (tt *AvlTree[T]) Current(el *AvlTreeElement[T]) *AvlTreeIter[T] {
-	return &AvlTreeIter[T] {
-		cur: el,
-		tree: tt,
-	}
-}
-
-// Value returtt the current data for this element in the list.
+// Value returns the data of the current element, or nil if the iterator is
+// done.
+// Complexity is O(1).
 func (iter *AvlTreeIter[T]) Value() *T {
-	if iter.cur != nil {
-		return iter.cur.data
+	if iter.pos < len(iter.items) {
+		return iter.items[iter.pos]
 	}
 	return nil
 }
 
-// Next advances to the next element in the list.
+// Next advances the iterator to the next element in in-order sequence.
+// Complexity is O(1).
 func (iter *AvlTreeIter[T]) Next() {
-	if iter.cur.next != nil {
-		iter.cur = iter.cur.next
+	if iter.pos < len(iter.items) {
+		iter.pos++
 	}
 }
 
-// Prev moves back to the previous element in the list.
-func (iter *AvlTreeIter[T]) Prev() {
-	if iter.cur.prev != nil {
-		iter.cur = iter.cur.prev
-	}
-}
-
-// Done returtt true if the end of the list has been reached.
+// Done returns true when the iteration has visited every element.
+// Complexity is O(1).
 func (iter *AvlTreeIter[T]) Done() bool {
-	return iter.cur != nil
+	return iter.pos >= len(iter.items)
 }
-*/
+
+// -------------------------------------------------------------------------------------------------------
+
+// All returns a Go 1.23 range-over-func iterator that visits every element of
+// a snapshot of the tree in in-order (sorted) sequence:
+//
+//	for item := range tree.All() { ... }
+//
+// The snapshot is taken under the read lock when iteration starts, so the
+// loop is race-free and never holds the lock while the body runs.
+// Complexity is O(n).
+func (tt *AvlTree[T]) All() iter.Seq[*T] {
+	return func(yield func(*T) bool) {
+		for _, d := range tt.toSlice() {
+			if !yield(d) {
+				return
+			}
+		}
+	}
+}
+
+// Backward returns a Go 1.23 range-over-func iterator that visits every
+// element of a snapshot of the tree in reverse in-order (descending)
+// sequence:
+//
+//	for item := range tree.Backward() { ... }
+//
+// The snapshot is taken under the read lock when iteration starts, so the
+// loop is race-free and never holds the lock while the body runs.
+// Complexity is O(n).
+func (tt *AvlTree[T]) Backward() iter.Seq[*T] {
+	return func(yield func(*T) bool) {
+		items := tt.toSlice()
+		for i := len(items) - 1; i >= 0; i-- {
+			if !yield(items[i]) {
+				return
+			}
+		}
+	}
+}
+
+/* vim: set noai ts=4 sw=4: */

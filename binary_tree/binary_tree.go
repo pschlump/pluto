@@ -1,48 +1,47 @@
-package binary_tree
-
 /*
 Copyright (C) Philip Schlump, 2012-2021.
 
 BSD 3 Clause Licensed.
 */
 
-/*
-
-Basic operations on a Binary Tree.
-
-* 	Insert - create a new element in tree.														O(log|2(n))
-* 	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(log|2(n))
-* 	Index - return the Nth item	in the list - in a format usable with Delete.					O(n)
-* 	IsEmpty — Returns true if the linked list is empty											O(1)
-* 	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
-* 	Reverse - Reverse all the nodes in list. 													O(n)
-* 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(log|2(n))
-* 	Truncate - Delete all the nodes in list. 													O(1)
-*	FindMin
-*	FindMax
-*	Depth -> int to get deepest part of tree
-
-* 	DeleteAtHead — Deletes the first element of the linked list.  								O(log|2(n))
-		Delete ( FindMin ( ) )
-* 	DeleteAtTail — Deletes the last element of the linked list. 								O(log|2(n))
-		Delete ( FindMax ( ) )
-
-*	WalkInOrder
-+	WalkPreOrder
-+	WalkPostOrder
-
-*/
+// Package binary_tree implements a generic, unbalanced binary search tree.
+//
+// Basic operations on a Binary Tree:
+//
+//	Insert — create a new element in the tree; a duplicate replaces the existing element.
+//	Delete — delete a specified element from the tree (elements can be found via Search).
+//	Search — return the given element from the tree.
+//	Index — return the Nth element of the tree in in-order order.
+//	IsEmpty — report whether the tree is empty.
+//	Len / Length — number of elements in the tree; 0 is an empty tree.
+//	Reverse — swap the left and right children of every node in the tree.
+//	Truncate — delete all the nodes in the tree.
+//	FindMin / FindMax — return the smallest / largest element in the tree.
+//	DeleteAtHead — delete the smallest element (Delete(FindMin())).
+//	DeleteAtTail — delete the largest element (Delete(FindMax())).
+//	Depth — number of levels in the deepest part of the tree.
+//	WalkInOrder / WalkPreOrder / WalkPostOrder — callback-based traversals.
+//	Front — old-style in-order iterator.
+//	All / Backward — Go 1.23 range-over-func iterators (in-order and reverse in-order).
+//
+// Insert, Delete and Search are O(log₂ n) on average for randomly ordered
+// input and O(n) in the worst case (the tree is NOT self-balancing; see
+// github.com/pschlump/pluto/avl_tree for a balanced variant).
+//
+// BinaryTree is not safe for concurrent use; use
+// github.com/pschlump/pluto/binary_tree_ts for a thread-safe version of
+// the same API.
+package binary_tree
 
 import (
 	"fmt"
 	"io"
 	"strings"
 
-	"github.com/pschlump/dbgo"
 	"github.com/pschlump/pluto/comparable"
-	"github.com/pschlump/pluto/g_lib"
 )
 
+// BinaryTreeElement is a single node of a BinaryTree.
 type BinaryTreeElement[T comparable.Comparable] struct {
 	data        *T
 	left, right *BinaryTreeElement[T]
@@ -56,7 +55,7 @@ type BinaryTree[T comparable.Comparable] struct {
 
 // -------------------------------------------------------------------------------------------------------
 
-// Create a new BinaryTree and return it.
+// NewBinaryTree creates a new BinaryTree and returns it.
 // Complexity is O(1).
 func NewBinaryTree[T comparable.Comparable]() *BinaryTree[T] {
 	return &BinaryTree[T]{
@@ -65,207 +64,195 @@ func NewBinaryTree[T comparable.Comparable]() *BinaryTree[T] {
 	}
 }
 
+// GetData returns the data stored in this element.
 // Complexity is O(1).
 func (ee *BinaryTreeElement[T]) GetData() *T {
 	return ee.data
 }
 
+// SetData replaces the data stored in this element.
+// Complexity is O(1).
+func (ee *BinaryTreeElement[T]) SetData(x *T) {
+	ee.data = x
+}
+
 // -------------------------------------------------------------------------------------------------------
 
-// IsEmpty will return true if the binary-tree is empty
-func (tt BinaryTree[T]) IsEmpty() bool {
-	if db1 {
-		fmt.Printf("at:%s\n", dbgo.LF())
-	}
+// IsEmpty will return true if the binary-tree is empty.
+// Complexity is O(1).
+func (tt *BinaryTree[T]) IsEmpty() bool {
 	return tt.root == nil
 }
 
 // Truncate removes all data from the tree.
+// Complexity is O(1).
 func (tt *BinaryTree[T]) Truncate() {
-	(*tt).root = nil
-	(*tt).length = 0
+	tt.root = nil
+	tt.length = 0
 }
 
-// Insert will add a new item to the tree.  If it is a duplicate of an exiting
-// item the new item will replace the existing one.
+// Insert will add a new item to the tree.  If it is a duplicate of an existing
+// item the new item will replace the existing one and false is returned;
+// true is returned when a new node was added.
+// Complexity is O(log₂ n) on average, O(n) in the worst case.
 func (tt *BinaryTree[T]) Insert(item *T) (vv bool) {
 	if tt == nil {
-		panic("tree sholud not be a nil")
+		panic("binary_tree: Insert called on a nil tree")
 	}
 	node := &BinaryTreeElement[T]{data: item}
-	node.left = nil
-	node.right = nil
-	if (*tt).IsEmpty() {
+	if tt.IsEmpty() {
 		tt.root = node
 		tt.length = 1
-		// dbgo.Printf("%(green)True at %(LF)%(yellow):%+v\n", node)
 		return true
 	}
 
-	// Simple is recursive, can be replce with an iterative tree traversal.
+	// Simple is recursive, can be replaced with an iterative tree traversal.
 	var insert func(root **BinaryTreeElement[T]) bool
 	insert = func(root **BinaryTreeElement[T]) bool {
 		if *root == nil {
 			*root = node
 			tt.length++
-			// dbgo.Printf("%(green)True at %(LF): %+v\n", *root)
 			return true
-		} else if c := (*item).Compare(*((*root).data)); c == 0 {
+		} else if c := (*item).Compare(*(*root).data); c == 0 {
 			node.left = (*root).left
 			node.right = (*root).right
-			(*root) = node
-			// dbgo.Printf("%(red)False at %(LF): %+v\n", *root)
+			*root = node
 			return false
 		} else if c < 0 {
-			return insert(&((*root).left))
+			return insert(&(*root).left)
 		} else {
-			return insert(&((*root).right))
+			return insert(&(*root).right)
 		}
 	}
 
-	vv = insert(&((*tt).root))
-	// fmt.Printf("for %+v returining %v\n", item, vv)
+	vv = insert(&tt.root)
 	return
 }
 
-// Length returns the number of elements in the list.
+// Len returns the number of elements in the tree.
+// Complexity is O(1).
 func (tt *BinaryTree[T]) Len() int {
-	return (*tt).length
-}
-func (tt *BinaryTree[T]) Length() int {
-	return (*tt).length
+	return tt.length
 }
 
-// Search will walk the tree looking for `find` and retrn the found item
+// Length returns the number of elements in the tree.
+// Complexity is O(1).
+func (tt *BinaryTree[T]) Length() int {
+	return tt.length
+}
+
+// Search will walk the tree looking for `find` and return the found item
 // if it is in the tree. If it is not found then `nil` will be returned.
+// Complexity is O(log₂ n) on average, O(n) in the worst case.
 func (tt *BinaryTree[T]) Search(find *T) (item *T) {
 	if tt == nil {
-		panic("tree sholud not be a nil")
-	}
-	if (*tt).IsEmpty() {
-		return nil
+		panic("binary_tree: Search called on a nil tree")
 	}
 
-	// fmt.Printf("at:%s\n", dbgo.LF())
-
-	// Iterative search through tree (can be used above)
 	cur := tt.root
-	for tt != nil {
-		// fmt.Printf(" at:%s ->%s<-\n", dbgo.LF(), *cur.data)
+	for cur != nil {
 		c := (*find).Compare(*cur.data)
 		if c == 0 {
-			// fmt.Printf("  %sfound%s at:%s\n", MiscLib.ColorGreen, MiscLib.ColorReset, dbgo.LF())
-			item = cur.data
-			return
+			return cur.data
 		}
-		if c < 0 && cur.left != nil {
-			// fmt.Printf("  left at:%s\n", dbgo.LF())
-			cur = (*cur).left
-		} else if c > 0 && cur.right != nil {
-			// fmt.Printf("  right at:%s\n", dbgo.LF())
-			cur = (*cur).right
+		if c < 0 {
+			cur = cur.left
 		} else {
-			// fmt.Printf("  ( not found / break loop ) at:%s\n", dbgo.LF())
-			break
+			cur = cur.right
 		}
 	}
-	// fmt.Printf("all done at:%s\n", dbgo.LF())
 	return nil
 }
 
-// Dump will print out the tree to the file `fo`.
+// Dump will print out the tree to the writer `fo`.
+// Complexity is O(n).
 func (tt *BinaryTree[T]) Dump(fo io.Writer) {
 	k := tt.Depth() * 4
-	var inorderTraversal func(cur *BinaryTreeElement[T], n int)
-	inorderTraversal = func(cur *BinaryTreeElement[T], n int) {
+	var inorderTraversal func(cur *BinaryTreeElement[T], n int) bool
+	inorderTraversal = func(cur *BinaryTreeElement[T], n int) bool {
 		if cur == nil {
-			return
+			return true
 		}
-		if (*cur).left != nil {
-			inorderTraversal((*cur).left, n+1)
+		if cur.left != nil {
+			if !inorderTraversal(cur.left, n+1) {
+				return false
+			}
 		}
-		fmt.Fprintf(fo, "%s%v%s (left=%p/%p, right=%p/%p) self=%p\n", strings.Repeat(" ", 4*n), *((*cur).data), strings.Repeat(" ", k-(4*n)), (*cur).left, &((*cur).left), (*cur).right, &((*cur).right), cur)
-		if (*cur).right != nil {
-			inorderTraversal((*cur).right, n+1)
+		_, err := fmt.Fprintf(fo, "%s%v%s (left=%p/%p, right=%p/%p) self=%p\n",
+			strings.Repeat(" ", 4*n), *cur.data, strings.Repeat(" ", k-(4*n)),
+			cur.left, &cur.left, cur.right, &cur.right, cur)
+		if err != nil {
+			return false
 		}
+		if cur.right != nil {
+			if !inorderTraversal(cur.right, n+1) {
+				return false
+			}
+		}
+		return true
 	}
 	inorderTraversal(tt.root, 0)
 }
 
+// Delete removes the element matching `find` from the tree, returning true
+// if an element was found and removed.
+// Complexity is O(log₂ n) on average, O(n) in the worst case.
 func (tt *BinaryTree[T]) Delete(find *T) (found bool) {
 	if tt == nil {
-		panic("tree sholud not be a nil")
+		panic("binary_tree: Delete called on a nil tree")
 	}
-	if (*tt).IsEmpty() {
-		return false
+	return tt.deleteBy(func(data *T) int {
+		return (*find).Compare(*data)
+	})
+}
+
+// DeleteMatch is like Delete but uses the caller supplied comparison
+// function `fx` (with the same contract as Compare) instead of the
+// Compare method of T.
+func (tt *BinaryTree[T]) DeleteMatch(find *T, fx func(a, b *T) int) (found bool) {
+	if tt == nil {
+		panic("binary_tree: DeleteMatch called on a nil tree")
 	}
+	return tt.deleteBy(func(data *T) int {
+		return fx(find, data)
+	})
+}
 
-	// xyzzy2
-
-	findLeftMostInRightSubtree := func(parent **BinaryTreeElement[T]) (found bool, pAtIt **BinaryTreeElement[T]) {
-		// fmt.Printf ( "%sFindLeftMost/At Top: at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
-		this := **parent
-		if *parent == nil {
-			// fmt.Printf ( "%sFindLeftMost/no tree: at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
-			return
-		}
-		for this.right != nil {
-			// fmt.Printf ( "%sAdvance 1 step. at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
-			parent = &(this.right)
-			this = **parent
-		}
-		// fmt.Printf ( "%sat bottom at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
-		found = true
-		pAtIt = parent
-		return
-	}
-
-	// Iterative search through tree (can be used above)
-	cur := &tt.root // ptr to ptr to tree
-	for tt != nil {
-		// fmt.Printf ( "at:%s\n", dbgo.LF())
-		c := (*find).Compare(*(*cur).data)
+// deleteBy removes the node for which cmp(data) == 0, using cmp to steer the
+// descent through the tree.
+func (tt *BinaryTree[T]) deleteBy(cmp func(data *T) int) (found bool) {
+	cur := &tt.root
+	for *cur != nil {
+		c := cmp((*cur).data)
 		if c == 0 {
-			// fmt.Printf ( "FOUND! now remove it! at:%s\n", dbgo.LF())
-			(*tt).length--
-			if (*cur).left == nil && (*cur).right == nil {
-				// fmt.Printf ( "at:%s\n", dbgo.LF())
-				(*cur) = nil // just delete the node, it has no children.
-			} else if (*cur).left != nil && (*cur).right == nil {
-				// fmt.Printf ( "at:%s\n", dbgo.LF())
-				(*cur) = (*cur).left // Has only left children, promote them.
-			} else if (*cur).left == nil && (*cur).right != nil {
-				// fmt.Printf ( "at:%s\n", dbgo.LF())
-				(*cur) = (*cur).right // Has only right children, promote them.
-			} else { // has both children.
-				// fmt.Printf ( "at:%s\n", dbgo.LF())
-				// Has only right children, promote them.
-				found, pAtIt := findLeftMostInRightSubtree(&((*cur).right)) // Find lft mos of right sub-tree
-				if !found {
-					// fmt.Printf ( "%sAbout to Panic: Failed to have a subtree. AT:%s%s\n", MiscLib.ColorRed, dbgo.LF(), MiscLib.ColorReset)
-					panic("Can't have a missing sub-tree.")
+			tt.length--
+			switch {
+			case (*cur).left == nil:
+				// No left child (leaf, or right child only): splice in the right subtree.
+				*cur = (*cur).right
+			case (*cur).right == nil:
+				// Left child only: splice in the left subtree.
+				*cur = (*cur).left
+			default:
+				// Two children: promote the in-order successor (the left-most
+				// node of the right subtree) into this node, then splice the
+				// successor out of the right subtree.  The successor has no
+				// left child, so its right subtree is spliced in its place.
+				pSucc := &(*cur).right
+				for (*pSucc).left != nil {
+					pSucc = &(*pSucc).left
 				}
-				// fmt.Printf ( "at:%s\n", dbgo.LF())
-				(*cur).data = (*pAtIt).data // promote node's data.
-				// fmt.Printf ( "at:%s\n", dbgo.LF())
-				(*pAtIt) = (*pAtIt).right // Left most can have a right sub-tree - but it is left most so it can't have a more left tree.
-				// fmt.Printf ( "at:%s\n", dbgo.LF())
+				(*cur).data = (*pSucc).data
+				*pSucc = (*pSucc).right
 			}
 			return true
 		}
-		// fmt.Printf ( "at:%s\n", dbgo.LF())
-		if c < 0 && (*cur).left != nil {
-			// fmt.Printf ( "Go Left at:%s\n", dbgo.LF())
-			cur = &((*cur).left)
-		} else if c > 0 && (*cur).right != nil {
-			// fmt.Printf ( "Go Right at:%s\n", dbgo.LF())
-			cur = &((*cur).right)
+		if c < 0 {
+			cur = &(*cur).left
 		} else {
-			// fmt.Printf ( "not found - in loop - at:%s\n", dbgo.LF())
-			break
+			cur = &(*cur).right
 		}
 	}
-	// fmt.Printf ( "NOT Found --- at:%s\n", dbgo.LF())
 	return false
 }
 
@@ -277,49 +264,48 @@ func (tt *BinaryTree[T]) Delete(find *T) (found bool) {
     {09}
 */
 
+// FindMin returns the smallest element in the tree, or nil if the tree is empty.
+// Complexity is O(log₂ n) on average, O(n) in the worst case.
 func (tt *BinaryTree[T]) FindMin() (item *T) {
 	if tt == nil {
-		panic("tree sholud not be a nil")
+		panic("binary_tree: FindMin called on a nil tree")
 	}
-	if (*tt).IsEmpty() {
+	if tt.IsEmpty() {
 		return nil
 	}
 
-	// Iterative search through tree (can be used above)
 	cur := tt.root
-	if (*cur).left == nil {
-		return (*cur).data
-	}
 	for cur.left != nil {
-		cur = (*cur).left
+		cur = cur.left
 	}
-	return (*cur).data
+	return cur.data
 }
 
+// FindMax returns the largest element in the tree, or nil if the tree is empty.
+// Complexity is O(log₂ n) on average, O(n) in the worst case.
 func (tt *BinaryTree[T]) FindMax() (item *T) {
 	if tt == nil {
-		panic("tree sholud not be a nil")
+		panic("binary_tree: FindMax called on a nil tree")
 	}
-	if (*tt).IsEmpty() {
+	if tt.IsEmpty() {
 		return nil
 	}
 
-	// Iterative search through tree (can be used above)
 	cur := tt.root
-	if (*cur).right == nil {
-		return (*cur).data
-	}
 	for cur.right != nil {
-		cur = (*cur).right
+		cur = cur.right
 	}
-	return (*cur).data
+	return cur.data
 }
 
+// DeleteAtHead removes the smallest element of the tree, returning true if
+// an element was removed.
+// Complexity is O(log₂ n) on average, O(n) in the worst case.
 func (tt *BinaryTree[T]) DeleteAtHead() (found bool) {
 	if tt == nil {
-		panic("tree sholud not be a nil")
+		panic("binary_tree: DeleteAtHead called on a nil tree")
 	}
-	if (*tt).IsEmpty() {
+	if tt.IsEmpty() {
 		return false
 	}
 
@@ -328,11 +314,14 @@ func (tt *BinaryTree[T]) DeleteAtHead() (found bool) {
 	return true
 }
 
+// DeleteAtTail removes the largest element of the tree, returning true if
+// an element was removed.
+// Complexity is O(log₂ n) on average, O(n) in the worst case.
 func (tt *BinaryTree[T]) DeleteAtTail() (found bool) {
 	if tt == nil {
-		panic("tree sholud not be a nil")
+		panic("binary_tree: DeleteAtTail called on a nil tree")
 	}
-	if (*tt).IsEmpty() {
+	if tt.IsEmpty() {
 		return false
 	}
 
@@ -341,11 +330,13 @@ func (tt *BinaryTree[T]) DeleteAtTail() (found bool) {
 	return true
 }
 
+// Reverse swaps the left and right children of every node in the tree.
+// Complexity is O(n).
 func (tt *BinaryTree[T]) Reverse() {
 	if tt == nil {
-		panic("tree sholud not be a nil")
+		panic("binary_tree: Reverse called on a nil tree")
 	}
-	if (*tt).IsEmpty() {
+	if tt.IsEmpty() {
 		return
 	}
 
@@ -354,22 +345,25 @@ func (tt *BinaryTree[T]) Reverse() {
 		if cur == nil {
 			return
 		}
-		if (*cur).left != nil {
-			postTraversal((*cur).left)
+		if cur.left != nil {
+			postTraversal(cur.left)
 		}
-		if (*cur).right != nil {
-			postTraversal((*cur).right)
+		if cur.right != nil {
+			postTraversal(cur.right)
 		}
-		(*cur).left, (*cur).right = (*cur).right, (*cur).left
+		cur.left, cur.right = cur.right, cur.left
 	}
 	postTraversal(tt.root)
 }
 
+// Index returns the `pos`-th element of the tree in in-order order,
+// or nil if `pos` is out of range.
+// Complexity is O(n).
 func (tt *BinaryTree[T]) Index(pos int) (item *T) {
 	if tt == nil {
-		panic("tree sholud not be a nil")
+		panic("binary_tree: Index called on a nil tree")
 	}
-	if (*tt).IsEmpty() {
+	if tt.IsEmpty() {
 		return nil
 	}
 
@@ -385,20 +379,18 @@ func (tt *BinaryTree[T]) Index(pos int) (item *T) {
 			return
 		}
 		if !done {
-			if (*cur).left != nil {
-				inorderTraversal((*cur).left)
+			if cur.left != nil {
+				inorderTraversal(cur.left)
 			}
 		}
-		// fmt.Printf ( "InOrder - Before Set, Top n=%d, pos=%d,    value=%+v     at:%s\n", n, pos, item, dbgo.LF() )
 		if n == pos {
-			item = (*cur).data
-			// fmt.Printf ( "*********** Set \n")
+			item = cur.data
 			done = true
 		}
 		n++
 		if !done {
-			if (*cur).right != nil {
-				inorderTraversal((*cur).right)
+			if cur.right != nil {
+				inorderTraversal(cur.right)
 			}
 		}
 	}
@@ -406,37 +398,32 @@ func (tt *BinaryTree[T]) Index(pos int) (item *T) {
 	return
 }
 
-func (tt *BinaryTree[T]) Depth() (d int) {
+// Depth returns the number of levels in the deepest part of the tree.
+// An empty tree has depth 0; a tree with only a root has depth 1.
+// Complexity is O(n).
+func (tt *BinaryTree[T]) Depth() int {
 	if tt == nil {
-		panic("tree sholud not be a nil")
-	}
-	if (*tt).IsEmpty() {
-		return 0
+		panic("binary_tree: Depth called on a nil tree")
 	}
 
-	d = 0
-	var inorderTraversal func(cur *BinaryTreeElement[T])
-	inorderTraversal = func(cur *BinaryTreeElement[T]) {
+	var depth func(cur *BinaryTreeElement[T]) int
+	depth = func(cur *BinaryTreeElement[T]) int {
 		if cur == nil {
-			return
+			return 0
 		}
-		if (*cur).left != nil {
-			inorderTraversal((*cur).left)
-			d = g_lib.Max[int](d, d+1)
-		}
-		if (*cur).right != nil {
-			inorderTraversal((*cur).right)
-			d = g_lib.Max[int](d, d+1)
-		}
+		return 1 + max(depth(cur.left), depth(cur.right))
 	}
-	if tt.root != nil {
-		inorderTraversal(tt.root)
-	}
-	return
+	return depth(tt.root)
 }
 
+// ApplyFunction is the callback type used by the Walk* functions.  `pos` is
+// the ordinal position of the element in the walk order, `depth` is the
+// depth of the node in the tree (root is 0) and `userData` is the value
+// passed to the walk.  Returning false stops the walk.
 type ApplyFunction[T comparable.Comparable] func(pos, depth int, data *T, userData interface{}) bool
 
+// WalkInOrder visits every element in in-order (ascending) order.
+// Complexity is O(n).
 func (tt *BinaryTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) {
 
 	p := 0
@@ -447,23 +434,25 @@ func (tt *BinaryTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) 
 			return
 		}
 		if b {
-			if (*cur).left != nil {
-				inorderTraversal((*cur).left, n+1)
+			if cur.left != nil {
+				inorderTraversal(cur.left, n+1)
 			}
 		}
 		// ----------------------------------------------------------------------
-		b = b && fx(p, n, (*cur).data, userData)
+		b = b && fx(p, n, cur.data, userData)
 		p++
 		// ----------------------------------------------------------------------
 		if b {
-			if (*cur).right != nil {
-				inorderTraversal((*cur).right, n+1)
+			if cur.right != nil {
+				inorderTraversal(cur.right, n+1)
 			}
 		}
 	}
 	inorderTraversal(tt.root, 0)
 }
 
+// WalkPreOrder visits every element in pre-order (node, left, right) order.
+// Complexity is O(n).
 func (tt *BinaryTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
 
 	p := 0
@@ -474,23 +463,25 @@ func (tt *BinaryTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{})
 			return
 		}
 		// ----------------------------------------------------------------------
-		b = b && fx(p, n, (*cur).data, userData)
+		b = b && fx(p, n, cur.data, userData)
+		p++
 		// ----------------------------------------------------------------------
 		if b {
-			if (*cur).left != nil {
-				preOrderTraversal((*cur).left, n+1)
+			if cur.left != nil {
+				preOrderTraversal(cur.left, n+1)
 			}
 		}
-		p++
 		if b {
-			if (*cur).right != nil {
-				preOrderTraversal((*cur).right, n+1)
+			if cur.right != nil {
+				preOrderTraversal(cur.right, n+1)
 			}
 		}
 	}
 	preOrderTraversal(tt.root, 0)
 }
 
+// WalkPostOrder visits every element in post-order (left, right, node) order.
+// Complexity is O(n).
 func (tt *BinaryTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
 
 	p := 0
@@ -501,51 +492,19 @@ func (tt *BinaryTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}
 			return
 		}
 		if b {
-			if (*cur).left != nil {
-				postOrderTraversal((*cur).left, n+1)
+			if cur.left != nil {
+				postOrderTraversal(cur.left, n+1)
 			}
 		}
-		p++
 		if b {
-			if (*cur).right != nil {
-				postOrderTraversal((*cur).right, n+1)
+			if cur.right != nil {
+				postOrderTraversal(cur.right, n+1)
 			}
 		}
 		// ----------------------------------------------------------------------
-		b = b && fx(p, n, (*cur).data, userData)
+		b = b && fx(p, n, cur.data, userData)
+		p++
 		// ----------------------------------------------------------------------
 	}
 	postOrderTraversal(tt.root, 0)
 }
-
-/*
-func (tt *Bi8naryTree[T]) DeleteMatch(fx ApplyFunction[T], userData interface{}) {
-
-	p := 0
-	var inorderTraversal func(cur *BinaryTreeElement[T], n int)
-	inorderTraversal = func(cur *BinaryTreeElement[T], n int) {
-		if cur == nil {
-			return
-		}
-		if (*cur).left != nil {
-			inorderTraversal((*cur).left, n+1)
-		}
-
-		// ----------------------------------------------------------------------
-		// xyzzy TODO - how to delte at this point!
-		// ----------------------------------------------------------------------
-		if fx(p, n, (*cur).data, userData) {
-			// tt . Delete(find *T) (found bool) {
-			// xyzzy2
-		}
-		p++
-		// ----------------------------------------------------------------------
-		if (*cur).right != nil {
-			inorderTraversal((*cur).right, n+1)
-		}
-	}
-	inorderTraversal(tt.root, 0)
-}
-*/
-
-const db1 = false // print in IsEmpty

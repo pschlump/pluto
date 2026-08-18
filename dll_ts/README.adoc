@@ -1,5 +1,120 @@
+= dll_ts — A generics based Go Doubly Linked List that is Thread (goroutine) safe
+:toc:
 
-= A generics based Go Double Linked List that is Thread(goroutine) safe
+A generic doubly linked list (DLL) with head-and-tail pointers.  Element data
+is stored as a `*T` where `T` satisfies `comparable.Equality` (an
+`IsEqual(b Equality) bool` method).  The zero value of `Dll[T]` is an empty
+list ready to use; `NewDll[T]()` is also provided.
 
-A simple doubly linked list (DLL)  with IsEmpty, AppendSLL, HeadSLL, Length
+The list can be used directly, as a stack (`Push`/`Pop`/`Peek`), or as a
+queue (`Enqueue`/`Pop`/`PeekTail`).
 
+This is the thread-safe version of `../dll`: every operation is guarded by a
+`sync.RWMutex`.  It has the exact same exported API as the `dll` package.
+
+== Complexity
+
+[cols="2,1,4",options="header"]
+|===
+| Operation | Cost | Notes
+
+| `InsertBeforeHead`, `Push`       | O(1) | insert at head
+| `AppendAtTail`, `Enqueue`        | O(1) | append at tail
+| `Pop`, `DeleteAtHead`            | O(1) | remove from head
+| `PopTail`, `DeleteAtTail`        | O(1) | remove from tail
+| `Peek`, `PeekTail`               | O(1) | inspect head/tail
+| `IsEmpty`, `Length`              | O(1) |
+| `Index`, `IndexFromTail`         | O(n) | n/2 on average (walks from nearest end)
+| `Search`, `ReverseSearch`        | O(n) | linear, uses `IsEqual`
+| `Delete`, `DeleteSearch`         | O(n) | search + delete
+| `DeleteFound`                    | O(1) | delete element from `Search`/`Index`
+| `Walk`, `ReverseWalk`            | O(n) | callback iteration
+| `All`, `Backward`, `IterateOver`, `IteratePtr` | O(n) | Go 1.23+ range-over-func iterators
+| `Reverse`, `ReverseList`         | O(n) | O(1) extra storage
+| `Trim`, `TrimTail`               | O(n) | cut list to length n
+| `Concat`                         | O(n) | append a copy of another list
+| `Truncate`                       | O(1) | drop all elements
+|===
+
+== Example
+
+[source,go]
+----
+package main
+
+import (
+	"fmt"
+
+	"github.com/pschlump/pluto/comparable"
+	"github.com/pschlump/pluto/dll_ts"
+)
+
+type Item struct {
+	Name string
+}
+
+func (aa Item) IsEqual(x comparable.Equality) bool {
+	if bb, ok := x.(Item); ok {
+		return aa.Name == bb.Name
+	}
+	return false
+}
+
+func main() {
+	l := dll_ts.NewDll[Item]()
+
+	l.Push(&Item{Name: "head"})        // insert at head
+	l.Enqueue(&Item{Name: "tail"})     // append at tail
+
+	// Go 1.23+ range-over-func iteration (operates on a snapshot)
+	for i, v := range l.All() {
+		fmt.Println(i, v.Name)
+	}
+
+	v, err := l.Pop()                  // remove from head
+	if err != nil {
+		// empty list
+	}
+	_ = v
+
+	l.Truncate()                       // drop all elements
+}
+----
+
+== Iteration
+
+Four styles are supported, all kept for compatibility:
+
+1. `Front()`/`Rear()` + `Done()`/`Next()`/`Prev()`/`Value()` — the legacy
+   `DllIter` type (each method takes the appropriate locks).
+2. `Walk`/`ReverseWalk` callbacks.
+3. `All()`/`Backward()` — Go 1.23+ range-over-func iterators returning
+   `iter.Seq2[int, T]`.
+4. `IterateOver()` (legacy name for `All`) and `IteratePtr()` — range-over-func
+   iterators yielding values or `*T` pointers.
+
+The range-over-func iterators operate on a consistent snapshot of the list
+taken under a read lock, so the lock is not held while the loop body runs and
+the loop body may safely call other list methods.
+
+== Thread Safety
+
+All operations on `Dll` are safe for concurrent use by multiple goroutines;
+each method takes a read or write lock as appropriate.  `Lock`/`Unlock` expose
+the list's write lock for callers that need to group operations — while the
+lock is held, no other goroutine can use the list, so prefer the built-in
+operations where possible.
+
+Two caveats:
+
+* `Walk` and `ReverseWalk` hold a read lock while the user callback runs, so
+  the callback must not call back into the list (that would deadlock).
+* Elements returned by `Search`/`Index`/`Peek` etc. are pointers into the
+  list; another goroutine may remove them before you use them.
+
+== Errors
+
+* `ErrEmptyDll` — operation requires a non-empty list.
+* `ErrNotFound` — search/delete failed to find the element.
+* `ErrOutOfRange` — subscript out of range for `Index`/`IndexFromTail`.
+* `ErrInternalDll` — internal inconsistency (should never happen).

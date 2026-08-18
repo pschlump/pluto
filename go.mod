@@ -1,6 +1,6 @@
 module github.com/pschlump/pluto
 
-go 1.23.0
+go 1.26.5
 
 require (
 	github.com/pschlump/HashStr v1.0.0

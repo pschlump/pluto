@@ -29,15 +29,9 @@ var _ comparable.Equality = (*TestDemo)(nil)
 
 func (aa TestDemo) IsEqual(x comparable.Equality) bool {
 	if bb, ok := x.(TestDemo); ok {
-		if aa.S == bb.S {
-			return true
-		}
-		return false
+		return aa.S == bb.S
 	} else if bb, ok := x.(*TestDemo); ok {
-		if aa.S == bb.S {
-			return true
-		}
-		return false
+		return aa.S == bb.S
 	} else {
 		panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
 	}
@@ -60,8 +54,8 @@ func TestDllGoroutines(t *testing.T) {
 		if db7 {
 			fmt.Printf("In Loop at %d AT: %s\n", i, dbgo.LF())
 		}
+		wg.Add(2)
 		go func(n int) {
-			wg.Add(1)
 			defer wg.Done()
 			if db7 {
 				fmt.Printf("In Push()\n")
@@ -69,7 +63,6 @@ func TestDllGoroutines(t *testing.T) {
 			Dll1.Push(&TestDemo{S: fmt.Sprintf("%04d", n)})
 		}(i)
 		go func(n int) {
-			wg.Add(1)
 			defer wg.Done()
 			done := false
 			for !done {

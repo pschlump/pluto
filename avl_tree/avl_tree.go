@@ -1,99 +1,96 @@
+// Package avl_tree implements a generic AVL self-balancing binary search tree.
+//
+// An AVL tree keeps the heights of the two child subtrees of every node
+// within one of each other, so Insert, Delete and Search are all O(log n).
+//
+// Basic operations:
+//
+//	Insert - add a new element to the tree (duplicates replace the old data).	O(log2(n))
+//	Delete - remove an element from the tree.					O(log2(n))
+//	Search - return the stored element equal to the probe, or nil.			O(log2(n))
+//	FindMin - return the smallest element in the tree.				O(log2(n))
+//	FindMax - return the largest element in the tree.				O(log2(n))
+//	DeleteAtHead - remove the smallest element (Delete(FindMin())).			O(log2(n))
+//	DeleteAtTail - remove the largest element (Delete(FindMax())).			O(log2(n))
+//	Index - return the Nth element in in-order sequence.				O(n)
+//	IsEmpty - report whether the tree is empty.					O(1)
+//	Length - return the number of elements in the tree.				O(1)
+//	Depth - return the height of the tree (longest root-to-leaf path).		O(1)
+//	Truncate - remove all elements from the tree.					O(1)
+//	Reverse - mirror the tree (swaps ordering; mainly useful for testing).		O(n)
+//	WalkInOrder/WalkPreOrder/WalkPostOrder - apply a function to every node.	O(n)
+//	Copy/Union/Minus/Intersect - whole-tree set operations.				O(n log2(n))
+//	All/Backward - Go 1.23 range-over-func iterators over the tree.			O(n)
+//
+// This is the no-lock, NOT thread-safe version of the tree.  Use
+// github.com/pschlump/pluto/avl_tree_ts for a mutex-guarded thread-safe
+// version with the identical API.
+//
+// Copyright (C) Philip Schlump, 2012-2021.
+// BSD 3 Clause Licensed.
 package avl_tree
-
-/*
-Copyright (C) Philip Schlump, 2012-2021.
-
-BSD 3 Clause Licensed.
-*/
-
-/*
-
-Basic operations on a AVL Binary Tree.  This is a no-lock, not thread safe version of the AVL tree.
-
-* 	Insert - create a new element in tree.														O(log|2(n))
-*		Duplicates replace the current node with a new node - this is not reported as
-*       a duplicate.
-* 	Delete — Deletes a specified element from the linked list (Element can be fond via Search). O(log|2(n))
-* 	Index - return the Nth item	in the list - in a format usable with Delete.					O(n)
-* 	IsEmpty — Returns true if the linked list is empty											O(1)
-* 	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
-* 	Reverse - Reverse all the nodes in list. 													O(n)
-* 	Search — Returns the given element from a linked list.  Search is from head to tail.		O(log|2(n))
-* 	Truncate - Delete all the nodes in list. 													O(1)
-*	FindMin
-*	FindMax
-*	Depth -> int to get deepest part of tree
-
-* 	DeleteAtHead — Deletes the first element of the linked list.  								O(log|2(n))
-		Delete ( FindMin ( ) )
-* 	DeleteAtTail — Deletes the last element of the linked list. 								O(log|2(n))
-		Delete ( FindMax ( ) )
-
-*	WalkInOrder
-+	WalkPreOrder
-+	WalkPostOrder
-
-*/
 
 import (
 	"fmt"
 	"io"
 	"strings"
 
-	"github.com/pschlump/dbgo"
 	"github.com/pschlump/pluto/comparable"
 	"github.com/pschlump/pluto/g_lib"
-	// "github.com/pschlump/MiscLib"
 )
 
+// AvlTreeElement is a node of an AvlTree.
 type AvlTreeElement[T comparable.Comparable] struct {
 	data        *T
 	height      int
 	left, right *AvlTreeElement[T]
 }
 
-// AvlTree is a generic binary tree
+// AvlTree is a generic AVL balanced binary tree.
 type AvlTree[T comparable.Comparable] struct {
 	root   *AvlTreeElement[T]
 	length int
-	// lock   sync.RWMutex
 }
 
 // -------------------------------------------------------------------------------------------------------
 
+// NewAvlTreeElement creates a new tree node holding `x`.
+// Complexity is O(1).
 func NewAvlTreeElement[T comparable.Comparable](x *T) *AvlTreeElement[T] {
 	return &AvlTreeElement[T]{
 		data:   x,
 		height: 1,
-		left:   nil,
-		right:  nil,
 	}
 }
 
-func (tt AvlTree[T]) Height(e *AvlTreeElement[T]) int {
+// Height returns the saved height of the node `e` (0 for a nil node).  The
+// height is re-calculated as the tree is modified.
+// Complexity is O(1).
+func (tt *AvlTree[T]) Height(e *AvlTreeElement[T]) int {
 	if e == nil {
 		return 0
 	}
 	return e.height
 }
 
+// calcAvlBalance returns the difference in height between the left and right
+// subtrees of `e`.  When the absolute value exceeds 1 the subtree is rotated
+// to restore balance.
 // Complexity is O(1).
-func (tt AvlTree[T]) calcAvlBalance(e *AvlTreeElement[T]) int {
+func (tt *AvlTree[T]) calcAvlBalance(e *AvlTreeElement[T]) int {
 	if e == nil {
 		return 0
 	}
 	return tt.Height(e.left) - tt.Height(e.right)
 }
 
-// Create a new AvlTree and return it.
+// NewAvlTree creates a new empty AvlTree and returns it.
 // Complexity is O(1).
 func NewAvlTree[T comparable.Comparable]() *AvlTree[T] {
-	return &AvlTree[T]{
-		root:   nil,
-		length: 0,
-	}
+	return &AvlTree[T]{}
 }
 
+// GetData returns the user data from the AVL tree node.
 // Complexity is O(1).
 func (ee *AvlTreeElement[T]) GetData() *T {
 	return ee.data
@@ -101,101 +98,148 @@ func (ee *AvlTreeElement[T]) GetData() *T {
 
 // -------------------------------------------------------------------------------------------------------
 
-// IsEmpty will return true if the binary-tree is empty
-func (tt AvlTree[T]) IsEmpty() bool {
-	if db1 {
-		fmt.Printf("at:%s\n", dbgo.LF())
-	}
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
-	return tt.root == nil
+// IsEmpty returns true if the tree is empty.
+// Complexity is O(1).
+func (tt *AvlTree[T]) IsEmpty() bool {
+	return tt.nlIsEmpty()
 }
 
-// nlIsEmpty a no-lock interal version that will return true if the binary-tree is empty
-func (tt AvlTree[T]) nlIsEmpty() bool {
-	if db1 {
-		fmt.Printf("at:%s\n", dbgo.LF())
-	}
+// nlIsEmpty is the no-lock internal version of IsEmpty.
+func (tt *AvlTree[T]) nlIsEmpty() bool {
 	return tt.root == nil
 }
 
 // Truncate removes all data from the tree.
+// Complexity is O(1).
 func (tt *AvlTree[T]) Truncate() {
-	// tt.lock.Lock()
-	// defer tt.lock.Unlock()
+	tt.nlTruncate()
+}
+
+// nlTruncate is the no-lock internal version of Truncate.
+func (tt *AvlTree[T]) nlTruncate() {
 	tt.root = nil
 	tt.length = 0
 }
 
 /*
 
-Insert:
+Rotations used to rebalance the tree after Insert and Delete.
 
-Steps to follow for insertion
-Let the newly inserted node be w
-1) Perform standard BST insert for w.
-2) Starting from w, travel up and find the first unbalanced node. Let z be the first unbalanced node, y be the child of z that comes on the path from w to z and x be the grandchild of z that comes on the path from w to z.
-3) Re-balance the tree by performing appropriate rotations on the subtree rooted with z. There can be 4 possible cases that needs to be handled as x, y and z can be arranged in 4 ways. Following are the possible 4 arrangements:
+Let the newly inserted (or deleted) node be w.
+1) Perform the standard BST insert/delete for w.
+2) Starting from w, travel up and find the first unbalanced node.  Let z be
+   the first unbalanced node, y the child of z on the path from w to z, and x
+   the grandchild of z on the path from w to z.
+3) Re-balance the tree by performing the appropriate rotation on the subtree
+   rooted with z.  There are 4 possible cases:
+
 	a) y is left child of z and x is left child of y (Left Left Case)
 	b) y is left child of z and x is right child of y (Left Right Case)
 	c) y is right child of z and x is right child of y (Right Right Case)
 	d) y is right child of z and x is left child of y (Right Left Case)
-Following are the operations to be performed in above mentioned 4 cases. In all of the cases, we only need to re-balance the subtree rooted with z and the complete tree
-becomes balanced as the height of subtree (After appropriate rotations) rooted with z becomes same as it was before insertion. (See this video lecture for proof)
+
 a) Left Left Case
 
 T1, T2, T3 and T4 are subtrees.
-         z                                      y
-        / \                                   /   \
-       y   T4      Right Rotate (z)          x      z
-      / \          - - - - - - - - ->      /  \    /  \
-     x   T3                               T1  T2  T3  T4
-    / \
-  T1   T2
+
+	     z                                      y
+	    / \                                   /   \
+	   y   T4      Right Rotate (z)          x      z
+	  / \          - - - - - - - - ->      /  \    /  \
+	 x   T3                               T1  T2  T3  T4
+	/ \
+	T1   T2
 
 b) Left Right Case
 
-     z                               z                           x
-    / \                            /   \                        /  \
-   y   T4  Left Rotate (y)        x    T4  Right Rotate(z)    y      z
-  / \      - - - - - - - - ->    /  \      - - - - - - - ->  / \    / \
-T1   x                          y    T3                    T1  T2 T3  T4
-    / \                        / \
-  T2   T3                    T1   T2
+	 z                               z                           x
+	/ \                            /   \                        /  \
+	y   T4  Left Rotate (y)        x    T4  Right Rotate(z)    y      z
+	/ \      - - - - - - - - ->    /  \      - - - - - - - ->  / \    / \
+	T1   x                          y    T3                    T1  T2 T3  T4
+	    / \                        / \
+	  T2   T3                    T1   T2
 
 c) Right Right Case
 
-  z                                y
- /  \                            /   \
-T1   y     Left Rotate(z)       z      x
-    /  \   - - - - - - - ->    / \    / \
-   T2   x                     T1  T2 T3  T4
-       / \
-     T3  T4
+	z                                y
+	 /  \                            /   \
+	T1   y     Left Rotate(z)       z      x
+	    /  \   - - - - - - - ->    / \    / \
+	   T2   x                     T1  T2 T3  T4
+	       / \
+	     T3  T4
 
 d) Right Left Case
 
-   z                            z                            x
-  / \                          / \                          /  \
-T1   y   Right Rotate (y)    T1   x      Left Rotate(z)   z      y
-    / \  - - - - - - - - ->     /  \   - - - - - - - ->  / \    / \
-   x   T4                      T2   y                  T1  T2  T3  T4
-  / \                              /  \
-T2   T3                           T3   T4
-
-
-i
+	   z                            z                            x
+	  / \                          / \                          /  \
+	T1   y   Right Rotate (y)    T1   x      Left Rotate(z)   z      y
+	    / \  - - - - - - - - ->     /  \   - - - - - - - ->  / \    / \
+	   x   T4                      T2   y                  T1  T2 T3  T4
+	  / \                              /  \
+	T2   T3                           T3   T4
 */
 
-// Insert will add a new item to the tree.  If it is a duplicate of an exiting
+// rotateRight performs a right rotation about z and returns the new subtree
+// root (the old left child of z).
+func (tt *AvlTree[T]) rotateRight(z *AvlTreeElement[T]) *AvlTreeElement[T] {
+	y := z.left
+	z.left = y.right
+	y.right = z
+	z.height = g_lib.Max(tt.Height(z.left), tt.Height(z.right)) + 1
+	y.height = g_lib.Max(tt.Height(y.left), tt.Height(y.right)) + 1
+	return y
+}
+
+// rotateLeft performs a left rotation about z and returns the new subtree
+// root (the old right child of z).
+func (tt *AvlTree[T]) rotateLeft(z *AvlTreeElement[T]) *AvlTreeElement[T] {
+	y := z.right
+	z.right = y.left
+	y.left = z
+	z.height = g_lib.Max(tt.Height(z.left), tt.Height(z.right)) + 1
+	y.height = g_lib.Max(tt.Height(y.left), tt.Height(y.right)) + 1
+	return y
+}
+
+// rebalanceNode recomputes the height of *root and, if the subtree rooted
+// there is out of balance, performs the rotation (single or double) required
+// to restore the AVL height invariant.
+func (tt *AvlTree[T]) rebalanceNode(root **AvlTreeElement[T]) {
+	z := *root
+	if z == nil {
+		return
+	}
+	z.height = g_lib.Max(tt.Height(z.left), tt.Height(z.right)) + 1
+	switch b := tt.calcAvlBalance(z); {
+	case b > 1:
+		// Left heavy: Left Right case if the left child is right heavy.
+		if tt.calcAvlBalance(z.left) < 0 {
+			z.left = tt.rotateLeft(z.left)
+		}
+		*root = tt.rotateRight(z)
+	case b < -1:
+		// Right heavy: Right Left case if the right child is left heavy.
+		if tt.calcAvlBalance(z.right) > 0 {
+			z.right = tt.rotateRight(z.right)
+		}
+		*root = tt.rotateLeft(z)
+	}
+}
+
+// Insert will add a new item to the tree.  If it is a duplicate of an existing
 // item the new item will replace the existing one.
+// Complexity is O(log2(n)).
 func (tt *AvlTree[T]) Insert(item *T) {
 	if tt == nil {
-		panic("tree sholud not be a nil")
+		panic("operation on a nil tree")
 	}
+	tt.nlInsert(item)
+}
 
-	// tt.lock.Lock()
-	// defer tt.lock.Unlock()
+// nlInsert is the no-lock internal version of Insert.
+func (tt *AvlTree[T]) nlInsert(item *T) {
 
 	node := NewAvlTreeElement[T](item)
 	if tt.nlIsEmpty() {
@@ -204,596 +248,253 @@ func (tt *AvlTree[T]) Insert(item *T) {
 		return
 	}
 
-	// Recursive with tail-recursion handeling the AVL rotation.
+	// Recursive insert with AVL rebalancing on the way back up.
 	var insert func(root **AvlTreeElement[T])
 	insert = func(root **AvlTreeElement[T]) {
 		if *root == nil {
 			*root = node
 			tt.length++
-		} else if c := (*item).Compare(*((*root).data)); c == 0 {
-			// Replace duplicate node with new node.
+			return
+		}
+		if c := (*item).Compare(*((*root).data)); c == 0 {
+			// Replace duplicate node with new node, keeping children/height.
 			node.left = (*root).left
 			node.right = (*root).right
-			(*root) = node
+			node.height = (*root).height
+			*root = node
+			return
 		} else if c < 0 {
 			insert(&((*root).left))
 		} else {
 			insert(&((*root).right))
 		}
-
-		// AVL section ----------------------------------------------------------------------------------
-		(*root).height = g_lib.Max(tt.Height((*root).left), tt.Height((*root).right)) + 1
-
-		b := tt.calcAvlBalance(*root)
-
-		if g_lib.Abs(b) > 1 { // If we have a height difference that is larer than 1 ( may be < -2, or +2.
-
-			z := (*root) // can change 'z' via *root
-			if z != nil && z.left != nil && z.left.left != nil {
-				// a) Left Left Case
-				// t1, t2, t3 and t4 are subtrees.
-				//          z                                      y
-				//        / \                                   /   \
-				//       y   T4      Right Rotate (z)          x      z
-				//      / \          - - - - - - - - ->      /  \    /  \
-				//     x   T3                               T1  T2  T3  T4
-				//    / \
-				//  T1   T2
-				y := z.left
-				x := y.left
-				t4 := z.right
-				t3 := y.right
-				t2 := x.right
-				t1 := x.left
-				y.left = x
-				y.right = z
-				x.left = t1
-				x.right = t2
-				z.left = t3
-				z.right = t4
-				// re-calculate - the heights based on the "subtrees" (t1, t2, t3, t4)
-				x.height = g_lib.Max(tt.Height(t1), tt.Height(t2)) + 1
-				z.height = g_lib.Max(tt.Height(t3), tt.Height(t4)) + 1
-				y.height = g_lib.Max(tt.Height(x), tt.Height(z)) + 1
-				(*root) = y
-
-			} else if z != nil && z.left != nil && z.left.right != nil {
-				// b) Left Right Case
-				// T1, T2, T3 and T4 are subtrees.
-				//      z                               z                           x
-				//     / \                            /   \                        /  \
-				//    y   T4  Left Rotate (y)        x    T4  Right Rotate(z)    y      z
-				//   / \      - - - - - - - - ->    /  \      - - - - - - - ->  / \    / \
-				// T1   x                          y    T3                    T1  T2 T3  T4
-				//     / \                        / \
-				//   T2   T3                    T1   T2
-				y := z.left
-				x := y.right
-				t4 := z.right
-				t3 := x.right
-				t2 := x.left
-				t1 := y.left
-				x.left = y
-				x.right = z
-				y.left = t1
-				y.right = t2
-				z.left = t3
-				z.right = t4
-				// re-calculate - the heights based on the "subtrees" (t1, t2, t3, t4)
-				y.height = g_lib.Max(tt.Height(t1), tt.Height(t2)) + 1
-				z.height = g_lib.Max(tt.Height(t3), tt.Height(t4)) + 1
-				x.height = g_lib.Max(tt.Height(y), tt.Height(z)) + 1
-				(*root) = x
-
-			} else if z != nil && z.right != nil && z.right.right != nil {
-				// c) Right Right Case
-				// T1, T2, T3 and T4 are subtrees.
-				//   z                                y
-				//  /  \                            /   \
-				// T1   y     Left Rotate(z)       z      x
-				//     /  \   - - - - - - - ->    / \    / \
-				//    T2   x                     T1  T2 T3  T4
-				//        / \
-				//      T3  T4
-				y := z.right
-				x := y.right
-				t4 := x.right
-				t3 := x.left
-				t2 := y.left
-				t1 := z.left
-				y.left = z
-				y.right = x
-				z.left = t1
-				z.right = t2
-				x.left = t3
-				x.right = t4
-				// re-calculate - the heights based on the "subtrees" (t1, t2, t3, t4)
-				z.height = g_lib.Max(tt.Height(t1), tt.Height(t2)) + 1
-				x.height = g_lib.Max(tt.Height(t3), tt.Height(t4)) + 1
-				y.height = g_lib.Max(tt.Height(y), tt.Height(z)) + 1
-				(*root) = y
-
-			} else if z != nil && z.right != nil && z.right.left != nil {
-				// d) Right Left Case
-				// T1, T2, T3 and T4 are subtrees.
-				//    z                            z                            x
-				//   / \                          / \                          /  \
-				// T1   y   Right Rotate (y)    T1   x      Left Rotate(z)   z      y
-				//     / \  - - - - - - - - ->     /  \   - - - - - - - ->  / \    / \
-				//    x   T4                      T2   y                  T1  T2  T3  T4
-				//   / \                              /  \
-				// T2   T3                           T3   T4
-				y := z.right
-				x := y.left
-				t4 := y.right
-				t3 := x.right
-				t2 := x.left
-				t1 := z.left
-				x.left = z
-				x.right = y
-				z.left = t1
-				z.right = t2
-				y.left = t3
-				y.right = t4
-				// re-calculate - the heights based on the "subtrees" (t1, t2, t3, t4)
-				z.height = g_lib.Max(tt.Height(t1), tt.Height(t2)) + 1
-				y.height = g_lib.Max(tt.Height(t3), tt.Height(t4)) + 1
-				x.height = g_lib.Max(tt.Height(y), tt.Height(z)) + 1
-				(*root) = x
-
-			} else {
-				panic("should never get to this point")
-			}
-		}
+		tt.rebalanceNode(root)
 	}
 
 	insert(&(tt.root))
-
 }
 
-// Length returns the number of elements in the list.
+// Length returns the number of elements in the tree.
+// Complexity is O(1).
 func (tt *AvlTree[T]) Length() int {
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
 	return tt.length
 }
 
-// Search will walk the tree looking for `find` and retrn the found item
-// if it is in the tree. If it is not found then `nil` will be returned.
+// Search walks the tree looking for `find` and returns the found item if it
+// is in the tree.  If it is not found then nil is returned.
+// Complexity is O(log2(n)).
 func (tt *AvlTree[T]) Search(find *T) (item *T) {
 	if tt == nil {
-		panic("tree sholud not be a nil")
+		panic("operation on a nil tree")
 	}
+	return tt.nlSearch(find)
+}
 
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
-
-	if tt.nlIsEmpty() {
-		return nil
-	}
-
-	// fmt.Printf("at:%s\n", dbgo.LF())
-
-	// Iterative search through tree (can be used above)
+// nlSearch is the no-lock internal version of Search.
+func (tt *AvlTree[T]) nlSearch(find *T) (item *T) {
 	cur := tt.root
-	for tt != nil {
-		// fmt.Printf(" at:%s ->%s<-\n", dbgo.LF(), *cur.data)
+	for cur != nil {
 		c := (*find).Compare(*cur.data)
 		if c == 0 {
-			// fmt.Printf("  %sfound%s at:%s\n", MiscLib.ColorGreen, MiscLib.ColorReset, dbgo.LF())
-			item = cur.data
-			return
+			return cur.data
 		}
-		if c < 0 && cur.left != nil {
-			// fmt.Printf("  left at:%s\n", dbgo.LF())
-			cur = (*cur).left
-		} else if c > 0 && cur.right != nil {
-			// fmt.Printf("  right at:%s\n", dbgo.LF())
-			cur = (*cur).right
+		if c < 0 {
+			cur = cur.left
 		} else {
-			// fmt.Printf("  ( not found / break loop ) at:%s\n", dbgo.LF())
-			break
+			cur = cur.right
 		}
 	}
-	// fmt.Printf("all done at:%s\n", dbgo.LF())
 	return nil
 }
 
-// Dump will print out the tree to the file `fo`.
+// Dump prints the tree to the writer `fo`.
+// Complexity is O(n).
 func (tt *AvlTree[T]) Dump(fo io.Writer) {
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
-
 	k := tt.nlDepth() * 4
 	var inorderTraversal func(cur *AvlTreeElement[T], n int)
 	inorderTraversal = func(cur *AvlTreeElement[T], n int) {
 		if cur == nil {
 			return
 		}
-		if (*cur).left != nil {
-			inorderTraversal((*cur).left, n+1)
+		if cur.left != nil {
+			inorderTraversal(cur.left, n+1)
 		}
-		fmt.Fprintf(fo, "%s%v%s (left=%p/%p, right=%p/%p) self=%p\n", strings.Repeat(" ", 4*n), *((*cur).data), strings.Repeat(" ", k-(4*n)), (*cur).left, &((*cur).left), (*cur).right, &((*cur).right), cur)
-		if (*cur).right != nil {
-			inorderTraversal((*cur).right, n+1)
+		if _, err := fmt.Fprintf(fo, "%s%v%s (left=%p/%p, right=%p/%p) self=%p\n",
+			strings.Repeat(" ", 4*n), *(cur.data), strings.Repeat(" ", k-(4*n)),
+			cur.left, &(cur.left), cur.right, &(cur.right), cur); err != nil {
+			return // stop the dump on write error
+		}
+		if cur.right != nil {
+			inorderTraversal(cur.right, n+1)
 		}
 	}
 	inorderTraversal(tt.root, 0)
 }
 
+// Delete removes the node matching `find` from the tree.  True is returned if
+// a node was removed, false otherwise.
+// Complexity is O(log2(n)).
 func (tt *AvlTree[T]) Delete(find *T) (found bool) {
 	if tt == nil {
-		panic("tree sholud not be a nil")
+		panic("operation on a nil tree")
 	}
-
-	// tt.lock.Lock()
-	// defer tt.lock.Unlock()
-
 	return tt.nlDelete(find)
 }
 
+// nlDelete is the no-lock internal version of Delete.
 func (tt *AvlTree[T]) nlDelete(find *T) (found bool) {
 
 	if tt.nlIsEmpty() {
 		return false
 	}
 
-	findLeftMostInRightSubtree := func(parent **AvlTreeElement[T]) (found bool, pAtIt **AvlTreeElement[T]) {
-		// fmt.Printf ( "%sFindLeftMost/At Top: at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
-		this := **parent
-		if *parent == nil {
-			// fmt.Printf ( "%sFindLeftMost/no tree: at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
-			return
-		}
-		for this.right != nil {
-			// fmt.Printf ( "%sAdvance 1 step. at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
-			parent = &(this.right)
-			this = **parent
-		}
-		// fmt.Printf ( "%sat bottom at:%s%s\n", MiscLib.ColorCyan, dbgo.LF(), MiscLib.ColorReset)
-		found = true
-		pAtIt = parent
-		return
-	}
-
-	// Iterative search through tree (can be used above)
-	cur := &tt.root // ptr to ptr to tree
-	for tt != nil {
-		// fmt.Printf ( "at:%s\n", dbgo.LF())
-		c := (*find).Compare(*(*cur).data)
-		if c == 0 {
-			// fmt.Printf ( "FOUND! now remove it! at:%s\n", dbgo.LF())
-			tt.length--
-			if (*cur).left == nil && (*cur).right == nil {
-				// fmt.Printf ( "at:%s\n", dbgo.LF())
-				(*cur) = nil // just delete the node, it has no children.
-			} else if (*cur).left != nil && (*cur).right == nil {
-				// fmt.Printf ( "at:%s\n", dbgo.LF())
-				(*cur) = (*cur).left // Has only left children, promote them.
-			} else if (*cur).left == nil && (*cur).right != nil {
-				// fmt.Printf ( "at:%s\n", dbgo.LF())
-				(*cur) = (*cur).right // Has only right children, promote them.
-			} else { // has both children.
-				// fmt.Printf ( "at:%s\n", dbgo.LF())
-				// Has only right children, promote them.
-				found, pAtIt := findLeftMostInRightSubtree(&((*cur).right)) // Find lft mos of right sub-tree
-				if !found {
-					// fmt.Printf ( "%sAbout to Panic: Failed to have a subtree. AT:%s%s\n", MiscLib.ColorRed, dbgo.LF(), MiscLib.ColorReset)
-					panic("Can't have a missing sub-tree.")
-				}
-				// fmt.Printf ( "at:%s\n", dbgo.LF())
-				(*cur).data = (*pAtIt).data // promote node's data.
-				// fmt.Printf ( "at:%s\n", dbgo.LF())
-				(*pAtIt) = (*pAtIt).right // Left most can have a right sub-tree - but it is left most so it can't have a more left tree.
-				// fmt.Printf ( "at:%s\n", dbgo.LF())
-			}
-			// return true
-			goto rb
-		}
-		// fmt.Printf ( "at:%s\n", dbgo.LF())
-		if c < 0 && (*cur).left != nil {
-			// fmt.Printf ( "Go Left at:%s\n", dbgo.LF())
-			cur = &((*cur).left)
-		} else if c > 0 && (*cur).right != nil {
-			// fmt.Printf ( "Go Right at:%s\n", dbgo.LF())
-			cur = &((*cur).right)
-		} else {
-			// fmt.Printf ( "not found - in loop - at:%s\n", dbgo.LF())
-			break
-		}
-	}
-
-	// Not Found
-	return false
-
-rb:
-	// Recursive with tail-recursion handeling the AVL rotation.
-	var rebalance func(root **AvlTreeElement[T])
-	rebalance = func(root **AvlTreeElement[T]) {
+	// Recursive delete with AVL rebalancing on the way back up.
+	var delete func(root **AvlTreeElement[T])
+	delete = func(root **AvlTreeElement[T]) {
 		if *root == nil {
-			// *root = node
-			// tt.length++
-			// } else if c := (*(node.data)).Compare( (*root).data ); c == 0 {
-			return
-		} else if c := (*find).Compare(*((*root).data)); c == 0 {
-			// (*root) = node
-			return
-		} else if c < 0 {
-			rebalance(&((*root).left))
-		} else {
-			rebalance(&((*root).right))
+			return // not found
 		}
-
-		// AVL section ----------------------------------------------------------------------------------
-		(*root).height = g_lib.Max(tt.Height((*root).left), tt.Height((*root).right)) + 1
-
-		b := tt.calcAvlBalance(*root)
-
-		if g_lib.Abs(b) > 1 { // If we have a height difference that is larer than 1 ( may be < -2, or +2.
-
-			z := (*root) // can change 'z' via *root
-			if z != nil && z.left != nil && z.left.left != nil {
-				// a) Left Left Case
-				// t1, t2, t3 and t4 are subtrees.
-				//          z                                      y
-				//        / \                                   /   \
-				//       y   T4      Right Rotate (z)          x      z
-				//      / \          - - - - - - - - ->      /  \    /  \
-				//     x   T3                               T1  T2  T3  T4
-				//    / \
-				//  T1   T2
-				y := z.left
-				x := y.left
-				t4 := z.right
-				t3 := y.right
-				t2 := x.right
-				t1 := x.left
-				y.left = x
-				y.right = z
-				x.left = t1
-				x.right = t2
-				z.left = t3
-				z.right = t4
-				// re-calculate - the heights based on the "subtrees" (t1, t2, t3, t4)
-				x.height = g_lib.Max(tt.Height(t1), tt.Height(t2)) + 1
-				z.height = g_lib.Max(tt.Height(t3), tt.Height(t4)) + 1
-				y.height = g_lib.Max(tt.Height(x), tt.Height(z)) + 1
-				(*root) = y
-
-			} else if z != nil && z.left != nil && z.left.right != nil {
-				// b) Left Right Case
-				// T1, T2, T3 and T4 are subtrees.
-				//      z                               z                           x
-				//     / \                            /   \                        /  \
-				//    y   T4  Left Rotate (y)        x    T4  Right Rotate(z)    y      z
-				//   / \      - - - - - - - - ->    /  \      - - - - - - - ->  / \    / \
-				// T1   x                          y    T3                    T1  T2 T3  T4
-				//     / \                        / \
-				//   T2   T3                    T1   T2
-				y := z.left
-				x := y.right
-				t4 := z.right
-				t3 := x.right
-				t2 := x.left
-				t1 := y.left
-				x.left = y
-				x.right = z
-				y.left = t1
-				y.right = t2
-				z.left = t3
-				z.right = t4
-				// re-calculate - the heights based on the "subtrees" (t1, t2, t3, t4)
-				y.height = g_lib.Max(tt.Height(t1), tt.Height(t2)) + 1
-				z.height = g_lib.Max(tt.Height(t3), tt.Height(t4)) + 1
-				x.height = g_lib.Max(tt.Height(y), tt.Height(z)) + 1
-				(*root) = x
-
-			} else if z != nil && z.right != nil && z.right.right != nil {
-				// c) Right Right Case
-				// T1, T2, T3 and T4 are subtrees.
-				//   z                                y
-				//  /  \                            /   \
-				// T1   y     Left Rotate(z)       z      x
-				//     /  \   - - - - - - - ->    / \    / \
-				//    T2   x                     T1  T2 T3  T4
-				//        / \
-				//      T3  T4
-				y := z.right
-				x := y.right
-				t4 := x.right
-				t3 := x.left
-				t2 := y.left
-				t1 := z.left
-				y.left = z
-				y.right = x
-				z.left = t1
-				z.right = t2
-				x.left = t3
-				x.right = t4
-				// re-calculate - the heights based on the "subtrees" (t1, t2, t3, t4)
-				z.height = g_lib.Max(tt.Height(t1), tt.Height(t2)) + 1
-				x.height = g_lib.Max(tt.Height(t3), tt.Height(t4)) + 1
-				y.height = g_lib.Max(tt.Height(y), tt.Height(z)) + 1
-				(*root) = y
-
-			} else if z != nil && z.right != nil && z.right.left != nil {
-				// d) Right Left Case
-				// T1, T2, T3 and T4 are subtrees.
-				//    z                            z                            x
-				//   / \                          / \                          /  \
-				// T1   y   Right Rotate (y)    T1   x      Left Rotate(z)   z      y
-				//     / \  - - - - - - - - ->     /  \   - - - - - - - ->  / \    / \
-				//    x   T4                      T2   y                  T1  T2  T3  T4
-				//   / \                              /  \
-				// T2   T3                           T3   T4
-				y := z.right
-				x := y.left
-				t4 := y.right
-				t3 := x.right
-				t2 := x.left
-				t1 := z.left
-				x.left = z
-				x.right = y
-				z.left = t1
-				z.right = t2
-				y.left = t3
-				y.right = t4
-				// re-calculate - the heights based on the "subtrees" (t1, t2, t3, t4)
-				z.height = g_lib.Max(tt.Height(t1), tt.Height(t2)) + 1
-				y.height = g_lib.Max(tt.Height(t3), tt.Height(t4)) + 1
-				x.height = g_lib.Max(tt.Height(y), tt.Height(z)) + 1
-				(*root) = x
-
-			} else {
-				panic("should never get to this point")
+		c := (*find).Compare(*((*root).data))
+		if c < 0 {
+			delete(&((*root).left))
+		} else if c > 0 {
+			delete(&((*root).right))
+		} else {
+			found = true
+			tt.length--
+			n := *root
+			switch {
+			case n.left == nil:
+				*root = n.right // leaf or single right child; may set nil
+			case n.right == nil:
+				*root = n.left // single left child
+			default:
+				// Two children: unlink the in-order successor (the leftmost
+				// node of the right subtree) and put it in n's place.
+				var removeMin func(r **AvlTreeElement[T]) *AvlTreeElement[T]
+				removeMin = func(r **AvlTreeElement[T]) *AvlTreeElement[T] {
+					if (*r).left == nil {
+						m := *r
+						*r = m.right // leftmost node may have a right subtree
+						m.right = nil
+						return m
+					}
+					rv := removeMin(&((*r).left))
+					tt.rebalanceNode(r)
+					return rv
+				}
+				succ := removeMin(&(n.right))
+				succ.left, succ.right, succ.height = n.left, n.right, n.height
+				*root = succ
+				n.left, n.right, n.data = nil, nil, nil // release the old node
 			}
 		}
+		tt.rebalanceNode(root)
 	}
 
-	rebalance(&(tt.root))
-
-	return true
+	delete(&(tt.root))
+	return
 }
 
-/*
-        {00}
-    {02}
-        {03}
-{05}
-    {09}
-*/
-
+// FindMin returns the smallest value in the tree, or nil if the tree is empty.
+// Complexity is O(log2(n)).
 func (tt *AvlTree[T]) FindMin() (item *T) {
 	if tt == nil {
-		panic("tree sholud not be a nil")
+		panic("operation on a nil tree")
 	}
-
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
-
 	return tt.nlFindMin()
 }
 
+// nlFindMin is the no-lock internal version of FindMin.
 func (tt *AvlTree[T]) nlFindMin() (item *T) {
-	if tt.nlIsEmpty() {
+	cur := tt.root
+	if cur == nil {
 		return nil
 	}
-
-	// Iterative search through tree (can be used above)
-	cur := tt.root
-	if (*cur).left == nil {
-		return (*cur).data
-	}
 	for cur.left != nil {
-		cur = (*cur).left
+		cur = cur.left
 	}
-	return (*cur).data
+	return cur.data
 }
 
-// FindMax returns the largest value in the tree.
+// FindMax returns the largest value in the tree, or nil if the tree is empty.
+// Complexity is O(log2(n)).
 func (tt *AvlTree[T]) FindMax() (item *T) {
 	if tt == nil {
-		panic("tree sholud not be a nil")
+		panic("operation on a nil tree")
 	}
-
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
-
 	return tt.nlFindMax()
 }
 
-// nlFindMax returns the largest value in the tree without locking.
+// nlFindMax is the no-lock internal version of FindMax.
 func (tt *AvlTree[T]) nlFindMax() (item *T) {
-	if tt.nlIsEmpty() {
+	cur := tt.root
+	if cur == nil {
 		return nil
 	}
-
-	// Iterative search through tree (can be used above)
-	cur := tt.root
-	if (*cur).right == nil {
-		return (*cur).data
-	}
 	for cur.right != nil {
-		cur = (*cur).right
+		cur = cur.right
 	}
-	return (*cur).data
+	return cur.data
 }
 
+// DeleteAtHead removes the smallest element of the tree, returning false if
+// the tree is empty.
+// Complexity is O(log2(n)).
 func (tt *AvlTree[T]) DeleteAtHead() (found bool) {
 	if tt == nil {
-		panic("tree sholud not be a nil")
+		panic("operation on a nil tree")
 	}
-
-	// tt.lock.Lock()
-	// defer tt.lock.Unlock()
-
 	if tt.nlIsEmpty() {
 		return false
 	}
-
 	x := tt.nlFindMin()
 	tt.nlDelete(x)
 	return true
 }
 
+// DeleteAtTail removes the largest element of the tree, returning false if
+// the tree is empty.
+// Complexity is O(log2(n)).
 func (tt *AvlTree[T]) DeleteAtTail() (found bool) {
 	if tt == nil {
-		panic("tree sholud not be a nil")
+		panic("operation on a nil tree")
 	}
-
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
-
 	if tt.nlIsEmpty() {
 		return false
 	}
-
 	x := tt.nlFindMax()
 	tt.nlDelete(x)
 	return true
 }
 
-// Reverse swaps the order of all the nodes in the AVL Tree
+// Reverse swaps the left and right children of every node, mirroring the
+// tree.  This is a strange but useful operation since it renders the tree
+// unusable for future inserts/searches unless it is reversed again.
+// Complexity is O(n).
 func (tt *AvlTree[T]) Reverse() {
 	if tt == nil {
-		panic("tree sholud not be a nil")
+		panic("operation on a nil tree")
 	}
-
-	// tt.lock.Lock()
-	// defer tt.lock.Unlock()
-
-	if tt.nlIsEmpty() {
-		return
-	}
-
 	var postTraversal func(cur *AvlTreeElement[T])
 	postTraversal = func(cur *AvlTreeElement[T]) {
 		if cur == nil {
 			return
 		}
-		if (*cur).left != nil {
-			postTraversal((*cur).left)
-		}
-		if (*cur).right != nil {
-			postTraversal((*cur).right)
-		}
-		(*cur).left, (*cur).right = (*cur).right, (*cur).left
+		postTraversal(cur.left)
+		postTraversal(cur.right)
+		cur.left, cur.right = cur.right, cur.left
 	}
 	postTraversal(tt.root)
 }
 
+// Index returns the Nth item of the tree in in-order sequence, or nil if pos
+// is out of range.
+// Complexity is O(n).
 func (tt *AvlTree[T]) Index(pos int) (item *T) {
 	if tt == nil {
-		panic("tree sholud not be a nil")
+		panic("operation on a nil tree")
 	}
-
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
-
-	if tt.nlIsEmpty() {
-		return nil
-	}
-
 	if pos < 0 || pos >= tt.length {
 		return nil
 	}
@@ -802,82 +503,52 @@ func (tt *AvlTree[T]) Index(pos int) (item *T) {
 	var done = false
 	var inorderTraversal func(cur *AvlTreeElement[T])
 	inorderTraversal = func(cur *AvlTreeElement[T]) {
-		if cur == nil {
+		if cur == nil || done {
 			return
 		}
-		if !done {
-			if (*cur).left != nil {
-				inorderTraversal((*cur).left)
-			}
-		}
-		// fmt.Printf ( "InOrder - Before Set, Top n=%d, pos=%d,    value=%+v     at:%s\n", n, pos, item, dbgo.LF() )
+		inorderTraversal(cur.left)
 		if n == pos {
-			item = (*cur).data
-			// fmt.Printf ( "*********** Set \n")
+			item = cur.data
 			done = true
 		}
 		n++
 		if !done {
-			if (*cur).right != nil {
-				inorderTraversal((*cur).right)
-			}
+			inorderTraversal(cur.right)
 		}
 	}
 	inorderTraversal(tt.root)
 	return
 }
 
+// Depth returns the height of the tree: the number of nodes on the longest
+// root-to-leaf path.  An empty tree has depth 0, a single node depth 1.
+// Complexity is O(1).
 func (tt *AvlTree[T]) Depth() (d int) {
 	if tt == nil {
-		panic("tree sholud not be a nil")
+		panic("operation on a nil tree")
 	}
-
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
-
 	return tt.nlDepth()
 }
 
+// nlDepth is the no-lock internal version of Depth.
 func (tt *AvlTree[T]) nlDepth() (d int) {
-	if tt == nil {
-		panic("tree sholud not be a nil")
-	}
-
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
-
-	if tt.nlIsEmpty() {
-		return 0
-	}
-
-	d = 0
-	var inorderTraversal func(cur *AvlTreeElement[T])
-	inorderTraversal = func(cur *AvlTreeElement[T]) {
-		if cur == nil {
-			return
-		}
-		if (*cur).left != nil {
-			inorderTraversal((*cur).left)
-			d = g_lib.Max[int](d, d+1)
-		}
-		if (*cur).right != nil {
-			inorderTraversal((*cur).right)
-			d = g_lib.Max[int](d, d+1)
-		}
-	}
-	if tt.root != nil {
-		inorderTraversal(tt.root)
-	}
-	return
+	return tt.Height(tt.root)
 }
 
+// ApplyFunction is the callback type used by the Walk* functions.  It is
+// called with the in-walk position, the depth of the node, the node data and
+// the userData passed to the walk.  Returning false stops the walk.
 type ApplyFunction[T comparable.Comparable] func(pos, depth int, data *T, userData interface{}) bool
 
+// WalkInOrder walks the tree in-order applying `fx` to each node.  If `fx`
+// returns false the walk stops.
+// Complexity is O(n).
 func (tt *AvlTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) {
+	tt.nlWalkInOrder(fx, userData)
+}
 
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
-
+// nlWalkInOrder is the no-lock internal version of WalkInOrder.
+func (tt *AvlTree[T]) nlWalkInOrder(fx ApplyFunction[T], userData interface{}) {
 	p := 0
 	b := true
 	var inorderTraversal func(cur *AvlTreeElement[T], n int)
@@ -886,29 +557,23 @@ func (tt *AvlTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) {
 			return
 		}
 		if b {
-			if (*cur).left != nil {
-				inorderTraversal((*cur).left, n+1)
-			}
+			inorderTraversal(cur.left, n+1)
 		}
-		// ----------------------------------------------------------------------
-		b = b && fx(p, n, (*cur).data, userData)
-		p++
-		// ----------------------------------------------------------------------
 		if b {
-			if (*cur).right != nil {
-				inorderTraversal((*cur).right, n+1)
-			}
+			b = fx(p, n, cur.data, userData)
+			p++
+		}
+		if b {
+			inorderTraversal(cur.right, n+1)
 		}
 	}
-
 	inorderTraversal(tt.root, 0)
 }
 
+// WalkPreOrder walks the tree pre-order applying `fx` to each node.  If `fx`
+// returns false the walk stops.
+// Complexity is O(n).
 func (tt *AvlTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
-
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
-
 	p := 0
 	b := true
 	var preOrderTraversal func(cur *AvlTreeElement[T], n int)
@@ -916,30 +581,22 @@ func (tt *AvlTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
 		if cur == nil {
 			return
 		}
-		// ----------------------------------------------------------------------
-		b = b && fx(p, n, (*cur).data, userData)
-		// ----------------------------------------------------------------------
-		if b {
-			if (*cur).left != nil {
-				preOrderTraversal((*cur).left, n+1)
-			}
-		}
+		b = fx(p, n, cur.data, userData)
 		p++
 		if b {
-			if (*cur).right != nil {
-				preOrderTraversal((*cur).right, n+1)
-			}
+			preOrderTraversal(cur.left, n+1)
+		}
+		if b {
+			preOrderTraversal(cur.right, n+1)
 		}
 	}
-
 	preOrderTraversal(tt.root, 0)
 }
 
+// WalkPostOrder walks the tree post-order applying `fx` to each node.  If `fx`
+// returns false the walk stops.
+// Complexity is O(n).
 func (tt *AvlTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
-
-	// tt.lock.RLock()
-	// defer tt.lock.RUnlock()
-
 	p := 0
 	b := true
 	var postOrderTraversal func(cur *AvlTreeElement[T], n int)
@@ -948,24 +605,99 @@ func (tt *AvlTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
 			return
 		}
 		if b {
-			if (*cur).left != nil {
-				postOrderTraversal((*cur).left, n+1)
-			}
+			postOrderTraversal(cur.left, n+1)
 		}
-		p++
 		if b {
-			if (*cur).right != nil {
-				postOrderTraversal((*cur).right, n+1)
-			}
+			postOrderTraversal(cur.right, n+1)
 		}
-		// ----------------------------------------------------------------------
-		b = b && fx(p, n, (*cur).data, userData)
-		// ----------------------------------------------------------------------
+		if b {
+			b = fx(p, n, cur.data, userData)
+			p++
+		}
 	}
-
 	postOrderTraversal(tt.root, 0)
 }
 
-const db1 = false // print in IsEmpty
+// toSlice returns the data of the tree in in-order (sorted) sequence.
+// Complexity is O(n).
+func (tt *AvlTree[T]) toSlice() (rv []*T) {
+	tt.nlWalkInOrder(func(_, _ int, data *T, _ interface{}) bool {
+		rv = append(rv, data)
+		return true
+	}, nil)
+	return
+}
+
+// Copy replaces the contents of tt with a copy of yy.  The data items are
+// shared, not deep-copied.
+// Complexity is O(n log2(n)).
+func (tt *AvlTree[T]) Copy(yy *AvlTree[T]) {
+	if tt == nil {
+		panic("operation on a nil tree")
+	}
+	data := yy.toSlice()
+	tt.nlTruncate()
+	for _, d := range data {
+		tt.nlInsert(d)
+	}
+}
+
+// Union is a set union, tt = yy union zz.  If an item is in both yy and zz
+// the one from zz is kept.
+// Complexity is O(n log2(n)).
+func (tt *AvlTree[T]) Union(yy, zz *AvlTree[T]) {
+	if tt == nil {
+		panic("operation on a nil tree")
+	}
+	a := yy.toSlice()
+	b := zz.toSlice()
+	tt.nlTruncate()
+	for _, d := range a {
+		tt.nlInsert(d)
+	}
+	for _, d := range b {
+		tt.nlInsert(d)
+	}
+}
+
+// Minus is a set minus, tt = yy - zz.
+// Complexity is O(n log2(n)).
+func (tt *AvlTree[T]) Minus(yy, zz *AvlTree[T]) {
+	if tt == nil {
+		panic("operation on a nil tree")
+	}
+	a := yy.toSlice()
+	b := zz.toSlice()
+	var zzTree AvlTree[T]
+	for _, d := range b {
+		zzTree.nlInsert(d)
+	}
+	tt.nlTruncate()
+	for _, d := range a {
+		if zzTree.nlSearch(d) == nil {
+			tt.nlInsert(d)
+		}
+	}
+}
+
+// Intersect is a set intersection, tt = yy intersect zz.
+// Complexity is O(n log2(n)).
+func (tt *AvlTree[T]) Intersect(yy, zz *AvlTree[T]) {
+	if tt == nil {
+		panic("operation on a nil tree")
+	}
+	a := yy.toSlice()
+	b := zz.toSlice()
+	var zzTree AvlTree[T]
+	for _, d := range b {
+		zzTree.nlInsert(d)
+	}
+	tt.nlTruncate()
+	for _, d := range a {
+		if zzTree.nlSearch(d) != nil {
+			tt.nlInsert(d)
+		}
+	}
+}
 
 /* vim: set noai ts=4 sw=4: */
