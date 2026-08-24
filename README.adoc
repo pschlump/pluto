@@ -13,4 +13,6 @@
 5. BalancedTree. (being tested)
 	. avl
 6. Skip List. In the ./skip_list directory; a thread-safe version is in ./skip_list_ts.
+7. Doubly-Linked Skip List. In the ./skip_list_dll directory (O(1)-space reverse iteration); a thread-safe version is in ./skip_list_dll_ts.
+8. Red-Black Tree. In the ./rb_tree directory; a thread-safe version is in ./rb_tree_ts.
 
