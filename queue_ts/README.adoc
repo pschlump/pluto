@@ -12,16 +12,16 @@ The zero value of `Queue[T]` is an empty queue ready to use.
 == Operations
 
 |===
-| Operation | Description | Complexity
+| Operation                | Description                                          | Complexity
 
-| `Push(t)` / `Enqueue(t)` | Insert an element at the tail | O(1) amortized
-| `Pop()` | Remove the head element | O(1)
-| `Dequeue()` | Remove and return the head element | O(1)
-| `Peek()` | Return the head element without removing it | O(1)
-| `IsEmpty()` | True if the queue is empty | O(1)
-| `Length()` | Number of elements | O(1)
-| `Truncate()` | Remove all elements | O(1)
-| `All()` / `Backward()` | Range-over-func iterators over a consistent snapshot | O(n)
+| `Push(t)` / `Enqueue(t)` | Insert an element at the tail                        | O(1) amortized
+| `Pop()`                  | Remove the head element                              | O(1)
+| `Dequeue()`              | Remove and return the head element                   | O(1)
+| `Peek()`                 | Return the head element without removing it          | O(1)
+| `IsEmpty()`              | True if the queue is empty                           | O(1)
+| `Length()`               | Number of elements                                   | O(1)
+| `Truncate()`             | Remove all elements                                  | O(1)
+| `All()` / `Backward()`   | Range-over-func iterators over a consistent snapshot | O(n)
 |===
 
 `Pop`, `Dequeue` and `Truncate` zero/release the removed elements so the

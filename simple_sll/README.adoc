@@ -12,19 +12,19 @@ Go 1.23+ range-over-func iterators (`IterateOver`, `IteratePtr`).
 
 [cols="2,1,3",options="header"]
 |===
-| Operation | Complexity | Notes
+| Operation                    | Complexity     | Notes
 
-| `NewSll`            | O(1) | Create an empty list.
-| `IsEmpty`           | O(1) | True if the list is empty.
-| `Length`            | O(1) | Number of elements.
-| `Push` / `InsertBeforeHead` | O(1) | Prepend at the head.
-| `InsertAfterTail`   | O(1) | Append at the tail.
-| `Pop`               | O(1) | Remove and return the head element; `ErrEmptySll` if empty.
-| `Peek`              | O(1) | Return the head element without removing it.
-| `Search`            | O(n) | Head-to-tail search using `IsEqual`; returns the node and its index.
-| `Delete`            | O(n) | Unlink a node returned by `Search`; `ErrNotFound` if not in the list.
-| `Truncate`          | O(1) | Remove all elements.
-| `Front` / `Current` iterator | O(1) per step | Old-style manual iterator.
+| `NewSll`                     | O(1)           | Create an empty list.
+| `IsEmpty`                    | O(1)           | True if the list is empty.
+| `Length`                     | O(1)           | Number of elements.
+| `Push` / `InsertBeforeHead`  | O(1)           | Prepend at the head.
+| `InsertAfterTail`            | O(1)           | Append at the tail.
+| `Pop`                        | O(1)           | Remove and return the head element; `ErrEmptySll` if empty.
+| `Peek`                       | O(1)           | Return the head element without removing it.
+| `Search`                     | O(n)           | Head-to-tail search using `IsEqual`; returns the node and its index.
+| `Delete`                     | O(n)           | Unlink a node returned by `Search`; `ErrNotFound` if not in the list.
+| `Truncate`                   | O(1)           | Remove all elements.
+| `Front` / `Current` iterator | O(1) per step  | Old-style manual iterator.
 | `IterateOver` / `IteratePtr` | O(n) full pass | Go 1.23+ range-over-func iterators.
 |===
 

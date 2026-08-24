@@ -15,16 +15,16 @@ The code is a conversion of an earlier `Stack` that used `interface{}`.
 
 [cols="1,1,2"]
 |===
-|Operation |Cost |Notes
+| Operation  | Cost           | Notes
 
-|`Push`      |amortized O(1) |appends to the backing slice
-|`Pop`       |O(1) |zeroes the popped slot so the GC can reclaim the value
-|`Peek`      |O(1) |returns a pointer to the top element
-|`IsEmpty`   |O(1) |
-|`Length`    |O(1) |
-|`Truncate`  |O(1) |releases the backing array
-|`All`       |O(n) |iterates top to bottom
-|`Backward`  |O(n) |iterates bottom to top
+| `Push`     | amortized O(1) | appends to the backing slice
+| `Pop`      | O(1)           | zeroes the popped slot so the GC can reclaim the value
+| `Peek`     | O(1)           | returns a pointer to the top element
+| `IsEmpty`  | O(1)           |
+| `Length`   | O(1)           |
+| `Truncate` | O(1)           | releases the backing array
+| `All`      | O(n)           | iterates top to bottom
+| `Backward` | O(n)           | iterates bottom to top
 |===
 
 == Example

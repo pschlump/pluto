@@ -13,25 +13,25 @@ plus a small set of numeric constraints defined in this package
 
 [cols="1,2,1",options="header"]
 |===
-| Function | Description | Complexity
+| Function                 | Description                                                    | Complexity
 
-| `Min`, `Max` | Smaller / larger of two ordered values | O(1)
-| `MinArray`, `MaxArray` | Smallest / largest element of a slice (zero value if empty) | O(n)
-| `Abs` | Absolute value of a signed numeric value | O(1)
-| `Pow` | `base` raised to `exponent` by repeated multiplication | O(exponent)
-| `IfTrue` | Ternary-style selector: `a` if `on`, else `b` | O(1)
-| `InArray` | Linear membership test in a slice | O(n)
-| `LocationInArray` | Index of first occurrence, or -1 | O(n)
-| `RemoveAt` | Copy of slice with item at `pos` removed; input never modified | O(n)
-| `Remove` | New slice without items `reflect.DeepEqual` to `needle` | O(n)
-| `RemoveComparable` | New slice without items equal to `element` | O(n)
-| `Unique` | Slice with duplicates removed, first-occurrence order | O(n)
-| `EqualSlice` | Element-wise slice equality | O(n)
-| `SortSlice` | In-place ascending sort | O(n log n)
-| `ToBoolMap` | Slice to set (`map[T]bool`) | O(n)
-| `KeysForStringMap` | Keys of a `map[string]T`, unspecified order | O(n)
-| `SortedKeysForStringMap` | Keys of a `map[string]T`, sorted | O(n log n)
-| `GetMapKeys` | Keys of any map, unspecified order | O(n)
+| `Min`, `Max`             | Smaller / larger of two ordered values                         | O(1)
+| `MinArray`, `MaxArray`   | Smallest / largest element of a slice (zero value if empty)    | O(n)
+| `Abs`                    | Absolute value of a signed numeric value                       | O(1)
+| `Pow`                    | `base` raised to `exponent` by repeated multiplication         | O(exponent)
+| `IfTrue`                 | Ternary-style selector: `a` if `on`, else `b`                  | O(1)
+| `InArray`                | Linear membership test in a slice                              | O(n)
+| `LocationInArray`        | Index of first occurrence, or -1                               | O(n)
+| `RemoveAt`               | Copy of slice with item at `pos` removed; input never modified | O(n)
+| `Remove`                 | New slice without items `reflect.DeepEqual` to `needle`        | O(n)
+| `RemoveComparable`       | New slice without items equal to `element`                     | O(n)
+| `Unique`                 | Slice with duplicates removed, first-occurrence order          | O(n)
+| `EqualSlice`             | Element-wise slice equality                                    | O(n)
+| `SortSlice`              | In-place ascending sort                                        | O(n log n)
+| `ToBoolMap`              | Slice to set (`map[T]bool`)                                    | O(n)
+| `KeysForStringMap`       | Keys of a `map[string]T`, unspecified order                    | O(n)
+| `SortedKeysForStringMap` | Keys of a `map[string]T`, sorted                               | O(n log n)
+| `GetMapKeys`             | Keys of any map, unspecified order                             | O(n)
 |===
 
 == Example

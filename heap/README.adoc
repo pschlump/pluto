@@ -12,22 +12,22 @@ Use `NewHeap[T]()` to create a heap.
 == Operations
 
 |===
-| Operation | Description | Complexity
+| Operation                | Description                                                          | Complexity
 
-| `Push(x)` | Insert an element | O(log n)
-| `Pop()` | Remove and return the minimum element (nil if empty) | O(log n)
-| `Peek()` | Return the minimum element without removing it (nil if empty) | O(1)
-| `Delete(ii)` | Remove and return the element at index `ii` (panics if out of range) | O(log n)
-| `Fix(ii, newValue)` | Replace element at `ii` and re-establish heap order | O(log n)
-| `SetValue(ii, newValue)` | Alias for `Fix` | O(log n)
-| `GetValue(ii)` | Return the element at index `ii` (panics if out of range) | O(1)
-| `Search(cmpVal)` | Linear scan; returns element and index, or nil, -1, nil | O(n)
-| `Len()` / `Length()` | Number of elements | O(1)
-| `Truncate()` | Remove all elements | O(1)
-| `AppendHeap(x)` | Append a slice of elements (heap order NOT maintained) | O(m)
-| `Heapify(n, i)` | Re-establish heap order in the sub-tree rooted at `i` | O(log n)
-| `All()` | Range-over-func iterator (Go 1.23+) in internal heap order | O(n)
-| `Dump(fp)` | Write the heap contents to `fp` | O(n)
+| `Push(x)`                | Insert an element                                                    | O(log n)
+| `Pop()`                  | Remove and return the minimum element (nil if empty)                 | O(log n)
+| `Peek()`                 | Return the minimum element without removing it (nil if empty)        | O(1)
+| `Delete(ii)`             | Remove and return the element at index `ii` (panics if out of range) | O(log n)
+| `Fix(ii, newValue)`      | Replace element at `ii` and re-establish heap order                  | O(log n)
+| `SetValue(ii, newValue)` | Alias for `Fix`                                                      | O(log n)
+| `GetValue(ii)`           | Return the element at index `ii` (panics if out of range)            | O(1)
+| `Search(cmpVal)`         | Linear scan; returns element and index, or nil, -1, nil              | O(n)
+| `Len()` / `Length()`     | Number of elements                                                   | O(1)
+| `Truncate()`             | Remove all elements                                                  | O(1)
+| `AppendHeap(x)`          | Append a slice of elements (heap order NOT maintained)               | O(m)
+| `Heapify(n, i)`          | Re-establish heap order in the sub-tree rooted at `i`                | O(log n)
+| `All()`                  | Range-over-func iterator (Go 1.23+) in internal heap order           | O(n)
+| `Dump(fp)`               | Write the heap contents to `fp`                                      | O(n)
 |===
 
 `Pop`, `Delete` and `Truncate` zero/release the removed elements so the

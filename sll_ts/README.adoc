@@ -18,22 +18,22 @@ queue-like insertion at the tail (`InsertAfterTail`), value-based `Search`,
 
 [cols="2,1,3"]
 |===
-|Operation |Complexity |Notes
+| Operation                  | Complexity | Notes
 
-|`NewSll`            |O(1) |
-|`IsEmpty`           |O(1) |
-|`Length`            |O(1) |
-|`InsertBeforeHead`  |O(1) |also `Push`
-|`InsertAfterTail`   |O(1) |maintains a tail pointer
-|`Pop`               |O(1) |returns `ErrEmptySll` when empty
-|`Peek`              |O(1) |returns `ErrEmptySll` when empty
-|`Search`            |O(n) |head to tail, returns element and position
-|`Delete`            |O(n) |returns `ErrNotFound` when missing
-|`DeleteFound`       |O(n) |deletes by value of a found element
-|`Reverse`           |O(n) |O(1) extra storage
-|`Truncate`          |O(1) |drops all elements
-|`Dump`              |O(n) |
-|`IterateOver`/`IteratePtr` |O(n) |full traversal, O(n) snapshot
+| `NewSll`                   | O(1)       |
+| `IsEmpty`                  | O(1)       |
+| `Length`                   | O(1)       |
+| `InsertBeforeHead`         | O(1)       | also `Push`
+| `InsertAfterTail`          | O(1)       | maintains a tail pointer
+| `Pop`                      | O(1)       | returns `ErrEmptySll` when empty
+| `Peek`                     | O(1)       | returns `ErrEmptySll` when empty
+| `Search`                   | O(n)       | head to tail, returns element and position
+| `Delete`                   | O(n)       | returns `ErrNotFound` when missing
+| `DeleteFound`              | O(n)       | deletes by value of a found element
+| `Reverse`                  | O(n)       | O(1) extra storage
+| `Truncate`                 | O(1)       | drops all elements
+| `Dump`                     | O(n)       |
+| `IterateOver`/`IteratePtr` | O(n)       | full traversal, O(n) snapshot
 |===
 
 == Example

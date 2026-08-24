@@ -16,24 +16,24 @@ same exported API, with every operation guarded by a `sync.RWMutex`.
 
 [cols="2,1,4",options="header"]
 |===
-| Operation | Cost | Notes
+| Operation                                      | Cost | Notes
 
-| `InsertBeforeHead`, `Push`       | O(1) | insert at head
-| `AppendAtTail`, `Enqueue`        | O(1) | append at tail
-| `Pop`, `DeleteAtHead`            | O(1) | remove from head
-| `PopTail`, `DeleteAtTail`        | O(1) | remove from tail
-| `Peek`, `PeekTail`               | O(1) | inspect head/tail
-| `IsEmpty`, `Length`              | O(1) |
-| `Index`, `IndexFromTail`         | O(n) | n/2 on average (walks from nearest end)
-| `Search`, `ReverseSearch`        | O(n) | linear, uses `IsEqual`
-| `Delete`, `DeleteSearch`         | O(n) | search + delete
-| `DeleteFound`                    | O(1) | delete element from `Search`/`Index`
-| `Walk`, `ReverseWalk`            | O(n) | callback iteration
+| `InsertBeforeHead`, `Push`                     | O(1) | insert at head
+| `AppendAtTail`, `Enqueue`                      | O(1) | append at tail
+| `Pop`, `DeleteAtHead`                          | O(1) | remove from head
+| `PopTail`, `DeleteAtTail`                      | O(1) | remove from tail
+| `Peek`, `PeekTail`                             | O(1) | inspect head/tail
+| `IsEmpty`, `Length`                            | O(1) |
+| `Index`, `IndexFromTail`                       | O(n) | n/2 on average (walks from nearest end)
+| `Search`, `ReverseSearch`                      | O(n) | linear, uses `IsEqual`
+| `Delete`, `DeleteSearch`                       | O(n) | search + delete
+| `DeleteFound`                                  | O(1) | delete element from `Search`/`Index`
+| `Walk`, `ReverseWalk`                          | O(n) | callback iteration
 | `All`, `Backward`, `IterateOver`, `IteratePtr` | O(n) | Go 1.23+ range-over-func iterators
-| `Reverse`, `ReverseList`         | O(n) | O(1) extra storage
-| `Trim`, `TrimTail`               | O(n) | cut list to length n
-| `Concat`                         | O(n) | append a copy of another list
-| `Truncate`                       | O(1) | drop all elements
+| `Reverse`, `ReverseList`                       | O(n) | O(1) extra storage
+| `Trim`, `TrimTail`                             | O(n) | cut list to length n
+| `Concat`                                       | O(n) | append a copy of another list
+| `Truncate`                                     | O(1) | drop all elements
 |===
 
 == Example
