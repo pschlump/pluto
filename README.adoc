@@ -12,4 +12,5 @@
 4. DLL. Doubley Linked List with Head and Tail Pointers.
 5. BalancedTree. (being tested)
 	. avl
+6. Skip List. In the ./skip_list directory; a thread-safe version is in ./skip_list_ts.
 
