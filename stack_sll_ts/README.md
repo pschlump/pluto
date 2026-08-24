@@ -12,15 +12,15 @@ inherited from `sll_ts`).
 
 ## Complexity
 
-| Operation  | Cost | Notes                              |
-|------------|------|------------------------------------|
-| `Push`     | O(1) | inserts at the head of the list    |
-| `Pop`      | O(1) | returns `sll_ts.ErrEmptySll` when empty |
-| `Peek`     | O(1) | returns the top element pointer    |
-| `IsEmpty`  | O(1) |                                    |
-| `Length`   | O(1) |                                    |
-| `Truncate` | O(1) | unlinks all nodes                  |
-| `All`      | O(n) | iterates top to bottom             |
+| Operation  | Cost | Notes                                        |
+|------------|------|----------------------------------------------|
+| `Push`     | O(1) | inserts at the head of the list              |
+| `Pop`      | O(1) | returns `sll_ts.ErrEmptySll` when empty      |
+| `Peek`     | O(1) | returns the top element pointer              |
+| `IsEmpty`  | O(1) |                                              |
+| `Length`   | O(1) |                                              |
+| `Truncate` | O(1) | unlinks all nodes                            |
+| `All`      | O(n) | iterates top to bottom                       |
 | `Backward` | O(n) | iterates bottom to top; O(n) temporary space |
 
 ## Example

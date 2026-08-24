@@ -21,17 +21,17 @@ identical API.
 
 ## Complexity
 
-| Operation   | Average        | Notes                                  |
-|-------------|----------------|----------------------------------------|
-| `Insert`    | O(log(n/k))    | k = number of buckets                  |
-| `Search`    | O(log(n/k))    |                                        |
-| `ItemExists`| O(log(n/k))    |                                        |
-| `Delete`    | O(log(n/k))    |                                        |
-| `IsEmpty`   | O(1)           |                                        |
-| `Len` / `Length` | O(1)      |                                        |
-| `Truncate`  | O(k)           | resets every bucket                    |
-| `Walk` / `WalkFunc` / `All` | O(n) | visit every element         |
-| `Dump`      | O(n)           |                                        |
+| Operation                   | Average     | Notes                 |
+|-----------------------------|-------------|-----------------------|
+| `Insert`                    | O(log(n/k)) | k = number of buckets |
+| `Search`                    | O(log(n/k)) |                       |
+| `ItemExists`                | O(log(n/k)) |                       |
+| `Delete`                    | O(log(n/k)) |                       |
+| `IsEmpty`                   | O(1)        |                       |
+| `Len` / `Length`            | O(1)        |                       |
+| `Truncate`                  | O(k)        | resets every bucket   |
+| `Walk` / `WalkFunc` / `All` | O(n)        | visit every element   |
+| `Dump`                      | O(n)        |                       |
 
 Worst case (all keys in one bucket) degenerates to the binary tree's
 O(n) per operation.

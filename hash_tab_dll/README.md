@@ -20,19 +20,19 @@ removes exactly one copy.
 `n` = number of elements, `k` = number of buckets. Bucket chains average
 `n/k` in length with a reasonable hash.
 
-| Operation   | Complexity | Notes                                             |
-|-------------|------------|---------------------------------------------------|
-| `Insert`    | O(1)       | insert at bucket head                             |
-| `Search`    | O(n/k)     | hash + walk one bucket chain                      |
-| `Delete`    | O(n/k)     | hash + walk one bucket chain                      |
-| `DeleteFound` | O(1)     | remove an element returned by `Search`/`Walk`     |
-| `ItemExists` | O(n/k)    | membership test                                   |
-| `IsEmpty`   | O(1)       |                                                   |
-| `Len`/`Length` | O(1)    |                                                   |
-| `Truncate`  | O(k)       | clears every bucket                               |
-| `Walk`      | O(n)       | callback iteration, can stop early                |
-| `All`       | O(n)       | range-over-func iterator over all elements        |
-| `Dump`      | O(n)       | diagnostic print                                  |
+| Operation      | Complexity | Notes                                         |
+|----------------|------------|-----------------------------------------------|
+| `Insert`       | O(1)       | insert at bucket head                         |
+| `Search`       | O(n/k)     | hash + walk one bucket chain                  |
+| `Delete`       | O(n/k)     | hash + walk one bucket chain                  |
+| `DeleteFound`  | O(1)       | remove an element returned by `Search`/`Walk` |
+| `ItemExists`   | O(n/k)     | membership test                               |
+| `IsEmpty`      | O(1)       |                                               |
+| `Len`/`Length` | O(1)       |                                               |
+| `Truncate`     | O(k)       | clears every bucket                           |
+| `Walk`         | O(n)       | callback iteration, can stop early            |
+| `All`          | O(n)       | range-over-func iterator over all elements    |
+| `Dump`         | O(n)       | diagnostic print                              |
 
 ## Example
 

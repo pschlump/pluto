@@ -13,19 +13,19 @@ For a balanced alternative, see `avl_tree`.
 The tree is not balanced, so the average-case `O(log n)` operations degrade
 to `O(n)` when items are inserted in sorted order.
 
-| Operation          | Average      | Worst case | Notes                              |
-|--------------------|--------------|------------|------------------------------------|
-| `Insert`           | O(log n)     | O(n)       | duplicate keys replace stored item |
-| `Search`           | O(log n)     | O(n)       | returns `nil` when not found       |
-| `Delete`           | O(log n)     | O(n)       | returns `false` when not found     |
-| `FindMin`/`FindMax`| O(log n)     | O(n)       |                                    |
-| `DeleteAtHead`/`DeleteAtTail` | O(log n) | O(n) | remove smallest/largest    |
-| `IsEmpty`/`Length` | O(1)         | O(1)       |                                    |
-| `Truncate`         | O(1)         | O(1)       | drops the whole tree               |
-| `Depth`            | O(n)         | O(n)       | nodes on longest root-to-leaf path |
-| `Index`            | O(n)         | O(n)       | item at in-order position          |
-| `Reverse`          | O(n)         | O(n)       | mirrors the tree in place          |
-| `Walk*`/`All`/`Backward` | O(n)   | O(n)       | full traversal                     |
+| Operation                     | Average  | Worst case | Notes                              |
+|-------------------------------|----------|------------|------------------------------------|
+| `Insert`                      | O(log n) | O(n)       | duplicate keys replace stored item |
+| `Search`                      | O(log n) | O(n)       | returns `nil` when not found       |
+| `Delete`                      | O(log n) | O(n)       | returns `false` when not found     |
+| `FindMin`/`FindMax`           | O(log n) | O(n)       |                                    |
+| `DeleteAtHead`/`DeleteAtTail` | O(log n) | O(n)       | remove smallest/largest            |
+| `IsEmpty`/`Length`            | O(1)     | O(1)       |                                    |
+| `Truncate`                    | O(1)     | O(1)       | drops the whole tree               |
+| `Depth`                       | O(n)     | O(n)       | nodes on longest root-to-leaf path |
+| `Index`                       | O(n)     | O(n)       | item at in-order position          |
+| `Reverse`                     | O(n)     | O(n)       | mirrors the tree in place          |
+| `Walk*`/`All`/`Backward`      | O(n)     | O(n)       | full traversal                     |
 
 ## Usage
 

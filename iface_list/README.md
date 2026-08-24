@@ -9,13 +9,13 @@ lets callers swap implementations — for example between `sll` and `sll_ts`
 
 ## Interfaces
 
-| Interface | Shape | Implementations |
-|---|---|---|
-| `LinearDataType[T]` | Full list API: insert/append/push, delete, peek/pop, reverse | `sll`, `sll_ts`, `dll`, `dll_ts` |
-| `StackDataType[T]` | LIFO: Push, Pop, Peek | `sll`, `sll_ts`, `dll`, `dll_ts` |
-| `QueueDataType[T]` | FIFO: EnQueue, Pop, Peek | `sll`, `sll_ts`, `dll`, `dll_ts` |
-| `TreeDataType[T]` | Insert, Delete, Search, FindMin/FindMax, Depth | `binary_tree`, `binary_tree_ts`, `avl_tree`, `avl_tree_ts` |
-| `PriorityQueueDataType[T]` | Insert, Pop, Depth | `priority_queue` |
+| Interface                  | Shape                                                        | Implementations                                            |
+|----------------------------|--------------------------------------------------------------|------------------------------------------------------------|
+| `LinearDataType[T]`        | Full list API: insert/append/push, delete, peek/pop, reverse | `sll`, `sll_ts`, `dll`, `dll_ts`                           |
+| `StackDataType[T]`         | LIFO: Push, Pop, Peek                                        | `sll`, `sll_ts`, `dll`, `dll_ts`                           |
+| `QueueDataType[T]`         | FIFO: EnQueue, Pop, Peek                                     | `sll`, `sll_ts`, `dll`, `dll_ts`                           |
+| `TreeDataType[T]`          | Insert, Delete, Search, FindMin/FindMax, Depth               | `binary_tree`, `binary_tree_ts`, `avl_tree`, `avl_tree_ts` |
+| `PriorityQueueDataType[T]` | Insert, Pop, Depth                                           | `priority_queue`                                           |
 
 All interfaces also include `IsEmpty`, `Length`, `Truncate`, and (except
 `PriorityQueueDataType`) `ConvertToSlice`.

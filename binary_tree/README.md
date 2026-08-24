@@ -13,20 +13,20 @@ guaranteed `O(log n)` operations see [`avl_tree`](../avl_tree).
 Because the tree is not self-balancing, the "average" column assumes randomly
 ordered input; sorted input degenerates to a linked list.
 
-| Operation | Average | Worst case | Notes |
-|---|---|---|---|
-| `Insert` | O(log₂ n) | O(n) | duplicate replaces existing element, returns false |
-| `Search` | O(log₂ n) | O(n) | returns nil when not found |
-| `Delete` / `DeleteMatch` | O(log₂ n) | O(n) | returns false when not found |
-| `FindMin` / `FindMax` | O(log₂ n) | O(n) | nil on an empty tree |
-| `DeleteAtHead` / `DeleteAtTail` | O(log₂ n) | O(n) | removes the min / max element |
-| `IsEmpty`, `Len`, `Length` | O(1) | O(1) | |
-| `Truncate` | O(1) | O(1) | drops the whole tree |
-| `Index` | O(n) | O(n) | Nth element in in-order order |
-| `Depth` | O(n) | O(n) | levels in the deepest part; empty tree is 0 |
-| `Reverse` | O(n) | O(n) | swaps left/right children of every node |
-| `WalkInOrder` / `WalkPreOrder` / `WalkPostOrder`, `WalkFunc` | O(n) | O(n) | callback traversals |
-| `Front` iterator, `All`, `Backward` | O(n) total | O(n) total | see Iteration below |
+| Operation                                                    | Average    | Worst case | Notes                                              |
+|--------------------------------------------------------------|------------|------------|----------------------------------------------------|
+| `Insert`                                                     | O(log₂ n)  | O(n)       | duplicate replaces existing element, returns false |
+| `Search`                                                     | O(log₂ n)  | O(n)       | returns nil when not found                         |
+| `Delete` / `DeleteMatch`                                     | O(log₂ n)  | O(n)       | returns false when not found                       |
+| `FindMin` / `FindMax`                                        | O(log₂ n)  | O(n)       | nil on an empty tree                               |
+| `DeleteAtHead` / `DeleteAtTail`                              | O(log₂ n)  | O(n)       | removes the min / max element                      |
+| `IsEmpty`, `Len`, `Length`                                   | O(1)       | O(1)       |                                                    |
+| `Truncate`                                                   | O(1)       | O(1)       | drops the whole tree                               |
+| `Index`                                                      | O(n)       | O(n)       | Nth element in in-order order                      |
+| `Depth`                                                      | O(n)       | O(n)       | levels in the deepest part; empty tree is 0        |
+| `Reverse`                                                    | O(n)       | O(n)       | swaps left/right children of every node            |
+| `WalkInOrder` / `WalkPreOrder` / `WalkPostOrder`, `WalkFunc` | O(n)       | O(n)       | callback traversals                                |
+| `Front` iterator, `All`, `Backward`                          | O(n) total | O(n) total | see Iteration below                                |
 
 ## Usage
 

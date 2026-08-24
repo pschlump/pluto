@@ -15,21 +15,21 @@ by a `sync.RWMutex`.
 
 ## Operations
 
-| Operation | Description | Complexity |
-|---|---|---|
-| `Insert` | Add an element; duplicates replace the old data | O(log n) |
-| `Delete` | Remove an element; reports whether it was found | O(log n) |
-| `Search` | Return the stored element equal to the probe, or nil | O(log n) |
-| `FindMin` / `FindMax` | Return the smallest / largest element | O(log n) |
-| `DeleteAtHead` / `DeleteAtTail` | Remove the smallest / largest element | O(log n) |
-| `Index` | Return the Nth element in in-order sequence | O(n) |
-| `IsEmpty` / `Length` / `Depth` | Tree size and height queries | O(1) |
-| `Truncate` | Remove all elements | O(1) |
-| `Reverse` | Mirror the tree (mainly useful for testing) | O(n) |
-| `WalkInOrder` / `WalkPreOrder` / `WalkPostOrder` | Apply a function to every node | O(n) |
-| `Copy` / `Union` / `Minus` / `Intersect` | Whole-tree set operations | O(n log n) |
-| `Front` + `Next`/`Value`/`Done` | Old-style in-order iterator | O(n) total |
-| `All` / `Backward` | Go 1.23 range-over-func iterators | O(n) |
+| Operation                                        | Description                                          | Complexity |
+|--------------------------------------------------|------------------------------------------------------|------------|
+| `Insert`                                         | Add an element; duplicates replace the old data      | O(log n)   |
+| `Delete`                                         | Remove an element; reports whether it was found      | O(log n)   |
+| `Search`                                         | Return the stored element equal to the probe, or nil | O(log n)   |
+| `FindMin` / `FindMax`                            | Return the smallest / largest element                | O(log n)   |
+| `DeleteAtHead` / `DeleteAtTail`                  | Remove the smallest / largest element                | O(log n)   |
+| `Index`                                          | Return the Nth element in in-order sequence          | O(n)       |
+| `IsEmpty` / `Length` / `Depth`                   | Tree size and height queries                         | O(1)       |
+| `Truncate`                                       | Remove all elements                                  | O(1)       |
+| `Reverse`                                        | Mirror the tree (mainly useful for testing)          | O(n)       |
+| `WalkInOrder` / `WalkPreOrder` / `WalkPostOrder` | Apply a function to every node                       | O(n)       |
+| `Copy` / `Union` / `Minus` / `Intersect`         | Whole-tree set operations                            | O(n log n) |
+| `Front` + `Next`/`Value`/`Done`                  | Old-style in-order iterator                          | O(n) total |
+| `All` / `Backward`                               | Go 1.23 range-over-func iterators                    | O(n)       |
 
 ## Usage
 

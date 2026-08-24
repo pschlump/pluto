@@ -18,14 +18,14 @@ a `sync.RWMutex`.
 
 ## Complexity
 
-| Operation  | Average  | Worst case | Notes                                  |
-|------------|----------|------------|----------------------------------------|
-| `Insert`   | O(1)     | O(n)       | amortized; growth doubles the table    |
-| `Search`   | O(1)     | O(n)       | linear probe from the home bucket      |
-| `Delete`   | O(1)     | O(n)       | backward-shift keeps probe chains intact |
-| `IsEmpty`, `Len`, `Length` | O(1) | O(1) |                            |
-| `Truncate` | O(n)     | O(n)       | clears all buckets for GC              |
-| `Walk`, `Print`, `Dump`, `All`, `Values` | O(n) | O(n) |              |
+| Operation                                | Average | Worst case | Notes                                    |
+|------------------------------------------|---------|------------|------------------------------------------|
+| `Insert`                                 | O(1)    | O(n)       | amortized; growth doubles the table      |
+| `Search`                                 | O(1)    | O(n)       | linear probe from the home bucket        |
+| `Delete`                                 | O(1)    | O(n)       | backward-shift keeps probe chains intact |
+| `IsEmpty`, `Len`, `Length`               | O(1)    | O(1)       |                                          |
+| `Truncate`                               | O(n)    | O(n)       | clears all buckets for GC                |
+| `Walk`, `Print`, `Dump`, `All`, `Values` | O(n)    | O(n)       |                                          |
 
 Worst case occurs when many keys collide; the load factor is kept below the
 saturation threshold (default 0.5) so average behavior is O(1).

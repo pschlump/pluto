@@ -10,14 +10,14 @@ Use `NewHeapSort[T]()` to create a sorter.
 
 ## Operations
 
-| Operation | Description | Complexity |
-|---|---|---|
-| `Insert(x)` | Add a single element | O(log n) |
-| `InsertArray(x)` | Add a slice of elements, then rebuild the heap | O(m + n) |
-| `Sort()` | Remove all elements, returned in ascending order | O(n log n) |
-| `SortDown()` | Remove all elements, returned in descending order | O(n log n) |
-| `Len()` / `Length()` | Number of pending elements | O(1) |
-| `Truncate()` | Remove all pending elements | O(1) |
+| Operation            | Description                                       | Complexity |
+|----------------------|---------------------------------------------------|------------|
+| `Insert(x)`          | Add a single element                              | O(log n)   |
+| `InsertArray(x)`     | Add a slice of elements, then rebuild the heap    | O(m + n)   |
+| `Sort()`             | Remove all elements, returned in ascending order  | O(n log n) |
+| `SortDown()`         | Remove all elements, returned in descending order | O(n log n) |
+| `Len()` / `Length()` | Number of pending elements                        | O(1)       |
+| `Truncate()`         | Remove all pending elements                       | O(1)       |
 
 `Sort` and `SortDown` empty the sorter; it can be reused afterwards.
 

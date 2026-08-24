@@ -10,11 +10,11 @@ full-featured) or `avl_tree` (self-balancing).
 
 ## Operations
 
-| Operation | Description | Complexity |
-|---|---|---|
-| `Insert` | Add an item; equal items replace the node's value | O(h), worst O(n) |
-| `IsEmpty` | Report whether the tree is empty | O(1) |
-| `All` | Range-over-func iterator, in-order (ascending) | O(n) |
+| Operation | Description                                       | Complexity       |
+|-----------|---------------------------------------------------|------------------|
+| `Insert`  | Add an item; equal items replace the node's value | O(h), worst O(n) |
+| `IsEmpty` | Report whether the tree is empty                  | O(1)             |
+| `All`     | Range-over-func iterator, in-order (ascending)    | O(n)             |
 
 `h` is the tree height; the tree is not balanced, so a sorted insertion
 sequence degenerates to a linked list.
