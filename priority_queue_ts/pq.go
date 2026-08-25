@@ -1,5 +1,5 @@
-// Package priority_queue implements a generic priority queue backed by a
-// binary min-heap.
+// Package priority_queue_ts implements a thread-safe generic priority queue
+// backed by the thread-safe binary min-heap in heap_ts.
 //
 // The queue supports the following operations:
 //
@@ -11,23 +11,26 @@
 //  6. Search         - find an element by value
 //
 // Elements are stored as *T and must implement comparable.Comparable.
-// The queue is NOT safe for concurrent use; guard it with a mutex if it is
-// shared between goroutines.
-package priority_queue
+// It has the exact same interface as the (non-thread-safe) priority_queue
+// package; every operation is guarded by the sync.RWMutex inside heap_ts.
+//
+// Note: pointers returned by Peek/Search/Pop alias data stored in the queue;
+// treat them as read-only.  Positions returned by Search may be invalidated
+// by any concurrent mutation of the queue.
+package priority_queue_ts
 
 import (
 	"fmt"
 	"iter"
 
 	"github.com/pschlump/pluto/comparable"
-	"github.com/pschlump/pluto/heap"
+	"github.com/pschlump/pluto/heap_ts"
 )
 
-// PriorityQueue is a priority queue of *T values ordered by
-// comparable.Comparable.Compare. The zero value is not usable;
-// create one with NewPriorityQueue.
+// PriorityQueue is a thread-safe priority queue of *T values ordered by
+// comparable.Comparable.Compare.  Create one with NewPriorityQueue.
 type PriorityQueue[T comparable.Comparable] struct {
-	h *heap.Heap[T]
+	h *heap_ts.Heap[T]
 }
 
 // NewPriorityQueue creates a new, empty priority queue and returns it.
@@ -35,7 +38,7 @@ type PriorityQueue[T comparable.Comparable] struct {
 func NewPriorityQueue[T comparable.Comparable]() (rv *PriorityQueue[T]) {
 	// We don't have to "heapify" at this point because we start all heaps with an empty set of data.
 	rv = &PriorityQueue[T]{}
-	rv.h = heap.NewHeap[T]()
+	rv.h = heap_ts.NewHeap[T]()
 	return
 }
 
@@ -74,6 +77,10 @@ func (pq *PriorityQueue[T]) Pop() (rv *T) {
 // Search finds the first element that compares equal (Compare == 0) to
 // cmpVal and returns it along with its position in the underlying heap.
 // If no element matches, rv is nil and err is non-nil.
+//
+// Note: the returned position may be invalidated by any concurrent mutation
+// of the queue; use Lock/Unlock with the Nl-prefixed methods for atomic
+// search-then-update sequences.
 // Complexity is O(n).
 func (pq *PriorityQueue[T]) Search(cmpVal *T) (rv *T, pos int, err error) {
 	rv, pos, _ = pq.h.Search(cmpVal)
@@ -114,64 +121,87 @@ func (pq *PriorityQueue[T]) Truncate() {
 	pq.h.Truncate()
 }
 
-// Lock is a no-op provided for API compatibility with the thread-safe
-// priority_queue_ts package.  This implementation is not safe for
-// concurrent use.
-func (pq *PriorityQueue[T]) Lock() {}
+// Lock takes the queue's write lock, allowing a group of operations to be
+// performed atomically (e.g. a Search-then-UpdatePriority sequence).  While
+// the lock is held only call the Nl-prefixed (no-lock) methods; calling a
+// regular method will deadlock.  Pair every Lock with a corresponding
+// Unlock.
+func (pq *PriorityQueue[T]) Lock() {
+	pq.h.Lock()
+}
 
-// Unlock is a no-op provided for API compatibility with the thread-safe
-// priority_queue_ts package.  This implementation is not safe for
-// concurrent use.
-func (pq *PriorityQueue[T]) Unlock() {}
+// Unlock releases the write lock taken by Lock.
+func (pq *PriorityQueue[T]) Unlock() {
+	pq.h.Unlock()
+}
 
-// NlLen is identical to Len; it exists for API compatibility with
-// priority_queue_ts, where the Nl-prefixed methods are used while holding
-// Lock.
+// NlLen is Len without locking; call it only while holding Lock.
 func (pq *PriorityQueue[T]) NlLen() int {
-	return pq.Len()
+	return pq.h.NlLen()
 }
 
-// NlIsEmpty is identical to IsEmpty (see NlLen).
+// NlIsEmpty is IsEmpty without locking; call it only while holding Lock.
 func (pq *PriorityQueue[T]) NlIsEmpty() bool {
-	return pq.IsEmpty()
+	return pq.h.NlLen() == 0
 }
 
-// NlPeek is identical to Peek (see NlLen).
+// NlPeek is Peek without locking; call it only while holding Lock.
 func (pq *PriorityQueue[T]) NlPeek() (rv *T) {
-	return pq.Peek()
+	if pq.h.NlLen() == 0 {
+		return nil
+	}
+	return pq.h.NlGetValue(0)
 }
 
-// NlInsert is identical to Insert (see NlLen).
+// NlInsert is Insert without locking; call it only while holding Lock.
 func (pq *PriorityQueue[T]) NlInsert(n *T) {
-	pq.Insert(n)
+	pq.h.NlPush(n)
 }
 
-// NlPop is identical to Pop (see NlLen).
+// NlPop is Pop without locking; call it only while holding Lock.
 func (pq *PriorityQueue[T]) NlPop() (rv *T) {
-	return pq.Pop()
+	return pq.h.NlPop()
 }
 
-// NlSearch is identical to Search (see NlLen).
+// NlSearch is Search without locking; call it only while holding Lock.
 func (pq *PriorityQueue[T]) NlSearch(cmpVal *T) (rv *T, pos int, err error) {
-	return pq.Search(cmpVal)
+	pos = -1
+	for ii := 0; ii < pq.h.NlLen(); ii++ {
+		if (*pq.h.NlGetValue(ii)).Compare(*cmpVal) == 0 {
+			return pq.h.NlGetValue(ii), ii, nil
+		}
+	}
+	return nil, -1, fmt.Errorf("not found")
 }
 
-// NlUpdatePriority is identical to UpdatePriority (see NlLen).
+// NlUpdatePriority is UpdatePriority without locking; call it only while
+// holding Lock.
 func (pq *PriorityQueue[T]) NlUpdatePriority(pos int, newVal *T) (found bool) {
-	return pq.UpdatePriority(pos, newVal)
+	if pos < 0 || pos >= pq.h.NlLen() {
+		return false
+	}
+	pq.h.NlFix(pos, newVal)
+	return true
 }
 
-// NlDelete is identical to Delete (see NlLen).
+// NlDelete is Delete without locking; call it only while holding Lock.
 func (pq *PriorityQueue[T]) NlDelete(pos int) (err error) {
-	return pq.Delete(pos)
+	n := pq.h.NlLen()
+	if pos < 0 || pos >= n {
+		return fmt.Errorf("failed to delete, position %d out of range [0..%d)", pos, n)
+	}
+	pq.h.NlDelete(pos)
+	return nil
 }
 
 // All returns an iterator (Go 1.23+ range-over-func) that yields the
 // elements of the queue in priority order, minimum element first.
 //
 // The iteration is non-destructive: it operates on a private copy of the
-// heap, so the queue is unchanged afterwards. It is a snapshot — elements
-// inserted or removed during iteration do not affect the sequence.
+// heap built from a snapshot taken under the write lock, so the queue is
+// unchanged afterwards and it is safe to call queue methods from inside the
+// loop body.  Elements inserted or removed after the snapshot do not affect
+// the sequence.
 // Complexity is O(n log n) to build the snapshot, then O(1) per element
 // amortized.
 //
@@ -180,11 +210,12 @@ func (pq *PriorityQueue[T]) NlDelete(pos int) (err error) {
 //	}
 func (pq *PriorityQueue[T]) All() iter.Seq[*T] {
 	return func(yield func(*T) bool) {
-		n := pq.h.Len()
-		snapshot := heap.NewHeap[T]()
-		for i := 0; i < n; i++ {
-			snapshot.Push(pq.h.GetValue(i))
+		snapshot := heap_ts.NewHeap[T]()
+		pq.h.Lock()
+		for i := 0; i < pq.h.NlLen(); i++ {
+			snapshot.NlPush(pq.h.NlGetValue(i))
 		}
+		pq.h.Unlock()
 		for {
 			v := snapshot.Pop()
 			if v == nil {

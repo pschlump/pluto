@@ -222,7 +222,7 @@ iteration (O(1) space, but the loop body must not call mutating methods).
 
 == Heaps and Priority Queues
 
-=== Min-Heap — `heap/`
+=== Min-Heap — `heap/`, `heap_ts/`
 
 Generic binary min-heap (`T comparable.Comparable`), adapted from the stdlib
 `container/heap` but with a plain method API — no interface boilerplate.
@@ -232,9 +232,13 @@ followed by a manual `Heapify` rebuild.
 
 * Good: full heap API including delete/fix-by-index, which the stdlib wrapper
   makes awkward.
-* Bad: not thread-safe and there is no `+_ts+` variant — guard externally;
-  `priority_queue` claims `Fix`/`Delete` are buggy and works around them (see
-  below) — treat those two methods with care.
+* Bad: `heap` itself is not thread-safe — use `heap_ts` for shared heaps.
+
+`heap_ts/` is the thread-safe twin with an identical API: every operation is
+guarded by an internal `sync.RWMutex`, `All()` iterates a snapshot, and
+`Lock`/`Unlock` plus `Nl`-prefixed no-lock methods allow atomic batching (the
+plain `heap` has no-op `Lock`/`Unlock` and pass-through `Nl*` aliases for API
+parity). Returned `*T` values alias heap data — treat as read-only.
 
 === Heap Sort — `heap_sort/`
 
@@ -243,18 +247,22 @@ A convenience sorter layered on `heap`: insert items (`Insert` O(log n), or
 each O(n log n). Sorting drains the sorter; it is reusable afterward. Not
 in-place — allocates the result slice.
 
-=== Priority Queue — `priority_queue/`
+=== Priority Queue — `priority_queue/`, `priority_queue_ts/`
 
 Generic min-first priority queue over `heap`. `Peek` O(1); `Insert`/`Pop`
 O(log n); `Search` O(n); `All()` is a non-destructive iterator yielding items
 in priority order.
 
 * Good: priority-ordered non-destructive iteration; `UpdatePriority` and
-  positional `Delete` are supported.
-* Bad: `UpdatePriority`/`Delete` rebuild the whole heap (O(n log n)) instead
-  of sifting, explicitly to work around suspected bugs in `heap.Fix` /
-  `heap.Delete`; positions returned by `Search` are invalidated by any
-  mutation; not thread-safe.
+  positional `Delete` are supported and sift in place in O(log n).
+* Bad: positions returned by `Search` are invalidated by any mutation; the
+  plain variant is not thread-safe.
+
+`priority_queue_ts/` is the thread-safe twin over `heap_ts` with an identical
+API, snapshot-based `All()`, and `Lock`/`Unlock` + `Nl`-prefixed methods for
+atomic search-then-update sequences (positions from `Search` may be
+invalidated by concurrent mutation — hold the lock when a position must stay
+valid across two calls).
 
 == Supporting Packages
 

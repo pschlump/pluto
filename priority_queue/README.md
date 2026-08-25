@@ -16,14 +16,13 @@ element according to `Compare`.
 | `Insert`         | Add an element                                           | O(log n)     |
 | `Pop`            | Remove and return the minimum element (`nil` if empty)   | O(log n)     |
 | `Search`         | Find an element by value; returns value, position, error | O(n)         |
-| `UpdatePriority` | Replace the element at a position and re-heapify         | O(n log n)*  |
-| `Delete`         | Remove the element at a position                         | O(n log n)*  |
+| `UpdatePriority` | Replace the element at a position and re-heapify         | O(log n)     |
+| `Delete`         | Remove the element at a position                         | O(log n)     |
 | `Truncate`       | Remove all elements                                      | O(1)         |
 | `All`            | Range-over-func iterator, minimum first, non-destructive | O(n log n)   |
 
-\* `UpdatePriority` and `Delete` rebuild the heap instead of sifting in
-place, working around bugs in `heap.Heap.Fix`/`heap.Heap.Delete`. If those
-are fixed upstream both can drop to O(log n).
+`UpdatePriority` and `Delete` sift in place via `heap.Heap.Fix` /
+`heap.Heap.Delete`.
 
 ## Example
 

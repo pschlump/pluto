@@ -1,6 +1,10 @@
-// Package heap provides a generic min-heap for any type that implements
-// comparable.Comparable.  Pop always removes and returns the minimum
-// element.  The heap is stored as a slice in breadth-first tree order.
+// Package heap_ts provides a thread-safe generic min-heap for any type that
+// implements comparable.Comparable.  Pop always removes and returns the
+// minimum element.  The heap is stored as a slice in breadth-first tree
+// order.
+//
+// Every operation is guarded by an internal sync.RWMutex.  It has the exact
+// same interface as the (non-thread-safe) heap package.
 //
 // The implementation is adapted from the standard library's container/heap.
 //
@@ -9,12 +13,13 @@
 // license that can be found in the LICENSE file.
 
 // Copyright (C) 2021 Philip Schlump. All rights reserved.
-package heap
+package heap_ts
 
 import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 
 	"github.com/pschlump/MiscLib"
 	"github.com/pschlump/dbgo"
@@ -28,6 +33,7 @@ import (
 // The heap data is stored in a slice of type *T
 type Heap[T comparable.Comparable] struct {
 	data []*T
+	mu   sync.RWMutex
 }
 
 // Create a new heap and return it.
@@ -40,6 +46,8 @@ func NewHeap[T comparable.Comparable]() *Heap[T] {
 // Push appends the element x onto the end of the heap and re-orders the heap to be a heap.
 // Complexity is O(log n).
 func (hp *Heap[T]) Push(x *T) {
+	hp.mu.Lock()
+	defer hp.mu.Unlock()
 	hp.data = append(hp.data, x) // hp.Push()
 	hp.up(len(hp.data) - 1)      // Reorder to fix heap
 }
@@ -48,6 +56,8 @@ func (hp *Heap[T]) Push(x *T) {
 // Pop is the same as hp.Delete(0).  Pop on an empty heap returns nil.
 // Complexity is O(log n).
 func (hp *Heap[T]) Pop() (rv *T) {
+	hp.mu.Lock()
+	defer hp.mu.Unlock()
 	n := len(hp.data) - 1
 	if n < 0 {
 		return nil
@@ -62,8 +72,13 @@ func (hp *Heap[T]) Pop() (rv *T) {
 
 // Peek returns the minimum element of the heap without removing it.
 // Peek on an empty heap returns nil.
+//
+// Note: the returned pointer aliases data stored in the heap; treat it as
+// read-only.  The element may be removed by another goroutine at any time.
 // Complexity is O(1).
 func (hp *Heap[T]) Peek() (rv *T) {
+	hp.mu.RLock()
+	defer hp.mu.RUnlock()
 	if len(hp.data) > 0 {
 		return hp.data[0]
 	}
@@ -74,6 +89,8 @@ func (hp *Heap[T]) Peek() (rv *T) {
 // storage so the GC can reclaim it.
 // Complexity is O(1).
 func (hp *Heap[T]) Truncate() {
+	hp.mu.Lock()
+	defer hp.mu.Unlock()
 	hp.data = nil
 }
 
@@ -81,6 +98,8 @@ func (hp *Heap[T]) Truncate() {
 // It panics if `ii` is out of range.
 // Complexity is O(log n).
 func (hp *Heap[T]) Delete(ii int) (rv *T) {
+	hp.mu.Lock()
+	defer hp.mu.Unlock()
 	if ii < 0 || ii >= len(hp.data) {
 		panic("heap index out of range")
 	}
@@ -103,6 +122,8 @@ func (hp *Heap[T]) Delete(ii int) (rv *T) {
 // followed by a Push(newValue).
 // Complexity is O(log n).
 func (hp *Heap[T]) Fix(ii int, newValue *T) {
+	hp.mu.Lock()
+	defer hp.mu.Unlock()
 	if ii < 0 || ii >= len(hp.data) {
 		panic("heap index out of range")
 	}
@@ -113,8 +134,14 @@ func (hp *Heap[T]) Fix(ii int, newValue *T) {
 }
 
 // GetValue will return the value at index `ii` in the heap.
+//
+// Note: the returned pointer aliases data stored in the heap; treat it as
+// read-only.  The index is only meaningful while no other goroutine mutates
+// the heap.
 // Complexity is O(1).
 func (hp *Heap[T]) GetValue(ii int) (value *T) {
+	hp.mu.RLock()
+	defer hp.mu.RUnlock()
 	if ii < 0 || ii >= len(hp.data) {
 		panic("heap index out of range")
 	}
@@ -131,21 +158,29 @@ func (hp *Heap[T]) SetValue(ii int, newValue *T) {
 // Len will return the number of items in the heap.
 // Complexity is O(1).
 func (hp *Heap[T]) Len() int {
+	hp.mu.RLock()
+	defer hp.mu.RUnlock()
 	return len(hp.data)
 }
 
 // Length will return the number of items in the heap.  It is an alias for Len.
 // Complexity is O(1).
 func (hp *Heap[T]) Length() int {
-	return len(hp.data)
+	return hp.Len()
 }
 
 // Search performs a linear scan of the heap for an element equal to `cmpVal`
 // (per comparable.Compare).  It returns the element and its index, or
 // nil, -1, nil if no such element exists.  `err` is always nil and retained
 // for interface compatibility.
+//
+// Note: the returned pointer aliases data stored in the heap; treat it as
+// read-only.  The returned index may be invalidated by any concurrent
+// mutation of the heap.
 // Complexity is O(n).
 func (hp *Heap[T]) Search(cmpVal *T) (rv *T, pos int, err error) {
+	hp.mu.RLock()
+	defer hp.mu.RUnlock()
 	pos = -1
 	for ii := 0; ii < len(hp.data); ii++ {
 		c := (*(hp.data[ii])).Compare(*cmpVal)
@@ -157,43 +192,89 @@ func (hp *Heap[T]) Search(cmpVal *T) (rv *T, pos int, err error) {
 	return
 }
 
-// Lock is a no-op provided for API compatibility with the thread-safe
-// heap_ts package.  This implementation is not safe for concurrent use.
-func (hp *Heap[T]) Lock() {}
+// Lock takes the heap's write lock, allowing a group of operations to be
+// performed atomically.  While the lock is held only call the Nl-prefixed
+// (no-lock) methods; calling a regular method will deadlock.  Pair every
+// Lock with a corresponding Unlock.
+func (hp *Heap[T]) Lock() {
+	hp.mu.Lock()
+}
 
-// Unlock is a no-op provided for API compatibility with the thread-safe
-// heap_ts package.  This implementation is not safe for concurrent use.
-func (hp *Heap[T]) Unlock() {}
+// Unlock releases the write lock taken by Lock.
+func (hp *Heap[T]) Unlock() {
+	hp.mu.Unlock()
+}
 
-// NlLen is identical to Len; it exists for API compatibility with heap_ts,
-// where the Nl-prefixed methods are used while holding Lock.
+// NlLen is Len without locking; call it only while holding Lock.
 func (hp *Heap[T]) NlLen() int {
-	return hp.Len()
+	return len(hp.data)
 }
 
-// NlGetValue is identical to GetValue (see NlLen).
+// NlGetValue is GetValue without locking; call it only while holding Lock.
 func (hp *Heap[T]) NlGetValue(ii int) (value *T) {
-	return hp.GetValue(ii)
+	if ii < 0 || ii >= len(hp.data) {
+		panic("heap index out of range")
+	}
+	return hp.data[ii]
 }
 
-// NlPush is identical to Push (see NlLen).
+// NlPush is Push without locking; call it only while holding Lock.
 func (hp *Heap[T]) NlPush(x *T) {
-	hp.Push(x)
+	hp.data = append(hp.data, x)
+	hp.up(len(hp.data) - 1)
 }
 
-// NlPop is identical to Pop (see NlLen).
+// NlPop is Pop without locking; call it only while holding Lock.
 func (hp *Heap[T]) NlPop() (rv *T) {
-	return hp.Pop()
+	n := len(hp.data) - 1
+	if n < 0 {
+		return nil
+	}
+	hp.data[0], hp.data[n] = hp.data[n], hp.data[0]
+	hp.down(0, n)
+	rv = hp.data[n]
+	hp.data[n] = nil
+	hp.data = hp.data[:n]
+	return
 }
 
-// NlDelete is identical to Delete (see NlLen).
+// NlDelete is Delete without locking; call it only while holding Lock.
 func (hp *Heap[T]) NlDelete(ii int) (rv *T) {
-	return hp.Delete(ii)
+	if ii < 0 || ii >= len(hp.data) {
+		panic("heap index out of range")
+	}
+	n := len(hp.data) - 1
+	if n != ii {
+		hp.data[ii], hp.data[n] = hp.data[n], hp.data[ii]
+		if !hp.down(ii, n) {
+			hp.up(ii)
+		}
+	}
+	rv = hp.data[n]
+	hp.data[n] = nil
+	hp.data = hp.data[:n]
+	return
 }
 
-// NlFix is identical to Fix (see NlLen).
+// NlFix is Fix without locking; call it only while holding Lock.
 func (hp *Heap[T]) NlFix(ii int, newValue *T) {
-	hp.Fix(ii, newValue)
+	if ii < 0 || ii >= len(hp.data) {
+		panic("heap index out of range")
+	}
+	hp.data[ii] = newValue
+	if !hp.down(ii, len(hp.data)) {
+		hp.up(ii)
+	}
+}
+
+// snapshot returns a copy of the heap's backing slice, taken under the read
+// lock.
+func (hp *Heap[T]) snapshot() []*T {
+	hp.mu.RLock()
+	defer hp.mu.RUnlock()
+	rv := make([]*T, len(hp.data))
+	copy(rv, hp.data)
+	return rv
 }
 
 func (hp *Heap[T]) up(j int) {
@@ -257,7 +338,7 @@ func (hp *Heap[T]) printAsTree() {
 
 	var printIt func(root, depth int)
 	printIt = func(i, depth int) {
-		n := hp.Length()
+		n := len(hp.data)
 		l := 2*i + 1
 		r := 2*i + 2
 		if l < n {
@@ -283,6 +364,8 @@ func (hp *Heap[T]) printAsTree() {
 //
 // Complexity is O(m) where m = len(x).
 func (hp *Heap[T]) AppendHeap(x []*T) {
+	hp.mu.Lock()
+	defer hp.mu.Unlock()
 	hp.data = append(hp.data, x...)
 }
 
@@ -292,6 +375,13 @@ func (hp *Heap[T]) AppendHeap(x []*T) {
 // To rebuild the entire heap, call it for i = Len()/2-1 down to 0 (see AppendHeap).
 // Complexity is O(log n).
 func (hp *Heap[T]) Heapify(n, i int) {
+	hp.mu.Lock()
+	defer hp.mu.Unlock()
+	hp.heapify(n, i)
+}
+
+// heapify is Heapify without locking; the write lock must already be held.
+func (hp *Heap[T]) heapify(n, i int) {
 	smallest := i // Initialize smallest as root
 	l := 2*i + 1  // left = 2*i + 1
 	r := 2*i + 2  // right = 2*i + 2
@@ -303,12 +393,14 @@ func (hp *Heap[T]) Heapify(n, i int) {
 	}
 	if smallest != i {
 		hp.data[i], hp.data[smallest] = hp.data[smallest], hp.data[i]
-		hp.Heapify(n, smallest) // Recursively heapify the affected sub-tree
+		hp.heapify(n, smallest) // Recursively heapify the affected sub-tree
 	}
 }
 
 // Dump writes the contents of the heap (in internal slice order) to `fp`.
 func (hp *Heap[T]) Dump(fp io.Writer) {
+	hp.mu.RLock()
+	defer hp.mu.RUnlock()
 	_, _ = fmt.Fprintf(fp, "%s\n", dbgo.SVarI(hp.data))
 }
 
