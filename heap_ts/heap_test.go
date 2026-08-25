@@ -80,14 +80,10 @@ func TestSearch(t *testing.T) {
 	}
 	h.verify(t, 0)
 
-	if db12 {
-		h.printAsTree()
-	}
-
 	hv := myHeap(12)
 	v, i, _ := h.Search(&hv)
-	if db12 {
-		fmt.Printf("v=%+v pos %d\n", *v, i)
+	if v == nil || int(*v) != 12 || i < 0 {
+		t.Errorf("Search(12): got v=%v pos=%d, expected value 12 at a valid position", v, i)
 	}
 
 	for i := 11; i < 20; i++ {
@@ -139,17 +135,12 @@ func TestWithDifferentElements(t *testing.T) {
 		h.Push(&hv)
 		expect[i] = false
 	}
-	if db10 {
-		h.printAsJSON()
-		h.printAsTree()
-	}
 	h.verify(t, 0)
 
 	// fmt.Printf ( "\n--------------------------- Top of Pop() Test --------------------------- \n\n" )
 	for i := 1; h.Length() > 0; i++ {
 		if x0 := h.Pop(); x0 != nil {
 			x := int(*x0)
-			// h.printAsTree()
 			h.verify(t, 0)
 			expect[x] = true
 			if x != i {
@@ -405,5 +396,3 @@ func BenchmarkHeapSearch(b *testing.B) {
 		_, _, _ = h.Search(&needle)
 	}
 }
-
-const db12 = false

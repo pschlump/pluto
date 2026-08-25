@@ -156,11 +156,23 @@ func (tt *HashTab[T]) Dump(fo io.Writer) {
 
 // Walk calls `fx` for every element of the table, walking each non-empty
 // bucket in-order.  Iteration order is bucket order, not sorted order.
+// If `fx` returns false the walk stops immediately (across all buckets).
 // Complexity is O(n).
 func (tt *HashTab[T]) Walk(fx binary_tree.ApplyFunction[T], userData any) {
+	done := false
+	stopFx := func(pos, depth int, data *T, ud interface{}) bool {
+		if !fx(pos, depth, data, ud) {
+			done = true
+			return false
+		}
+		return true
+	}
 	for _, v := range tt.buckets {
+		if done {
+			return
+		}
 		if v.Length() > 0 {
-			v.WalkInOrder(fx, userData)
+			v.WalkInOrder(stopFx, userData)
 		}
 	}
 }

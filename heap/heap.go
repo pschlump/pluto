@@ -14,9 +14,7 @@ package heap
 import (
 	"fmt"
 	"io"
-	"strings"
 
-	"github.com/pschlump/MiscLib"
 	"github.com/pschlump/dbgo"
 	"github.com/pschlump/pluto/comparable"
 )
@@ -197,10 +195,6 @@ func (hp *Heap[T]) NlFix(ii int, newValue *T) {
 }
 
 func (hp *Heap[T]) up(j int) {
-	if db10 {
-		fmt.Printf("%sup: (before) at:%s\n", MiscLib.ColorCyan, dbgo.LF())
-		hp.printAsTree()
-	}
 	for {
 		i := (j - 1) / 2 // pick the parent
 		c := (*(hp.data[j])).Compare(*(hp.data[i]))
@@ -210,18 +204,9 @@ func (hp *Heap[T]) up(j int) {
 		hp.data[i], hp.data[j] = hp.data[j], hp.data[i]
 		j = i
 	}
-	if db10 {
-		fmt.Printf("up: (after) at:%s\n", dbgo.LF())
-		hp.printAsTree()
-		fmt.Printf("%s\n", MiscLib.ColorReset)
-	}
 }
 
 func (hp *Heap[T]) down(i0, n int) (rv bool) {
-	if db10 {
-		fmt.Printf("%sdown: (before) at:%s\n", MiscLib.ColorYellow, dbgo.LF())
-		hp.printAsTree()
-	}
 	i := i0
 	for {
 		j1 := 2*i + 1
@@ -239,39 +224,7 @@ func (hp *Heap[T]) down(i0, n int) (rv bool) {
 		i = j
 	}
 	rv = i > i0
-	if db10 {
-		fmt.Printf("down: (after) at:%s, will return %v\n", dbgo.LF(), rv)
-		hp.printAsTree()
-		fmt.Printf("%s\n", MiscLib.ColorReset)
-	}
 	return
-}
-
-// printAsJSON will print out the heap in JSON format (debug only).
-func (hp *Heap[T]) printAsJSON() {
-	fmt.Printf("Heap : %s\n", dbgo.SVarI(hp.data))
-}
-
-func (hp *Heap[T]) printAsTree() {
-	fmt.Printf("Heap As Tree: Left, Mid, Right Order: (%s), called from:%s\n", dbgo.LF(), dbgo.LF(-1))
-
-	var printIt func(root, depth int)
-	printIt = func(i, depth int) {
-		n := hp.Length()
-		l := 2*i + 1
-		r := 2*i + 2
-		if l < n {
-			printIt(l, depth+1)
-		}
-		if i < n {
-			fmt.Printf("%2d[%3d]: %s%+v\n", depth, i, strings.Repeat(" ", 4*depth), *(hp.data[i]))
-		}
-		if r < n {
-			printIt(r, depth+1)
-		}
-	}
-
-	printIt(0, 0)
 }
 
 // AppendHeap appends a new set of data to the heap (and leaves the heap in a non-heap state).
@@ -311,5 +264,3 @@ func (hp *Heap[T]) Heapify(n, i int) {
 func (hp *Heap[T]) Dump(fp io.Writer) {
 	_, _ = fmt.Fprintf(fp, "%s\n", dbgo.SVarI(hp.data))
 }
-
-const db10 = false

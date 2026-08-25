@@ -18,9 +18,11 @@ import (
 
 // TestData is an interface matching data type for the elements that
 // supports the Comparable interface.  This means that it has a Compare
-// function.
+// function.  Neg forces HashKey to return a negative value, to exercise
+// the negative-hash path in bucketOf.
 type TestData struct {
-	S string
+	S   string
+	Neg bool
 }
 
 // At compile time verify that this is a correct type/interface setup.
@@ -61,10 +63,12 @@ func (aa TestData) IsEqual(x comparable.Equality) bool {
 // HashKey implements the Hashable interface.
 func (aa TestData) HashKey(x any) (rv int) {
 	if v, ok := x.(*TestData); ok {
-		return HashStr.HashStr([]byte(v.S))
+		rv = HashStr.HashStr([]byte(v.S))
+	} else if v, ok := x.(TestData); ok {
+		rv = HashStr.HashStr([]byte(v.S))
 	}
-	if v, ok := x.(TestData); ok {
-		return HashStr.HashStr([]byte(v.S))
+	if aa.Neg && rv > 0 {
+		rv = -rv
 	}
 	return
 }
