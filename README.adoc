@@ -1,18 +1,289 @@
-=  Pluto - A Set of Go Generics Data Structures and Algorithms
+= Pluto - Go Generics Data Structures and Algorithms
+:toc:
 
-1. Stack.  In the ./stack directory is a simple generics implementation of a stack.
-2. g_lib.  A set of common functions that use generics like Min, Max etc.
-2. Binary Tree. (mostly complete)
-	. Remove
-	. Walk ( inorder, preorder, postorder )
-	. Better "PrintTree"
-3. Queue. 
-4. SLL.
-4. SLL-based-Queue. 
-4. DLL. Doubley Linked List with Head and Tail Pointers.
-5. BalancedTree. (being tested)
-	. avl
-6. Skip List. In the ./skip_list directory; a thread-safe version is in ./skip_list_ts.
-7. Doubly-Linked Skip List. In the ./skip_list_dll directory (O(1)-space reverse iteration); a thread-safe version is in ./skip_list_dll_ts.
-8. Red-Black Tree. In the ./rb_tree directory; a thread-safe version is in ./rb_tree_ts.
+Pluto is a library of classic data structures written with Go generics (Go 1.23+;
+iterators use range-over-func). Every structure comes with tests and most have
+both a plain (single-threaded) package and a thread-safe twin in a `+_ts+`
+directory with an identical API.
 
+== Common Conventions
+
+* *Constraints.* Ordered structures (trees, heaps, skip lists) require the
+  element type to implement `comparable.Comparable` (`Compare(b) int`). Hash
+  tables and linked lists require `comparable.Equality` (`IsEqual(b) bool`).
+  Slice-based containers (`stack`, `queue`) accept plain `T any`.
+* *Pointers vs. values.* Linked structures and trees in the `avl_tree` /
+  `binary_tree` families store and return `*T`; `bst` and `rb_tree` use a
+  value-based API (`Insert(item T)`, iterators yield `T`).
+* *Thread safety.* A package is not thread-safe unless its directory ends in
+  `+_ts+`. The `+_ts+` variants guard every operation with an internal
+  `sync.RWMutex`. Their `All`/`Backward` iterators generally walk a snapshot
+  taken under the read lock (safe to mutate while iterating; concurrent changes
+  are not visible), while `Walk`-style callbacks run under the read lock and
+  must not call back into the structure (deadlock). Some thread-safe packages
+  return copies of stored items so callers cannot corrupt internal state
+  (`rb_tree_ts`, `skip_list_ts`); others return live `*T` aliases that must be
+  treated as read-only.
+* *Zero value.* Most structures are usable without a constructor.
+
+== Linear Structures
+
+=== Stack — `stack/`
+
+A LIFO stack on a slice, `type Stack[T any] []T`. `Push` is amortized O(1);
+`Pop`, `Peek`, `IsEmpty`, `Length`, `Truncate` are O(1). Removed slots are
+zeroed so the GC can reclaim them. `All`/`Backward` iterate top-to-bottom.
+
+* Good: simplest, fastest option; no per-element allocation; `T any` means no
+  interface to implement.
+* Bad: not thread-safe (`stack_sll_ts` is the thread-safe option); `Peek`
+  returns a `*T` aliasing the top slot, invalidated by mutation.
+
+=== Stack on a list — `stack_sll_ts/`
+
+A thread-safe LIFO stack, a thin wrapper over `sll_ts.Sll[T]`. All operations
+O(1). Frankly a strict subset of `sll_ts` — you could use the list directly —
+but it states intent and needs no external locking. `All`/`Backward` walk the
+live list, so do not mutate concurrently while iterating.
+
+=== Singly Linked List — `sll/`, `sll_ts/`, `simple_sll/`
+
+Generic SLL of `*T` with head and tail pointers and a length counter.
+`Push`/`InsertBeforeHead`, `InsertAfterTail`, `Pop`, `Peek` are O(1);
+`Search`, `Delete`, `Reverse` (in place), and iteration are O(n). Iteration
+comes in two flavors: a cursor (`Front`/`Next`/`Value`/`Pos`) and
+range-over-func (`IterateOver`/`IteratePtr`).
+
+* Good: O(1) push/pop at both ends; constant memory per element; `sll_ts` adds
+  an `sync.RWMutex` (list and iterator) and snapshot-based iterators, so the
+  loop body may safely call list methods.
+* Bad: `Search`/`Delete` are O(n) — a list is not a lookup structure; deleting
+  a node requires re-walking for the predecessor; `DeleteFound` in `sll` is
+  O(n) (use `dll` if you need O(1) delete-by-node).
+* `simple_sll/` is the older, slimmer ancestor of `sll` (no `DeleteFound`,
+  `Reverse`, or `Dump`). Prefer `sll` for new code.
+
+=== Doubly Linked List — `dll/`, `dll_ts/`
+
+Generic DLL of `*T` with head and tail. The broadest list API in the library:
+head ops (`Push`, `Pop`, `Peek`), tail ops (`Enqueue`, `PopTail`, `PeekTail`),
+positional `Index`/`IndexFromTail` (walks from the nearest end), `Search` /
+`ReverseSearch`, O(1) `DeleteFound` given a node, `Reverse`, `Trim`,
+`Concat`, `Truncate`, plus four iteration styles (legacy `DllIter`,
+`Walk`/`ReverseWalk` callbacks, `All`/`Backward` range-over-func). Usable
+directly as a stack or queue. All end operations O(1); `Index`/`Search` O(n)
+(n/2 average).
+
+* Good: O(1) at both ends, O(1) delete-by-node, bidirectional iteration.
+* Bad: per-element node allocation (slower than the slice-based `queue` for
+  pure FIFO use); `dll` itself is not thread-safe — its `Lock`/`Unlock` are
+  no-ops kept only so code written against `dll_ts` compiles unchanged;
+  `dll_ts` `Walk` callbacks run under the read lock and must not re-enter the
+  list.
+
+=== Queues — `queue/`, `queue_ts/`, `queue_dll_ts/`
+
+`queue` is a FIFO on a slice (`T any`): `Push`/`Enqueue` amortized O(1)
+(backing array doubles), `Pop`/`Dequeue`/`Peek` O(1), removed slots zeroed for
+GC. `queue_ts` is the identical API guarded by an `sync.RWMutex` with
+snapshot-based iterators. `queue_dll_ts` is a thin FIFO wrapper over `dll_ts`
+giving strict O(1) for every operation at the cost of per-element node
+allocation.
+
+* Good: `queue_ts` is the fastest general-purpose thread-safe FIFO;
+  `queue_dll_ts` has no copy/growth costs and strict (not amortized) O(1).
+* Bad: `queue_dll_ts` iterators are *not* a consistent snapshot — concurrent
+  pushes may be visited and pops skipped; per-element allocation makes it
+  slower than `queue_ts` for large queues in practice.
+
+=== Double-Ended Queue — `dqueue_ts/`
+
+A thread-safe deque over `dll_ts`: `PushFront`/`PushBack`, `PopFront`/`PopBack`,
+`PeekFront`/`PeekBack`, all strict O(1). Used one-ended it is a stack; used as
+`PushBack`/`PopFront` it is exactly `queue_dll_ts`. Same live-iteration caveat
+as `queue_dll_ts`.
+
+== Trees
+
+All trees take `T comparable.Comparable`. The uniform API is
+`Insert` (duplicates replace), `Search`, `Delete`, `FindMin`/`FindMax`,
+`DeleteAtHead`/`DeleteAtTail`, `IsEmpty`/`Length`, `Truncate`, `Depth`, `Dump`,
+with `All`/`Backward` range-over-func iterators.
+
+=== Unbalanced BST — `binary_tree/`, `binary_tree_ts/`, `bst/`
+
+A plain binary search tree, average O(log n) for insert/search/delete.
+
+* Good: simple, no balancing overhead or color/height bookkeeping on inserts.
+* Bad: *worst case O(n)* — inserting already-sorted data degenerates the tree
+  into a linked list. Use `avl_tree` or `rb_tree` when input order is not
+  random.
+
+`binary_tree` stores `*T` and adds `DeleteMatch` (custom matcher) and
+`WalkFunc`; `binary_tree_ts` is its thread-safe twin (note: returned `*T`
+aliases tree data — treat as read-only). `bst` is the value-based variant
+(`Insert(item T)`, `iter.Seq[T]`), zero value ready to use, with no thread-safe
+twin — guard it externally if shared.
+
+=== AVL Tree — `avl_tree/`, `avl_tree_ts/`
+
+Self-balancing BST keeping child heights within 1, so insert/search/delete are
+*guaranteed* O(log n). The richest tree in the library: three walk orders with
+early-stop callbacks, a legacy cursor iterator, `All`/`Backward`, `Index`,
+`Reverse`, `Depth` in O(1) (height kept on nodes), and whole-tree set
+operations — `Copy`, `Union`, `Minus`, `Intersect`.
+
+* Good: hard O(log n) bound; strictly balanced, so lookups are the fastest of
+  the ordered maps; set operations you will not find elsewhere here.
+* Bad: rotations make inserts/deletes a bit heavier than red-black; `Index` is
+  O(n); do not mutate during iteration.
+
+=== Red-Black Tree — `rb_tree/`, `rb_tree_ts/`
+
+Classic CLRS-style red-black tree with parent pointers. All ordered operations
+are worst-case O(log n) (longest path within a factor of two of the shortest)
+and deterministic — unlike `skip_list` (expected-case) and `bst` (degrades on
+sorted input). Iterators use parent-pointer successor walks: O(1) extra space,
+no stack, no snapshot. Value-based API; deliberately leaner than `avl_tree`
+(no set ops, no `Index`).
+
+* Good: strongest complexity guarantees; cheapest O(1)-space iteration;
+  `rb_tree_ts` returns copies from `Search`/`FindMin`/`FindMax` so callers
+  cannot corrupt the tree, and it has a real goroutine concurrency test.
+* Bad: smallest API of the trees; `Depth` is O(log n) here (O(n) in
+  `rb_tree_ts`).
+
+== Hash Tables
+
+=== Separate chaining — `hash_tab/`, `hash_tab_dll/`
+
+Generic hash table with fixed bucket count (set at construction, minimum 5)
+and FNV-32a over `String()` (or the element's own `HashKey` if it implements
+`Hashable`). Buckets are singly linked lists in `hash_tab` and doubly linked
+lists in `hash_tab_dll`. `Insert` O(1); `Search`/`Delete` O(n/k); duplicates
+are allowed — a new item shadows older ones at the bucket head and each
+`Delete` removes one copy. `hash_tab_dll` adds O(1) `DeleteFound` (remove a
+node previously returned by `Search`), `ItemExists`, and an early-stoppable
+`Walk`.
+
+* Good: simple, cache-friendly-enough chaining; `hash_tab_dll`'s O(1)
+  delete-by-node is handy.
+* Bad: fixed size — performance degrades as the table fills; not thread-safe;
+  delete-by-value in `hash_tab` is linear in bucket length.
+
+=== Chaining with trees — `hash_tab_bt/`, `hash_tab_bt_ts/`
+
+Buckets are binary search trees, so lookups stay O(log(n/k)) even under heavy
+collisions instead of degenerating linearly. Equal inserts replace. Iteration
+(`All`, `Walk`, `WalkFunc`) is in bucket order — not globally sorted. The
+`+_ts+` variant adds explicit `ReadLock`/`WriteLock` plus `Nl`-prefixed
+no-lock methods (`NlSearch`, `NlDelete`) for atomic batching; the plain
+variant exposes no-op lock methods so the same code compiles against both.
+
+* Good: graceful degradation under adversarial keys or too few buckets;
+  batch-locking API in the `+_ts+` variant.
+* Bad: worst case still O(n) (unbalanced bucket trees, all keys in one
+  bucket); fixed bucket count.
+
+=== Open addressing with growth — `hash_grow/`, `hash_grow_ts/`
+
+Open addressing with linear probing. The table automatically doubles and
+rehashes when the load factor exceeds a configurable threshold (default 0.5),
+so it stays O(1) average as it grows — the only self-sizing hash table in the
+library. Delete uses backward-shift to keep probe chains intact; equal inserts
+replace. Iterators: `All` (bucket position + element), `Values`, and a legacy
+`Walk` callback.
+
+* Good: O(1) average insert/search/delete that holds up as data grows; no
+  per-element pointer chasing.
+* Bad: O(n) worst case; growth pauses for rehashing; linear probing is
+  sensitive to clustering and hash quality. `hash_grow_ts` shares returned
+  `*T` with the table — treat as read-only.
+
+== Skip Lists — `skip_list/`, `skip_list_ts/`, `skip_list_dll/`, `skip_list_dll_ts/`
+
+Probabilistic ordered maps (max level 32, level probability 0.5). Expected
+O(log n) insert/search/delete, O(1) `FindMin`, O(log n) `FindMax`,
+O(1) `Truncate`; duplicates replace.
+
+* Good: unlike `bst`, does *not* degrade on sorted input; simpler to reason
+  about than balanced-tree rotations; ordered iteration comes for free.
+* Bad: expected-case, not worst-case, bounds (use `rb_tree` for hard
+  guarantees); O(n) worst case; `FindMax`/`DeleteAtTail` are O(log n), not
+  O(1).
+
+The plain `skip_list` needs an O(n) snapshot for `Backward()`; the
+doubly-linked `skip_list_dll` gives every node a level-0 back pointer so
+reverse iteration walks from the tail in O(1) extra space — that is its entire
+reason to exist. Both `+_ts+` twins return copies from searches. Note the
+iteration trade-off: `skip_list_ts` snapshots under the read lock, while
+`skip_list_dll_ts` walks the live list holding the read lock for the whole
+iteration (O(1) space, but the loop body must not call mutating methods).
+
+== Heaps and Priority Queues
+
+=== Min-Heap — `heap/`
+
+Generic binary min-heap (`T comparable.Comparable`), adapted from the stdlib
+`container/heap` but with a plain method API — no interface boilerplate.
+`Push`/`Pop`/`Delete`/`Fix`/`Heapify` O(log n); `Peek` O(1); `Search` O(n);
+`All()` iterates internal (unsorted) order. Also `AppendHeap` for bulk append
+followed by a manual `Heapify` rebuild.
+
+* Good: full heap API including delete/fix-by-index, which the stdlib wrapper
+  makes awkward.
+* Bad: not thread-safe and there is no `+_ts+` variant — guard externally;
+  `priority_queue` claims `Fix`/`Delete` are buggy and works around them (see
+  below) — treat those two methods with care.
+
+=== Heap Sort — `heap_sort/`
+
+A convenience sorter layered on `heap`: insert items (`Insert` O(log n), or
+`InsertArray` in bulk), then `Sort()` (ascending) or `SortDown()` (descending),
+each O(n log n). Sorting drains the sorter; it is reusable afterward. Not
+in-place — allocates the result slice.
+
+=== Priority Queue — `priority_queue/`
+
+Generic min-first priority queue over `heap`. `Peek` O(1); `Insert`/`Pop`
+O(log n); `Search` O(n); `All()` is a non-destructive iterator yielding items
+in priority order.
+
+* Good: priority-ordered non-destructive iteration; `UpdatePriority` and
+  positional `Delete` are supported.
+* Bad: `UpdatePriority`/`Delete` rebuild the whole heap (O(n log n)) instead
+  of sifting, explicitly to work around suspected bugs in `heap.Fix` /
+  `heap.Delete`; positions returned by `Search` are invalidated by any
+  mutation; not thread-safe.
+
+== Supporting Packages
+
+* `comparable/` — the foundational constraints for the whole module:
+  `Comparable` (three-way `Compare`) and `Equality` (`IsEqual`). Note the
+  ergonomic wart: the methods take the interface type, so implementations need
+  a type assertion.
+* `g_lib/` — generic utility functions: `Min`/`Max`/`MinArray`/`MaxArray`,
+  `Abs`/`Pow`, slice helpers (`InArray`, `RemoveAt`, `Unique`, `EqualSlice`,
+  `SortSlice`), map helpers (`ToBoolMap`, sorted key extraction), a ternary
+  `IfTrue`, plus numeric constraints (`Numeric`, `SignedInteger`, ...). Pure
+  functions; nothing shared, nothing to lock.
+* `iface_list/` — interface definitions (`LinearDataType`, `StackDataType`,
+  `QueueDataType`, `TreeDataType`, `PriorityQueueDataType`) so call sites can
+  swap implementations (e.g. `sll` ↔ `sll_ts`) without changes. Caveat: a few
+  method names in the interfaces do not exactly match every concrete API.
+
+== Examples and Experiments (not library code)
+
+Everything in this section lives under `note/`, which is git-ignored and not
+part of the library.
+
+* `note/ex1/` — minimal teaching example of a generic BST with a range-over-func
+  iterator. Use `binary_tree`/`avl_tree` for real work.
+* `note/article/` — an introductory article on Go generics (AsciiDoc + HTML).
+* `note/y1/`, `note/iter0/` — range-over-func iterator experiments from the
+  Go 1.22/1.23 era; `note/y1/it` is a vendored copy of a third-party itertools
+  package for reference. `note/iter0` contains its own embedded git repo and
+  committed binaries.
+* `note/it/` — empty placeholder.
+* `note/` — also holds reference material: papers, book notes, and search
+  results.
