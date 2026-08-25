@@ -231,4 +231,9 @@ func ToBoolMap[T comparable](src []T) map[T]bool {
 	return result
 }
 
+// ptr returns a pointer to the given value.
+func ptr[T any](v T) *T {
+	return &v
+}
+
 /* vim: set noai ts=4 sw=4: */
