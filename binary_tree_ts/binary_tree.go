@@ -25,18 +25,15 @@ BSD 3 Clause Licensed.
 //	the call can deadlock.  To visit elements while mutating, iterate a
 //	snapshot with All instead.
 //
-// Like every charon package it is a rework of its pluto counterpart
-// (github.com/pschlump/pluto/binary_tree_ts) in which the
-// comparable.Comparable interface constraint has been replaced with plain
-// Go type parameters.  Elements are stored and returned by value and
-// ordering is a direct function call, so element data is never boxed into
-// an interface and never unboxed with a type assertion.  Trees of
-// naturally ordered key types (all integers, floats and strings) are
-// created with NewBinaryTree, which orders elements with the built-in <
-// and > operators of the key type; trees of any other type — including
-// structs ordered by a single field — are created with NewBinaryTreeFunc,
-// which takes a caller supplied comparison function; the element type
-// does not have to implement any interface.
+// Elements are stored and returned by value and ordering is a direct
+// function call, so element data is never boxed into an interface and
+// never unboxed with a type assertion.  Trees of naturally ordered key
+// types (all integers, floats and strings) are created with NewBinaryTree,
+// which orders elements with the built-in < and > operators of the key
+// type; trees of any other type — including structs ordered by a single
+// field — are created with NewBinaryTreeFunc, which takes a caller
+// supplied comparison function; the element type does not have to
+// implement any interface.
 //
 // Basic operations on a Binary Tree:
 //

@@ -9,9 +9,6 @@ BSD 3 Clause Licensed.
 // github.com/pschlump/charon/stack — the same API, guarded by a
 // sync.RWMutex.
 //
-// Pluto has no stack_ts package (its only thread-safe stack is the
-// linked-list stack_sll_ts), so unlike most charon packages this one has
-// no pluto counterpart to rework; it is charon/stack with the lock added.
 // For a thread-safe stack with stable O(1) memory per push/pop (no slice
 // window, no reallocation) see charon/stack_sll_ts.
 //

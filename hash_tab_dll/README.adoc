@@ -11,25 +11,27 @@ fixed at construction; when the number of elements is not known up front
 use link:../hash_grow[`hash_grow`], which grows and re-hashes
 automatically.
 
-It is a rework of
-link:https://github.com/pschlump/pluto/tree/main/hash_tab_dll[pluto/hash_tab_dll]
-that replaces the `comparable.Equality` interface constraint (and the
-`Hashable`/`string`/`fmt.Stringer` hashing built on it) with pure Go type
-parameters, so element data is never boxed into an interface and never
-unboxed with a type assertion.  It is the fourth intra-charon composition
-after `priority_queue`, `heap_sort` and `hash_tab_bt`: a bucket that is a
-doubly linked list with O(1) splice-out is exactly what `dll` is, so the
-table stores one `*dll.Dll[T]` per bucket instead of reimplementing the
-lists (pluto composed its `dll` the same way; this is the counterpoint to
-`hash_tab`'s self-contained chains — here the bucket *does* use the dll's
-prev pointers, they are the feature).
+It is the fourth intra-charon composition after `priority_queue`,
+`heap_sort` and `hash_tab_bt`: a bucket that is a doubly linked list with
+O(1) splice-out is exactly what `dll` is, so the table stores one
+`*dll.Dll[T]` per bucket instead of reimplementing the lists — the
+counterpoint to `hash_tab`'s self-contained chains: here the bucket *does*
+use the dll's prev pointers, they are the feature.  Element data is never
+boxed into an interface and never unboxed with a type assertion.
 
 * Elements are stored *by value* (`T`, not `*T`) inside the dll nodes.
-  The handles `Search` returns are the one pointer-bearing find in the
-  charon hash-table family, inherited from `dll`'s own `Search` because
-  the handle is what makes `DeleteFound` O(1); `DllElement.GetData`
-  returns the element by value, and a handle stays valid across an
-  `Insert` replacement (the replacement is `SetData` on the same node).
+  The handles `Search` returns — together with a found bool — are the one
+  pointer-bearing find in the charon hash-table family, inherited from
+  `dll`'s own `Search` because the handle is what makes `DeleteFound` O(1);
+  `DllElement.GetData` returns the element by value, and a handle stays
+  valid across an `Insert` replacement (the replacement is `SetData` on
+  the same node).  `Insert`, `Delete` and `Search` take the probe by
+  value — a probe only needs the fields the equality and hash functions
+  read.
+* `Insert` *replaces* an equal element and returns bool — true when a new
+  element was added, false when it replaced one (the replacement is
+  `SetData` on the existing node, so previously returned handles stay
+  valid).
 * Keys of types comparable with `==` (all scalars, strings, pointers,
 arrays, and structs of comparable fields) need no functions at all:
 `hash_tab_dll.NewHashTab[string](16)`.  Equality is the `==` operator and
@@ -56,6 +58,13 @@ fixed assertions or golden files.  *Within* a bucket the order is not
 random at all: the lists run head-newest to tail-oldest (`Insert` pushes
 at the head), the same newest-first order as `hash_tab`'s chains and the
 opposite of `hash_tab_bt`'s ascending trees.
+
+`Dump` prints an `empty` marker for vacant buckets and one line per
+element; no hash values are shown — the dll nodes keep none (unlike
+`hash_tab`'s `h=`-annotated dump).
+
+A hash of exactly 0 needs no remapping — an empty bucket is an empty
+list, not a hash marker (unlike `hash_grow`'s open addressing).
 
 Runnable, tested copies of the examples live in
 link:example_test.go[`example_test.go`] — they run under `go test` and appear
@@ -135,9 +144,10 @@ inserted element to the oldest:
   element — as with dll/sll/hash_tab, a single-variable range yields the
   *bucket position*, not the element) and `Values() iter.Seq[T]`.
 - The `Walk(ApplyFunction[T])` callback: `fx(pos int, data T) bool`, where
-  returning *false stops the walk* (the tree-packages convention — dll's
-  own Walk is the opposite) and the closure captures caller state; Walk
-  returns true when the walk ran to completion.
+  `pos` is the *bucket index* (no `interface{}` userData — state is
+  captured in a closure) and returning *false stops the walk* across all
+  buckets (the tree-packages convention — dll's own Walk is the opposite);
+  Walk returns true when the walk ran to completion.
 
 == Panics
 
@@ -157,52 +167,6 @@ no sane fallback, each message naming the fix:
 Everything else tolerates a nil table and the zero value as an empty table:
 searches report not-found, `Delete` and `DeleteFound` return false, and the
 iterators visit nothing.
-
-== Differences from pluto/hash_tab_dll
-
-* The `comparable.Equality` constraint and the
-  `Hashable`/`string`/`fmt.Stringer` hash-key priority are gone — pluto
-  hashed through `hash(x interface{})` with type assertions (and panicked
-  on types implementing none of the three).  Equality is either the type's
-  `==` operator (`NewHashTab`, no interface, no boxing) or a caller
-  supplied function paired with a caller supplied `func(T) uint64` hash
-  (`NewHashTabFunc`).  `NewHashTab` hashes with a per-table random
-  `hash/maphash` seed; pluto's FNV-1a hashes were deterministic per
-  process.
-* The buckets are `charon/dll` lists (as pluto's were pluto `dll` lists)
-  with value semantics inside the nodes: each node holds `T` by value
-  (pluto stored a `*T` pointing at the inserted item), so `Insert`,
-  `Delete` and `Search` take the probe by value — a probe only needs the
-  fields the equality and hash functions read.  `Search` returns the
-  element handle together with a found bool instead of a bare nil-able
-  pointer, and `GetData` returns the element by value.
-* `Insert` *replaces* an equal element and returns bool — true when a new
-  element was added, false when it replaced one (the replacement is
-  `SetData` on the existing node, so previously returned handles stay
-  valid).  Pluto stacked duplicates so the newest shadowed the oldest,
-  and returned nothing.
-* `Walk` is `func(pos int, data T) bool` with the *bucket index* as `pos`
-  and no `interface{}` userData (state is captured in a closure); returning
-  false stops the walk across all buckets and `Walk` returns a completed
-  bool.  Pluto forwarded dll's `Walk`, whose callback returns *true* to
-  stop, took a userData `interface{}`, and returned the element it stopped
-  at with its per-bucket position — use `Search` + `DeleteFound` for the
-  find-then-splice flow.
-* `ItemExists` was dropped (`Search`'s found bool covers it).  `Values`
-  was added and `All` now yields the bucket position with the element
-  (pluto's `All` yielded `*T` only).
-* `Dump` prints an `empty` marker for vacant buckets and one line per
-  element; no hash values are shown (the dll nodes keep none, unlike
-  charon `hash_tab`'s `h=`-annotated dump).  Pluto delegated each bucket
-  to `dll.Dump`, which printed bare `index: value` lines with no bucket
-  markers and no vacancy listing.
-* A nil table and the zero value behave as an empty table for every read;
-  pluto's `Insert` on a zero-value table died on a division by zero.
-  The n < 5 constructor guard keeps the same rule as every charon hash
-  table but with a message that names the constructor and the minimum
-  (pluto panicked with a bare "n too small").
-* A hash of exactly 0 needs no remapping here (an empty bucket is an
-  empty list, not a hash marker, unlike `hash_grow`'s open addressing).
 
 == Thread safety
 

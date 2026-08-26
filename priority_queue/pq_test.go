@@ -14,10 +14,8 @@ import (
 	"testing"
 )
 
-// PqTest is the test element type.  Note what is missing compared to the
-// pluto version of this test file: no Compare method, no interface
-// assertion, no type assertions inside a comparison.  Ordering is
-// supplied to the queue as a plain function (cmpPqTest below).
+// PqTest is the test element type.  Ordering is supplied to the queue
+// as a plain function (cmpPqTest below).
 type PqTest struct {
 	value    string
 	priority int

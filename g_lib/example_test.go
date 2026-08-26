@@ -55,10 +55,10 @@ func ExamplePow() {
 
 // IfTrue is a ternary-style selector: the Go analog of cond ? a : b.
 func ExampleIfTrue() {
-	name := "pluto"
+	name := "charon"
 	fmt.Println(g_lib.IfTrue(name == "charon", "right repo", "wrong repo"))
 	// Output:
-	// wrong repo
+	// right repo
 }
 
 func ExampleInArray() {

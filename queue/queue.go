@@ -7,10 +7,9 @@ BSD 3 Clause Licensed.
 // Package queue implements a generic FIFO (first-in, first-out) queue
 // on top of a slice.
 //
-// It is a rework of github.com/pschlump/pluto/queue with the charon
-// conventions: elements are stored and returned by value — Dequeue and
-// Peek return (T, error) instead of a pointer — so an element never
-// aliases the queue's internals.
+// Elements are stored and returned by value — Dequeue and Peek return
+// (T, error) instead of a pointer — so an element never aliases the
+// queue's internals.
 //
 // This implementation is NOT thread safe.  A mutex-guarded version with
 // the exact same interface lives alongside it.

@@ -12,9 +12,7 @@ BSD 3 Clause Licensed.
 // (Front/Next/Done/Value) and a Go 1.23 range-over-func iterator
 // (IterateOver).
 //
-// It is a rework of github.com/pschlump/pluto/sll in which the
-// comparable.Equality interface constraint has been replaced with plain
-// Go type parameters.  Elements are stored and returned by value, so
+// Elements are stored and returned by value, so
 // element data is never boxed into an interface and never unboxed with a
 // type assertion.  Lists of types that can be compared with == (the
 // builtin comparable constraint — all scalars, strings, arrays, and

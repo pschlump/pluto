@@ -5,20 +5,18 @@ number of buckets in which *every bucket is a binary search tree*
 (link:../binary_tree[`binary_tree`]).  Because collisions are resolved by a
 tree rather than a chain, lookups stay logarithmic in the elements per
 bucket even under heavy collisions.  Every operation is guarded by a
-`sync.RWMutex`.
+single table-level `sync.RWMutex`; the buckets stay plain (non-thread-safe)
+`binary_tree` trees — unexported and touched only while the table lock is
+held — so there are no per-bucket locks.
 
 It is the thread-safe twin of link:../hash_tab_bt[charon/hash_tab_bt] — the
 same API — with the addition of the `Lock`/`Unlock` pair and the
-`Nl*`-prefixed (no-lock) methods for compound operations.
-
-It is a rework of
-link:https://github.com/pschlump/pluto/tree/main/hash_tab_bt_ts[pluto/hash_tab_bt_ts]
-that replaces the `comparable.Comparable` interface constraint (and the
-`Hashable`/`fmt.Stringer` hashing built on it) with pure Go type
-parameters, so element data is never boxed into an interface and never
-unboxed with a type assertion.
+`Nl*`-prefixed (no-lock) methods for compound operations.  Element data is
+never boxed into an interface and never unboxed with a type assertion.
 
 * Elements are stored and returned *by value* (`T`, not `*T`).
+* `Insert` replaces an equal element and returns bool — true when a new
+  element was added, false when it replaced one.
 * A bucket tree needs an *ordering*, not just an equality.  Tables of
 naturally ordered types (all integers, floats and strings) need no
 functions at all: `hash_tab_bt_ts.NewHashTab[string](16)` orders with the
@@ -79,7 +77,8 @@ ht.Delete("alpha")
 `Search` followed by `Delete` is two lock acquisitions — another goroutine
 can mutate the table between them.  `Lock` plus the `Nl*` methods
 (`NlIsEmpty`, `NlLen`, `NlSearch`, `NlInsert`, `NlDelete`) run the same
-steps atomically under one lock hold:
+steps atomically under one lock hold — the same escape hatch as
+link:../hash_grow_ts[`hash_grow_ts`]:
 
 [source,go]
 ----
@@ -102,9 +101,9 @@ range yields the *bucket position*, not the element) and `Values() iter.Seq[T]`
 iterate a **snapshot** copied under the read lock when the iterator method
 is called, so it is safe to call other table methods — including writes —
 from the loop body.  `Walk(fx)` is the callback alternative
-(`func(pos int, data T) bool`, returning *false stops the walk*); it holds
-the read lock for the whole traversal, so `fx` must not call methods on the
-same table.
+(`func(pos int, data T) bool`, where `pos` is the *bucket index* and
+returning *false stops the walk*); it holds the read lock for the whole
+traversal, so `fx` must not call methods on the same table.
 
 == Panics
 
@@ -125,33 +124,3 @@ Everything else tolerates a nil table and the zero value as an empty table:
 searches report not-found, `Delete` returns false, and the iterators visit
 nothing.  (`NlInsert` on a zero-value table panics because it *is* the
 Insert body.)
-
-== Differences from pluto/hash_tab_bt_ts
-
-* Everything in the link:../hash_tab_bt[charon/hash_tab_bt] differences
-list — pure generics instead of `comparable.Comparable`,
-`maphash`/caller-supplied hashing instead of the `Hashable`/`Stringer`
-type switch, value semantics (`Search` returns `(T, bool)`), `Insert`
-returning bool, the bucket-index Walk callback with no userData, and the
-ascending in-order visits within a bucket.
-* **One table-level lock, plain bucket trees.**  pluto's buckets were
-pluto `binary_tree_ts` trees, so every operation took the table lock *and*
-a per-bucket tree lock — n+1 locks with the n bucket locks never doing
-useful work (the buckets are unexported and only ever touched while the
-table lock is held).  charon keeps the plain `charon/binary_tree` buckets
-of the non-thread-safe package and adds exactly one `sync.RWMutex`.
-* pluto exposed `NlSearch`/`NlDelete` but no way to acquire the lock, so
-they were unusable outside the package.  charon exposes the **real**
-`Lock`/`Unlock` (nil-table no-ops) plus `NlIsEmpty`/`NlLen`/`NlSearch`/
-`NlInsert`/`NlDelete` as the documented compound-operation escape hatch
-(the same escape hatch as `hash_grow_ts`).
-* pluto's `All`/`WalkFunc` yielded `*T` pointers copied out of the trees —
-a pointer that can race with a concurrent delete.  The value-copy
-snapshots (`All`/`Values`) fix that the same way `queue_ts`'s `Peek` and
-`heap_ts`'s accessors do; `Walk` holds the read lock for the whole
-traversal instead.
-* `WalkFunc`, the no-op `WriteLock`/`WriteUnlock`/`ReadLock`/`ReadUnlock`
-and `Print` are gone (`Values` replaces `WalkFunc`/`Print`); nil tables
-are tolerated on every read instead of panicking on an unguarded nil
-dereference, and the zero value on `Insert` gets the constructors-naming
-panic instead of a division by zero.

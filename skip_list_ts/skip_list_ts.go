@@ -46,12 +46,9 @@ sorted order.  The tower heights are drawn from the global math/rand/v2
 source; the observable ordering semantics are deterministic regardless of
 the heights drawn.
 
-Like every charon package it is a rework of its pluto counterpart
-(github.com/pschlump/pluto/skip_list_ts) in which the
-comparable.Comparable interface constraint has been replaced with plain
-Go type parameters.  Elements are stored and returned by value and
-ordering is a direct function call, so element data is never boxed into
-an interface and never unboxed with a type assertion.  Lists of naturally
+Elements are stored and returned by value and ordering is a direct
+function call, so element data is never boxed into an interface and never
+unboxed with a type assertion.  Lists of naturally
 ordered key types (all integers, floats and strings) are created with
 NewSkipList, which orders elements with the built-in < and > operators of
 the key type; lists of any other type — including structs ordered by a

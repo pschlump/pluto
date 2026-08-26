@@ -8,9 +8,7 @@ BSD 3 Clause Licensed.
 // concurrent use, backed by the thread-safe min-heap in charon/heap_ts.
 // It is the thread-safe twin of github.com/pschlump/charon/heap_sort —
 // the same API — with the addition of the Lock/Unlock pair and the
-// Nl-prefixed (no-lock) methods for compound operations.  (Pluto has no
-// heap_sort_ts; this package is charon's own design, written against
-// charon/heap_sort.)
+// Nl-prefixed (no-lock) methods for compound operations.
 //
 // Elements are added with Insert or InsertArray and extracted in
 // ascending order with Sort or descending order with SortDown.  The two

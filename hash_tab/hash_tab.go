@@ -10,10 +10,7 @@ BSD 3 Clause Licensed.
 // number of elements is not known up front, use the auto-growing hash_grow
 // package instead.
 //
-// It is a rework of github.com/pschlump/pluto/hash_tab in which the
-// comparable.Equality interface constraint (and the Hashable/Stringer
-// hashing on top of it) has been replaced with plain Go type parameters, so
-// element data is never boxed into an interface and never unboxed with a
+// Element data is never boxed into an interface and never unboxed with a
 // type assertion.  Tables of types that can be compared with == (the builtin
 // comparable constraint) are created with NewHashTab, which hashes with the
 // stdlib hash/maphash — every table gets its own random seed, equal values
@@ -50,8 +47,8 @@ BSD 3 Clause Licensed.
 //	Insert on a zero-value table — no equality/hash functions; the message names the constructors.
 //
 // This version of the table is not suitable for concurrent use; the
-// hash_tab_ts package is the thread-safe twin with the same API (pluto has
-// no hash_tab_ts) — use it when the table is shared between goroutines.
+// hash_tab_ts package is the thread-safe twin with the same API — use it
+// when the table is shared between goroutines.
 package hash_tab
 
 import (
@@ -209,8 +206,7 @@ func (tt *HashTab[T]) Search(find T) (rv T, found bool) {
 
 // Delete an element from the table.  The element equal to `find` is located
 // with the same chain walk Search uses, then unlinked from its chain in a
-// single pass (pluto rebuilt the whole bucket into a fresh list, which also
-// reversed the chain).  Returns true if the element was found and removed.
+// single pass.  Returns true if the element was found and removed.
 // Complexity is O(1) average, O(n) worst case.
 func (tt *HashTab[T]) Delete(find T) (found bool) {
 	if tt == nil || tt.eq == nil || tt.length == 0 {

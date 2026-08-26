@@ -5,18 +5,15 @@ BSD 3 Clause Licensed.
 */
 
 // Package queue_dll implements a generic FIFO (first-in, first-out) queue
-// on top of a doubly linked list.  It is a rework of
-// github.com/pschlump/pluto/queue_dll_ts with the charon conventions —
-// and without the lock: pluto has no plain queue_dll, so this is the
-// plain package the ts-only pluto design never had.
+// on top of a doubly linked list.
 //
-// Pluto built its version as a thin wrapper delegating to the dll_ts
-// package.  Charon's dll requires an equality function at construction
+// The package is self-contained rather than a wrapper over the dll
+// package: charon's dll requires an equality function at construction
 // (its Search needs one), but a queue never compares elements — so
 // wrapping would force a dummy equality function and break the
 // constraint-free contract.  Like dqueue (and stack_sll_ts) this package
-// is self-contained, with its own plain doubly linked list underneath;
-// the prev pointers are what make Backward O(1) per step.
+// has its own plain doubly linked list underneath; the prev pointers
+// are what make Backward O(1) per step.
 //
 // This implementation is NOT thread safe.  There is no queue_dll_ts
 // twin (yet); a concurrent FIFO on the same list structure is

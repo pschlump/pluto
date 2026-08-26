@@ -13,9 +13,8 @@ BSD 3 Clause Licensed.
 //
 // It is the thread-safe twin of github.com/pschlump/charon/hash_tab — the
 // same API — with the addition of the Lock/Unlock pair and the Nl-prefixed
-// (no-lock) methods for compound operations.  Pluto has no hash_tab_ts; the
-// twin takes the pure-generics rework that is charon/hash_tab and guards it
-// with one table lock, following the pattern of hash_grow_ts and
+// (no-lock) methods for compound operations.  The twin guards hash_tab's
+// buckets with one table lock, following the pattern of hash_grow_ts and
 // hash_tab_bt_ts.  Element data is never boxed into an interface and never
 // unboxed with a type assertion: tables of types that can be compared with
 // == (the builtin comparable constraint) are created with NewHashTab, which

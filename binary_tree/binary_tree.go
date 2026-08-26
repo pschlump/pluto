@@ -6,11 +6,9 @@ BSD 3 Clause Licensed.
 
 // Package binary_tree implements a generic, unbalanced binary search tree.
 //
-// It is a rework of github.com/pschlump/pluto/binary_tree in which the
-// comparable.Comparable interface constraint has been replaced with plain
-// Go type parameters.  Elements are stored and returned by value and
-// ordering is a direct function call, so element data is never boxed into
-// an interface and never unboxed with a type assertion.
+// Elements are stored and returned by value and ordering is a direct
+// function call, so element data is never boxed into an interface and
+// never unboxed with a type assertion.
 //
 // Trees of naturally ordered key types (all integers, floats and strings)
 // are created with NewBinaryTree, which orders elements with the built-in
@@ -509,9 +507,9 @@ func (tt *BinaryTree[T]) Depth() int {
 // ApplyFunction is the callback type used by the Walk* functions.  `pos` is
 // the ordinal position of the element in the walk order and `depth` is the
 // depth of the node in the tree (root is 0).  Returning false stops the
-// walk.  Caller state that the pluto version of this package passed as an
-// interface{} userData parameter is captured in a closure instead, so it
-// keeps its static type and is never boxed.
+// walk.  Caller state is captured in a closure instead of being passed as
+// an interface{} userData parameter, so it keeps its static type and is
+// never boxed.
 type ApplyFunction[T any] func(pos, depth int, data T) bool
 
 // WalkInOrder visits every element in in-order (ascending) order.

@@ -9,9 +9,6 @@ BSD 3 Clause Licensed.
 // thread-safe twin of github.com/pschlump/charon/dll — the same API,
 // guarded by a sync.RWMutex.
 //
-// Like every charon package it is a rework of its pluto counterpart
-// (github.com/pschlump/pluto/dll_ts) in which the comparable.Equality
-// interface constraint has been replaced with plain Go type parameters.
 // Elements are stored and returned by value, so element data is never
 // boxed into an interface and never unboxed with a type assertion.
 // Lists of types that can be compared with == (the builtin comparable

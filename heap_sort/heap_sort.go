@@ -10,11 +10,9 @@ BSD 3 Clause Licensed.
 // SortDown.  The two Sort calls drain the sorter; it is reusable
 // afterwards.
 //
-// It is the charon rework of github.com/pschlump/pluto/heap_sort: the
-// comparable.Comparable interface constraint is replaced with plain Go
-// type parameters, and elements are stored and returned by value — the
-// result of Sort/SortDown is a []T of copies, not a slice of pointers
-// into the sorter.
+// Elements are stored and returned by value — the result of
+// Sort/SortDown is a []T of copies, not a slice of pointers into the
+// sorter.
 //
 // The element type never implements an interface: sorters of naturally
 // ordered types (all integers, floats and strings) are created with

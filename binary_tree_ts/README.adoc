@@ -6,13 +6,11 @@ link:../binary_tree/[charon/binary_tree].  Every operation is guarded by a
 `sync.RWMutex`: readers run in parallel with each other, writers are
 exclusive.
 
-Like `binary_tree`, it is a rework of
-link:https://github.com/pschlump/pluto/tree/main/binary_tree_ts[pluto/binary_tree_ts]
-that replaces the `comparable.Comparable` interface constraint with pure Go
-type parameters, so element data is never boxed into an interface and never
-unboxed with a type assertion.
+As in `binary_tree`, element data is never boxed into an interface and
+never unboxed with a type assertion.
 
-* Elements are stored and returned *by value* (`T`, not `*T`).
+* Elements are stored and returned *by value* (`T`, not `*T`); find-style
+operations return `(T, bool)`.
 * Trees of ordered key types (integers, floats, strings) are ordered by the
 built-in `<` / `>` operators of the key type:
 `binary_tree_ts.NewBinaryTree[int]()`.
@@ -50,7 +48,10 @@ Same as `binary_tree`:
 |===
 
 The tree is *not* self-balancing.  Insert of a duplicate replaces the
-stored value in place and returns `false`.
+stored value in place and returns `false`.  As in `binary_tree`,
+`DeleteAtHead` / `DeleteAtTail` splice the extreme node out in a single
+descent under the write lock, rather than requiring a `FindMin` /
+`FindMax` followed by a separate `Delete`.
 
 == Locking behavior
 
@@ -63,7 +64,7 @@ run in parallel with each other.
 when they are called (under the read lock, released immediately after).
 It is safe to mutate the tree while iterating — including from inside the
 loop — and an iterator never observes modifications made after it was
-created.  The snapshot costs one O(n) copy.
+created.  The snapshot is a `[]T` of value copies taken in one O(n) pass.
 * *`WalkInOrder` / `WalkPreOrder` / `WalkPostOrder` / `WalkFunc` and
 `Dump` hold the read lock for the whole traversal.*  Their callbacks
 must *not* call any method on the same tree — a write from a callback
@@ -133,23 +134,4 @@ func main() {
     fmt.Println(tree.IsEmpty()) // true
 }
 ----
-
-== Differences from pluto/binary_tree_ts
-
-* The `comparable.Comparable` interface constraint is gone: ordering is
-either the key type's built-in operators (`NewBinaryTree`) or a caller
-supplied function (`NewBinaryTreeFunc`).  No boxing of elements, no
-dynamic dispatch, no type assertions inside `Compare` methods.
-* Elements are stored and returned by value; find-style operations return
-`(T, bool)` instead of a nil-able `*T`.  (Snapshots are `[]T`, not
-`[]*T`.)
-* A nil `*BinaryTree` behaves as an empty tree for every operation except
-`Insert`; pluto panics on nearly every method called on a nil tree.
-* The only panics are the three listed above, each with a message naming
-the fix.
-* The `Walk*` callbacks capture state in closures instead of receiving an
-`interface{}` `userData` parameter.
-* `DeleteAtHead` / `DeleteAtTail` splice the extreme node out directly in a
-single descent under the write lock, instead of a locked
-`FindMin`/`FindMax` followed by a `Delete`.
 

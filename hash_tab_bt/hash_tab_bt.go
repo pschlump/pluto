@@ -12,10 +12,7 @@ BSD 3 Clause Licensed.
 // even when many keys collide: O(log(n/k)) on average with k buckets,
 // where the chained hash_tab degrades to O(n/k) on the same load.
 //
-// It is a rework of github.com/pschlump/pluto/hash_tab_bt in which the
-// comparable.Comparable interface constraint (and the Hashable/Stringer
-// hashing on top of it) has been replaced with plain Go type parameters,
-// so element data is never boxed into an interface and never unboxed with
+// Element data is never boxed into an interface and never unboxed with
 // a type assertion.  Because a bucket is a search tree the element type
 // needs an ordering, not just an equality: tables of naturally ordered
 // types are created with NewHashTab, which orders with the type's builtin

@@ -28,9 +28,8 @@ empty slot is marked by an explicit flag — a base hash of exactly 0 is a
 legal hash and needs no remapping (unlike `hash_grow`, which uses 0 as its
 empty marker).
 
-There is no pluto counterpart — this package is charon's own design, built
-to the same contract as `hash_grow` (see the differences section below,
-which is written against link:../hash_grow[charon/hash_grow]).
+The package is built to the same contract as `hash_grow`; the differences
+section below is written against link:../hash_grow[charon/hash_grow].
 
 * Elements are stored and returned *by value* (`T`, not `*T`).
 * Keys of types comparable with `==` need no functions at all:
@@ -192,8 +191,8 @@ seed this is unreachable for practical purposes.
 == Differences from charon/hash_grow
 
 `hash_grow` is the sibling auto-growing table (open addressing, linear
-probing); pluto has no cuckoo package, so the differences are written
-against charon's own `hash_grow`:
+probing); the differences are written against
+link:../hash_grow[charon/hash_grow]:
 
 * *Cuckoo hashing instead of linear probing*: each element has four
   candidate slots derived from one base hash (`h & mask`, `h>>1 & mask`,

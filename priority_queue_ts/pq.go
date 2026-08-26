@@ -11,11 +11,9 @@ BSD 3 Clause Licensed.
 // addition of the Lock/Unlock pair and the Nl-prefixed (no-lock) methods
 // for compound operations.
 //
-// It is the charon rework of github.com/pschlump/pluto/priority_queue_ts:
-// the comparable.Comparable interface constraint is replaced with plain
-// Go type parameters, elements are stored and returned by value, and the
-// not-found and out-of-range outcomes are reported with false returns
-// instead of nil pointers and errors.
+// Elements are stored and returned by value, and the not-found and
+// out-of-range outcomes are reported with false returns instead of nil
+// pointers and errors.
 //
 // The queue supports the following operations:
 //

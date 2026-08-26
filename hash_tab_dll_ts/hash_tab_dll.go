@@ -16,11 +16,10 @@ BSD 3 Clause Licensed.
 // sync.RWMutex.
 //
 // It is the thread-safe twin of github.com/pschlump/charon/hash_tab_dll —
-// the same API — with the addition of the Lock/Unlock pair and the
-// Nl-prefixed (no-lock) methods for compound operations.  Pluto has no
-// hash_tab_dll_ts; the twin takes charon/hash_tab_dll and guards it with
-// one table lock, following the pattern of hash_tab_ts and hash_tab_bt_ts:
-// the buckets stay plain (non-thread-safe) dll lists — like hash_tab_bt_ts,
+// the same API, guarded by one table lock, following the pattern of
+// hash_tab_ts and hash_tab_bt_ts — with the addition of the Lock/Unlock
+// pair and the Nl-prefixed (no-lock) methods for compound operations.
+// The buckets stay plain (non-thread-safe) dll lists — like hash_tab_bt_ts,
 // which keeps plain binary_tree buckets — because a per-bucket dll_ts would
 // add n redundant locks on top of the table lock.  The buckets are
 // unexported and touched only while the lock is held.  Element data is

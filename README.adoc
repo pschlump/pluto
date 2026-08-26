@@ -6,12 +6,8 @@ never boxed into an interface and never unboxed with a type assertion —
 ordering and equality are either the type's built-in operators or a
 caller-supplied function, never a method call through an interface.
 
-charon is a sibling project to link:https://github.com/pschlump/pluto[pluto].
-The packages keep a similar API to their pluto counterparts but replace
-pluto's `comparable.Comparable` / `comparable.Equality` interface
-constraints with plain type parameters. Zero external dependencies
-(stdlib only, including tests); no binaries or servers — every
-structure is its own package.
+Zero external dependencies (stdlib only, including tests); no binaries
+or servers — every structure is its own package.
 
 Every structure comes with tests, checked examples, and — where sharing
 between goroutines matters — a thread-safe twin in a `_ts` directory
@@ -60,7 +56,6 @@ with an identical public API.
 | link:cuckoo/[cuckoo]                       | Generic auto-growing cuckoo hash table (4 derived hashes per key, powers of 2, == or eq+hash funcs).
 | link:cuckoo_ts/[cuckoo_ts]                 | Thread-safe cuckoo hash table (RWMutex, background resizes, snapshot iterators, Lock+Nl* compound ops).
 | link:g_lib/[g_lib]                         | Generic utility functions (min/max, slice ops, set/map conversion, numeric constraints).
-| link:bench_compare/[bench_compare]         | Benchmarks binary_tree against the local pluto checkout (nested module).
 |===
 
 == Common Conventions
@@ -74,15 +69,11 @@ one field; a reversed function reverses the order). The struct stores
 that one function. *Equality-based structures* (the lists, the hash
 tables) work the same way: `NewX[T comparable]()` compares with `==`,
 `NewXFunc[T any](eq func(a, b T) bool)` takes an equality function.
-This is the whole difference from pluto, which routed both through
-`comparable.Comparable` / `comparable.Equality` interface constraints.
-charon has no `comparable/` and no `iface_list/` package — pure
-generics replace them.
 * *Elements are stored and returned by value* (`T`, not `*T`). No
 per-element allocation for the sake of an interface, and find-style
-operations return `(T, bool)` instead of a nil-able pointer. Wherever
-pluto's thread-safe twins returned a live `*T` aliasing internal
-state (a race), charon's return a copy taken under the lock.
+operations return `(T, bool)` instead of a nil-able pointer. The
+thread-safe twins return value copies taken under the lock — never a
+live `*T` aliasing internal state.
 * *Walk callbacks take no `interface{}` userData* — callers capture
 state in a closure (Go methods cannot add type parameters, so closures
 are the fully generic replacement).
@@ -136,15 +127,13 @@ comparison function to supply.
 — point callers needing stable O(1) memory at `queue_dll` (or `dll`'s
 `Enqueue`/`Pop`). Not thread-safe (`queue_ts` is the twin).
 
-`queue_ts` snapshots `All`/`Backward` under the read lock. It also
-fixes a pluto bug: pluto's `queue_ts.Peek` returned `&q.data[0]` after
-releasing the lock — a pointer that could race with a concurrent pop
-zeroing that slot; charon returns the value copy taken under the lock.
+`queue_ts` snapshots `All`/`Backward` under the read lock, and `Peek`
+returns the value copy taken under the lock — never a pointer into
+the queue's internals that could race with a concurrent pop.
 
 === Queue on a list — `queue_dll/`
 
-A FIFO queue on a doubly linked list — a rework of pluto's
-`queue_dll_ts` (which pluto only ever had in thread-safe form).
+A FIFO queue on a doubly linked list.
 *Self-contained*, not a wrapper over `dll` (charon's `dll` requires an
 equality function; a queue never compares — the same rationale as
 `dqueue` and `stack_sll_ts`). Same API as `queue` — `Push`/`Enqueue`
@@ -173,8 +162,8 @@ numbers from 0 at the *top* (most recently pushed) going down;
 * Bad: same slice-reallocation caveat; not thread-safe.
 
 `stack_ts` copies a value snapshot at call time for `All`/`Backward`
-(the plain package's iterators walk the live stack). pluto has no
-`stack_ts`; charon's is charon/stack plus the lock.
+(the plain package's iterators walk the live stack); it is `stack`
+plus the lock.
 
 === Stack on a list — `stack_sll_ts/`
 
@@ -184,8 +173,8 @@ function at insert, which a stack never uses; wrapping would break the
 constraint-free contract — the same rationale as `dqueue_ts` and
 `hash_tab`'s own chains). `Push`/`Pop`/`Peek` strict O(1), one node
 allocation per push, stable O(1) memory per operation. Own
-`ErrEmptyStack` (pluto's version leaked `sll_ts.ErrEmptySll`),
-eager value-snapshot `All`/`Backward`.
+`ErrEmptyStack` (not `sll_ts.ErrEmptySll`), eager value-snapshot
+`All`/`Backward`.
 
 * Good: stable O(1) memory — the stack for long-lived, grow/drain
 heavy use where the slice window would churn.
@@ -197,8 +186,8 @@ short-lived stacks; `_ts`-only (no plain twin — use `stack`).
 A deque on a doubly linked list — self-contained, not a wrapper over
 `dll`/`dll_ts` (charon's `dll` requires an equality function; a deque
 never compares, and the `prev` pointers make `PopBack`/`Backward` O(1)
-per step). Pluto has no plain `dqueue`; the plain package is charon's
-own — `dqueue_ts` with the lock left out. `PushFront`/`PushBack`/
+per step). The plain package is `dqueue_ts` with the lock left out.
+`PushFront`/`PushBack`/
 `PopFront`/`PopBack`/`PeekFront`/`PeekBack` all O(1) returning
 `(T, error)` (`ErrEmptyDeque`); two panics: the two pushes on a nil
 deque. Used one-ended it is a stack; `PushBack`+`PopFront` is a FIFO.
@@ -231,10 +220,6 @@ the loop body may safely call list methods.
 `DeleteFound` is a *value-based re-search* (O(n)) — use `dll` for
 O(1) delete-by-node. Careful: a one-variable `range` over
 `IterateOver` yields the *index*, not the value.
-
-`sll_ts` also fixed pluto's divergence where the ts `Delete` on an
-empty list returned `ErrEmptySll` instead of the plain package's
-`ErrNotFound`.
 
 === Doubly Linked List — `dll/`, `dll_ts/`
 
@@ -291,8 +276,7 @@ or zero-value tree — everything else tolerates nil/zero as an empty
 tree.
 
 * Good: simple, no balancing overhead or color/height bookkeeping; the
-reference implementation the balancing trees are measured against
-(`bench_compare/`).
+reference implementation the balancing trees are measured against.
 * Bad: *worst case O(n)* — sorted input degenerates it into a linked
 list. Use `avl_tree` or `rb_tree` when input order is not random.
 
@@ -384,9 +368,8 @@ sorted); not thread-safe.
 `heap_ts` is the twin with the RWMutex, eager value-snapshot `All`,
 and the *real `Lock`/`Unlock` plus `Nl*` methods* (`NlLen`,
 `NlGetValue`, `NlPush`, `NlPop`, `NlDelete`, `NlFix`, `NlAppendHeap`,
-`NlHeapify`) for compound operations. pluto's `heap_ts` returned
-pointers aliasing heap elements after releasing the lock — a race the
-value copies fix.
+`NlHeapify`) for compound operations; reads return value copies taken
+under the lock, never pointers aliasing heap elements.
 
 === Priority Queue — `priority_queue/`, `priority_queue_ts/`
 
@@ -422,8 +405,7 @@ caller's slice can be mutated afterwards. Three panics mirroring the
 heap's.
 
 * Good: the cheapest way to sort with this library; `InsertArray`
-beats per-element `Insert`; pluto has no `heap_sort_ts` — charon's
-own twin.
+beats per-element `Insert`.
 * Bad: allocates the result; not stable; not thread-safe (see
 `heap_sort_ts`).
 
@@ -493,10 +475,9 @@ inserts into one bucket degenerate; fixed bucket count; the
 constructor constraint is the clunkiest in the library.
 
 `hash_tab_bt_ts` keeps the *plain* `binary_tree` buckets and the one
-table lock (unlike pluto's ts, which stored a locked tree per bucket —
-n redundant locks). Compound-op surface included; its `All`/`Values`
-value snapshots fix pluto's ts, which yielded `*T` pointers copied out
-after releasing the lock.
+table lock guarding everything — no per-bucket locks. Compound-op
+surface included; `All`/`Values` copy value snapshots under the read
+lock.
 
 === dll buckets, O(1) delete-by-handle — `hash_tab_dll/`, `hash_tab_dll_ts/`
 
@@ -510,7 +491,6 @@ in the charon hash tables — because the handle is what makes
 splice — no chain walk). Handles stay valid across an `Insert`
 replacement (the replacement is `SetData` on the same node). Within a
 bucket, iteration is dll head-to-tail = newest-first, like `hash_tab`.
-pluto has no `hash_tab_dll_ts`; charon's twin is charon's own design.
 
 * Good: O(1) delete of a previously located element — locate once,
 delete many times; the handle survives replacement.
@@ -527,8 +507,8 @@ exceeds the configurable saturation (default 0.5; `≤ 0` or NaN selects
 the default), so it stays O(1) average as it grows. Delete uses
 backward-shift to keep probe chains intact; an insert into a
 completely full table (saturation ≥ 1.0) *forces growth* instead of
-being silently dropped; probes stop after one full cycle (a pluto wart
-fixed here). Empty buckets are marked by a zero raw hash in
+being silently dropped; probes stop after one full cycle. Empty
+buckets are marked by a zero raw hash in
 `originalHash` (a hash of exactly 0 is remapped to 1) — no nil
 pointers. `Walk` is `func(pos int, data T) bool` with *false-to-stop*
 (the tree convention) and no depth/userData; `All`/`Values`/`Dump`
@@ -540,8 +520,8 @@ pointer chasing; the hash table for unknown sizes.
 probing is sensitive to clustering and hash quality; fixed `Dump`
 hashes are nondeterministic under the default seed.
 
-`hash_grow_ts` is the twin with value snapshots (fixing pluto's
-returned-`*T` race) and the compound-op surface.
+`hash_grow_ts` is the twin with value snapshots and the compound-op
+surface.
 
 === Cuckoo hashing — `cuckoo/`, `cuckoo_ts/`
 
@@ -561,9 +541,8 @@ a doubling. The saturation is tracked by `Saturation()` with two
 configurable thresholds: grow above 0.85 (default) after an insert,
 shrink below 0.10 (default) after a delete, halving down to the
 minimum size. An empty slot is an explicit flag, so a base hash of
-exactly 0 is legal (no remap, unlike `hash_grow`). Pluto has no cuckoo
-package — this is charon's own design written to the `hash_grow`
-contract.
+exactly 0 is legal (no remap, unlike `hash_grow`). The package is
+written to the same contract as `hash_grow`.
 
 * Good: O(1) lookups with no probing and no clustering sensitivity;
   the stored 64-bit hash lets resizes re-derive every position without
@@ -600,21 +579,20 @@ numeric constraint interfaces (`Numeric`, `SignedInteger`,
 only, so defined types do not satisfy it; `uintptr` only in
 `Unsigned`). Two tracked `*.go.txt` scratch files from the gotip era
 live here; they are not library code.
-* There is no `comparable/` and no `iface_list/` package (pluto's
-supporting packages) — pure generics replace the interface
-constraints, and no interface indirection is needed to swap a `_ts`
-twin (it is a package-name change).
+* There are no interface-constraint support packages — pure generics
+provide ordering and equality, and no interface indirection is needed
+to swap a `_ts` twin (it is a package-name change).
 
 == Benchmarks
 
-`bench_compare/` is a *nested module* (its own `go.mod`) that
-benchmarks `binary_tree` against the local `../pluto` checkout via
-`replace` directives — the only place a pluto dependency may appear.
-Run from inside the directory:
+Per-package benchmarks (e.g. `BenchmarkInsert`/`BenchmarkSearch`/
+`BenchmarkDelete` in `binary_tree`) run with:
 
 ----
-cd bench_compare && go test -run '^$' -bench . -benchmem
+go test -run '^$' -bench . -benchmem
 ----
+
+or `make bench` from the repo root.
 
 == Building and Testing
 

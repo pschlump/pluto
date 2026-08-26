@@ -9,11 +9,9 @@ exclusive.
 Like `avl_tree`, it keeps the heights of the two child subtrees of every
 node within one of each other, so `Insert`, `Delete` and `Search` are
 *O(log₂ n) in the worst case* regardless of insertion order, and `Depth`
-is O(1).  And like every charon package it is a rework of
-link:https://github.com/pschlump/pluto/tree/main/avl_tree_ts[pluto/avl_tree_ts]
-that replaces the `comparable.Comparable` interface constraint with pure
-Go type parameters, so element data is never boxed into an interface and
-never unboxed with a type assertion.
+is O(1).  Ordering never goes through an interface method, so element
+data is never boxed into an interface and never unboxed with a type
+assertion.
 
 * Elements are stored and returned *by value* (`T`, not `*T`); find-style
 operations return `(T, bool)`.
@@ -48,7 +46,8 @@ Same as `avl_tree`:
 |===
 
 `Insert` returns `true` when a new node was added and `false` when a
-duplicate replaced the stored value.
+duplicate replaced the stored value.  `Len` is an alias for `Length`,
+matching the other charon tree packages.
 
 == Locking behavior
 
@@ -139,29 +138,4 @@ func main() {
     fmt.Println(tree.IsEmpty()) // true
 }
 ----
-
-== Differences from pluto/avl_tree_ts
-
-* The `comparable.Comparable` interface constraint is gone: ordering is
-either the key type's built-in operators (`NewAvlTree`) or a caller
-supplied function (`NewAvlTreeFunc`).  No boxing of elements, no dynamic
-dispatch, no type assertions inside `Compare` methods.
-* Elements are stored and returned by value.  Find-style operations return
-`(T, bool)` instead of a nil-able `*T`; snapshots are `[]T`, not `[]*T`.
-* `Insert` reports whether a new node was added (`true`) or a duplicate
-replaced the old value (`false`); the pluto version returns nothing.
-* `Len` is available as an alias for `Length`, matching the other charon
-tree packages.
-* A nil `*AvlTree` behaves as an empty tree for every operation except
-`Insert`; pluto panics with a generic message on most methods called on
-a nil tree.
-* The only panics are the three listed above, each with a message naming
-the fix.
-* The `Walk*` callbacks capture state in closures instead of receiving an
-`interface{}` `userData` parameter.
-* The set operations adopt an operand's comparison function into a
-zero-value destination, and snapshot the operands' comparison functions
-under the operand's own read lock so concurrent adoption is race-free.
-* No dependency on `pluto/g_lib` or `pluto/stack`: the rotations use the
-builtin `max` and the iterators walk plain slices.
 

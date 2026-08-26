@@ -6,15 +6,11 @@ implementation is adapted from the standard library's `container/heap`.
 A reversed comparison function (`NewHeapFunc` with `-Compare(a, b)`)
 turns it into a max-heap.
 
-It is a rework of
-link:https://github.com/pschlump/pluto/tree/main/heap[pluto/heap]
-with the charon conventions:
-
-* The `comparable.Comparable` interface constraint is gone: ordering is
-either the element type's built-in `<` / `>` operators (`NewHeap`) or a
-caller supplied function (`NewHeapFunc`).  No boxing, no dynamic
-dispatch, no type assertions.
-* Elements are stored and returned *by value* (`T`, not `*T`).
+The element type implements no interface: ordering is either the
+element type's built-in `<` / `>` operators (`NewHeap`) or a caller
+supplied function (`NewHeapFunc`) — no boxing, no dynamic dispatch, no
+type assertions.  Elements are stored and returned *by value* (`T`,
+not `*T`).
 
 == Operations
 
@@ -37,9 +33,13 @@ dispatch, no type assertions.
 |===
 
 Indexes come from `Search`, `GetValue`, or `All`; `Delete`, `Fix`,
-`SetValue` and `GetValue` all report `false` for an out-of-range index
-(pluto panicked).  Replacing an element with `Fix` is cheaper than a
-`Delete` followed by a `Push`.
+`SetValue` and `GetValue` all report `false` for an out-of-range index.
+The element-returning operations (`Pop`, `Peek`, `Delete`, `GetValue`)
+return `(T, bool)` — a value copy plus a found flag, never a pointer
+into the heap.  `Pop`/`Delete` zero the vacated slot and release the
+backing array on a full drain, so no removed element stays referenced.
+Replacing an element with `Fix` is cheaper than a `Delete` followed by
+a `Push`.
 
 `All` yields elements in internal heap order, which is *not* sorted;
 repeatedly calling `Pop` is the way to consume a heap in sorted order.
@@ -95,24 +95,7 @@ Everything else — including every indexed operation with a bad index —
 tolerates a nil heap and the zero value as an empty heap and reports
 `false`.
 
-== Differences from pluto/heap
-
-* The `comparable.Comparable` interface constraint is gone (see above).
-* Elements are stored and returned by value: `Pop`, `Peek`, `Delete`,
-`GetValue` return `(T, bool)` instead of a nil-able `*T`.
-* The out-of-range index operations (`Delete`, `Fix`, `SetValue`,
-`GetValue`) report `false` instead of panicking; `Fix`/`SetValue`
-return `bool` so the caller sees the outcome.
-* `Search` returns `(T, int, bool)` — pluto returned a vestigial
-always-nil `err` "for interface compatibility".
-* `IsEmpty` added; `Len` and `Length` both kept (pluto's heap has both).
-* `Pop`/`Delete` zero the vacated slot *and release the backing array
-on a full drain* (pluto left the empty slice).
-* `Dump` prints an indexed internal-order listing; pluto used the
-external `dbgo` package (a dependency this module does not have).
-* The `Nl*` method aliases (API shims for pluto's `heap_ts` locked-mode
-API) are gone; the no-op `Lock`/`Unlock` pair is kept, as in dll.
-* A nil `*Heap` behaves as an empty heap for every operation except
-`Push`/`AppendHeap`; pluto panicked with an unguarded nil dereference
-on most methods.
+`Lock`/`Unlock` are no-ops kept for API compatibility with the
+mutex-guarded twin, link:../heap_ts[`heap_ts`]; this package is not
+safe for concurrent use.
 

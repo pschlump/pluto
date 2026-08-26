@@ -13,9 +13,8 @@ construction; when the number of elements is not known up front use
 link:../hash_grow_ts[`hash_grow_ts`], which grows and re-hashes
 automatically.
 
-Pluto has no `hash_tab_dll_ts`; the twin takes charon/hash_tab_dll and
-guards it with *one table-level* `sync.RWMutex`, following the pattern of
-link:../hash_tab_ts[`hash_tab_ts`] and
+Every operation is guarded by *one table-level* `sync.RWMutex`, following
+the pattern of link:../hash_tab_ts[`hash_tab_ts`] and
 link:../hash_tab_bt_ts[`hash_tab_bt_ts`].  The buckets stay *plain*
 (non-thread-safe) `dll` lists — like `hash_tab_bt_ts`, which keeps plain
 `binary_tree` buckets — because a per-bucket `dll_ts` would add n
@@ -219,6 +218,3 @@ zero-value panic.  `Lock`/`Unlock` on a nil table are no-ops.
   stale between the `Search` and its use; `Lock` + `NlSearch` +
   `NlDeleteFound` is the atomic locate-then-splice.  On a single
   goroutine the contract is unchanged.
-* Pluto has no `hash_tab_dll_ts`, so unlike most charon `_ts` packages
-  there is no pluto behavior to differ from — the differences above are
-  against charon's own `hash_tab_dll`.

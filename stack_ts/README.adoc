@@ -5,11 +5,8 @@ A generic slice-backed *LIFO stack* that is *safe for concurrent use*
 is guarded by a `sync.RWMutex`: readers run in parallel with each other,
 writers are exclusive.
 
-Pluto has no `stack_ts` package (its only thread-safe stack is the
-linked-list `stack_sll_ts`), so unlike most charon `_ts` packages this
-one has no pluto counterpart to rework — it is charon/stack with the
-lock added.  For a thread-safe stack with stable O(1) memory per
-push/pop (no slice window, no reallocation) see
+For a thread-safe stack with stable O(1) memory per push/pop (no slice
+window, no reallocation) see
 link:../stack_sll_ts/[charon/stack_sll_ts].
 
 Like `stack`, the element type needs *no constraints at all* and the

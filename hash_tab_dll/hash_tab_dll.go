@@ -14,23 +14,19 @@ BSD 3 Clause Licensed.
 // the number of elements is not known up front use the auto-growing
 // hash_grow package instead.
 //
-// It is a rework of github.com/pschlump/pluto/hash_tab_dll in which the
-// comparable.Equality interface constraint (and the Hashable/Stringer
-// hashing on top of it) has been replaced with plain Go type parameters,
-// so element data is never boxed into an interface and never unboxed with
+// Element data is never boxed into an interface and never unboxed with
 // a type assertion.  The buckets are charon/dll lists because a bucket
 // that is a doubly linked list with O(1) splice-out is exactly what dll
-// is (pluto composed its dll the same way) — the fourth intra-charon
-// composition after priority_queue/heap, heap_sort/heap and
-// hash_tab_bt/binary_tree.  Tables of types that can be compared with ==
-// (the builtin comparable constraint) are created with NewHashTab, which
-// hashes with the stdlib hash/maphash — every table gets its own random
-// seed, equal values always hash equal, and no method has to be
-// implemented.  Tables of any other type — or with field-based equality —
-// are created with NewHashTabFunc, which takes a caller supplied equality
-// function and hash function; the element type does not have to implement
-// any interface.  The two functions must agree: whenever eq(a, b) is
-// true, hash(a) and hash(b) must be equal.
+// is — the fourth intra-charon composition after priority_queue/heap,
+// heap_sort/heap and hash_tab_bt/binary_tree.  Tables of types that can
+// be compared with == (the builtin comparable constraint) are created
+// with NewHashTab, which hashes with the stdlib hash/maphash — every
+// table gets its own random seed, equal values always hash equal, and
+// no method has to be implemented.  Tables of any other type — or with
+// field-based equality — are created with NewHashTabFunc, which takes a
+// caller supplied equality function and hash function; the element type
+// does not have to implement any interface.  The two functions must
+// agree: whenever eq(a, b) is true, hash(a) and hash(b) must be equal.
 //
 // Elements are stored by value (T, not *T) inside the dll nodes.  The
 // element handles Search returns are the one pointer-bearing find in the

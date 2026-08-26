@@ -1,11 +1,9 @@
 = dqueue
 
 A generic *double ended queue (deque)* built on a doubly linked list
-that is *not safe for concurrent use*.  Pluto has no plain `dqueue`
-(only the thread-safe `dqueue_ts`), so this package is charon's own —
-the design of link:../dqueue_ts/[`dqueue_ts`] with the lock left out.  A
-mutex-guarded version with the *identical interface* lives alongside
-it; point shared-deque callers there.
+that is *not safe for concurrent use*.  A mutex-guarded version with
+the *identical interface* lives alongside it
+(link:../dqueue_ts/[`dqueue_ts`]); point shared-deque callers there.
 
 The element type needs *no constraints at all* and the zero value of
 `Deque` is an empty deque ready to use without a constructor.  Elements

@@ -5,17 +5,12 @@ elements are added with `Insert` or `InsertArray`, then drained in
 ascending order with `Sort` or descending order with `SortDown`.  The
 two Sort calls empty the sorter; it is reusable afterwards.
 
-It is a rework of
-link:https://github.com/pschlump/pluto/tree/main/heap_sort[pluto/heap_sort]
-with the charon conventions:
-
-* The `comparable.Comparable` interface constraint is gone: ordering is
-either the element type's built-in `<` / `>` operators
-(`NewHeapSort`) or a caller supplied function (`NewHeapSortFunc`).  No
-boxing, no dynamic dispatch, no type assertions.
-* Elements are stored and returned *by value* (`T`, not `*T`) — the
-sort result is a `[]T` of copies, not a slice of pointers into the
-sorter.
+The element type implements no interface: ordering is either the
+element type's built-in `<` / `>` operators (`NewHeapSort`) or a
+caller supplied function (`NewHeapSortFunc`) — no boxing, no dynamic
+dispatch, no type assertions.  Elements are stored and returned *by
+value* (`T`, not `*T`) — the sort result is a `[]T` of copies, not a
+slice of pointers into the sorter.
 
 == Operations
 
@@ -36,6 +31,11 @@ combined data), and it may be interleaved with `Insert`.  The batch is
 copied into the sorter, so the caller's slice can be reused or mutated
 afterwards.  The sort is *not stable*: elements that compare equal
 may come out in any relative order.
+
+The sort drains the underlying heap through its value-returning `Pop`,
+so every popped slot is zeroed and the backing array is released on
+the full drain — no element stays referenced by the sorter after
+sorting.
 
 == Usage
 
@@ -86,28 +86,7 @@ returns an empty slice, `Len` returns 0).
 == Thread safety
 
 `heap_sort` is *not* safe for concurrent use. Its thread-safe twin is
-link:../heap_sort_ts[`heap_sort_ts`] (pluto has no `heap_sort_ts`) — the
-same API on top of `heap_ts`, with the `Lock`/`Unlock` pair and `Nl*`
+link:../heap_sort_ts[`heap_sort_ts`] — the same API on top of `heap_ts`,
+with the `Lock`/`Unlock` pair and `Nl*`
 methods for compound operations.
-
-== Differences from pluto/heap_sort
-
-* The `comparable.Comparable` interface constraint is gone (see above):
-two constructors (`NewHeapSort` for ordered types, `NewHeapSortFunc`
-for comparison functions) instead of one interface-driven
-constructor.
-* Elements are stored and returned by value: `Insert` takes a `T` and
-`Sort`/`SortDown` return `[]T`.  Pluto took and returned `*T`, so
-every element cost a separate allocation and the result aliased the
-caller's inserted pointers.
-* `InsertArray` takes a `[]T` batch (pluto took `[]*T`).
-* `IsEmpty` is available, matching the other charon packages; `Length`
-remains an alias for `Len`.
-* A nil `*HeapSort` and the zero value behave as an empty sorter for
-every operation except the two inserts, which panic with messages
-naming the fix (pluto's nil dereferenced unguarded).
-* The sort drains the underlying heap through its value-returning
-`Pop`, so every popped slot is zeroed and the backing array is
-released on the full drain — no element stays referenced by the
-sorter after sorting.
 

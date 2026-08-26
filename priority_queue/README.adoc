@@ -5,16 +5,11 @@ min-heap: the lowest-priority (minimum) element is always the next to
 come out.  A reversed comparison function (`NewPriorityQueueFunc`) makes
 the highest priority come out first.
 
-It is a rework of
-link:https://github.com/pschlump/pluto/tree/main/priority_queue[pluto/priority_queue]
-with the charon conventions:
-
-* The `comparable.Comparable` interface constraint is gone: ordering is
-either the element type's built-in `<` / `>` operators
-(`NewPriorityQueue`) or a caller supplied function
-(`NewPriorityQueueFunc`).  No boxing, no dynamic dispatch, no type
-assertions.
-* Elements are stored and returned *by value* (`T`, not `*T`).
+The element type implements no interface: ordering is either the
+element type's built-in `<` / `>` operators (`NewPriorityQueue`) or a
+caller supplied function (`NewPriorityQueueFunc`) — no boxing, no
+dynamic dispatch, no type assertions.  Elements are stored and
+returned *by value* (`T`, not `*T`).
 
 == Operations
 
@@ -34,8 +29,11 @@ assertions.
 |===
 
 Positions come from `Search` and compose with `UpdatePriority` and
-`Delete`; both report `false` for an out-of-range position.  A search
-probe only needs the fields the comparison function reads.
+`Delete`; both report `false` for an out-of-range position.  The
+element-returning operations (`Pop`, `Peek`, `Search`, `Delete`)
+return `(T, …)` with a `bool`/`-1` signal — `Search` returns
+`(T, int, bool)` — never a pointer into the queue.  A search probe
+only needs the fields the comparison function reads.
 
 `All` yields elements in *priority order* (minimum first) — unlike the
 heap's `All`, this one _is_ sorted — by draining a private copy of the
@@ -85,29 +83,7 @@ Everything else — including `Pop`/`Peek` on an empty queue and every
 indexed operation with a bad position — tolerates a nil queue and the
 zero value as an empty queue and reports `false`.
 
-Not safe for concurrent use.
-
-== Differences from pluto/priority_queue
-
-* The `comparable.Comparable` interface constraint is gone (see above).
-* Elements are stored and returned by value: `Pop`, `Peek`, `Search` and
-`Delete` return `(T, …)` with a `bool`/`-1` signal instead of nil-able
-`*T`.  Pluto's `Search` returned a `*T` *aliasing the stored element*
-— an aliasing hazard value semantics removes.
-* `Search` returns `(T, int, bool)` — pluto returned a synthesized
-`fmt.Errorf("not found")` error.
-* `Delete(pos)` returns `(T, bool)` — pluto returned only an error and
-discarded the element.
-* Two constructors (`NewPriorityQueue` for ordered types,
-`NewPriorityQueueFunc` for comparison functions) instead of one
-interface-driven constructor.
-* `Length` is available as an alias for `Len`, matching the other charon
-packages.
-* The `Nl*` method aliases (API shims for pluto's
-`priority_queue_ts`) are gone; the no-op `Lock`/`Unlock` pair is kept.
-* A nil `*PriorityQueue` behaves as an empty queue for every operation
-except `Insert` (pluto's zero value panicked with an unguarded nil
-dereference on every method).
-* `All` is an `iter.Seq[T]` over values, and its snapshot is taken when
-`All` is called (pluto built it lazily at first iteration).
+Not safe for concurrent use; the mutex-guarded twin is
+link:../priority_queue_ts/[`priority_queue_ts`].  The `Lock`/`Unlock`
+pair is a no-op kept for API compatibility with that twin.
 

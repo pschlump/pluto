@@ -22,17 +22,15 @@ are O(log₂ n) in the worst case:
   - Dump     — write an indented picture of the tree for debugging.					O(n)
   - All / Backward — range-over-func iterators (see iter.go).							O(n), O(1) extra space
 
-It is a rework of github.com/pschlump/pluto/rb_tree in which the
-comparable.Comparable interface constraint has been replaced with plain Go
-type parameters.  Elements are stored and returned by value and ordering
-is a direct function call, so element data is never boxed into an
-interface and never unboxed with a type assertion.  Trees of naturally
-ordered key types (all integers, floats and strings) are created with
-NewRbTree, which orders elements with the built-in < and > operators of
-the key type; trees of any other type — including structs ordered by a
-single field — are created with NewRbTreeFunc, which takes a caller
-supplied comparison function; the element type does not have to implement
-any interface.
+Elements are stored and returned by value and ordering is a direct
+function call, so element data is never boxed into an interface and
+never unboxed with a type assertion.  Trees of naturally ordered key
+types (all integers, floats and strings) are created with NewRbTree,
+which orders elements with the built-in < and > operators of the key
+type; trees of any other type — including structs ordered by a single
+field — are created with NewRbTreeFunc, which takes a caller supplied
+comparison function; the element type does not have to implement any
+interface.
 
 Unlike the unbalanced binary_tree, performance does not degrade when items
 are inserted in sorted order; for a height-balanced alternative see

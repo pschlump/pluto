@@ -9,14 +9,12 @@ It is the thread-safe twin of link:../hash_grow[charon/hash_grow] — the
 same API — with the addition of the `Lock`/`Unlock` pair and the
 `Nl*`-prefixed (no-lock) methods for compound operations.
 
-It is a rework of
-link:https://github.com/pschlump/pluto/tree/main/hash_grow_ts[pluto/hash_grow_ts]
-that replaces the `comparable.Comparable` interface constraint (and the
-`Hashable`/`fmt.Stringer` hashing built on it) with pure Go type
-parameters, so element data is never boxed into an interface and never
-unboxed with a type assertion.
+Element data is never boxed into an interface and never unboxed with a type
+assertion.
 
-* Elements are stored and returned *by value* (`T`, not `*T`).
+* Elements are stored and returned *by value* (`T`, not `*T`); `Search`
+returns `(T, bool)` and `Insert` returns bool — true when a new element
+was added, false when it replaced an equal element.
 * Keys of types comparable with `==` need no functions at all:
 `hash_grow_ts.NewHashTab[string](16, 0)`.  Equality is the `==` operator and
 hashing is the stdlib `hash/maphash` with a per-table random seed.
@@ -50,11 +48,13 @@ on pkg.go.dev.
 |===
 
 Worst case occurs when many keys collide; the load factor is kept below the
-saturation threshold (default 0.5) so average behavior is O(1).
+saturation threshold (default 0.5) so average behavior is O(1).  Probes
+(`Insert`/`Search`/`Delete`) never run past one full cycle of the table.
 
 A saturation of 1.0 or more defers growth until the table is actually full;
 growth is then forced, so a completely full table can neither silently drop
-an insert nor wedge a probe (pluto did both).
+an insert nor wedge a probe.  A saturation ≤ 0 or NaN selects the 0.5
+default.
 
 == Usage
 
@@ -120,23 +120,3 @@ Everything else tolerates a nil table and the zero value as an empty table:
 searches report not-found, `Delete` returns false, and the iterators visit
 nothing.  (`NlInsert` on a zero-value table panics because it *is* the
 Insert body.)
-
-== Differences from pluto/hash_grow_ts
-
-* Everything in the link:../hash_grow[charon/hash_grow] differences list —
-pure generics instead of `comparable.Comparable`, `maphash`/caller-supplied
-hashing instead of the `Hashable`/`Stringer` type switch, value semantics
-(`Search` returns `(T, bool)`), `Insert` returning bool, no `depth`/`userData`
-in the Walk callback, probes bounded to one full cycle, forced growth on a
-full table instead of a silent drop, saturation ≤ 0/NaN → 0.5 default.
-* pluto exposed `NlSearch`/`NlDelete` but no way to acquire the lock, so
-they were unusable outside the package.  charon exposes the **real**
-`Lock`/`Unlock` (nil-table no-ops) plus `NlIsEmpty`/`NlLen`/`NlSearch`/
-`NlInsert`/`NlDelete` as the documented compound-operation escape hatch.
-* pluto's `All`/`Values` copied `*T` pointers out of the table and yielded
-them after releasing the read lock — a pointer that can race with a
-concurrent delete clearing the slot.  The value-copy snapshots fix that the
-same way `queue_ts`'s `Peek` and `heap_ts`'s accessors do.
-* `Print` is gone (one line with `Values` replaces it); nil tables are
-tolerated instead of panicking with an unguarded nil dereference on most
-reads.

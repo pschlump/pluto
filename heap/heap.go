@@ -2,10 +2,10 @@
 // returns the minimum element.  The heap is stored as a slice in
 // breadth-first tree order.
 //
-// It is the charon rework of github.com/pschlump/pluto/heap: the
-// comparable.Comparable interface constraint is replaced with plain Go
-// type parameters, elements are stored and returned by value, and the
-// out-of-range index operations report not-found instead of panicking.
+// The element type implements no interface: ordering is supplied as a
+// plain comparison function over type parameters, elements are stored
+// and returned by value, and the out-of-range index operations report
+// not-found instead of panicking.
 //
 // The heap implementation is adapted from the standard library's
 // container/heap.

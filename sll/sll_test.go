@@ -14,9 +14,7 @@ import (
 	"testing"
 )
 
-// TestSllItem is the test element type.  Note what is missing compared
-// to the pluto version of this test file: no IsEqual method, no interface
-// assertion, no type assertions inside a comparison.  Equality is
+// TestSllItem is the test element type.  Equality is
 // supplied to the list as a plain function (eqTestSllItem below).
 type TestSllItem struct {
 	S string

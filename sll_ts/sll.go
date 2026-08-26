@@ -15,9 +15,6 @@ BSD 3 Clause Licensed.
 // (Front/Next/Done/Value) and a Go 1.23 range-over-func iterator
 // (IterateOver).
 //
-// Like every charon package it is a rework of its pluto counterpart
-// (github.com/pschlump/pluto/sll_ts) in which the comparable.Equality
-// interface constraint has been replaced with plain Go type parameters.
 // Elements are stored and returned by value, so element data is never
 // boxed into an interface and never unboxed with a type assertion.
 // Lists of types that can be compared with == (the builtin comparable

@@ -5,14 +5,12 @@ linear probing. When the load factor exceeds a configurable saturation
 threshold (default 0.5) the table automatically doubles in size and
 re-hashes all entries.
 
-It is a rework of
-link:https://github.com/pschlump/pluto/tree/main/hash_grow[pluto/hash_grow]
-that replaces the `comparable.Comparable` interface constraint (and the
-`Hashable`/`fmt.Stringer` hashing built on it) with pure Go type
-parameters, so element data is never boxed into an interface and never
-unboxed with a type assertion.
+Element data is never boxed into an interface and never unboxed with a type
+assertion.
 
-* Elements are stored and returned *by value* (`T`, not `*T`).
+* Elements are stored and returned *by value* (`T`, not `*T`); `Search`
+returns `(T, bool)` and `Insert`/`Delete` take the probe by value — a probe
+only needs the fields the equality/hash functions read.
 * Keys of types comparable with `==` (all scalars, strings, pointers,
 arrays, and structs of comparable fields) need no functions at all:
 `hash_grow.NewHashTab[string](16, 0)`.  Equality is the `==` operator and
@@ -37,6 +35,10 @@ hash-flooding mitigation.  Bucket order in `All`, `Values`, `Walk` and
 `Dump`, and the raw hash values `Dump` prints, therefore vary from process
 to process and must not appear in fixed assertions or golden files.
 
+An empty bucket is marked by a zero raw hash; a hash of exactly 0 is
+remapped to 1 on every path, and `Dump` prints an `empty` marker for vacant
+buckets.
+
 Runnable, tested copies of the examples live in
 link:example_test.go[`example_test.go`] — they run under `go test` and appear
 on pkg.go.dev.
@@ -56,11 +58,13 @@ on pkg.go.dev.
 |===
 
 Worst case occurs when many keys collide; the load factor is kept below the
-saturation threshold (default 0.5) so average behavior is O(1).
+saturation threshold (default 0.5) so average behavior is O(1).  Probes
+(`Insert`/`Search`/`Delete`) never run past one full cycle of the table.
 
 A saturation of 1.0 or more defers growth until the table is actually full;
 growth is then forced, so a completely full table can neither silently drop
-an insert nor wedge a probe (pluto did both).
+an insert nor wedge a probe.  A saturation ≤ 0 or NaN selects the 0.5
+default.
 
 == Usage
 
@@ -130,40 +134,6 @@ no sane fallback, each message naming the fix:
 Everything else tolerates a nil table and the zero value as an empty table:
 searches report not-found, `Delete` returns false, and the iterators visit
 nothing.
-
-== Differences from pluto/hash_grow
-
-* The `comparable.Comparable` constraint and the `Hashable`/`string`/
-`fmt.Stringer` hash-key priority are gone — pluto hashed through
-`hash(x any)` with type assertions (and panicked on types implementing
-none of the three).  Equality is either the type's `==` operator
-(`NewHashTab`, no interface, no boxing) or a caller supplied function
-paired with a caller supplied `func(T) uint64` hash
-(`NewHashTabFunc`).  `NewHashTab` hashes with a per-table random
-`hash/maphash` seed; pluto's FNV-1a hashes were deterministic per process.
-* The data is stored by value in each bucket (pluto stored a `*T` pointing
-  at the inserted item).  `Search` returns `(T, bool)` instead of a
-  nil-able `*T`, and `Insert`/`Delete` take the probe by value — a probe
-  only needs the fields the equality/hash functions read.
-* `Insert` returns bool — true when a new element was added, false when it
-  replaced an equal element (pluto returned nothing).
-* `Walk`'s callback is `func(pos int, data T) bool` — no `depth` parameter
-  (always 0 for a flat table) and no `interface{}` userData (state is
-  captured in a closure).  The false-stops convention is unchanged.
-* `Print` is gone — `for _, v := range ht.All() { fmt.Fprintln(out, v) }`
-  is the one-line replacement.  `Dump` prints an `empty` marker for vacant
-  buckets (pluto printed the nil pointer).
-* An empty bucket is marked by a zero raw hash (pluto used a nil bucket
-  pointer); a hash of exactly 0 is remapped to 1 on every path.
-* Probes (`Insert`/`Search`/`Delete`) stop after one full cycle of the
-  table, and an insert into a completely full table forces growth instead
-  of being silently dropped — pluto could loop forever searching a full
-  table and dropped inserts at saturation ≥ 1.0.
-* A saturation ≤ 0 or NaN selects the 0.5 default (pluto only remapped
-  exactly 0; negative grew on every insert and NaN never grew).
-* The public `NlSearch`/`NlDelete` aliases are gone (the `_ts` twin keeps
-  the code shape with unexported internals); a nil table is tolerated
-  instead of panicking with an unguarded nil dereference on most reads.
 
 == Thread safety
 

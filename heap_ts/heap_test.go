@@ -17,10 +17,8 @@ import (
 	"testing"
 )
 
-// TestHeapItem is the test element type.  Note what is missing compared
-// to the pluto version of this test file: no Compare method, no
-// interface assertion, no type assertions inside a comparison.  Ordering
-// is supplied to the heap as a plain function (cmpTestHeapItem below).
+// TestHeapItem is the test element type.  Ordering is supplied to the
+// heap as a plain function (cmpTestHeapItem below).
 type TestHeapItem struct {
 	S string
 }

@@ -34,18 +34,15 @@ BSD 3 Clause Licensed.
 //	destination's write lock, so no two locks are ever held at once and an
 //	operand may safely alias the destination or the other operand.
 //
-// Like every charon package it is a rework of its pluto counterpart
-// (github.com/pschlump/pluto/avl_tree_ts) in which the
-// comparable.Comparable interface constraint has been replaced with plain
-// Go type parameters.  Elements are stored and returned by value and
-// ordering is a direct function call, so element data is never boxed into
-// an interface and never unboxed with a type assertion.  Trees of
-// naturally ordered key types (all integers, floats and strings) are
-// created with NewAvlTree, which orders elements with the built-in < and
-// > operators of the key type; trees of any other type — including
-// structs ordered by a single field — are created with NewAvlTreeFunc,
-// which takes a caller supplied comparison function; the element type
-// does not have to implement any interface.
+// Elements are stored and returned by value and ordering is a direct
+// function call, so element data is never boxed into an interface and
+// never unboxed with a type assertion.  Trees of naturally ordered key
+// types (all integers, floats and strings) are created with NewAvlTree,
+// which orders elements with the built-in < and > operators of the key
+// type; trees of any other type — including structs ordered by a single
+// field — are created with NewAvlTreeFunc, which takes a caller supplied
+// comparison function; the element type does not have to implement any
+// interface.
 //
 // Basic operations on an Avl Tree:
 //

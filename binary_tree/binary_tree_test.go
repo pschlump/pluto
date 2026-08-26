@@ -13,10 +13,10 @@ import (
 	"testing"
 )
 
-// TestTreeNode is the test element type.  Note what is missing compared to
-// the pluto version of this test file: no Compare method, no interface
-// assertion, no type assertions inside a comparison.  Ordering is supplied
-// to the tree as a plain function (cmpTestTreeNode below).
+// TestTreeNode is the test element type.  It implements no interface: no
+// Compare method, no interface assertion, no type assertions inside a
+// comparison.  Ordering is supplied to the tree as a plain function
+// (cmpTestTreeNode below).
 type TestTreeNode struct {
 	S string
 	// N is satellite data that the comparison ignores.  It is used to
@@ -603,9 +603,9 @@ func TestTreeWalkEarlyStop(t *testing.T) {
 	}
 }
 
-// TestTreeWalkClosureCapture demonstrates the closure replacing the pluto
-// version's interface{} userData parameter: the callback captures caller
-// state (count, sumLen) directly and it keeps its static type.
+// TestTreeWalkClosureCapture demonstrates closures replacing an
+// interface{} userData parameter: the callback captures caller state
+// (count, sumLen) directly and it keeps its static type.
 func TestTreeWalkClosureCapture(t *testing.T) {
 	Tree1 := newTestTree()
 

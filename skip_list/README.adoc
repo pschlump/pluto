@@ -10,12 +10,6 @@ link:https://en.wikipedia.org/wiki/Skip_list[]
 for the theory; link:../avl_tree/[`avl_tree`] and link:../rb_tree/[`rb_tree`]
 are the deterministic self-balancing alternatives.
 
-It is a rework of
-link:https://github.com/pschlump/pluto/tree/main/skip_list[pluto/skip_list]
-that replaces the `comparable.Comparable` interface constraint with pure
-Go type parameters, so element data is never boxed into an interface and
-never unboxed with a type assertion.
-
 * Elements are stored and returned *by value* (`T`, not `*T`); find-style
 operations return `(T, bool)`.
 * Lists of ordered key types (integers, floats, strings) are ordered by the
@@ -129,23 +123,4 @@ with no sane fallback:
 Everything else tolerates a nil list and the zero value as an empty list:
 searches find nothing, deletes return `false`, and the iterators visit
 nothing.
-
-== Differences from pluto/skip_list
-
-* The `comparable.Comparable` interface constraint is gone: ordering is
-either the key type's built-in operators (`NewSkipList`) or a caller
-supplied function (`NewSkipListFunc`).  No boxing of elements, no
-dynamic dispatch, no type assertions inside `Compare` methods.
-* The data is stored by value in each node (pluto stored a `*T` pointing
-at the inserted item).  `Search`, `FindMin` and `FindMax` return
-`(T, bool)` instead of a nil-able `*T`.
-* `Insert` reports whether a new node was added (`true`) or a duplicate
-replaced the old value (`false`); the pluto version returns nothing.
-* `Len` is available as an alias for `Length`, matching the other charon
-packages.
-* A nil `*SkipList` behaves as an empty list for every operation except
-`Insert`; pluto panics on `Insert`, `Delete`, `DeleteAtHead` and
-`DeleteAtTail` called on a nil list.
-* The only panics are the three listed above, each with a message naming
-the fix.
 

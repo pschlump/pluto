@@ -7,14 +7,15 @@ lowest-priority (minimum) element is always the next to come out; a
 reversed comparison function (`NewPriorityQueueFunc`) makes the highest
 priority come out first.
 
-Like `priority_queue` it is a rework of
-link:https://github.com/pschlump/pluto/tree/main/priority_queue_ts[pluto/priority_queue_ts]
-with the charon conventions (no interface constraint, elements stored
-and returned by value, false returns instead of nil pointers and
-errors), plus the additions this twin needs: the real `Lock`/`Unlock`
-pair and the `Nl*` (no-lock) methods for compound operations.
+Like `priority_queue` it follows the same conventions (no interface
+constraint, elements stored and returned by value, false returns
+instead of nil pointers and errors), plus the additions this twin
+needs: the real `Lock`/`Unlock` pair and the `Nl*` (no-lock) methods
+for compound operations.
 
-* Elements are stored and returned *by value* (`T`, not `*T`).
+* Elements are stored and returned *by value* (`T`, not `*T`) — the
+copies are taken under the heap's lock, so nothing aliases the
+queue's internals.
 * Queues of types comparable with `==`-style ordering (numbers, strings)
 need no comparison function: `priority_queue_ts.NewPriorityQueue[int]()`.
 * Any other type — or ordering by a priority field — takes a plain
@@ -40,7 +41,9 @@ mutation* between obtaining the position and using it with
 `UpdatePriority`/`Delete` (both report `false` for a now-stale
 position).  For atomic search-then-update sequences use `Lock`/`Unlock`
 with the `Nl*` methods: `NlLen`, `NlIsEmpty`, `NlPeek`, `NlInsert`,
-`NlPop`, `NlSearch`, `NlUpdatePriority`, `NlDelete`.  Calling a
+`NlPop`, `NlSearch`, `NlUpdatePriority`, `NlDelete` — each returning
+values exactly like its locked counterpart (`NlSearch` uses the
+queue's own comparison function).  Calling a
 regular method while the lock is held will deadlock.
 
 [source,go]
@@ -114,31 +117,4 @@ Runnable, tested copies of these examples live in
 link:example_test.go[`example_test.go`].  The
 link:../priority_queue/[priority_queue README] documents the full API usage;
 it applies unchanged.
-
-== Differences from pluto/priority_queue_ts
-
-* The `comparable.Comparable` interface constraint is gone: ordering is
-either the element type's built-in operators (`NewPriorityQueue`) or a
-caller supplied function (`NewPriorityQueueFunc`).
-* Elements are stored and returned by value: `Pop`, `Peek`, `Search`,
-`Delete` return `(T, …)` with a `bool`/`-1` signal instead of nil-able
-`*T`.  Pluto's package-wide note said the returned pointers "alias
-data stored in the queue; treat them as read-only" — under concurrency
-that is a race waiting to happen; the value copies taken under the
-lock remove the hazard.
-* `Search` returns `(T, int, bool)` — pluto returned a synthesized
-`fmt.Errorf("not found")` error — and `Delete(pos)` returns
-`(T, bool)` instead of discarding the element.
-* Two constructors instead of one interface-driven constructor.
-* `Length` is available as an alias for `Len`, matching the other charon
-packages.
-* The `Nl*` methods return `(T, bool)`/`bool` like their locked
-counterparts (pluto's returned `*T` / errors), and `NlSearch` uses the
-queue's own comparison function rather than an interface method call.
-* `All` is an `iter.Seq[T]` over values, and its snapshot is taken when
-`All` is called (pluto built it lazily at first iteration, and its
-snapshot heap relied on the element type's interface ordering).
-* A nil `*PriorityQueue` behaves as an empty queue for every operation
-except `Insert`, which panics with a named message (pluto's zero value
-panicked with an unguarded nil dereference on every method).
 

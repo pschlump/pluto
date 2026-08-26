@@ -609,7 +609,7 @@ func TestTreeWalkDepth(t *testing.T) {
 	expectedDepth := map[string]int{"05": 0, "02": 1, "09": 1, "00": 2, "03": 2}
 
 	// Caller state (the visit counter) is captured in the closure — the
-	// type-safe replacement for the pluto version's interface{} userData.
+	// type-safe alternative to an interface{} userData parameter.
 	visits := 0
 	fx := func(pos, depth int, data TestTreeNode) bool {
 		visits++

@@ -7,9 +7,7 @@ BSD 3 Clause Licensed.
 // Package dqueue implements a generic double ended queue (deque) on top
 // of a doubly linked list.
 //
-// Pluto has no plain dqueue — only the thread-safe dqueue_ts — so this
-// package is charon's own: the design of dqueue_ts with the lock left
-// out.  Like dqueue_ts (and stack_sll_ts) it is self-contained rather
+// Like dqueue_ts (and stack_sll_ts) the package is self-contained rather
 // than a wrapper over dll: charon's dll requires an equality function
 // at construction (its Search needs one), but a deque never compares
 // elements — so wrapping would force a dummy equality function and

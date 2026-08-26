@@ -5,17 +5,10 @@ alongside `queue`.  The element type needs *no constraints at all*:
 there is no ordering and no equality to supply, and the zero value of
 `Stack` is an empty stack ready to use without a constructor.
 
-It is a rework of
-link:https://github.com/pschlump/pluto/tree/main/stack[pluto/stack]
-with the charon conventions:
-
-* The stack is a *struct wrapping the slice* (pluto used a defined
-slice type, `type Stack[T any] []T`), matching the shape of every other
-charon container.
-* Elements are stored and returned *by value* — `Pop` and `Peek` return
-`(T, error)` — so a peeked element is an independent copy, never a
-pointer aliasing the top of the stack (pluto's `Peek` returned `*T`
-documented as invalidated by the next Push or Pop).
+The stack is a *struct wrapping the slice*, matching the shape of every
+other charon container.  Elements are stored and returned *by value* —
+`Pop` and `Peek` return `(T, error)` — so a peeked element is an
+independent copy, never a pointer aliasing the top of the stack.
 
 Not safe for concurrent use.
 
@@ -36,6 +29,7 @@ Not safe for concurrent use.
 `All` iterates from the *top* (most recently pushed, index 0) to the
 bottom; `Backward` iterates from the bottom to the top.  Both reflect the
 live stack — pushing or popping between iterations changes what they see.
+`Len` is an alias for `Length`, matching the other charon packages.
 
 == Errors
 
@@ -94,19 +88,3 @@ nil stack as an empty stack.
 `Pop` zeroes the vacated slot so the backing array does not keep popped
 elements alive, and releases the backing array entirely when the stack
 drains completely (verified by `TestStackPopZeroesSlot`).
-
-== Differences from pluto/stack
-
-* `Stack` is a struct wrapping the slice (pluto: `type Stack[T any] []T`
-— a defined slice type whose internals were directly indexable).
-* `Pop` and `Peek` return `(T, error)` — pluto's `Peek` returned `*T`
-aliasing the top element, documented as invalidated by Push/Pop/Pop/
-Truncate; with value semantics that hazard is gone.
-* `Len` is available as an alias for `Length`, matching the other charon
-packages.
-* `Pop` releases the backing array on a full drain (pluto left the empty
-slice in place).
-* A nil `*Stack` behaves as an empty stack for every operation except
-`Push`, which panics with a named message — the package's only panic.
-* Complexity notes on each operation.
-

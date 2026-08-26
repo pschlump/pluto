@@ -8,12 +8,7 @@ writers are exclusive.
 Like `skip_list`, it is a probabilistic ordered collection — multiple
 levels of linked lists where each higher level acts as an "express lane"
 — with Insert, Search and Delete at *O(log₂ n) expected*, and no
-degradation on sorted input.  And like every charon package it is a
-rework of
-link:https://github.com/pschlump/pluto/tree/main/skip_list_ts[pluto/skip_list_ts]
-that replaces the `comparable.Comparable` interface constraint with pure
-Go type parameters, so element data is never boxed into an interface and
-never unboxed with a type assertion.
+degradation on sorted input.
 
 * Elements are stored and returned *by value* (`T`, not `*T`); find-style
 operations return `(T, bool)`.
@@ -106,26 +101,4 @@ func main() {
     fmt.Println(list.IsEmpty()) // true
 }
 ----
-
-== Differences from pluto/skip_list_ts
-
-* The `comparable.Comparable` interface constraint is gone: ordering is
-either the key type's built-in operators (`NewSkipList`) or a caller
-supplied function (`NewSkipListFunc`).  No boxing of elements, no
-dynamic dispatch, no type assertions inside `Compare` methods.
-* The data is stored by value in each node (pluto stored a `*T` pointing
-at the inserted item).  `Search`, `FindMin` and `FindMax` return
-`(T, bool)` instead of a nil-able `*T`; snapshots are `[]T`, not `[]*T`.
-* `Insert` reports whether a new node was added (`true`) or a duplicate
-replaced the old value (`false`); the pluto version returns nothing.
-* `Len` is available as an alias for `Length`, matching the other charon
-packages.
-* A nil `*SkipList` behaves as an empty list for every operation except
-`Insert`; pluto panics on `Insert`, `Delete`, `DeleteAtHead` and
-`DeleteAtTail` called on a nil list.
-* The only panics are the three listed above, each with a message naming
-the fix.
-* The snapshot for `All`/`Backward` is taken when they are called, not
-when the range loop starts, so an iterator never observes modifications
-made after its creation.
 

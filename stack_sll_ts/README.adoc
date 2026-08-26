@@ -1,10 +1,8 @@
 = stack_sll_ts
 
 A generic *LIFO stack* built on a singly linked list that is *safe
-for concurrent use* — the charon counterpart of pluto's
-link:https://github.com/pschlump/pluto/tree/main/stack_sll_ts[stack_sll_ts].
-Every operation is guarded by a `sync.RWMutex`: readers run in parallel
-with each other, writers are exclusive.
+for concurrent use*.  Every operation is guarded by a `sync.RWMutex`:
+readers run in parallel with each other, writers are exclusive.
 
 The element type needs *no constraints at all* and the zero value of
 `Stack` is an empty stack ready to use without a constructor.  Elements
@@ -13,8 +11,7 @@ are stored and returned *by value* (`Pop` and `Peek` return
 
 == Why not the slice-backed `stack` + a mutex?
 
-Pluto built `stack_sll_ts` as a thin wrapper delegating to its `sll_ts`
-list.  Charon's `sll_ts` requires an equality function at insert (its
+Charon's `sll_ts` requires an equality function at insert (its
 `Search` needs one), but a stack never compares elements — so wrapping
 would force a dummy comparator and break the constraint-free contract.
 Like every charon `_ts` package this one is self-contained, with its own
@@ -41,7 +38,8 @@ its window walks).  Trade-off: one allocation per push.
 |===
 
 `All` iterates from the *top* (most recently pushed, index 0) to the
-bottom; `Backward` from the bottom to the top.
+bottom; `Backward` from the bottom to the top.  `Len` is an alias for
+`Length`, matching the other charon packages.
 
 == Locking behavior
 
@@ -127,26 +125,3 @@ func main() {
 
 Runnable, tested copies of these examples live in
 link:example_test.go[`example_test.go`].
-
-== Differences from pluto/stack_sll_ts
-
-* Self-contained singly linked list + `sync.RWMutex` instead of a wrapper
-delegating to `sll_ts` (charon's `sll_ts` requires an equality function
-at insert; a stack never compares, so the wrapper would need a dummy
-comparator).
-* Elements are stored and returned by value (pluto stored `*T` and
-returned `*T`): `Pop`/`Peek` return `(T, error)` instead of a nil-able
-pointer.
-* `ErrEmptyStack` is this package's own error (pluto leaked
-`sll_ts.ErrEmptySll` from Pop and Peek).
-* `All`/`Backward` are `iter.Seq2[int, T]` over an *eager value
-snapshot* taken when they are called (pluto's `All` walked the live
-list via `IteratePtr` — not race-free under concurrent mutation — and
-`Backward` snapshotted element pointers).
-* `Len` is available as an alias for `Length`, matching the other charon
-packages.
-* No constructors and no constraints on the element type; the zero value
-is fully usable.
-* A nil `*Stack` behaves as an empty stack for every operation except
-`Push`, which panics with a named message — the package's only panic.
-

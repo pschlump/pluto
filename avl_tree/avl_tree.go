@@ -13,11 +13,9 @@ BSD 3 Clause Licensed.
 // unbalanced binary_tree package.  Every node caches its subtree height,
 // so Depth is O(1).
 //
-// It is a rework of github.com/pschlump/pluto/avl_tree in which the
-// comparable.Comparable interface constraint has been replaced with plain
-// Go type parameters.  Elements are stored and returned by value and
-// ordering is a direct function call, so element data is never boxed into
-// an interface and never unboxed with a type assertion.
+// Elements are stored and returned by value and ordering is a direct
+// function call, so element data is never boxed into an interface and
+// never unboxed with a type assertion.
 //
 // Trees of naturally ordered key types (all integers, floats and strings)
 // are created with NewAvlTree, which orders elements with the built-in <

@@ -211,8 +211,8 @@ func findKeyWithHome(t *testing.T, ht *HashTab[TestData], home int, used map[str
 // TestChainDeletePositions builds one chain with a constant hash function
 // (everything lands in bucket 7 % 5 = 2), verifies that iteration runs from
 // the most recently inserted element to the oldest, and then unlinks the
-// middle, the head and the tail of the chain — pluto rebuilt the whole
-// bucket on every delete; charon splices the node in a single pass.
+// middle, the head and the tail of the chain, splicing each node out in a
+// single pass.
 func TestChainDeletePositions(t *testing.T) {
 	ht := NewHashTabFunc(
 		func(a, b string) bool { return a == b },

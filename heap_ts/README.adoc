@@ -4,11 +4,9 @@ A generic, *thread-safe min-heap* — the twin of
 link:../heap/[charon/heap].  Every operation is guarded by a `sync.RWMutex`:
 readers run in parallel with each other, writers are exclusive.  Like
 `heap`, `Pop` always removes the minimum, a reversed comparison function
-turns it into a max-heap, and it is a rework of
-link:https://github.com/pschlump/pluto/tree/main/heap_ts[pluto/heap_ts]
-with the charon conventions (no interface constraint, elements stored
-and returned by value, out-of-range index operations reporting `false`
-instead of panicking).
+turns it into a max-heap, the element type implements no interface,
+elements are stored and returned by value, and out-of-range index
+operations report `false`.
 
 The public API is identical to `heap`, *plus* the real `Lock`/`Unlock`
 pair and the `Nl*` (no-lock) methods for compound operations.
@@ -17,9 +15,12 @@ pair and the `Nl*` (no-lock) methods for compound operations.
 
 * *Reads* (`Peek`, `GetValue`, `Search`, `Len`, `Length`, `IsEmpty`)
 take the read lock and release it before returning — they can run in
-parallel with each other.
+parallel with each other — and return *value copies* taken under the
+lock, never pointers aliasing elements in the heap.
 * *Writes* (`Push`, `Pop`, `Delete`, `Fix`/`SetValue`, `Truncate`,
-`AppendHeap`, `Heapify`) take the write lock.
+`AppendHeap`, `Heapify`) take the write lock.  `Pop`/`Delete` (and
+`NlPop`/`NlDelete`) zero the vacated slot and release the backing
+array on a full drain.
 * *`All` operates on a snapshot* copied under the read lock when it is
 called (one O(n) copy).  It is safe to mutate the heap while iterating
 — including from inside the loop — and an iterator never observes
@@ -101,32 +102,3 @@ func main() {
 Runnable, tested copies of these examples live in
 link:example_test.go[`example_test.go`].  The link:../heap/[heap README]
 documents the full API usage; it applies unchanged.
-
-== Differences from pluto/heap_ts
-
-* The `comparable.Equality`... `comparable.Comparable` interface
-constraint is gone: ordering is either the element type's built-in
-operators (`NewHeap`) or a caller supplied function (`NewHeapFunc`).
-No boxing, no dynamic dispatch, no type assertions.
-* Elements are stored and returned by value: `Pop`, `Peek`, `Delete`,
-`GetValue` return `(T, bool)` instead of a nil-able `*T`.  Pluto's
-`Peek`/`GetValue`/`Search` returned pointers *aliasing elements in
-the heap* with the lock already released; the value copies taken
-under the read lock remove that hazard.
-* The out-of-range index operations (`Delete`, `Fix`, `SetValue`,
-`GetValue` — and their `Nl*` counterparts) report `false` instead of
-panicking; `Fix`/`SetValue` return `bool`.
-* `Search` returns `(T, int, bool)` — pluto returned a vestigial
-always-nil `err`.
-* `IsEmpty` added; `Len` and `Length` both kept.
-* `Pop`/`Delete` (and `NlPop`/`NlDelete`) zero the vacated slot and
-release the backing array on a full drain.
-* `All` is `iter.Seq[T]` over an *eager value snapshot* taken when it
-is called (pluto exposed the snapshot only internally and had no
-iterator).
-* `Dump` prints an indexed internal-order listing; pluto used the
-external `dbgo` package.
-* A nil `*Heap` behaves as an empty heap for every operation except
-`Push`/`AppendHeap`; pluto panicked with an unguarded nil dereference
-on most methods.
-

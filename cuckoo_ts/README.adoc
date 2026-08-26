@@ -21,9 +21,7 @@ has a slot.
 It is the thread-safe twin of link:../cuckoo[charon/cuckoo] — the same
 cuckoo scheme, the same API, guarded by a `sync.RWMutex` — with three
 additions: the `Lock`/`Unlock` pair, the `Nl*`-prefixed (no-lock) methods
-for compound operations, and *background resizes* (see below). Pluto has no
-cuckoo package, so like `stack_ts`/`heap_sort_ts` the differences section
-is written against charon's own plain package.
+for compound operations, and *background resizes* (see below).
 
 * Elements are stored and returned *by value* (`T`, not `*T`).
 * Keys of types comparable with `==` need no functions at all:

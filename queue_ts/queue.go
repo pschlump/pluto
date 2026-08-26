@@ -9,12 +9,10 @@ BSD 3 Clause Licensed.
 // thread-safe twin of github.com/pschlump/charon/queue — the same API,
 // guarded by a sync.RWMutex.
 //
-// Like every charon package it is a rework of its pluto counterpart
-// (github.com/pschlump/pluto/queue_ts) with the charon conventions:
-// elements are stored and returned by value — Dequeue and Peek return
-// (T, error) instead of a pointer — so a returned element is an
-// independent copy that cannot race with a concurrent pop zeroing the
-// slot.
+// Like every charon package it uses value semantics: elements are
+// stored and returned by value — Dequeue and Peek return (T, error)
+// instead of a pointer — so a returned element is an independent copy
+// that cannot race with a concurrent pop zeroing the slot.
 //
 // Concurrency model:
 //

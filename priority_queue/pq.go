@@ -8,11 +8,9 @@ BSD 3 Clause Licensed.
 // binary min-heap (charon/heap).  The lowest-priority (minimum) element
 // is always the next to come out.
 //
-// It is the charon rework of github.com/pschlump/pluto/priority_queue:
-// the comparable.Comparable interface constraint is replaced with plain
-// Go type parameters, elements are stored and returned by value, and the
-// not-found and out-of-range outcomes are reported with false returns
-// instead of nil pointers and errors.
+// Elements are stored and returned by value, and the not-found and
+// out-of-range outcomes are reported with false returns instead of nil
+// pointers and errors.
 //
 // The queue supports the following operations:
 //

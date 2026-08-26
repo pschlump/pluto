@@ -5,10 +5,10 @@
 // sync.RWMutex — with the addition of the Lock/Unlock pair and the
 // Nl-prefixed (no-lock) methods for compound operations.
 //
-// It is the charon rework of github.com/pschlump/pluto/heap_ts: the
-// comparable.Comparable interface constraint is replaced with plain Go
-// type parameters, elements are stored and returned by value, and the
-// out-of-range index operations report not-found instead of panicking.
+// The element type implements no interface: ordering is supplied as a
+// plain comparison function over type parameters, elements are stored
+// and returned by value, and the out-of-range index operations report
+// not-found instead of panicking.
 //
 // The heap implementation is adapted from the standard library's
 // container/heap.

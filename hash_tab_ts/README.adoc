@@ -11,11 +11,10 @@ It is the thread-safe twin of link:../hash_tab[charon/hash_tab] — the same
 API — with the addition of the `Lock`/`Unlock` pair and the `Nl*`-prefixed
 (no-lock) methods for compound operations.
 
-Pluto has no `hash_tab_ts`; the twin takes the pure-generics rework that is
-link:../hash_tab[charon/hash_tab] and guards it with one table lock,
-following the pattern of link:../hash_grow_ts[`hash_grow_ts`] and
-link:../hash_tab_bt_ts[`hash_tab_bt_ts`]. Element data is never boxed into
-an interface and never unboxed with a type assertion.
+The twin guards the buckets of link:../hash_tab[charon/hash_tab] with one
+table lock, following the pattern of link:../hash_grow_ts[`hash_grow_ts`]
+and link:../hash_tab_bt_ts[`hash_tab_bt_ts`]. Element data is never boxed
+into an interface and never unboxed with a type assertion.
 
 * Elements are stored and returned *by value* (`T`, not `*T`).
 * Keys of types comparable with `==` (all scalars, strings, pointers,
@@ -134,9 +133,8 @@ Insert body.)
 
 == Differences from charon/hash_tab
 
-There is no pluto counterpart (pluto has no `hash_tab_ts`), so this section
-lists what the twin adds over
-link:../hash_tab[charon/hash_tab] instead of a pluto diff:
+This section lists what the twin adds over
+link:../hash_tab[charon/hash_tab]:
 
 * One `sync.RWMutex` on the table; the bucket chains stay the plain package's
 `bucketNode` nodes and are touched only while the lock is held.  Nil guards

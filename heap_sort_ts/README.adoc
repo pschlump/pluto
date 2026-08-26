@@ -8,8 +8,7 @@ with `Insert` or `InsertArray`, then drained in ascending order with
 the sorter atomically; it is reusable afterwards.
 
 The public API is identical to `heap_sort` (plus the locking behavior
-below), so switching between the two is a package-name change.  Pluto
-has no `heap_sort_ts`; this package is charon's own design, and the
+below), so switching between the two is a package-name change.  The
 differences section below is written against
 link:../heap_sort/[charon/heap_sort].
 

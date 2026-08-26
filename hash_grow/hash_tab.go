@@ -9,10 +9,7 @@ BSD 3 Clause Licensed.
 // load factor exceeds a configurable saturation threshold (default 0.5) and
 // re-hashes every entry into the larger table.
 //
-// It is a rework of github.com/pschlump/pluto/hash_grow in which the
-// comparable.Comparable interface constraint (and the Hashable/Stringer
-// hashing on top of it) has been replaced with plain Go type parameters, so
-// element data is never boxed into an interface and never unboxed with a
+// Element data is never boxed into an interface and never unboxed with a
 // type assertion.  Tables of types that can be compared with == (the builtin
 // comparable constraint) are created with NewHashTab, which hashes with the
 // stdlib hash/maphash — every table gets its own random seed, equal values
@@ -206,9 +203,8 @@ func (tt *HashTab[T]) Insert(item T) bool {
 			break
 		}
 		// The table was completely full — only reachable when a saturation
-		// of 1.0 or more has deferred growth until now (pluto silently
-		// dropped the element here).  Growth halves the load factor, so the
-		// retry always places the item.
+		// of 1.0 or more has deferred growth until now.  Growth halves the
+		// load factor, so the retry always places the item.
 		tt.grow()
 	}
 

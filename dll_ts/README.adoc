@@ -8,12 +8,6 @@ readers run in parallel with each other, writers are exclusive.  Like
 (`Enqueue` at the tail, `Pop` from the head), and a positional list with
 O(1) removal of previously found elements.
 
-Like every charon package it is a rework of
-link:https://github.com/pschlump/pluto/tree/main/dll_ts[pluto/dll_ts]
-that replaces the `comparable.Equality` interface constraint with pure
-Go type parameters, so element data is never boxed into an interface and
-never unboxed with a type assertion.
-
 * Elements are stored and returned *by value* (`T`, not `*T`).
 * Lists of types comparable with `==` need no equality function:
 `dll_ts.NewDll[int]()`.
@@ -64,6 +58,10 @@ region use the operation results you already hold, not the public
 methods.
 * *`Dump` holds the read lock for the whole dump*, so the writer must
 not call methods on the same list.
+* *`GetData()`/`SetData()` on a `DllElement` handle take no lock*: the
+handle is a live node, so calling `SetData` on an element inside a
+concurrently used list is a race (it is intended for standalone
+elements).  `DllElement.Data` itself is an unexported `T`.
 
 [source,go]
 ----
@@ -129,35 +127,4 @@ func main() {
     fmt.Println(queue.IsEmpty()) // true
 }
 ----
-
-== Differences from pluto/dll_ts
-
-* The `comparable.Equality` interface constraint is gone: equality is
-either the type's `==` operator (`NewDll`, using the builtin
-`comparable` constraint — no interface, no boxing) or a caller supplied
-function (`NewDllFunc`).  No dynamic dispatch, no type assertions
-inside `IsEqual` methods.
-* The data is stored by value in each node (pluto stored a `*T` pointing
-at the inserted item).  `Pop`, `PopTail`, `Peek`, `PeekTail` and the
-iterators return `T` (with the existing error or bool signal) instead
-of a nil-able `*T`; snapshots are `[]T`, not `[]*T`.
-* Search probes are passed by value; a probe only needs the fields the
-equality function reads.
-* The `Walk`/`ReverseWalk` callbacks capture state in closures instead of
-receiving an `interface{}` `userData` parameter.
-* `Len` is available as an alias for `Length`, matching the other charon
-packages.
-* `DllElement.Data` is an unexported `T`; use `GetData()`/`SetData()`.
-`SetData` on an element inside a concurrently-used list is a race.
-* `IteratePtr` (which yielded `*T`) is gone — with value storage there
-are no element pointers to yield; use `All`.
-* A nil `*Dll` behaves as an empty list for every operation except the
-insert family; pluto panics with an unguarded nil dereference on most
-methods.
-* The only panics are the three listed above, each with a message naming
-the fix.  `Concat` with a nil or empty source is a no-op rather than a
-panic.
-* The snapshot for `All`/`Backward` is taken when they are called, not
-when the range loop starts, so an iterator never observes modifications
-made after its creation.
 

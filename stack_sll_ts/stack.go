@@ -5,16 +5,14 @@ BSD 3 Clause Licensed.
 */
 
 // Package stack_sll_ts implements a generic, thread-safe LIFO stack on
-// top of a singly linked list.  It is the charon counterpart of
-// github.com/pschlump/pluto/stack_sll_ts.
+// top of a singly linked list.
 //
-// Pluto built its version as a thin wrapper that delegated every
-// operation to the sll_ts package.  Charon's sll_ts requires an equality
-// function at insert (its Search needs one), but a stack never compares
-// elements — so wrapping would force a dummy comparator and break the
-// constraint-free contract.  Like every charon _ts package this one is
-// self-contained, with its own sync.RWMutex and a plain singly linked
-// list underneath.
+// The package is self-contained rather than a wrapper over the sll_ts
+// package: charon's sll_ts requires an equality function at insert (its
+// Search needs one), but a stack never compares elements — so wrapping
+// would force a dummy comparator and break the constraint-free contract.
+// Like every charon _ts package this one has its own sync.RWMutex and a
+// plain singly linked list underneath.
 //
 // Basic operations on a stack:
 //

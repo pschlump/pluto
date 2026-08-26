@@ -15,9 +15,7 @@ import (
 	"testing"
 )
 
-// TestSkipListNode is the test element type.  Note what is missing
-// compared to the pluto version of this test file: no Compare method, no
-// interface assertion, no type assertions inside a comparison.  Ordering
+// TestSkipListNode is the test element type.  Ordering
 // is supplied to the list as a plain function (cmpTestSkipListNode below).
 type TestSkipListNode struct {
 	S string

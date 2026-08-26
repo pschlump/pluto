@@ -1,22 +1,21 @@
 = dqueue_ts
 
 A generic *double ended queue (deque)* built on a doubly linked list
-that is *safe for concurrent use* — the charon counterpart of pluto's
-link:https://github.com/pschlump/pluto/tree/main/dqueue_ts[dqueue_ts].
-Every operation is guarded by a `sync.RWMutex`: readers run in parallel
-with each other, writers are exclusive.  For single-goroutine use,
-link:../dqueue/[`dqueue`] is the identical deque without the lock (its
-iterators walk the live list instead of snapshotting).
+that is *safe for concurrent use*.  Every operation is guarded by a
+`sync.RWMutex`: readers run in parallel with each other, writers are
+exclusive.  For single-goroutine use, link:../dqueue/[`dqueue`] is the
+identical deque without the lock (its iterators walk the live list
+instead of snapshotting).
 
-The element type needs *no constraints at all* and the zero value of
+The element type needs *no constraints at all* — `T` is `any`, so
+elements are never boxed into an interface — and the zero value of
 `Deque` is an empty deque ready to use without a constructor.  Elements
 are stored and returned *by value* (`PopFront`, `PopBack`, `PeekFront`
 and `PeekBack` return `(T, error)`).
 
 == Why self-contained?
 
-Pluto built `dqueue_ts` as a thin wrapper delegating to its `dll_ts`
-list.  Charon's `dll_ts` requires an equality function at construction
+Charon's `dll_ts` requires an equality function at construction
 (its `Search` needs one), but a deque never compares elements — so
 wrapping would force a dummy equality function and break the
 constraint-free contract.  Like every charon `_ts` package this one is
@@ -50,6 +49,7 @@ push.  Used at one end only it behaves as a stack; used with
 `All` iterates from the *front* (index 0) to the back; `Backward`
 from the back to the front, with indexes counting down from
 `Length()-1` so they match the index `All` assigns to the same element.
+`Len` is an alias for `Length`, matching the other charon packages.
 
 == Locking behavior
 
@@ -144,28 +144,3 @@ func main() {
 
 Runnable, tested copies of these examples live in
 link:example_test.go[`example_test.go`].
-
-== Differences from pluto/dqueue_ts
-
-* Self-contained doubly linked list + `sync.RWMutex` instead of a
-wrapper delegating to `dll_ts` (charon's `dll_ts` requires an equality
-function at construction; a deque never compares, so the wrapper would
-need a dummy equality function).
-* No `comparable.Equality` constraint on the element type — `T` is
-`any`, so elements are never boxed into an interface.
-* Elements are stored and returned by value (pluto stored `*T` and
-returned `*T`): the pops and peeks return `(T, error)` instead of a
-nil-able pointer.
-* `ErrEmptyDeque` is this package's own error (pluto aliased
-`dll_ts.ErrEmptyDll`).
-* `All`/`Backward` are `iter.Seq2[int, T]` over an *eager value
-snapshot* taken when they are called (pluto's walked the live list
-step-at-a-time under per-step locks — safe to run concurrently but not
-a consistent snapshot, and it yielded `*T` aliasing live nodes).
-* `Len` is available as an alias for `Length`, matching the other charon
-packages.
-* No constructors; the zero value is fully usable.
-* A nil `*Deque` behaves as an empty deque for every operation except
-`PushFront` and `PushBack`, which panic with named messages — the
-package's only panics.
-

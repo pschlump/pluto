@@ -5,17 +5,15 @@ BSD 3 Clause Licensed.
 */
 
 // Package dqueue_ts implements a generic, thread-safe double ended queue
-// (deque) on top of a doubly linked list.  It is the charon counterpart
-// of github.com/pschlump/pluto/dqueue_ts.
+// (deque) on top of a doubly linked list.
 //
-// Pluto built its version as a thin wrapper that delegated every
-// operation to the dll_ts package.  Charon's dll_ts requires an equality
-// function at construction (its Search needs one), but a deque never
-// compares elements — so wrapping would force a dummy equality function
-// and break the constraint-free contract.  Like every charon _ts package
-// this one is self-contained, with its own sync.RWMutex and a plain
-// doubly linked list underneath (the prev pointers are what make PopBack
-// and Backward O(1) per step).
+// The package is self-contained rather than a wrapper over the dll_ts
+// package: charon's dll_ts requires an equality function at
+// construction (its Search needs one), but a deque never compares
+// elements — so wrapping would force a dummy equality function and break
+// the constraint-free contract.  Like every charon _ts package this one
+// has its own sync.RWMutex and a plain doubly linked list underneath
+// (the prev pointers are what make PopBack and Backward O(1) per step).
 //
 // Elements can be inserted and removed at both ends of the queue; every
 // such operation is strictly O(1):

@@ -374,9 +374,8 @@ func TestSaturationDefault(t *testing.T) {
 }
 
 // TestFullTableGrows verifies the forced growth when a saturation of 1.0 or
-// more has deferred growth until the table is completely full: pluto
-// silently dropped elements and could wedge a probe at that point; charon
-// doubles the table so the insert lands and probes always terminate.
+// more has deferred growth until the table is completely full: the table
+// doubles so the insert lands and probes always terminate.
 func TestFullTableGrows(t *testing.T) {
 	for _, saturation := range []float64{1.0, 2.0} {
 		ht := newTestTab(5, saturation)

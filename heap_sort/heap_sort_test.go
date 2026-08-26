@@ -11,10 +11,8 @@ import (
 	"testing"
 )
 
-// HsTest is the test element type.  Note what is missing compared to
-// the pluto version of this test file: no Compare method, no interface
-// assertion, no type assertions inside a comparison.  Ordering is
-// supplied to the sorter as a plain function (cmpHsTest below).
+// HsTest is the test element type.  Ordering is supplied to the sorter
+// as a plain function (cmpHsTest below).
 type HsTest struct {
 	Key int    // the field the comparison function orders by
 	Tag string // satellite data the comparison function ignores

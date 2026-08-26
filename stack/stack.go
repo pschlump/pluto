@@ -6,11 +6,10 @@ BSD 3 Clause Licensed.
 
 // Package stack implements a generic LIFO stack on top of a slice.
 //
-// It is a rework of github.com/pschlump/pluto/stack with the charon
-// conventions: the stack is a struct wrapping the slice (pluto used a
-// defined slice type), elements are stored and returned by value — Peek
-// returns (T, error) instead of a pointer aliasing the top element — and
-// a nil stack is tolerated everywhere except Push.
+// The stack is a struct wrapping the slice, matching the shape of every
+// other charon container; elements are stored and returned by value —
+// Peek returns (T, error) instead of a pointer aliasing the top element
+// — and a nil stack is tolerated everywhere except Push.
 //
 // Basic operations on a stack:
 //

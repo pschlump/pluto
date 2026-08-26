@@ -6,14 +6,12 @@ value. The bucket count is fixed at construction; when the number of
 elements is not known up front use link:../hash_grow[`hash_grow`], which
 grows and re-hashes automatically.
 
-It is a rework of
-link:https://github.com/pschlump/pluto/tree/main/hash_tab[pluto/hash_tab]
-that replaces the `comparable.Equality` interface constraint (and the
-`Hashable`/`string`/`fmt.Stringer` hashing built on it) with pure Go type
-parameters, so element data is never boxed into an interface and never
-unboxed with a type assertion.
+Element data is never boxed into an interface and never unboxed with a type
+assertion.
 
-* Elements are stored and returned *by value* (`T`, not `*T`).
+* Elements are stored and returned *by value* (`T`, not `*T`); `Search`
+returns `(T, bool)` and `Insert`/`Delete` take the probe by value — a
+probe only needs the fields the equality/hash functions read.
 * Keys of types comparable with `==` (all scalars, strings, pointers,
 arrays, and structs of comparable fields) need no functions at all:
 `hash_tab.NewHashTab[string](16)`.  Equality is the `==` operator and
@@ -37,6 +35,10 @@ The default hashing is *randomized per table* (a `hash/maphash` seed) — a
 hash-flooding mitigation.  Bucket order in `All`, `Values`, `Walk` and
 `Dump`, and the raw hash values `Dump` prints, therefore vary from process
 to process and must not appear in fixed assertions or golden files.
+
+A hash of exactly 0 needs no remapping here: an empty bucket is a nil
+chain, not a hash marker (unlike `hash_grow`'s open addressing).  `Dump`
+prints an `empty` marker for vacant buckets and one line per element.
 
 Runnable, tested copies of the examples live in
 link:example_test.go[`example_test.go`] — they run under `go test` and appear
@@ -130,47 +132,9 @@ Everything else tolerates a nil table and the zero value as an empty table:
 searches report not-found, `Delete` returns false, and the iterators visit
 nothing.
 
-== Differences from pluto/hash_tab
-
-* The `comparable.Equality` constraint and the `Hashable`/`string`/
-`fmt.Stringer` hash-key priority are gone — pluto hashed through
-`hash(x interface{})` with type assertions (and panicked on types
-implementing none of the three).  Equality is either the type's `==`
-operator (`NewHashTab`, no interface, no boxing) or a caller supplied
-function paired with a caller supplied `func(T) uint64` hash
-(`NewHashTabFunc`).  `NewHashTab` hashes with a per-table random
-`hash/maphash` seed; pluto's FNV-1a hashes were deterministic per process.
-* The buckets are plain singly linked chain nodes, not `*sll.Sll[T]`
-pointers.  `Delete` locates the node and splices it out in a single walk —
-pluto rebuilt the whole bucket into a fresh `sll` on every delete (an
-O(chain) allocation), which also reversed the chain; pluto's own package
-todo said to fix this.
-* `Insert` *replaces* an equal element and returns bool — true when a new
-element was added, false when it replaced one.  Pluto stacked duplicates so
-the newest shadowed the oldest, and returned nothing.
-* The data is stored by value in each chain node (pluto stored a `*T`
-pointing at the inserted item).  `Search` returns `(T, bool)` instead of a
-nil-able `*T`, and `Insert`/`Delete` take the probe by value — a probe only
-needs the fields the equality/hash functions read.
-* `Walk` and `Values` were added (pluto's `hash_tab` had neither) matching
-the `hash_grow` conventions: the callback is `func(pos int, data T) bool`
-with no `interface{}` userData (state is captured in a closure) and
-*false stops the walk*.  `All` now yields the bucket position with the
-element.
-* `Dump` prints an `empty` marker for vacant buckets and one line per
-element (pluto printed the nil pointers of the slice-of-sll layout).
-* A nil table and the zero value behave as an empty table for every read;
-pluto's `Insert` on a zero-value table died on a division by zero.  The
-n < 5 constructor guard keeps the same rule as every charon hash table but
-with a message that names the constructor and the minimum (pluto panicked
-with a bare "n too small").
-* A hash of exactly 0 needs no remapping here (an empty bucket is a nil
-chain, not a hash marker, unlike `hash_grow`'s open addressing).
-
 == Thread safety
 
 `hash_tab` is *not* safe for concurrent use. Its thread-safe twin is
-link:../hash_tab_ts[`hash_tab_ts`] (pluto has no `hash_tab_ts`) — the same
-API behind a `sync.RWMutex`, plus the `Lock`/`Unlock` pair and `Nl*`
-methods for compound operations.  The auto-growing alternative is
-link:../hash_grow_ts[`hash_grow_ts`].
+link:../hash_tab_ts[`hash_tab_ts`] — the same API behind a `sync.RWMutex`,
+plus the `Lock`/`Unlock` pair and `Nl*` methods for compound operations.
+The auto-growing alternative is link:../hash_grow_ts[`hash_grow_ts`].

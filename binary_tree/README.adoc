@@ -1,12 +1,11 @@
 = binary_tree
 
-A generic, unbalanced binary search tree.  It is a rework of
-link:https://github.com/pschlump/pluto/tree/main/binary_tree[pluto/binary_tree]
-that replaces the `comparable.Comparable` interface constraint with pure Go
-type parameters, so that element data is never boxed into an interface and
+A generic, unbalanced binary search tree.  Ordering never goes through an
+interface method, so element data is never boxed into an interface and
 never unboxed with a type assertion.
 
-* Elements are stored and returned *by value* (`T`, not `*T`).
+* Elements are stored and returned *by value* (`T`, not `*T`); find-style
+operations (`Search`, `FindMin`, `FindMax`, `Index`) return `(T, bool)`.
 * Trees of ordered key types (integers, floats, strings) are ordered by the
 built-in `<` / `>` operators of the key type.
 * Trees of any other type — including structs ordered by a single field —
@@ -43,6 +42,10 @@ randomly ordered input and O(n) in the worst case (sorted input builds a
 degenerate chain).  Insert of a duplicate replaces the stored value in
 place and returns `false`; a new element returns `true`.  `Truncate` and
 `Delete` drop node references so the garbage collector can reclaim them.
+
+`DeleteAtHead` / `DeleteAtTail` splice the extreme node out in a single
+descent from the root, rather than requiring a `FindMin` / `FindMax`
+followed by a separate `Delete`.
 
 BinaryTree is *not* safe for concurrent use.
 
@@ -143,7 +146,8 @@ traverse the live nodes.
    }
 ----
 
-. The old-style iterator, which can be paused and resumed mid-traversal:
+. The old-style iterator, which can be paused and resumed mid-traversal
+(its pending nodes are kept on a plain slice):
 
 [source,go]
 ----
@@ -188,29 +192,4 @@ Everything else tolerates a nil tree and the zero value as an empty tree:
 `Search` finds nothing, `Delete`/`DeleteAtHead`/`DeleteAtTail` return
 `false`, `FindMin`/`FindMax`/`Index` report not-found, `Len` and `Depth`
 are 0, and the walks and iterators visit nothing.
-
-== Differences from pluto/binary_tree
-
-* The `comparable.Comparable` interface constraint is gone: ordering is
-either the key type's built-in operators (`NewBinaryTree`) or a caller
-supplied function (`NewBinaryTreeFunc`).  Comparisons are direct function
-calls — no dynamic dispatch through an interface, no boxing of elements,
-no type assertions inside `Compare` methods.  See `bench_compare/` in the
-repository root for a measured comparison (~2.7–3.5× faster and ~20×
-fewer allocations on ordering workloads at n=10,000).
-* Elements are stored and returned by value.  Find-style operations
-(`Search`, `FindMin`, `FindMax`, `Index`) return `(T, bool)` instead of a
-nil-able `*T`.
-* A tree must be created with a constructor.  The pluto version allowed a
-bare `var tree BinaryTree[T]` because ordering lived in the element type;
-here ordering is supplied once, at construction.
-* The `Walk*` callbacks capture state in closures instead of receiving an
-`interface{}` `userData` parameter (Go methods cannot add type
-parameters, and closures keep the state's static type).
-* `DeleteAtHead` / `DeleteAtTail` splice the extreme node out directly in a
-single descent instead of a `FindMin`/`FindMax` followed by a `Delete`.
-* No dependency on `pluto/stack`: the old-style iterator keeps its pending
-nodes on a plain slice.
-* A nil `*BinaryTree` behaves as an empty tree for every operation except
-`Insert`; pluto panics on nearly every method called on a nil tree.
 

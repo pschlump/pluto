@@ -8,12 +8,6 @@ writers are exclusive.  Like `sll`, it works as a stack
 (`InsertAfterTail`), value-based search and delete, and in-place
 reversal.
 
-Like every charon package it is a rework of
-link:https://github.com/pschlump/pluto/tree/main/sll_ts[pluto/sll_ts]
-that replaces the `comparable.Equality` interface constraint with pure
-Go type parameters, so element data is never boxed into an interface and
-never unboxed with a type assertion.
-
 * Elements are stored and returned *by value* (`T`, not `*T`).
 * Lists of types comparable with `==` need no equality function:
 `sll_ts.NewSll[int]()`.
@@ -60,8 +54,11 @@ for _, v := range list.IterateOver() {
 == Errors and panics
 
 Identical to `sll`.  Empty-list and not-found conditions are errors
-(`ErrEmptySll`, `ErrNotFound`; compare with `errors.Is`), and the package
-panics in exactly three situations, all programmer errors:
+(`ErrEmptySll`, `ErrNotFound`; compare with `errors.Is`).  The error
+precedence matches the plain `sll` package exactly: `Delete` on an empty
+list returns `ErrNotFound` (an empty list has no matching value), while
+`DeleteFound` on an empty list returns `ErrEmptySll`.  The package panics
+in exactly three situations, all programmer errors:
 
 [options="header"]
 |===
@@ -112,35 +109,4 @@ func main() {
     fmt.Println(stack.IsEmpty()) // true
 }
 ----
-
-== Differences from pluto/sll_ts
-
-* The `comparable.Equality` interface constraint is gone: equality is
-either the type's `==` operator (`NewSll`, using the builtin
-`comparable` constraint — no interface, no boxing) or a caller supplied
-function (`NewSllFunc`).  No dynamic dispatch, no type assertions
-inside `IsEqual` methods.
-* The data is stored by value in each node (pluto stored a `*T` pointing
-at the inserted item).  `Pop`, `Peek` and the iterators return `T`
-(with the existing error or bool signal) instead of a nil-able `*T`;
-snapshots are `[]T`, not `[]*T`.
-* Search probes are passed by value; a probe only needs the fields the
-equality function reads.
-* `Len` is available as an alias for `Length`, matching the other charon
-packages.
-* `SllElement.data` is an unexported `T`; use `GetData()`.
-* `IteratePtr` (which yielded `*T`) is gone — with value storage there
-are no element pointers to yield; use `IterateOver`.
-* A nil `*Sll` behaves as an empty list for every operation except the
-insert family; pluto panics with an unguarded nil dereference on most
-methods.
-* The only panics are the three listed above, each with a message naming
-the fix.
-* *The error precedence matches the plain `sll` package exactly*:
-`Delete` on an empty list returns `ErrNotFound` and `DeleteFound`
-returns `ErrEmptySll`.  (Pluto's `sll_ts` returned `ErrEmptySll` from
-both, diverging from its own plain package.)
-* The snapshot for `IterateOver` is taken when it is called, not when
-the range loop starts, so an iterator never observes modifications
-made after its creation.
 

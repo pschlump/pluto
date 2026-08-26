@@ -17,10 +17,7 @@ BSD 3 Clause Licensed.
 // and Unlock pair and the Nl-prefixed (no-lock) methods for compound
 // operations.
 //
-// It is the charon rework of github.com/pschlump/pluto/hash_tab_bt_ts: the
-// comparable.Comparable interface constraint (and the Hashable/Stringer
-// hashing on top of it) is replaced with plain Go type parameters, so
-// element data is never boxed into an interface and never unboxed with a
+// Element data is never boxed into an interface and never unboxed with a
 // type assertion.  Because a bucket is a search tree the element type
 // needs an ordering, not just an equality: tables of naturally ordered
 // types are created with NewHashTab, which orders with the type's builtin

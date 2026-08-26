@@ -9,11 +9,8 @@ link:https://en.wikipedia.org/wiki/Red–black_tree[]
 for the theory; link:../avl_tree/[`avl_tree`] is the height-balanced
 alternative.
 
-It is a rework of
-link:https://github.com/pschlump/pluto/tree/main/rb_tree[pluto/rb_tree]
-that replaces the `comparable.Comparable` interface constraint with pure
-Go type parameters, so element data is never boxed into an interface and
-never unboxed with a type assertion.
+Ordering never goes through an interface method, so element data is
+never boxed into an interface and never unboxed with a type assertion.
 
 * Elements are stored and returned *by value* (`T`, not `*T`); find-style
 operations return `(T, bool)`.
@@ -46,7 +43,10 @@ on pkg.go.dev.
 |===
 
 `Insert` returns `true` when a new node was added and `false` when a
-duplicate replaced the stored value.
+duplicate replaced the stored value.  `Len` is an alias for `Length`,
+matching the other charon tree packages.  `DeleteAtHead` / `DeleteAtTail`
+splice the extreme node out directly (a single descent) instead of
+re-searching for the min/max item through `Delete`.
 
 The tree is *not* safe for concurrent use.
 
@@ -125,26 +125,4 @@ with no sane fallback:
 Everything else tolerates a nil tree and the zero value as an empty tree:
 searches find nothing, deletes return `false`, and the iterators visit
 nothing.
-
-== Differences from pluto/rb_tree
-
-* The `comparable.Comparable` interface constraint is gone: ordering is
-either the key type's built-in operators (`NewRbTree`) or a caller
-supplied function (`NewRbTreeFunc`).  No boxing of elements, no dynamic
-dispatch, no type assertions inside `Compare` methods.
-* The data is stored by value in each node (pluto stored a `*T` pointing
-at the inserted item).  `Search`, `FindMin` and `FindMax` return
-`(T, bool)` instead of a nil-able `*T`.
-* `Insert` reports whether a new node was added (`true`) or a duplicate
-replaced the old value (`false`); the pluto version returns nothing.
-* `Len` is available as an alias for `Length`, matching the other charon
-tree packages.
-* A nil `*RbTree` behaves as an empty tree for every operation except
-`Insert`; pluto panics on `Insert`, `Delete`, `DeleteAtHead`,
-`DeleteAtTail` and `Depth` called on a nil tree.
-* The only panics are the three listed above, each with a message naming
-the fix.
-* `DeleteAtHead` / `DeleteAtTail` splice the extreme node out directly
-(single descent) instead of re-searching for the min/max item through
-`Delete`.
 

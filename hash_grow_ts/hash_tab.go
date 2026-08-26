@@ -14,10 +14,7 @@ BSD 3 Clause Licensed.
 // Unlock pair and the Nl-prefixed (no-lock) methods for compound
 // operations.
 //
-// It is the charon rework of github.com/pschlump/pluto/hash_grow_ts: the
-// comparable.Comparable interface constraint (and the Hashable/Stringer
-// hashing on top of it) is replaced with plain Go type parameters, so
-// element data is never boxed into an interface and never unboxed with a
+// Element data is never boxed into an interface and never unboxed with a
 // type assertion.  Tables of types that can be compared with == are created
 // with NewHashTab, which hashes with the stdlib hash/maphash using a
 // per-table random seed; tables of any other type are created with
@@ -253,9 +250,8 @@ func (tt *HashTab[T]) NlInsert(item T) bool {
 			break
 		}
 		// The table was completely full — only reachable when a saturation
-		// of 1.0 or more has deferred growth until now (pluto silently
-		// dropped the element here).  Growth halves the load factor, so the
-		// retry always places the item.
+		// of 1.0 or more has deferred growth until now.  Growth halves the
+		// load factor, so the retry always places the item.
 		tt.grow()
 	}
 

@@ -6,12 +6,9 @@ guarded by a `sync.RWMutex`: readers run in parallel with each other,
 writers are exclusive.
 
 Like `queue`, the element type needs *no constraints at all* and the
-zero value is an empty queue ready to use without a constructor.  And
-like every charon package it is a rework of
-link:https://github.com/pschlump/pluto/tree/main/queue_ts[pluto/queue_ts]
-with value-semantics returns: `Dequeue` and `Peek` return `(T, error)` —
-an independent copy taken under the lock, never a pointer into the
-queue's internals.
+zero value is an empty queue ready to use without a constructor.
+`Dequeue` and `Peek` return `(T, error)` — an independent copy taken
+under the lock, never a pointer into the queue's internals.
 
 == Locking behavior
 
@@ -89,24 +86,7 @@ func main() {
 ----
 
 Runnable, tested copies of these examples live in
-link:example_test.go[`example_test.go`].  The link:../queue/[queue README]
+link:example_test.go[`example_test.go`].  `Len` is an alias for `Length`,
+matching the other charon packages.  The link:../queue/[queue README]
 documents the full API usage and the slice-window memory behavior; they
 apply unchanged.
-
-== Differences from pluto/queue_ts
-
-* `Dequeue` returns `(T, error)` — pluto returned `*T` pointing at a
-copy.
-* `Peek` returns `(T, error)` — pluto returned `&q.data[0]`, a pointer
-*into the queue released from the lock*, which could race with a
-concurrent pop zeroing that very slot; the value copy taken under the
-read lock removes that hazard.
-* `Len` is available as an alias for `Length`, matching the other charon
-packages.
-* A nil `*Queue` behaves as an empty queue for every operation except
-`Push`/`Enqueue`, which panic with a named message (the package's only
-panic); pluto panicked with an unguarded nil dereference.
-* The snapshots for `All`/`Backward` are taken when they are called
-(pluto did the same here — unlike its lazy iterators in other `_ts`
-packages).
-

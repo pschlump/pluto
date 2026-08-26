@@ -5,11 +5,9 @@ charon.  The element type needs *no constraints at all*: there is no
 ordering and no equality to supply, and the zero value of `Queue` is an
 empty queue ready to use without a constructor.
 
-It is a rework of
-link:https://github.com/pschlump/pluto/tree/main/queue[pluto/queue]
-with the charon conventions: elements are stored and returned *by
-value* — `Dequeue` and `Peek` return `(T, error)` instead of a pointer —
-so a dequeued or peeked element never aliases the queue's internals.
+Elements are stored and returned *by value* — `Dequeue` and `Peek`
+return `(T, error)` instead of a pointer — so a dequeued or peeked
+element never aliases the queue's internals.
 
 Not safe for concurrent use (a mutex-guarded twin has the same
 interface).
@@ -28,6 +26,8 @@ interface).
 | `Truncate`                   | Remove all elements                  | O(1)
 | `All` / `Backward`           | Range-over-func iterators with index | O(n)
 |===
+
+`Len` is an alias for `Length`, matching the other charon packages.
 
 == Errors
 
@@ -92,19 +92,3 @@ long-lived queue that grows and drains repeatedly will periodically
 reallocate as the window walks off the front of the backing array — for
 stable O(1) memory across arbitrary push/pop patterns, use the
 doubly-linked-list queue in link:../dll/[`dll`] (`Enqueue`/`Pop`).
-
-== Differences from pluto/queue
-
-* `Dequeue` returns `(T, error)` — pluto returned `*T` pointing at a copy.
-* `Peek` returns `(T, error)` — pluto returned `*T` *aliasing the
-element inside the queue*, so mutating the result mutated the queued
-element; with value semantics that hazard is gone.
-* `Len` is available as an alias for `Length`, matching the other charon
-packages.
-* A nil `*Queue` behaves as an empty queue for every operation except
-`Push`/`Enqueue`, which panic with a named message (pluto panicked with
-an unguarded nil dereference on writes to a nil queue... and tolerated
-reads inconsistently).
-* Complexity notes on each operation (O(1) amortized push, the slice
-window behavior) are documented on the methods and here.
-

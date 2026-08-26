@@ -104,19 +104,3 @@ All functions are safe for concurrent use.  They operate only on their
 arguments and keep no shared state.  Functions that return a slice
 (`RemoveAt`, `Remove`, `RemoveComparable`, `Unique`) never modify their
 input.
-
-== Differences from pluto/g_lib
-
-Same function set — this is a rework, not a redesign:
-
-* `ptr` is exported as `Ptr` and implemented with the Go 1.26
-`new(expr)` form (pluto's took the address of the parameter with
-`&v`); both return a pointer to a copy of the value.
-* `InArray` delegates to `slices.Contains` instead of a hand-rolled
-loop.
-* `SortSlice` uses `slices.Sort` (pattern-defeating quicksort, no
-closure) instead of `sort.Slice` with a comparison closure;
-`SortedKeysForStringMap` keeps `sort.Strings`.
-* `Pow` uses a `for range` loop instead of the three-clause form.
-* The numeric constraint docs state their type sets precisely,
-including the `~T` distinction above.

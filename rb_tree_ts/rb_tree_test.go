@@ -15,10 +15,9 @@ import (
 	"testing"
 )
 
-// TestRbTreeNode is the test element type.  Note what is missing compared
-// to the pluto version of this test file: no Compare method, no interface
-// assertion, no type assertions inside a comparison.  Ordering is supplied
-// to the tree as a plain function (cmpTestRbTreeNode below).
+// TestRbTreeNode is the test element type.  It has no Compare method and
+// implements no interface.  Ordering is supplied to the tree as a plain
+// function (cmpTestRbTreeNode below).
 type TestRbTreeNode struct {
 	S string
 	// N is satellite data that the comparison ignores.  It is used to
