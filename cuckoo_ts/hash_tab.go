@@ -11,10 +11,13 @@ BSD 3 Clause Licensed.
 // derived: the table size is a power of two, and with mask = size-1 the
 // candidates are
 //
-//	pos1 =  h        & mask
-//	pos2 = (h >> 1)  & mask
-//	pos3 = (h >> 2)  & mask
-//	pos4 = (h >> 3)  & mask
+//	pos1 =  h         & mask
+//	pos2 = (h >> 4)   & mask
+//	pos3 = (h >> 8)   & mask
+//	pos4 = (h >> 12)  & mask
+//
+// ( h >> 4 ) is effectivly remove 1 nibble, add 1 nibble so a new
+// byte ( 1 in 256 probably ) of new random distribution values.
 //
 // — the first hash is the base hash itself masked to the table, and each
 // further hash is the base hash arithmetic-shifted right one more bit and
@@ -239,7 +242,7 @@ func nextPowerOfTwo(n int) int {
 // and masking to the table — i = 0 is the first hash (the base hash itself),
 // i = 1..3 the second through fourth hashes, each shifted one bit further.
 func posOf(h uint64, i int, mask uint64) int {
-	return int((h >> uint(i)) & mask)
+	return int((h >> uint((i << 2))) & mask) // i<<2 is the same as i*4
 }
 
 // savedSlot records the original content of a position a displacement chain
