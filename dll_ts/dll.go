@@ -1,99 +1,110 @@
-package dll_ts
-
 /*
-Copyright (C) Philip Schlump, 2012-2024.
+Copyright (C) Philip Schlump, 2012-2026.
 
 BSD 3 Clause Licensed.
-
-Package dll_ts implements a generic doubly linked list (DLL) with head-and-tail
-pointers.  It is the thread-safe (goroutine-safe) version of ../dll: every
-operation is guarded by a sync.RWMutex.  It has the exact same interface as
-the dll package.
-
-*	AppendAtTail — Inserts a new element after the end of the linked list.  					O(1)
-*	Delete — Deletes a specified element from the linked list (element can be found via Search). O(n)
-*	DeleteFound — Deletes a previously found element (from Search/ReverseSearch/Index).		O(1)
-*	DeleteSearch — Deletes a specified element, searching from head to tail.					O(n)
-*	DeleteAtHead — Deletes the first element of the linked list.  								O(1)
-*	DeleteAtTail — Deletes the last element of the linked list. 								O(1)
-*	Index — Return the Nth item in the list - in a format usable with DeleteFound.				O(n) n/2
-*	IndexFromTail — Return the Nth item from the tail of the list.								O(n) n/2
-*	InsertBeforeHead — Inserts a new element before the current first element of list.  		O(1)
-*	IsEmpty — Returns true if the linked list is empty											O(1)
-*	Length — Returns number of elements in the list.  0 length is an empty list.				O(1)
-*	Peek — Look at data at head of list.														O(1)
-*	PeekTail — Look at data at tail of list.													O(1)
-*	Pop	— Remove and return from the head of the list.											O(1)
-*	PopTail — Remove and return from the tail of the list.										O(1)
-*	Push — Insert at the head of the list.														O(1)
-*	ReverseList — Reverse all the nodes in list. 												O(n)
-*	Reverse — Reverse all the nodes in list with O(1) extra storage.							O(n)
-*	ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
-*	ReverseWalk — Iterate from tail to head of list. 											O(n)
-*	Search — Returns the given element from a linked list.  Search is from head to tail.		O(n) n/2
-*	Truncate — Delete all the nodes in list. 													O(1)
-*	Walk — Iterate from head to tail of list. 													O(n)
-*	Trim — Cut list to specified length, keeping the head; unchanged if shorter.				O(n)
-*	TrimTail — Cut list to specified length, keeping the tail; unchanged if shorter.			O(n)
-*	Concat — Append a copy of the elements of another list to this list.						O(n)
-
-With the basic stack operations it also can be used as a stack:
-
-*	Push — Inserts an element at the top														O(1)
-*	Pop — Will remove the top element from the stack.  An error is returned if the stack is		O(1)
-		empty.
-*	IsEmpty — Returns true if the stack is empty												O(1)
-*	Peek — Returns the top element without removing from the stack								O(1)
-
-With the use of Enqueue it can be used as a queue.  Enqueue is a synonym for AppendAtTail.	O(1)
-
-*	PeekTail — Peek returns the last element of the DLL (like a queue) or an error 				O(1)
-		indicating that the queue is empty.
-*	PopTail — Remove the element at the end of the DLL.											O(1)
-*	Enqueue — Add to the tail so that DLL can be used as a queue.								O(1)
-
-Iteration is supported by the legacy DllIter type (Front/Rear/Done/Next/Prev/Value),
-by the Walk/ReverseWalk callbacks, and by Go 1.23+ range-over-func iterators:
-
-*	All — iter.Seq2[int, T] from head to tail.													O(n)
-*	Backward — iter.Seq2[int, T] from tail to head.												O(n)
-*	IterateOver — legacy name for All.															O(n)
-*	IteratePtr — iter.Seq2[int, *T] from head to tail.											O(n)
-
-The range-over-func iterators operate on a consistent snapshot of the list
-taken under a read lock, so they never hold the lock while user code runs.
-
-Note: Walk and ReverseWalk hold a read lock while the user callback runs, so
-the callback must not call back into the list (that would deadlock).
 */
+
+// Package dll_ts implements a generic doubly linked list (DLL) with
+// head-and-tail pointers that is safe for concurrent use.  It is the
+// thread-safe twin of github.com/pschlump/charon/dll — the same API,
+// guarded by a sync.RWMutex.
+//
+// Like every charon package it is a rework of its pluto counterpart
+// (github.com/pschlump/pluto/dll_ts) in which the comparable.Equality
+// interface constraint has been replaced with plain Go type parameters.
+// Elements are stored and returned by value, so element data is never
+// boxed into an interface and never unboxed with a type assertion.
+// Lists of types that can be compared with == (the builtin comparable
+// constraint) are created with NewDll, which compares elements with the
+// == operator; lists of any other type — or with field-based equality —
+// are created with NewDllFunc, which takes a caller supplied equality
+// function.  The equality function is consulted only by Search,
+// ReverseSearch and the Delete calls built on them.
+//
+// Concurrency model:
+//
+//	Reads (Search, ReverseSearch, Index, IndexFromTail, Peek, PeekTail,
+//	Len, Length, IsEmpty) take the read lock and release it before
+//	returning, so they run in parallel with each other.
+//	Writes (InsertBeforeHead, Push, AppendAtTail, Enqueue, Pop, PopTail,
+//	Delete, DeleteSearch, DeleteFound, DeleteAtHead, DeleteAtTail,
+//	Reverse, Truncate, Trim, TrimTail) take the write lock.  Delete
+//	holds the write lock across its search, so search-and-delete is
+//	atomic.
+//	Walk and ReverseWalk hold the read lock while the callback runs; the
+//	callback must not call back into the list, or the call can deadlock.
+//	All and Backward operate on a snapshot taken when they are called
+//	(one O(n) copy, under the read lock), so they are safe to use
+//	concurrently with any list operation — including mutating the list
+//	from inside the loop — and never observe later modifications.
+//	Concat snapshots the source under the source's own read lock before
+//	taking the destination's write lock, so no two locks are ever held
+//	at once and the source may alias the destination.
+//	The legacy DllIter (Front/Rear/Current) walks the LIVE list: each
+//	iterator method takes the list's read lock for the duration of that
+//	call only.  This is race-free, but an iterator observes concurrent
+//	modifications as they happen and terminates early if its current
+//	element is deleted.  Prefer All/Backward for a stable view.
+//	Lock and Unlock expose the write lock for compound operations (for
+//	example a search-and-insert that must be atomic).  No other list
+//	operation may run while the lock is held.
+//
+// Errors, not panics, report empty-list, not-found and out-of-range
+// conditions: ErrEmptyDll, ErrNotFound, ErrOutOfRange and ErrInternalDll.
+// Compare them with errors.Is.
+//
+// A nil *Dll and the zero value both behave as an empty list for every
+// operation except the insert family: searches report not-found, pops and
+// peeks return ErrEmptyDll, and the iterators visit nothing.
+//
+// The package panics in exactly three situations, all programmer errors
+// that cannot be handled where they occur:
+//
+//	NewDllFunc(nil)               — nil equality function, caught at construction.
+//	Insert-family on a nil list   — a nil list cannot store an element.
+//	Insert-family on a zero-value list — no equality function; the message names the constructors.
+//
+// The insert family is InsertBeforeHead, Push, AppendAtTail, Enqueue and
+// Concat (which appends).
+package dll_ts
 
 import (
 	"errors"
 	"fmt"
 	"io"
 	"iter"
+	"slices"
 	"sync"
-
-	"github.com/pschlump/pluto/comparable"
 )
 
-// DllElement is a node in the doubly linked list.
-type DllElement[T comparable.Equality] struct {
+// DllElement is an element in the doubly linked list.
+type DllElement[T any] struct {
+	data       T
 	next, prev *DllElement[T]
-	Data       *T
 }
 
-// Dll is a generic doubly linked list with head and tail pointers.
-// The zero value is an empty list ready to use.
-// All operations are safe for concurrent use by multiple goroutines.
-type Dll[T comparable.Equality] struct {
+// Dll is a generic doubly linked list with head and tail pointers that is
+// safe for concurrent use.  Use NewDll for element types that support ==,
+// or NewDllFunc for a caller supplied equality function.  The zero value
+// is an empty list.
+type Dll[T any] struct {
 	head, tail *DllElement[T]
 	length     int
-	mu         sync.RWMutex
+	lock       sync.RWMutex
+
+	// eq reports whether two elements are considered the same.  It is set
+	// by the constructors and is the only thing that knows how to compare
+	// T — T itself never has to implement an interface.  It is consulted
+	// only by Search, ReverseSearch and the Delete calls built on them.
+	eq func(a, b T) bool
 }
 
-// DllIter is an iteration type that allows a for loop to walk the list.
-type DllIter[T comparable.Equality] struct {
+// DllIter is an iteration type that allows a for loop to walk the list in
+// either direction.  It walks the LIVE list: each method takes the list's
+// read lock for the duration of that call, so it is race-free but
+// observes concurrent modifications and terminates early if its current
+// element is deleted.  For a stable view prefer All or Backward.
+type DllIter[T any] struct {
 	cur      *DllElement[T]
 	dll      *Dll[T]
 	pos      int
@@ -102,219 +113,77 @@ type DllIter[T comparable.Equality] struct {
 
 // -------------------------------------------------------------------------------------------------------
 
-// NewDll creates a new DLL and returns it.
+// NewDll creates a new DLL for any element type that can be compared with
+// the == operator (the builtin comparable constraint: all scalars,
+// strings, arrays, pointers and structs of comparable fields).  Equality
+// testing never boxes an element into an interface.
 // Complexity is O(1).
-func NewDll[T comparable.Equality]() *Dll[T] {
-	return &Dll[T]{}
+func NewDll[T comparable]() *Dll[T] {
+	return &Dll[T]{eq: func(a, b T) bool { return a == b }}
 }
 
-// GetData returns the data stored in the element.
+// NewDllFunc creates a new DLL that compares elements with the caller
+// supplied equality function fx.  This lets any type — including types
+// that are not comparable with == (slices, maps, funcs) and structs whose
+// identity is a single field — be stored without implementing any
+// interface.
 // Complexity is O(1).
-func (ee *DllElement[T]) GetData() *T {
-	return ee.Data
-}
-
-// SetData sets the data stored in the element.
-// Complexity is O(1).
-func (ee *DllElement[T]) SetData(d *T) {
-	ee.Data = d
+func NewDllFunc[T any](fx func(a, b T) bool) *Dll[T] {
+	if fx == nil {
+		panic("dll_ts: NewDllFunc called with a nil equality function")
+	}
+	return &Dll[T]{eq: fx}
 }
 
 // -------------------------------------------------------------------------------------------------------
-
-// Front will start at the beginning of a list for iteration over list.
-func (ns *Dll[T]) Front() *DllIter[T] {
-	ns.mu.RLock()
-	defer ns.mu.RUnlock()
-	return &DllIter[T]{
-		cur: ns.head,
-		dll: ns,
-	}
-}
-
-// Rear will start at the end of a list for iteration over list.
-func (ns *Dll[T]) Rear() *DllIter[T] {
-	ns.mu.RLock()
-	defer ns.mu.RUnlock()
-	return &DllIter[T]{
-		cur: ns.tail,
-		dll: ns,
-		pos: ns.length - 1,
-	}
-}
-
-// Current will take the node returned from Search or ReverseSearch
-//
-//	func (ns *Dll[T]) Search( t *T ) (rv *DllElement[T], pos int) {
-//
-// and allow you to start an iteration process from that point.
-func (ns *Dll[T]) Current(el *DllElement[T], pos int) *DllIter[T] {
-	return &DllIter[T]{
-		cur: el,
-		dll: ns,
-		pos: pos,
-	}
-}
-
-// Value returns the current data for this element in the list.
-func (iter *DllIter[T]) Value() *T {
-	iter.iterLock.RLock()
-	defer iter.iterLock.RUnlock()
-	iter.dll.mu.RLock()
-	defer iter.dll.mu.RUnlock()
-	if iter.cur != nil {
-		return iter.cur.Data
-	}
-	return nil
-}
-
-// Next advances to the next element in the list.
-func (iter *DllIter[T]) Next() {
-	iter.iterLock.Lock()
-	defer iter.iterLock.Unlock()
-	iter.dll.mu.RLock()
-	defer iter.dll.mu.RUnlock()
-	if iter.cur == nil {
-		return
-	}
-	iter.cur = iter.cur.next
-	iter.pos++
-}
-
-// Prev moves back to the previous element in the list.
-func (iter *DllIter[T]) Prev() {
-	iter.iterLock.Lock()
-	defer iter.iterLock.Unlock()
-	iter.dll.mu.RLock()
-	defer iter.dll.mu.RUnlock()
-	if iter.cur == nil {
-		return
-	}
-	iter.cur = iter.cur.prev
-	iter.pos--
-}
-
-// Done returns true if the end of the list has been reached.
-func (iter *DllIter[T]) Done() bool {
-	iter.iterLock.RLock()
-	defer iter.iterLock.RUnlock()
-	return iter.cur == nil
-}
-
-// Pos returns the current "index" of the element being iterated on.  So if the list has 3 elements, a, b, c and we
-// start at the head of the list 'a' will have a Pos() of 0, 'b' will have a Pos() of 1 etc.
-func (iter *DllIter[T]) Pos() int {
-	iter.iterLock.RLock()
-	defer iter.iterLock.RUnlock()
-	return iter.pos
-}
-
+// Lock-free internals; the caller must hold the appropriate lock.
 // -------------------------------------------------------------------------------------------------------
-// IsEmpty will return true if the DLL (queue or stack) is empty
-func (ns *Dll[T]) IsEmpty() bool {
-	ns.mu.RLock()
-	defer ns.mu.RUnlock()
-	return ns.length == 0
+
+// equal compares a and b.  The caller must hold a lock; the list must
+// have been created by one of the constructors if it is non-empty.
+func (ns *Dll[T]) equal(a, b T) bool {
+	return ns.eq(a, b)
 }
 
-func (ns *Dll[T]) noLockInsertBeforeHead(t *T) {
-	x := DllElement[T]{Data: t} // Create the node
+// noLockInsertBeforeHead inserts at the head; the caller must hold the
+// write lock.
+func (ns *Dll[T]) noLockInsertBeforeHead(t T) {
+	x := &DllElement[T]{data: t} // Create the node
 	if ns.head == nil {
-		ns.head = &x
-		ns.tail = &x
+		ns.head = x
+		ns.tail = x
 		ns.length = 1
 	} else {
 		x.next = ns.head
-		ns.head.prev = &x
-		ns.head = &x
+		ns.head.prev = x
+		ns.head = x
 		ns.length++
 	}
 }
 
-// InsertBeforeHead will insert a new node at the head of the list.
-// It returns true if the node was inserted.
-func (ns *Dll[T]) InsertBeforeHead(t *T) bool {
-	ns.mu.Lock()
-	defer ns.mu.Unlock()
-	ns.noLockInsertBeforeHead(t)
-	return true
-}
-
-// Push will insert a new node at the head of the list.
-// This is just an alias for InsertBeforeHead.
-func (ns *Dll[T]) Push(t *T) {
-	ns.InsertBeforeHead(t)
-}
-
-func (ns *Dll[T]) noLockAppendAtTail(t *T) {
-	x := DllElement[T]{Data: t} // Create the node
+// noLockAppendAtTail appends at the tail; the caller must hold the write
+// lock.
+func (ns *Dll[T]) noLockAppendAtTail(t T) {
+	x := &DllElement[T]{data: t} // Create the node
 	if ns.tail == nil {
-		ns.head = &x
-		ns.tail = &x
+		ns.head = x
+		ns.tail = x
 		ns.length = 1
 	} else {
 		x.prev = ns.tail
-		ns.tail.next = &x
-		ns.tail = &x
+		ns.tail.next = x
+		ns.tail = x
 		ns.length++
 	}
 }
 
-// AppendAtTail will append a new node to the end of the list.
-// It returns true if the node was inserted.
-func (ns *Dll[T]) AppendAtTail(t *T) bool {
-	ns.mu.Lock()
-	defer ns.mu.Unlock()
-	ns.noLockAppendAtTail(t)
-	return true
-}
-
-// Enqueue adds an element to the tail of the list so the DLL can be used as a queue.
-// This is just an alias for AppendAtTail.
-func (ns *Dll[T]) Enqueue(t *T) {
-	ns.AppendAtTail(t)
-}
-
-// Length returns the number of elements in the list.
-func (ns *Dll[T]) Length() int {
-	ns.mu.RLock()
-	defer ns.mu.RUnlock()
-	return ns.length
-}
-
-// An error to indicate that the DLL is empty
-var ErrNotFound = errors.New("not found")
-var ErrEmptyDll = errors.New("empty dll")
-
-// ErrInternalDll indicates an internal inconsistency in the DLL.
-var ErrInternalDll = errors.New("internal dll error")
-
-// ErrOutOfRange indicates that a subscript is out of range.
-var ErrOutOfRange = errors.New("subscript out of range")
-
-// Pop will remove the top element from the DLL.  An error is returned if the stack is empty.
-func (ns *Dll[T]) Pop() (rv *T, err error) {
-	ns.mu.Lock()
-	defer ns.mu.Unlock()
-	rv, err = ns.noLockPop()
-	return
-}
-
-// PopTail will remove the bottom element from the DLL.  An error is returned if the list is empty.
-func (ns *Dll[T]) PopTail() (rv *T, err error) {
-	ns.mu.Lock()
-	defer ns.mu.Unlock()
-	rv, err = ns.noLockPopTail()
-	return
-}
-
-// noLockPop will remove the top element from the DLL.  The caller must hold the lock.
-func (ns *Dll[T]) noLockPop() (rv *T, err error) {
+// noLockPop removes the head; the caller must hold the write lock.
+func (ns *Dll[T]) noLockPop() (rv T, err error) {
 	if ns.length == 0 {
-		return nil, ErrEmptyDll
+		return rv, ErrEmptyDll
 	}
 	rm := ns.head
-	rv = rm.Data
+	rv = rm.data
 	ns.head = rm.next
 	if ns.head != nil {
 		ns.head.prev = nil
@@ -327,13 +196,13 @@ func (ns *Dll[T]) noLockPop() (rv *T, err error) {
 	return
 }
 
-// noLockPopTail will remove the bottom element from the DLL.  The caller must hold the lock.
-func (ns *Dll[T]) noLockPopTail() (rv *T, err error) {
+// noLockPopTail removes the tail; the caller must hold the write lock.
+func (ns *Dll[T]) noLockPopTail() (rv T, err error) {
 	if ns.length == 0 {
-		return nil, ErrEmptyDll
+		return rv, ErrEmptyDll
 	}
 	rm := ns.tail
-	rv = rm.Data
+	rv = rm.data
 	ns.tail = rm.prev
 	if ns.tail != nil {
 		ns.tail.next = nil
@@ -346,35 +215,8 @@ func (ns *Dll[T]) noLockPopTail() (rv *T, err error) {
 	return
 }
 
-// Delete removes a matching element, searching from head to tail.
-// If the element is not found an error is returned.
-func (ns *Dll[T]) Delete(t *T) (err error) {
-	ns.mu.Lock()
-	defer ns.mu.Unlock()
-
-	for p := ns.head; p != nil; p = p.next {
-		if (*p.Data).IsEqual(*t) { // IsEqual(b Equality) bool
-			return ns.noLockDelete(p)
-		}
-	}
-	return ErrNotFound
-}
-
-// DeleteSearch will search for a node matching the supplied 't' and if a match is found then that
-// node will be deleted.  The search is a linear search from the head.  If it is not found then
-// an error is returned.  This is an alias for Delete.
-func (ns *Dll[T]) DeleteSearch(t *T) (err error) {
-	return ns.Delete(t)
-}
-
-// DeleteFound removes a 'found' element from the DLL, the next/prev
-// pointers must be in this list.
-func (ns *Dll[T]) DeleteFound(it *DllElement[T]) (err error) {
-	ns.mu.Lock()
-	defer ns.mu.Unlock()
-	return ns.noLockDelete(it)
-}
-
+// noLockDelete removes the given element; the caller must hold the write
+// lock.  The element must have come from this list.
 func (ns *Dll[T]) noLockDelete(it *DllElement[T]) (err error) {
 	if it == nil {
 		return ErrNotFound
@@ -408,6 +250,274 @@ func (ns *Dll[T]) noLockDelete(it *DllElement[T]) (err error) {
 	return ErrInternalDll
 }
 
+// snapshot returns the data of the list from head to tail, taken under
+// the read lock.  A nil list yields nil.  The caller must NOT hold the
+// lock.
+// Complexity is O(n).
+func (ns *Dll[T]) snapshot() []T {
+	if ns == nil {
+		return nil
+	}
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
+	data := make([]T, 0, ns.length)
+	for p := ns.head; p != nil; p = p.next {
+		data = append(data, p.data)
+	}
+	return data
+}
+
+// -------------------------------------------------------------------------------------------------------
+// Public API
+// -------------------------------------------------------------------------------------------------------
+
+// GetData returns the data stored in the element.
+// Complexity is O(1).
+func (ee *DllElement[T]) GetData() T {
+	return ee.data
+}
+
+// SetData sets the data stored in the element.  Calling it on an element
+// that is inside a list while other goroutines use the list is a race;
+// it is intended for standalone elements.
+// Complexity is O(1).
+func (ee *DllElement[T]) SetData(d T) {
+	ee.data = d
+}
+
+// Front will start at the beginning of a list for iteration over list.
+func (ns *Dll[T]) Front() *DllIter[T] {
+	if ns == nil {
+		return &DllIter[T]{}
+	}
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
+	return &DllIter[T]{cur: ns.head, dll: ns}
+}
+
+// Rear will start at the end of a list for iteration over list.
+func (ns *Dll[T]) Rear() *DllIter[T] {
+	if ns == nil {
+		return &DllIter[T]{pos: -1}
+	}
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
+	return &DllIter[T]{cur: ns.tail, dll: ns, pos: ns.length - 1}
+}
+
+// Current will take the node returned from Search or ReverseSearch
+//
+//	func (ns *Dll[T]) Search( t T ) (rv *DllElement[T], pos int)
+//
+// and allow you to start an iteration process from that point.
+func (ns *Dll[T]) Current(el *DllElement[T], pos int) *DllIter[T] {
+	return &DllIter[T]{cur: el, dll: ns, pos: pos}
+}
+
+// Value returns the current data for this element in the list, or false
+// if the iteration is done.
+func (iter *DllIter[T]) Value() (rv T, found bool) {
+	iter.iterLock.RLock()
+	defer iter.iterLock.RUnlock()
+	if iter.dll == nil || iter.cur == nil {
+		return
+	}
+	iter.dll.lock.RLock()
+	defer iter.dll.lock.RUnlock()
+	if iter.cur == nil {
+		return
+	}
+	return iter.cur.data, true
+}
+
+// Next advances to the next element in the list.
+func (iter *DllIter[T]) Next() {
+	iter.iterLock.Lock()
+	defer iter.iterLock.Unlock()
+	if iter.dll == nil || iter.cur == nil {
+		return
+	}
+	iter.dll.lock.RLock()
+	defer iter.dll.lock.RUnlock()
+	iter.cur = iter.cur.next
+	iter.pos++
+}
+
+// Prev moves back to the previous element in the list.
+func (iter *DllIter[T]) Prev() {
+	iter.iterLock.Lock()
+	defer iter.iterLock.Unlock()
+	if iter.dll == nil || iter.cur == nil {
+		return
+	}
+	iter.dll.lock.RLock()
+	defer iter.dll.lock.RUnlock()
+	iter.cur = iter.cur.prev
+	iter.pos--
+}
+
+// Done returns true if the end of the list has been reached.
+func (iter *DllIter[T]) Done() bool {
+	iter.iterLock.RLock()
+	defer iter.iterLock.RUnlock()
+	return iter.cur == nil
+}
+
+// Pos returns the current "index" of the element being iterated on.  So if the list has 3 elements, a, b, c and we
+// start at the head of the list 'a' will have a Pos() of 0, 'b' will have a Pos() of 1 etc.
+func (iter *DllIter[T]) Pos() int {
+	iter.iterLock.RLock()
+	defer iter.iterLock.RUnlock()
+	return iter.pos
+}
+
+// IsEmpty will return true if the DLL (queue or stack) is empty.
+func (ns *Dll[T]) IsEmpty() bool {
+	if ns == nil {
+		return true
+	}
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
+	return ns.length == 0
+}
+
+// InsertBeforeHead will insert a new node at the head of the list.
+// It returns true if the node was inserted.
+// It panics on a nil list or on a zero-value list (no equality
+// function); see the package documentation for the panic contract.
+func (ns *Dll[T]) InsertBeforeHead(t T) bool {
+	if ns == nil {
+		panic("dll_ts: InsertBeforeHead called on a nil list")
+	}
+	if ns.eq == nil {
+		panic("dll_ts: InsertBeforeHead called on a list with no equality function (create the list with NewDll or NewDllFunc)")
+	}
+	ns.lock.Lock()
+	defer ns.lock.Unlock()
+	ns.noLockInsertBeforeHead(t)
+	return true
+}
+
+// Push will insert a new node at the head of the list.
+// This is just an alias for InsertBeforeHead.
+func (ns *Dll[T]) Push(t T) {
+	ns.InsertBeforeHead(t)
+}
+
+// AppendAtTail will append a new node to the end of the list.
+// It returns true if the node was inserted.
+// It panics on a nil list or on a zero-value list (no equality
+// function); see the package documentation for the panic contract.
+func (ns *Dll[T]) AppendAtTail(t T) bool {
+	if ns == nil {
+		panic("dll_ts: AppendAtTail called on a nil list")
+	}
+	if ns.eq == nil {
+		panic("dll_ts: AppendAtTail called on a list with no equality function (create the list with NewDll or NewDllFunc)")
+	}
+	ns.lock.Lock()
+	defer ns.lock.Unlock()
+	ns.noLockAppendAtTail(t)
+	return true
+}
+
+// Enqueue adds an element to the tail of the list so the DLL can be used as a queue.
+// This is just an alias for AppendAtTail.
+func (ns *Dll[T]) Enqueue(t T) {
+	ns.AppendAtTail(t)
+}
+
+// Len returns the number of elements in the list.
+func (ns *Dll[T]) Len() int {
+	if ns == nil {
+		return 0
+	}
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
+	return ns.length
+}
+
+// Length returns the number of elements in the list.
+func (ns *Dll[T]) Length() int {
+	if ns == nil {
+		return 0
+	}
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
+	return ns.length
+}
+
+// An error to indicate that the DLL is empty
+var ErrEmptyDll = errors.New("empty dll")
+
+// ErrInternalDll indicates an internal inconsistency in the DLL.
+var ErrInternalDll = errors.New("internal dll error")
+
+// ErrOutOfRange indicates that a subscript is out of range.
+var ErrOutOfRange = errors.New("subscript out of range")
+
+// ErrNotFound indicates that a search failed to find the element.
+var ErrNotFound = errors.New("not found")
+
+// Pop will remove the top element from the DLL.  ErrEmptyDll is returned
+// if the list is empty.
+func (ns *Dll[T]) Pop() (rv T, err error) {
+	if ns == nil {
+		return rv, ErrEmptyDll
+	}
+	ns.lock.Lock()
+	defer ns.lock.Unlock()
+	return ns.noLockPop()
+}
+
+// PopTail will remove the bottom element from the DLL.  ErrEmptyDll is
+// returned if the list is empty.
+func (ns *Dll[T]) PopTail() (rv T, err error) {
+	if ns == nil {
+		return rv, ErrEmptyDll
+	}
+	ns.lock.Lock()
+	defer ns.lock.Unlock()
+	return ns.noLockPopTail()
+}
+
+// Delete removes a matching element, searching from head to tail.
+// If the element is not found ErrNotFound is returned.  The write lock is
+// held across the search, so search-and-delete is atomic.
+func (ns *Dll[T]) Delete(t T) (err error) {
+	if ns == nil {
+		return ErrNotFound
+	}
+	ns.lock.Lock()
+	defer ns.lock.Unlock()
+
+	for p := ns.head; p != nil; p = p.next {
+		if ns.equal(p.data, t) {
+			return ns.noLockDelete(p)
+		}
+	}
+	return ErrNotFound
+}
+
+// DeleteSearch will search for a node matching the supplied 't' and if a match is found then that
+// node will be deleted.  The search is a linear search from the head.  If it is not found then
+// ErrNotFound is returned.  This is an alias for Delete.
+func (ns *Dll[T]) DeleteSearch(t T) (err error) {
+	return ns.Delete(t)
+}
+
+// DeleteFound removes a 'found' element from the DLL; the element must
+// have come from this list (from Search, ReverseSearch, Index or
+// IndexFromTail).
+func (ns *Dll[T]) DeleteFound(it *DllElement[T]) (err error) {
+	if ns == nil {
+		return ErrNotFound
+	}
+	ns.lock.Lock()
+	defer ns.lock.Unlock()
+	return ns.noLockDelete(it)
+}
+
 // DeleteAtHead deletes the first element of the list.
 func (ns *Dll[T]) DeleteAtHead() (err error) {
 	_, err = ns.Pop()
@@ -420,32 +530,42 @@ func (ns *Dll[T]) DeleteAtTail() (err error) {
 	return
 }
 
-// Peek returns the top element of the DLL (like a Stack) or an error indicating that the stack is empty.
-func (ns *Dll[T]) Peek() (rv *T, err error) {
-	ns.mu.RLock()
-	defer ns.mu.RUnlock()
-	if ns.length == 0 {
-		return nil, ErrEmptyDll
+// Peek returns the top element of the DLL (like a Stack) or ErrEmptyDll
+// indicating that the stack is empty.
+func (ns *Dll[T]) Peek() (rv T, err error) {
+	if ns == nil {
+		return rv, ErrEmptyDll
 	}
-	rv = ns.head.Data
-	return
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
+	if ns.length == 0 {
+		return rv, ErrEmptyDll
+	}
+	return ns.head.data, nil
 }
 
-// PeekTail returns the last element of the DLL (like a Queue) or an error indicating that the queue is empty.
-func (ns *Dll[T]) PeekTail() (rv *T, err error) {
-	ns.mu.RLock()
-	defer ns.mu.RUnlock()
-	if ns.length == 0 {
-		return nil, ErrEmptyDll
+// PeekTail returns the last element of the DLL (like a Queue) or
+// ErrEmptyDll indicating that the queue is empty.
+func (ns *Dll[T]) PeekTail() (rv T, err error) {
+	if ns == nil {
+		return rv, ErrEmptyDll
 	}
-	rv = ns.tail.Data
-	return
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
+	if ns.length == 0 {
+		return rv, ErrEmptyDll
+	}
+	return ns.tail.data, nil
 }
 
-// Truncate removes all data from the list.
+// Truncate removes all data from the list.  The equality function is
+// kept, so the list remains usable and can simply be refilled.
 func (ns *Dll[T]) Truncate() {
-	ns.mu.Lock()
-	defer ns.mu.Unlock()
+	if ns == nil {
+		return
+	}
+	ns.lock.Lock()
+	defer ns.lock.Unlock()
 	ns.head = nil
 	ns.tail = nil
 	ns.length = 0
@@ -453,16 +573,20 @@ func (ns *Dll[T]) Truncate() {
 
 // Search — Returns the given element from a linked list.  Search is from head to tail.		O(n)
 // If the item is not found then a position of -1 is returned.
-func (ns *Dll[T]) Search(t *T) (rv *DllElement[T], pos int) {
-	ns.mu.RLock()
-	defer ns.mu.RUnlock()
+// The probe only needs the fields that the equality function reads.
+func (ns *Dll[T]) Search(t T) (rv *DllElement[T], pos int) {
+	if ns == nil {
+		return nil, -1
+	}
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
 	if ns.length == 0 {
 		return nil, -1 // not found
 	}
 
 	i := 0
 	for p := ns.head; p != nil; p = p.next {
-		if (*p.Data).IsEqual(*t) { // IsEqual(b Equality) bool
+		if ns.equal(p.data, t) {
 			return p, i
 		}
 		i++
@@ -472,16 +596,19 @@ func (ns *Dll[T]) Search(t *T) (rv *DllElement[T], pos int) {
 
 // ReverseSearch — Returns the given element from a linked list searching from tail to head.	O(n)
 // If the item is not found then a position of -1 is returned.
-func (ns *Dll[T]) ReverseSearch(t *T) (rv *DllElement[T], pos int) {
-	ns.mu.RLock()
-	defer ns.mu.RUnlock()
+func (ns *Dll[T]) ReverseSearch(t T) (rv *DllElement[T], pos int) {
+	if ns == nil {
+		return nil, -1
+	}
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
 	if ns.length == 0 {
 		return nil, -1 // not found
 	}
 
 	i := ns.length - 1
 	for p := ns.tail; p != nil; p = p.prev {
-		if (*p.Data).IsEqual(*t) { // IsEqual(b Equality) bool
+		if ns.equal(p.data, t) {
 			return p, i
 		}
 		i--
@@ -490,24 +617,30 @@ func (ns *Dll[T]) ReverseSearch(t *T) (rv *DllElement[T], pos int) {
 }
 
 // ApplyFunction is the type of the callback used by Walk and ReverseWalk.
-// It returns true to stop the iteration (the current element is returned by Walk).
-type ApplyFunction[T comparable.Equality] func(pos int, data T, userData interface{}) bool
+// Returning true STOPS the walk (note: the opposite convention from the
+// charon tree packages) and the current element and its position are
+// returned by the walk.  Caller state is captured in a closure, so it
+// keeps its static type and is never boxed.
+type ApplyFunction[T any] func(pos int, data T) bool
 
-// Walk - Iterate from head to tail of list. 												O(n)
+// Walk - Iterate from head to tail of list. 													O(n)
 // If fx returns true the walk stops and the current element and its position are returned.
 // If the walk completes without fx returning true then nil, -1 is returned.
-//
-// A read lock is held while fx runs, so fx must not call back into the list.
-func (ns *Dll[T]) Walk(fx ApplyFunction[T], userData interface{}) (rv *DllElement[T], pos int) {
-	ns.mu.RLock()
-	defer ns.mu.RUnlock()
+// The read lock is held while fx runs: fx must not call methods on the
+// same list, or the call can deadlock.
+func (ns *Dll[T]) Walk(fx ApplyFunction[T]) (rv *DllElement[T], pos int) {
+	if ns == nil {
+		return nil, -1
+	}
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
 	if ns.length == 0 {
 		return nil, -1 // not found
 	}
 
 	i := 0
 	for p := ns.head; p != nil; p = p.next {
-		if fx(i, *p.Data, userData) {
+		if fx(i, p.data) {
 			return p, i
 		}
 		i++
@@ -518,18 +651,21 @@ func (ns *Dll[T]) Walk(fx ApplyFunction[T], userData interface{}) (rv *DllElemen
 // ReverseWalk - Iterate from tail to head of list. 											O(n)
 // If fx returns true the walk stops and the current element and its position are returned.
 // If the walk completes without fx returning true then nil, -1 is returned.
-//
-// A read lock is held while fx runs, so fx must not call back into the list.
-func (ns *Dll[T]) ReverseWalk(fx ApplyFunction[T], userData interface{}) (rv *DllElement[T], pos int) {
-	ns.mu.RLock()
-	defer ns.mu.RUnlock()
+// The read lock is held while fx runs: fx must not call methods on the
+// same list, or the call can deadlock.
+func (ns *Dll[T]) ReverseWalk(fx ApplyFunction[T]) (rv *DllElement[T], pos int) {
+	if ns == nil {
+		return nil, -1
+	}
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
 	if ns.length == 0 {
 		return nil, -1 // not found
 	}
 
 	i := ns.length - 1
 	for p := ns.tail; p != nil; p = p.prev {
-		if fx(i, *p.Data, userData) {
+		if fx(i, p.data) {
 			return p, i
 		}
 		i--
@@ -542,10 +678,14 @@ func (ns *Dll[T]) ReverseList() {
 	ns.Reverse()
 }
 
-// Index will return the Nth item from the list.
+// Index will return the Nth item from the list, counting from the head.
+// ErrOutOfRange is returned for an invalid subscript.
 func (ns *Dll[T]) Index(sub int) (rv *DllElement[T], err error) {
-	ns.mu.RLock()
-	defer ns.mu.RUnlock()
+	if ns == nil {
+		return nil, ErrOutOfRange
+	}
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
 	if ns.length == 0 {
 		return nil, ErrOutOfRange
 	}
@@ -571,9 +711,13 @@ func (ns *Dll[T]) Index(sub int) (rv *DllElement[T], err error) {
 
 // IndexFromTail will return the Nth item from the list counting from the tail,
 // so IndexFromTail(0) is the last element of the list.
+// ErrOutOfRange is returned for an invalid subscript.
 func (ns *Dll[T]) IndexFromTail(sub int) (rv *DllElement[T], err error) {
-	ns.mu.RLock()
-	defer ns.mu.RUnlock()
+	if ns == nil {
+		return nil, ErrOutOfRange
+	}
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
 	if ns.length == 0 {
 		return nil, ErrOutOfRange
 	}
@@ -599,10 +743,14 @@ func (ns *Dll[T]) IndexFromTail(sub int) (rv *DllElement[T], err error) {
 
 // Trim will cut the list to the specified length, keeping the first n elements.
 // The list is unchanged if it is shorter than n.  If n <= 0 the list is emptied.
+// ErrEmptyDll is returned if the list is already empty.
 // Complexity is O(n).
 func (ns *Dll[T]) Trim(n int) (err error) {
-	ns.mu.Lock()
-	defer ns.mu.Unlock()
+	if ns == nil {
+		return ErrEmptyDll
+	}
+	ns.lock.Lock()
+	defer ns.lock.Unlock()
 
 	if ns.length == 0 {
 		return ErrEmptyDll
@@ -633,10 +781,14 @@ func (ns *Dll[T]) Trim(n int) (err error) {
 
 // TrimTail will cut the list to the specified length, keeping the last n elements.
 // The list is unchanged if it is shorter than n.  If n <= 0 the list is emptied.
+// ErrEmptyDll is returned if the list is already empty.
 // Complexity is O(n).
 func (ns *Dll[T]) TrimTail(n int) (err error) {
-	ns.mu.Lock()
-	defer ns.mu.Unlock()
+	if ns == nil {
+		return ErrEmptyDll
+	}
+	ns.lock.Lock()
+	defer ns.lock.Unlock()
 
 	if ns.length == 0 {
 		return ErrEmptyDll
@@ -667,29 +819,57 @@ func (ns *Dll[T]) TrimTail(n int) (err error) {
 
 // Concat appends a copy of the elements of yy to the end of ns.
 // yy is unchanged.  If ns == yy the list is duplicated onto itself.
+// The source is snapshotted under its own read lock before ns's write
+// lock is taken, so no two locks are ever held at once and yy may safely
+// alias ns.  Concatenating a nil or empty source is a no-op.
+// Concat otherwise follows the insert contract: ns must have been created
+// with NewDll or NewDllFunc.
 // Complexity is O(len(yy)).
 func (ns *Dll[T]) Concat(yy *Dll[T]) {
-	// Snapshot the data of yy under its read lock.  The two locks are never
-	// held at the same time, so Concat is safe even when ns == yy and there
-	// is no lock-ordering hazard.
-	yy.mu.RLock()
-	data := make([]*T, 0, yy.length)
-	for ptr := yy.head; ptr != nil; ptr = ptr.next {
-		data = append(data, ptr.Data)
+	// Snapshot the source first: a nil or empty source is a no-op even on
+	// a nil list; the insert contract only fires when an element would
+	// actually be stored.
+	data := yy.snapshot()
+	if len(data) == 0 {
+		return
 	}
-	yy.mu.RUnlock()
+	if ns == nil {
+		panic("dll_ts: Concat called on a nil list")
+	}
+	if ns.eq == nil {
+		panic("dll_ts: Concat called on a list with no equality function (create the list with NewDll or NewDllFunc)")
+	}
 
-	ns.mu.Lock()
-	defer ns.mu.Unlock()
+	ns.lock.Lock()
+	defer ns.lock.Unlock()
 	for _, d := range data {
 		ns.noLockAppendAtTail(d)
 	}
 }
 
+// Dump prints the list, one element per line, to fo.  The read lock is
+// held for the whole dump, so the writer must not call methods on the
+// same list.
+func (ns *Dll[T]) Dump(fo io.Writer) {
+	if ns == nil {
+		return
+	}
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
+	i := 0
+	for p := ns.head; p != nil; p = p.next {
+		_, _ = fmt.Fprintf(fo, "%d: %+v\n", i, p.data)
+		i++
+	}
+}
+
 // Reverse - efficiently reverse direction on a list.  O(n) with storage O(1)
 func (ns *Dll[T]) Reverse() {
-	ns.mu.Lock()
-	defer ns.mu.Unlock()
+	if ns == nil {
+		return
+	}
+	ns.lock.Lock()
+	defer ns.lock.Unlock()
 
 	var next *DllElement[T]
 
@@ -701,53 +881,42 @@ func (ns *Dll[T]) Reverse() {
 	ns.head, ns.tail = ns.tail, ns.head
 }
 
-// Dump prints the list, one element per line, to fo.
-func (ns *Dll[T]) Dump(fo io.Writer) {
-	ns.mu.RLock()
-	defer ns.mu.RUnlock()
-	i := 0
-	for p := ns.head; p != nil; p = p.next {
-		_, _ = fmt.Fprintf(fo, "%d: %+v\n", i, *(p.Data))
-		i++
-	}
-}
-
-// Lock takes the list's write lock.  It must be paired with a call to Unlock.
-// No other list operation may be performed by any goroutine while the lock is
-// held, so prefer the built-in locked operations where possible.
+// Lock takes the list's write lock.  It must be paired with a call to
+// Unlock.  No other list operation may be performed by any goroutine
+// while the lock is held, so prefer the built-in locked operations where
+// possible.  Locking a nil list is a no-op.
 func (ns *Dll[T]) Lock() {
-	ns.mu.Lock()
+	if ns == nil {
+		return
+	}
+	ns.lock.Lock()
 }
 
-// Unlock releases the list's write lock taken by Lock.
+// Unlock releases the list's write lock taken by Lock.  Unlocking a nil
+// list is a no-op.
 func (ns *Dll[T]) Unlock() {
-	ns.mu.Unlock()
+	if ns == nil {
+		return
+	}
+	ns.lock.Unlock()
 }
 
 // -----------------------------------------------------------------------------------------------------------
 // Go 1.23+ range-over-func iterators.
-//
-// The iterators operate on a consistent snapshot of the list taken under a
-// read lock, so the lock is not held while user code in the loop body runs
-// and the loop body may safely call other list methods.
-
-// snapshot returns the data pointers of the list under a read lock.
-func (ns *Dll[T]) snapshot() []*T {
-	ns.mu.RLock()
-	defer ns.mu.RUnlock()
-	data := make([]*T, 0, ns.length)
-	for p := ns.head; p != nil; p = p.next {
-		data = append(data, p.Data)
-	}
-	return data
-}
 
 // All returns an iterator over the elements of the list from head to tail.
-// The index starts at 0 at the head of the list.
+// The index starts at 0 at the head of the list.  The iterator operates
+// on a snapshot taken when All is called, so it is safe to call other
+// list operations — including from inside the loop — and it never
+// observes later modifications.
 func (ns *Dll[T]) All() iter.Seq2[int, T] {
+	if ns == nil {
+		return func(func(int, T) bool) {} // a nil list iterates as an empty one
+	}
+	data := ns.snapshot()
 	return func(yield func(int, T) bool) {
-		for i, d := range ns.snapshot() {
-			if !yield(i, *d) {
+		for i, d := range data {
+			if !yield(i, d) {
 				return
 			}
 		}
@@ -755,12 +924,18 @@ func (ns *Dll[T]) All() iter.Seq2[int, T] {
 }
 
 // Backward returns an iterator over the elements of the list from tail to head.
-// The index starts at Length()-1 at the tail of the list.
+// The index starts at Length()-1 at the tail of the list.  The iterator
+// operates on a snapshot taken when Backward is called, so it is safe to
+// call other list operations — including from inside the loop — and it
+// never observes later modifications.
 func (ns *Dll[T]) Backward() iter.Seq2[int, T] {
+	if ns == nil {
+		return func(func(int, T) bool) {} // a nil list iterates as an empty one
+	}
+	data := ns.snapshot()
 	return func(yield func(int, T) bool) {
-		data := ns.snapshot()
-		for i := len(data) - 1; i >= 0; i-- {
-			if !yield(i, *data[i]) {
+		for i, d := range slices.Backward(data) {
+			if !yield(i, d) {
 				return
 			}
 		}
@@ -771,17 +946,3 @@ func (ns *Dll[T]) Backward() iter.Seq2[int, T] {
 func (ns *Dll[T]) IterateOver() iter.Seq2[int, T] {
 	return ns.All()
 }
-
-// IteratePtr returns an iterator over pointers to the elements of the list
-// from head to tail.
-func (ns *Dll[T]) IteratePtr() iter.Seq2[int, *T] {
-	return func(yield func(int, *T) bool) {
-		for i, d := range ns.snapshot() {
-			if !yield(i, d) {
-				return
-			}
-		}
-	}
-}
-
-/* vim: set noai ts=4 sw=4: */

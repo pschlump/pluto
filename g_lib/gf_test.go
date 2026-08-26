@@ -1,7 +1,7 @@
 package g_lib
 
 /*
-Copyright (C) Philip Schlump, 2012-2021.
+Copyright (C) Philip Schlump, 2012-2026.
 
 BSD 3 Clause Licensed.
 */
@@ -169,7 +169,7 @@ func TestSort(t *testing.T) {
 	if len(ss) != len(sorted) {
 		t.Errorf("Incorrect Length of Slice, should be %d, got %d", len(sorted), len(ss))
 	}
-	for i := 0; i < len(ss); i++ {
+	for i := range ss {
 		if ss[i] != sorted[i] {
 			t.Errorf("Incorrect data , should be ->%s<-, got ->%s<-", sorted[i], ss[i])
 		}

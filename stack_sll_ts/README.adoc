@@ -1,72 +1,152 @@
-= stack_sll_ts — a thread-safe generics based Go Stack
-:toc:
+= stack_sll_ts
 
-A generic, thread-safe LIFO stack with `Push`, `Pop`, `Peek`, `Length`,
-`IsEmpty` and `Truncate`, built on top of the thread-safe singly linked
-list link:../sll_ts[`sll_ts`].  Elements are stored and returned by pointer.
-Go 1.23+ range-over-func iterators (`All`, `Backward`) are provided for
-walking the stack.
+A generic *LIFO stack* built on a singly linked list that is *safe
+for concurrent use* — the charon counterpart of pluto's
+link:https://github.com/pschlump/pluto/tree/main/stack_sll_ts[stack_sll_ts].
+Every operation is guarded by a `sync.RWMutex`: readers run in parallel
+with each other, writers are exclusive.
 
-The zero value is an empty stack, ready to use.  Elements must implement
-the link:../comparable[`comparable.Equality`] interface (a requirement
-inherited from `sll_ts`).
+The element type needs *no constraints at all* and the zero value of
+`Stack` is an empty stack ready to use without a constructor.  Elements
+are stored and returned *by value* (`Pop` and `Peek` return
+`(T, error)`).
 
-== Complexity
+== Why not the slice-backed `stack` + a mutex?
 
-[cols="2,1,4",options="header"]
+Pluto built `stack_sll_ts` as a thin wrapper delegating to its `sll_ts`
+list.  Charon's `sll_ts` requires an equality function at insert (its
+`Search` needs one), but a stack never compares elements — so wrapping
+would force a dummy comparator and break the constraint-free contract.
+Like every charon `_ts` package this one is self-contained, with its own
+lock and a plain singly linked list underneath.
+
+The practical difference from the slice-based link:../stack/[`stack`] is
+*memory behavior*: pushes and pops allocate and free one small node
+each and never reallocate, so memory use is stable across arbitrary
+push/pop patterns (the slice-backed stack periodically reallocates as
+its window walks).  Trade-off: one allocation per push.
+
+== Operations
+
+[options="header"]
 |===
-| Operation  | Cost | Notes
+| Operation                    | Description                               | Complexity
 
-| `Push`     | O(1) | inserts at the head of the list
-| `Pop`      | O(1) | returns `sll_ts.ErrEmptySll` when empty
-| `Peek`     | O(1) | returns the top element pointer
-| `IsEmpty`  | O(1) |
-| `Length`   | O(1) |
-| `Truncate` | O(1) | unlinks all nodes
-| `All`      | O(n) | iterates top to bottom
-| `Backward` | O(n) | iterates bottom to top; O(n) temporary space
+| `Push`                       | Insert at the top                         | O(1)
+| `Pop`                        | Remove and return the top                 | O(1)
+| `Peek`                       | Look at the top without removing          | O(1)
+| `IsEmpty` / `Len` / `Length` | Size queries                              | O(1)
+| `Truncate`                   | Remove all elements                       | O(1)
+| `All` / `Backward`           | Range-over-func iterators over a snapshot | O(n)
 |===
 
-== Example
+`All` iterates from the *top* (most recently pushed, index 0) to the
+bottom; `Backward` from the bottom to the top.
+
+== Locking behavior
+
+* *Reads* (`Peek`, `Len`, `Length`, `IsEmpty`) take the read lock and
+release it before returning — they can run in parallel with each other.
+* *Writes* (`Push`, `Pop`, `Truncate`) take the write lock.
+* *`All` and `Backward` operate on a snapshot* taken when they are
+called (one O(n) copy, under the read lock).  It is safe to mutate the
+stack while iterating — including from inside the loop — and an
+iterator never observes modifications made after it was created.
+
+[source,go]
+----
+for _, v := range stk.All() {
+    stk.Pop() // safe: All walks a snapshot
+    _ = v
+}
+----
+
+== Errors and panics
+
+The empty stack is reported with an error (compare with `errors.Is`):
+
+[options="header"]
+|===
+| Error | Meaning 
+
+| `ErrEmptyStack` | `Pop`/`Peek` on an empty stack 
+|===
+
+The package has exactly *one* panic:
+
+[options="header"]
+|===
+| Call | Why 
+
+| `Push` on a nil stack | a nil stack cannot store an element 
+|===
+
+Everything else — including the zero value, which is fully usable because
+there is no comparison or equality function to configure — tolerates a
+nil stack as an empty stack.
+
+== Usage
 
 [source,go]
 ----
 package main
 
 import (
-	"fmt"
+    "fmt"
+    "sync"
 
-	"github.com/pschlump/pluto/comparable"
-	stack "github.com/pschlump/pluto/stack_sll_ts" // the package is named "stack"
+    "github.com/pschlump/charon/stack_sll_ts"
 )
 
-type Item struct{ Name string }
-
-func (a Item) IsEqual(x comparable.Equality) bool {
-	b, ok := x.(Item)
-	return ok && a.Name == b.Name
-}
-
 func main() {
-	var stk stack.Stack[Item]
+    var stk stack_sll_ts.Stack[int]
 
-	stk.Push(&Item{Name: "a"})
-	stk.Push(&Item{Name: "b"})
+    // Writers from many goroutines share one stack.
+    var wg sync.WaitGroup
+    for w := 0; w < 8; w++ {
+        wg.Add(1)
+        go func(w int) {
+            defer wg.Done()
+            for i := 0; i < 100; i++ {
+                stk.Push(w*1000 + i)
+            }
+        }(w)
+    }
+    wg.Wait()
+    fmt.Println(stk.Len()) // 800
 
-	for i, v := range stk.All() { // b, a (top to bottom)
-		fmt.Println(i, v.Name)
-	}
-
-	for !stk.IsEmpty() {
-		v, _ := stk.Pop()
-		fmt.Println(v.Name) // b, then a
-	}
+    // Concurrent poppers drain it.
+    for !stk.IsEmpty() {
+        if _, err := stk.Pop(); err != nil {
+            break
+        }
+    }
+    fmt.Println(stk.IsEmpty()) // true
 }
 ----
 
-== Thread Safety
+Runnable, tested copies of these examples live in
+link:example_test.go[`example_test.go`].
 
-All operations are guarded by a mutex inherited from `sll_ts.Sll` and are
-safe for concurrent use.  The `All`/`Backward` iterators walk the live list
-without holding the lock for the whole iteration, so do not mutate the
-stack concurrently while iterating.
+== Differences from pluto/stack_sll_ts
+
+* Self-contained singly linked list + `sync.RWMutex` instead of a wrapper
+delegating to `sll_ts` (charon's `sll_ts` requires an equality function
+at insert; a stack never compares, so the wrapper would need a dummy
+comparator).
+* Elements are stored and returned by value (pluto stored `*T` and
+returned `*T`): `Pop`/`Peek` return `(T, error)` instead of a nil-able
+pointer.
+* `ErrEmptyStack` is this package's own error (pluto leaked
+`sll_ts.ErrEmptySll` from Pop and Peek).
+* `All`/`Backward` are `iter.Seq2[int, T]` over an *eager value
+snapshot* taken when they are called (pluto's `All` walked the live
+list via `IteratePtr` — not race-free under concurrent mutation — and
+`Backward` snapshotted element pointers).
+* `Len` is available as an alias for `Length`, matching the other charon
+packages.
+* No constructors and no constraints on the element type; the zero value
+is fully usable.
+* A nil `*Stack` behaves as an empty stack for every operation except
+`Push`, which panics with a named message — the package's only panic.
+

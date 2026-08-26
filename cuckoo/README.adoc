@@ -1,0 +1,231 @@
+= cuckoo
+
+`cuckoo` is a generic cuckoo hash table for Go. Every element is hashed
+once into a full 64-bit base hash, and from that one base hash four
+candidate slot positions are derived — the table size is a power of two,
+and with `mask = size-1` the candidates are
+
+[indent=0]
+....
+pos1 =  h        & mask        (the 1st hash: the base hash itself)
+pos2 = (h >> 1)  & mask        (the 2nd hash: 1-bit shift right, then mask)
+pos3 = (h >> 2)  & mask        (the 3rd hash: 2-bit shift right, then mask)
+pos4 = (h >> 3)  & mask        (the 4th hash: 3-bit shift right, then mask)
+....
+
+An element may live in any one of its four candidate slots. Search and
+delete look at exactly those four slots — O(1), no probing, no cluster
+repair on delete. An insert that finds all four candidates occupied
+displaces the element in one of them (the "cuckoo" step) and re-places the
+displaced element in one of its own candidates, repeating until every
+element has a slot; a chain that runs past the kick limit is a collision
+loop that forces a resize.
+
+The full 64-bit base hash is stored beside each element, so a resize
+re-derives every position from the stored hash without calling the hash
+function again, and searches compare hashes before comparing elements. An
+empty slot is marked by an explicit flag — a base hash of exactly 0 is a
+legal hash and needs no remapping (unlike `hash_grow`, which uses 0 as its
+empty marker).
+
+There is no pluto counterpart — this package is charon's own design, built
+to the same contract as `hash_grow` (see the differences section below,
+which is written against link:../hash_grow[charon/hash_grow]).
+
+* Elements are stored and returned *by value* (`T`, not `*T`).
+* Keys of types comparable with `==` need no functions at all:
+  `cuckoo.NewHashTab[string](16, 0, 0)`. Equality is the `==` operator and
+  hashing is the stdlib `hash/maphash` (the Go hash) with a per-table
+  random seed.
+* Any other type — or identity by a single field — takes a plain equality
+  function *and* a hash function, with no interface to implement:
++
+[source,go]
+----
+byID := cuckoo.NewHashTabFunc(
+	func(a, b User) bool { return a.ID == b.ID },
+	func(u User) uint64 { /* hash of u.ID */ },
+	8, 0, 0,
+)
+----
++
+The two functions must agree: whenever `eq(a, b)` is true, `hash(a)` and
+`hash(b)` must be equal.
+
+The default hashing is *randomized per table* (a `hash/maphash` seed) — a
+hash-flooding mitigation. Slot order in `All`, `Values`, `Walk` and `Dump`,
+and the raw hash values `Dump` prints, therefore vary from process to
+process and must not appear in fixed assertions or golden files.
+
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and appear
+on pkg.go.dev.
+
+== Growth and shrink
+
+The table starts at the next power of two at or above the requested size
+(minimum 256) and keeps a saturation rate — `Len` divided by the table size,
+reported by `Saturation()`:
+
+* an insert whose displacement chain exceeds the kick limit (a *collision
+  loop*) forces a synchronous doubling — at any saturation, even below the
+  threshold;
+* an addition that takes the saturation *above the grow threshold*
+  (default 0.85) doubles the table — synchronously in this package, on a
+  background goroutine in `cuckoo_ts`;
+* a deletion that takes the saturation *below the shrink threshold*
+  (default 0.10) halves the table, down to the minimum size of 256 (best
+  effort — a failed rebuild keeps the current size).
+
+Both thresholds are configured at construction. A value <= 0 or NaN
+selects its default, a shrink threshold >= the grow threshold selects
+both defaults, and the shrink threshold is clamped to at most half the
+grow threshold — growing halves the saturation, so a higher shrink
+threshold would make a resize oscillate (grow, shrink, grow, ...)
+forever. A grow threshold above 1.0 defers threshold growth entirely
+(the table still grows through collision loops — a full table forces a
+resize on the next insert).
+
+Because the four candidates of a hash overlap in bits (candidate `i` uses
+bits `i` through `i+k-1` of the base hash for a table of `2^k`), doubling
+the table gives every candidate one more distinguishing bit — that is why
+a resize breaks collision loops unless the hashes themselves collide
+outright.
+
+== Complexity
+
+[cols="2,1,1,4",options="header"]
+|===
+| Operation                                | Average | Worst case | Notes
+
+| `Insert`                                 | O(1)    | O(n)       | amortized; growth doubles the table
+| `Search`                                 | O(1)    | O(1)       | exactly four slots are examined
+| `Delete`                                 | O(1)    | O(1)       | clearing a slot repairs nothing
+| `IsEmpty`, `Len`, `Length`, `Capacity`, `Saturation` | O(1) | O(1) |
+| `Truncate`                               | O(n)    | O(n)       | clears all slots for GC
+| `Walk`, `Dump`, `All`, `Values`          | O(n)    | O(n)       |
+|===
+
+The load factor is kept below the grow threshold (default 0.85) — with four
+candidate slots per element, displacement chains stay short at that load.
+
+== Usage
+
+[source,go]
+----
+package main
+
+import (
+	"fmt"
+
+	"github.com/pschlump/charon/cuckoo"
+)
+
+func main() {
+	ht := cuckoo.NewHashTab[string](16, 0, 0) // size 16, default thresholds 0.85/0.10
+
+	ht.Insert("alpha")
+	ht.Insert("beta")
+	fmt.Println(ht.Insert("alpha")) // false — duplicate replaces the element
+
+	if v, found := ht.Search("alpha"); found {
+		fmt.Println("found", v)
+	}
+
+	ht.Delete("alpha")
+
+	// Range-over-func iteration (Go 1.23+), in slot order:
+	for pos, item := range ht.All() { // (slot position, element)
+		fmt.Println(pos, item)
+	}
+	for item := range ht.Values() {
+		fmt.Println(item)
+	}
+
+	// The table grows and shrinks on its own; watch it with:
+	fmt.Println(ht.Len(), ht.Capacity(), ht.Saturation())
+
+	ht.Truncate() // remove everything
+}
+----
+
+== Iteration
+
+Two styles are supported, both in slot order (hash-dependent, see the
+randomization note above):
+
+- Go 1.23+ range-over-func: `All() iter.Seq2[int, T]` (slot position and
+  element — as with dll/sll, a single-variable range yields the *slot
+  position*, not the element) and `Values() iter.Seq[T]`. Both walk the
+  live table.
+- The `Walk(ApplyFunction[T])` callback: `fx(pos int, data T) bool`, where
+  returning *false stops the walk* (the tree-packages convention — dll and
+  sll are the opposite) and the closure captures caller state; Walk returns
+  true when the walk ran to completion.
+
+== Panics
+
+The package panics in exactly four situations — all programmer errors with
+no sane fallback, each message naming the fix:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewHashTabFunc(nil eq, ...)` / `NewHashTabFunc(eq, nil hash, ...)` | nil function, caught at construction time
+| `NewHashTab`/`NewHashTabFunc` with n < 5 | a smaller table has no headroom
+| `Insert` on a nil `*HashTab` | a nil table cannot store an element
+| `Insert` on a zero-value table | no equality/hash functions; the message names the constructors
+|===
+
+Everything else tolerates a nil table and the zero value as an empty table:
+searches report not-found, `Delete` returns false, and the iterators visit
+nothing.
+
+One further, pathological panic exists: if several distinct elements' four
+candidate positions coincide at every table size — at the extreme, more
+than four elements sharing one 64-bit hash — no table size can separate
+them and `Insert` panics after its resize attempts, naming the fix (a less
+colliding hash function). With `NewHashTab`'s per-table random `maphash`
+seed this is unreachable for practical purposes.
+
+== Differences from charon/hash_grow
+
+`hash_grow` is the sibling auto-growing table (open addressing, linear
+probing); pluto has no cuckoo package, so the differences are written
+against charon's own `hash_grow`:
+
+* *Cuckoo hashing instead of linear probing*: each element has four
+  candidate slots derived from one base hash (`h & mask`, `h>>1 & mask`,
+  `h>>2 & mask`, `h>>3 & mask`) instead of one home bucket plus a probe
+  chain — Search and Delete touch exactly four slots, and Delete is a slot
+  clear with no backward-shift repair.
+* *Powers of two instead of any size*: the shift-and-mask derivation
+  requires it; the requested size rounds up (minimum 256), where `hash_grow`
+  uses n as given (n >= 5).
+* *The full 64-bit hash is stored per element* so resizes re-derive
+  positions without re-hashing; `hash_grow` also stores the raw hash but
+  remaps a hash of exactly 0 to 1 (it doubles as the empty marker), while
+  cuckoo's explicit occupied flag makes 0 a legal hash.
+* *Two saturation thresholds instead of one*: grow above 0.85 (default) and
+  shrink below 0.10 (default), both configurable — `hash_grow` has a single
+  saturation threshold (default 0.5) and never shrinks.
+* *A shrink path*: deletions that take the saturation below the shrink
+  threshold halve the table (down to 8 slots) — `hash_grow` keeps every
+  bucket it ever grew.
+* *Capacity and Saturation* report the power-of-two table size and its load
+  factor — `hash_grow` exposes neither.
+* *A displacement-kick limit with rollback*: a chain that cannot finish
+  rolls the table back and escalates through resizes; `hash_grow`'s probe
+  simply stops after one full cycle and forces growth.
+* The rest of the contract is shared: value semantics, the eq/hash
+  agreement requirement, the `Walk` false-stops callback, `All`/`Values`
+  in slot order, the four-panic contract, and nil/zero-value tolerance.
+
+== Thread safety
+
+`cuckoo` is *not* safe for concurrent use. Use the
+link:../cuckoo_ts[`cuckoo_ts`] package, which guards every operation with a
+`sync.RWMutex`, runs threshold-triggered resizes on a background goroutine,
+and adds `Lock`/`Unlock` plus the `Nl*` methods for compound operations,
+when the table is shared between goroutines.

@@ -1,101 +1,157 @@
-= hash_tab_bt_ts — A generics based Go thread-safe hash table
-:toc:
+= hash_tab_bt_ts
 
-Package `hash_tab_bt_ts` — a generic, *thread-safe* hash table for Go
-where each bucket is a binary search tree
-(`github.com/pschlump/pluto/binary_tree_ts`).  Because collisions are
-resolved by a tree rather than a linked list, lookups stay logarithmic even
-under heavy collisions.
+`hash_tab_bt_ts` is a thread-safe generic hash table for Go with a fixed
+number of buckets in which *every bucket is a binary search tree*
+(link:../binary_tree[`binary_tree`]).  Because collisions are resolved by a
+tree rather than a chain, lookups stay logarithmic in the elements per
+bucket even under heavy collisions.  Every operation is guarded by a
+`sync.RWMutex`.
 
-This is the thread-safe variant of
-link:../hash_tab_bt[`hash_tab_bt`]; both packages expose an identical API.
+It is the thread-safe twin of link:../hash_tab_bt[charon/hash_tab_bt] — the
+same API — with the addition of the `Lock`/`Unlock` pair and the
+`Nl*`-prefixed (no-lock) methods for compound operations.
 
-== Overview
+It is a rework of
+link:https://github.com/pschlump/pluto/tree/main/hash_tab_bt_ts[pluto/hash_tab_bt_ts]
+that replaces the `comparable.Comparable` interface constraint (and the
+`Hashable`/`fmt.Stringer` hashing built on it) with pure Go type
+parameters, so element data is never boxed into an interface and never
+unboxed with a type assertion.
 
-- Generic over any `T` implementing `comparable.Comparable`.
-- Items are stored as `*T`; inserting an item equal to an existing one
-  replaces it.
-- The hash key is derived from the item itself: if `T` (or `*T`) implements
-  `Hashable` (`HashKey(x any) int`) that is used, otherwise
-  `fmt.Stringer`.  Items implementing neither cause a panic.
-- The number of buckets is fixed at construction (`NewHashTab(n)`, `n >= 5`).
+* Elements are stored and returned *by value* (`T`, not `*T`).
+* A bucket tree needs an *ordering*, not just an equality.  Tables of
+naturally ordered types (all integers, floats and strings) need no
+functions at all: `hash_tab_bt_ts.NewHashTab[string](16)` orders with the
+builtin `<` and `>` operators and hashes with the stdlib `hash/maphash`
+using a per-table random seed.
+* Any other type — or identity by a single field — takes a plain
+comparison function *and* a hash function, with no interface to implement.
+The two functions must agree: whenever `cmp(a, b) == 0`, `hash(a)` and
+`hash(b)` must be equal.
+
+The default hashing is *randomized per table* (a `hash/maphash` seed) — a
+hash-flooding mitigation.  Bucket order in `All`, `Values`, `Walk` and
+`Dump` therefore varies from process to process and must not appear in
+fixed assertions or golden files.  *Within* a bucket the order is not
+random at all: the tree's in-order walk visits the elements ascending per
+the comparison function.
+
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and appear
+on pkg.go.dev.
 
 == Complexity
 
-[cols="3,1,3",options="header"]
+[cols="2,1,1,4",options="header"]
 |===
-| Operation                   | Average     | Notes
+| Operation                                | Average      | Worst case | Notes
 
-| `Insert`                    | O(log(n/k)) | k = number of buckets
-| `Search`                    | O(log(n/k)) |
-| `ItemExists`                | O(log(n/k)) |
-| `Delete`                    | O(log(n/k)) |
-| `IsEmpty`                   | O(1)        |
-| `Len` / `Length`            | O(1)        |
-| `Truncate`                  | O(k)        | resets every bucket
-| `Walk` / `WalkFunc` / `All` | O(n)        | visit every element
-| `Dump`                      | O(n)        |
+| `Insert`                                 | O(log(n/k))  | O(n)       | tree insert/replace in the hashed bucket
+| `Search`                                 | O(log(n/k))  | O(n)       | tree descent in the hashed bucket
+| `Delete`                                 | O(log(n/k))  | O(n)       | tree delete in the hashed bucket
+| `IsEmpty`, `Len`, `Length`               | O(1)         | O(1)       |
+| `Truncate`                               | O(k)         | O(k)       | k = bucket count; bucket trees are emptied
+| `Walk`, `Dump`                           | O(n)         | O(n)       | read lock held for the whole call
+| `All`, `Values`                          | O(n)         | O(n)       | snapshot copied under the read lock
+| `Lock` / `Unlock` + `Nl*`                | O(1)         | O(1)       | compound operations
 |===
 
-Worst case (all keys in one bucket) degenerates to the binary tree's
-O(n) per operation.
+k = number of buckets.  Worst case is every element in one bucket *and*
+inserted in sorted order (the unbalanced `binary_tree` degenerates to a
+path).  The table never grows — pick n for the expected element count, or
+use link:../hash_grow_ts[`hash_grow_ts`].
 
-== Example
+== Usage
 
 [source,go]
 ----
-package main
+ht := hash_tab_bt_ts.NewHashTab[string](16) // 16 buckets, fixed for the life of the table
 
-import (
-	"fmt"
-
-	hash_tab "github.com/pschlump/pluto/hash_tab_bt_ts"
-)
-
-func main() {
-	ht := hash_tab.NewHashTab[Item](97) // Item implements comparable.Comparable + Hashable
-	ht.Insert(&Item{Key: "alpha"})
-
-	if ht.ItemExists(&Item{Key: "alpha"}) {
-		fmt.Println("found")
-	}
-
-	// Go 1.23+ range-over-func iteration over a consistent snapshot:
-	for item := range ht.All() {
-		fmt.Println(item.Key)
-	}
-
-	ht.Delete(&Item{Key: "alpha"})
+ht.Insert("alpha")
+if v, found := ht.Search("alpha"); found {
+	fmt.Println("found", v)
 }
+ht.Delete("alpha")
 ----
+
+== Compound operations: Lock + Nl*
+
+`Search` followed by `Delete` is two lock acquisitions — another goroutine
+can mutate the table between them.  `Lock` plus the `Nl*` methods
+(`NlIsEmpty`, `NlLen`, `NlSearch`, `NlInsert`, `NlDelete`) run the same
+steps atomically under one lock hold:
+
+[source,go]
+----
+ht.Lock()
+if v, found := ht.NlSearch(probe); found {
+	use(v)
+	ht.NlDelete(probe)
+}
+ht.Unlock()
+----
+
+Calling a locking public method while holding `Lock` deadlocks, so inside
+the critical section use only the `Nl` methods.  `Lock`/`Unlock` on a nil
+table are no-ops.
 
 == Iteration
 
-Three styles are supported, all in bucket order (not sorted order):
+`All() iter.Seq2[int, T]` (bucket position and element — a single-variable
+range yields the *bucket position*, not the element) and `Values() iter.Seq[T]`
+iterate a **snapshot** copied under the read lock when the iterator method
+is called, so it is safe to call other table methods — including writes —
+from the loop body.  `Walk(fx)` is the callback alternative
+(`func(pos int, data T) bool`, returning *false stops the walk*); it holds
+the read lock for the whole traversal, so `fx` must not call methods on the
+same table.
 
-- `All()` — modern Go 1.23+ range-over-func iterator (`iter.Seq[*T]`).
-  A consistent snapshot of the table is taken under a read lock when `All`
-  is called, so it is safe to call other table methods from inside the
-  loop.
-- `WalkFunc(fx func(*T))` and `Walk(fx, userData)` — callbacks invoked
-  while the read lock is held; the callback must not call back into the
-  table or it will deadlock.
+== Panics
 
-== Thread safety
+The same four situations as link:../hash_tab_bt[charon/hash_tab_bt], each
+message naming the fix:
 
-All exported methods are guarded by a `sync.RWMutex`; the zero-value rules
-are the usual ones — do not copy a `HashTab` after first use.
+[options="header"]
+|===
+| Call | Why
 
-For batching several operations atomically, hold the lock explicitly and
-use the no-lock (`Nl`-prefixed) methods:
+| `NewHashTabFunc(nil cmp, ...)` / `NewHashTabFunc(cmp, nil hash, ...)` | nil function, caught at construction time
+| `NewHashTab`/`NewHashTabFunc` with n < 5 | a smaller table has no headroom
+| `Insert` on a nil `*HashTab` | a nil table cannot store an element
+| `Insert` on a zero-value table | no comparison/hash functions; the message names the constructors
+|===
 
-[source,go]
-----
-ht.ReadLock()
-item := ht.NlSearch(&key)
-ht.ReadUnlock()
+Everything else tolerates a nil table and the zero value as an empty table:
+searches report not-found, `Delete` returns false, and the iterators visit
+nothing.  (`NlInsert` on a zero-value table panics because it *is* the
+Insert body.)
 
-ht.WriteLock()
-ok := ht.NlDelete(&key)
-ht.WriteUnlock()
-----
+== Differences from pluto/hash_tab_bt_ts
+
+* Everything in the link:../hash_tab_bt[charon/hash_tab_bt] differences
+list — pure generics instead of `comparable.Comparable`,
+`maphash`/caller-supplied hashing instead of the `Hashable`/`Stringer`
+type switch, value semantics (`Search` returns `(T, bool)`), `Insert`
+returning bool, the bucket-index Walk callback with no userData, and the
+ascending in-order visits within a bucket.
+* **One table-level lock, plain bucket trees.**  pluto's buckets were
+pluto `binary_tree_ts` trees, so every operation took the table lock *and*
+a per-bucket tree lock — n+1 locks with the n bucket locks never doing
+useful work (the buckets are unexported and only ever touched while the
+table lock is held).  charon keeps the plain `charon/binary_tree` buckets
+of the non-thread-safe package and adds exactly one `sync.RWMutex`.
+* pluto exposed `NlSearch`/`NlDelete` but no way to acquire the lock, so
+they were unusable outside the package.  charon exposes the **real**
+`Lock`/`Unlock` (nil-table no-ops) plus `NlIsEmpty`/`NlLen`/`NlSearch`/
+`NlInsert`/`NlDelete` as the documented compound-operation escape hatch
+(the same escape hatch as `hash_grow_ts`).
+* pluto's `All`/`WalkFunc` yielded `*T` pointers copied out of the trees —
+a pointer that can race with a concurrent delete.  The value-copy
+snapshots (`All`/`Values`) fix that the same way `queue_ts`'s `Peek` and
+`heap_ts`'s accessors do; `Walk` holds the read lock for the whole
+traversal instead.
+* `WalkFunc`, the no-op `WriteLock`/`WriteUnlock`/`ReadLock`/`ReadUnlock`
+and `Print` are gone (`Values` replaces `WalkFunc`/`Print`); nil tables
+are tolerated on every read instead of panicking on an unguarded nil
+dereference, and the zero value on `Insert` gets the constructors-naming
+panic instead of a division by zero.

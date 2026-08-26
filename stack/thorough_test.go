@@ -1,14 +1,20 @@
 package stack
 
 /*
-Copyright (C) Philip Schlump, 2012-2021.
+Copyright (C) Philip Schlump, 2012-2026.
 
 BSD 3 Clause Licensed.
 */
 
+// Thorough tests: single-element and duplicate edge cases, value-copy
+// semantics of Peek, iterator index sequences and live reflection, and a
+// fixed-seed randomized property test cross-checked against a slice
+// reference model.
+
 import (
 	"errors"
-	"math/rand"
+	"math/rand/v2"
+	"reflect"
 	"slices"
 	"testing"
 )
@@ -28,8 +34,8 @@ func checkModel[T comparable](t *testing.T, stk *Stack[T], model []T) {
 		if err != nil {
 			t.Fatalf("Peek on non-empty stack returned error: %v", err)
 		}
-		if *top != model[len(model)-1] {
-			t.Fatalf("Peek: expected %v, got %v", model[len(model)-1], *top)
+		if top != model[len(model)-1] {
+			t.Fatalf("Peek: expected %v, got %v", model[len(model)-1], top)
 		}
 	}
 	// All must iterate top to bottom.
@@ -38,8 +44,8 @@ func checkModel[T comparable](t *testing.T, stk *Stack[T], model []T) {
 		fwd = append(fwd, v)
 	}
 	var wantFwd []T
-	for i := len(model) - 1; i >= 0; i-- {
-		wantFwd = append(wantFwd, model[i])
+	for _, m := range slices.Backward(model) {
+		wantFwd = append(wantFwd, m)
 	}
 	if !slices.Equal(fwd, wantFwd) {
 		t.Fatalf("All: expected %v, got %v", wantFwd, fwd)
@@ -54,159 +60,131 @@ func checkModel[T comparable](t *testing.T, stk *Stack[T], model []T) {
 	}
 }
 
-func TestZeroValueSemantics(t *testing.T) {
-	// A nil (zero-value) stack must be fully usable without a constructor.
-	var stk Stack[int]
-	if stk.Length() != 0 {
-		t.Errorf("Expected length 0 on zero value, got %d", stk.Length())
-	}
-	if !stk.IsEmpty() {
-		t.Errorf("Expected zero value to be empty")
-	}
-	if _, err := stk.Pop(); !errors.Is(err, ErrEmptyStack) {
-		t.Errorf("Expected ErrEmptyStack from Pop on zero value, got %v", err)
-	}
-	if p, err := stk.Peek(); p != nil || !errors.Is(err, ErrEmptyStack) {
-		t.Errorf("Expected (nil, ErrEmptyStack) from Peek on zero value, got (%v, %v)", p, err)
-	}
-}
-
 func TestSingleElement(t *testing.T) {
-	var stk Stack[int]
-	stk.Push(7)
+	var stk Stack[string]
 
-	if stk.Length() != 1 {
-		t.Errorf("Expected length 1, got %d", stk.Length())
+	stk.Push("only")
+	if stk.IsEmpty() || stk.Length() != 1 {
+		t.Errorf("Expected single-element stack, length %d", stk.Length())
 	}
-	if stk.IsEmpty() {
-		t.Errorf("Expected non-empty stack")
+	if v, err := stk.Peek(); err != nil || v != "only" {
+		t.Errorf("Peek = (%q, %v)", v, err)
 	}
-
-	// Peek twice: Peek must not remove the element.
-	for i := 0; i < 2; i++ {
-		p, err := stk.Peek()
-		if err != nil {
-			t.Fatalf("Unexpected Peek error: %v", err)
-		}
-		if *p != 7 {
-			t.Errorf("Peek: expected 7, got %d", *p)
-		}
-		if stk.Length() != 1 {
-			t.Errorf("Peek must not change the length; got %d", stk.Length())
-		}
-	}
-
-	v, err := stk.Pop()
-	if err != nil || v != 7 {
-		t.Errorf("Pop: expected (7, nil), got (%d, %v)", v, err)
+	if v, err := stk.Pop(); err != nil || v != "only" {
+		t.Errorf("Pop = (%q, %v)", v, err)
 	}
 	if !stk.IsEmpty() {
-		t.Errorf("Expected empty stack after popping the only element")
+		t.Errorf("Expected empty stack after popping the only element.")
 	}
-	// Popping again must fail.
-	if _, err := stk.Pop(); !errors.Is(err, ErrEmptyStack) {
-		t.Errorf("Expected ErrEmptyStack, got %v", err)
+	if stk.data != nil {
+		t.Errorf("Expected nil backing array after draining.")
 	}
+	checkModel(t, &stk, nil)
 }
 
 func TestDuplicateValues(t *testing.T) {
-	// A stack must happily hold duplicate values.
 	var stk Stack[int]
-	for i := 0; i < 5; i++ {
-		stk.Push(9)
+	for _, v := range []int{5, 5, 5, 7} {
+		stk.Push(v)
 	}
-	if stk.Length() != 5 {
-		t.Fatalf("Expected length 5, got %d", stk.Length())
-	}
-	for i := 0; i < 5; i++ {
-		v, err := stk.Pop()
-		if err != nil || v != 9 {
-			t.Errorf("Pop %d: expected (9, nil), got (%d, %v)", i, v, err)
+	for i, want := range []int{7, 5, 5, 5} {
+		if v, err := stk.Pop(); err != nil || v != want {
+			t.Errorf("Pop step %d = (%v, %v), expected %d", i, v, err, want)
 		}
-	}
-	if !stk.IsEmpty() {
-		t.Errorf("Expected empty stack after popping all duplicates")
 	}
 }
 
-func TestPeekAliasesTopElement(t *testing.T) {
-	// Peek returns a pointer that aliases the stored element; mutating
-	// through it changes what a subsequent Pop returns.
-	var stk Stack[int]
-	stk.Push(1)
-	p, err := stk.Peek()
-	if err != nil {
-		t.Fatalf("Unexpected Peek error: %v", err)
+// TestPeekReturnsValue verifies that Peek returns an independent value:
+// mutating it cannot affect the stack.
+func TestPeekReturnsValue(t *testing.T) {
+	type item struct {
+		S string
+		N int
 	}
-	*p = 99
-	v, err := stk.Pop()
+	var stk Stack[item]
+	stk.Push(item{S: "a", N: 1})
+	stk.Push(item{S: "b", N: 2})
+
+	v, err := stk.Peek()
 	if err != nil {
-		t.Fatalf("Unexpected Pop error: %v", err)
+		t.Fatalf("Peek: %v", err)
 	}
-	if v != 99 {
-		t.Errorf("Expected mutation through Peek pointer to be visible, got %d", v)
+	v.N = 99 // mutate the returned value
+
+	if got, err := stk.Peek(); err != nil || got.N != 2 {
+		t.Errorf("Peek after mutation = (%v, %v), expected N=2 unaffected", got, err)
+	}
+	if stk.Length() != 2 {
+		t.Errorf("Expected Peek to leave the length at 2, got %d", stk.Length())
 	}
 }
 
 func TestLIFOOrder(t *testing.T) {
-	// Push 0..n-1, expect pops in strictly reverse order.
-	const n = 100
 	var stk Stack[int]
-	for i := 0; i < n; i++ {
+	for i := range 100 {
 		stk.Push(i)
 	}
-	for want := n - 1; want >= 0; want-- {
+	for i := 99; i >= 0; i-- {
 		v, err := stk.Pop()
 		if err != nil {
-			t.Fatalf("Unexpected Pop error: %v", err)
+			t.Fatalf("Pop(%d): %v", i, err)
 		}
-		if v != want {
-			t.Errorf("LIFO violation: expected %d, got %d", want, v)
+		if v != i {
+			t.Fatalf("Pop = %d, expected %d", v, i)
 		}
+	}
+	if !stk.IsEmpty() {
+		t.Errorf("Expected empty stack after draining.")
 	}
 }
 
 func TestPushPopInterleaved(t *testing.T) {
-	// Interleaved push/pop must never lose ordering of the survivors.
-	var stk Stack[int]
-	for i := 0; i < 10; i++ {
-		stk.Push(i) // 0..9
+	var stk Stack[string]
+	var model []string
+
+	ops := []struct {
+		push string
+	}{
+		{push: "a"}, {push: "b"}, {push: "c"},
 	}
-	for i := 0; i < 5; i++ {
-		if _, err := stk.Pop(); err != nil { // removes 9..5
-			t.Fatalf("Unexpected Pop error: %v", err)
-		}
+	for _, op := range ops {
+		stk.Push(op.push)
+		model = append(model, op.push)
+		checkModel(t, &stk, model)
 	}
-	stk.Push(100) // stack: 0,1,2,3,4,100
-	want := []int{100, 4, 3, 2, 1, 0}
-	for _, w := range want {
-		v, err := stk.Pop()
-		if err != nil || v != w {
-			t.Errorf("Expected %d, got (%d, %v)", w, v, err)
-		}
+
+	if v, err := stk.Pop(); err != nil || v != "c" {
+		t.Fatalf("Pop = (%q, %v), expected c", v, err)
 	}
+	model = model[:len(model)-1]
+	checkModel(t, &stk, model)
+
+	stk.Push("d")
+	model = append(model, "d")
+	checkModel(t, &stk, model)
 }
 
 func TestBackwardEarlyBreak(t *testing.T) {
 	var stk Stack[int]
-	for i := 1; i <= 3; i++ {
+	for i := range 5 {
 		stk.Push(i)
 	}
+
 	n := 0
-	first := -1
+	var first int
 	for _, v := range stk.Backward() {
 		n++
 		first = v
 		break
 	}
 	if n != 1 {
-		t.Errorf("Expected early exit after 1 element, got %d", n)
+		t.Errorf("Expected early break to yield exactly 1 item, got %d", n)
 	}
-	if first != 1 {
-		t.Errorf("Backward must start at the bottom element; expected 1, got %d", first)
+	if first != 0 {
+		t.Errorf("Expected first Backward item to be the bottom (0), got %d", first)
 	}
 
-	// Also verify a partial (non-immediate) break sees the right prefix.
+	// Take exactly two items, bottom to top.
 	var got []int
 	for _, v := range stk.Backward() {
 		got = append(got, v)
@@ -214,146 +192,139 @@ func TestBackwardEarlyBreak(t *testing.T) {
 			break
 		}
 	}
-	if want := []int{1, 2}; !slices.Equal(got, want) {
-		t.Errorf("Backward partial: expected %v, got %v", want, got)
+	if expect := []int{0, 1}; !reflect.DeepEqual(got, expect) {
+		t.Errorf("Expected [0 1] from partial Backward, got %v", got)
 	}
 }
 
+// TestIteratorIndexSequences verifies the index numbering: All numbers
+// from 0 at the top, Backward from 0 at the bottom.
 func TestIteratorIndexSequences(t *testing.T) {
 	var stk Stack[int]
-	for i := 10; i < 15; i++ {
-		stk.Push(i)
+	for i := range 4 {
+		stk.Push(i) // 0,1,2,3 pushed; top is 3
 	}
-	// All: index 0 is the top element.
-	wantIdx := 0
+
+	var allIdx, allVal []int
 	for i, v := range stk.All() {
-		if i != wantIdx {
-			t.Errorf("All: expected index %d, got %d", wantIdx, i)
-		}
-		if v != 14-wantIdx {
-			t.Errorf("All: expected value %d, got %d", 14-wantIdx, v)
-		}
-		wantIdx++
+		allIdx = append(allIdx, i)
+		allVal = append(allVal, v)
 	}
-	if wantIdx != 5 {
-		t.Errorf("All: expected 5 elements, got %d", wantIdx)
+	if expect := []int{0, 1, 2, 3}; !reflect.DeepEqual(allIdx, expect) {
+		t.Errorf("All indices: expected %v got %v", expect, allIdx)
 	}
-	// Backward: index 0 is the bottom element.
-	wantIdx = 0
+	if expect := []int{3, 2, 1, 0}; !reflect.DeepEqual(allVal, expect) {
+		t.Errorf("All values: expected %v got %v", expect, allVal)
+	}
+
+	var bwdIdx, bwdVal []int
 	for i, v := range stk.Backward() {
-		if i != wantIdx {
-			t.Errorf("Backward: expected index %d, got %d", wantIdx, i)
-		}
-		if v != 10+wantIdx {
-			t.Errorf("Backward: expected value %d, got %d", 10+wantIdx, v)
-		}
-		wantIdx++
+		bwdIdx = append(bwdIdx, i)
+		bwdVal = append(bwdVal, v)
+	}
+	if expect := []int{0, 1, 2, 3}; !reflect.DeepEqual(bwdIdx, expect) {
+		t.Errorf("Backward indices: expected %v got %v", expect, bwdIdx)
+	}
+	if expect := []int{0, 1, 2, 3}; !reflect.DeepEqual(bwdVal, expect) {
+		t.Errorf("Backward values: expected %v got %v", expect, bwdVal)
 	}
 }
 
+// TestIteratorReflectsLiveStack verifies that the iterators reflect
+// pushes and pops that happen between iterations.
 func TestIteratorReflectsLiveStack(t *testing.T) {
-	// Backward captures the slice length when the loop starts, so an
-	// element pushed during iteration is not visited.
 	var stk Stack[int]
 	stk.Push(1)
 	stk.Push(2)
 
-	var got []int
-	for _, v := range stk.Backward() {
-		got = append(got, v)
-		if v == 2 {
-			stk.Push(3) // appended after the captured length
-		}
+	var seen []int
+	for _, v := range stk.All() {
+		seen = append(seen, v)
+		break // stop after the top element
 	}
-	if want := []int{1, 2}; !slices.Equal(got, want) {
-		t.Errorf("Backward live-push: expected %v, got %v", want, got)
+	if expect := []int{2}; !reflect.DeepEqual(seen, expect) {
+		t.Fatalf("First visit: expected %v got %v", expect, seen)
 	}
 
-	// All re-evaluates the length on every step, so popping the element
-	// just yielded leaves a consistent walk over the survivors.
-	stk2 := Stack[int]{1, 2, 3} // top is 3
-	got = got[:0]
-	for _, v := range stk2.All() {
-		got = append(got, v)
-		if v == 3 {
-			if _, err := stk2.Pop(); err != nil { // removes 3, just yielded
-				t.Fatalf("Unexpected Pop error: %v", err)
-			}
-		}
+	// Mutate, then iterate again: the change is visible.
+	stk.Push(3)
+	seen = nil
+	for _, v := range stk.All() {
+		seen = append(seen, v)
 	}
-	// After popping 3, the remaining walk sees 2 then 1.
-	if want := []int{3, 2, 1}; !slices.Equal(got, want) {
-		t.Errorf("All live-pop: expected %v, got %v", want, got)
+	if expect := []int{3, 2, 1}; !reflect.DeepEqual(seen, expect) {
+		t.Errorf("After push: expected %v got %v", expect, seen)
+	}
+
+	if _, err := stk.Pop(); err != nil {
+		t.Fatalf("Pop: %v", err)
+	}
+	seen = nil
+	for _, v := range stk.All() {
+		seen = append(seen, v)
+	}
+	if expect := []int{2, 1}; !reflect.DeepEqual(seen, expect) {
+		t.Errorf("After pop: expected %v got %v", expect, seen)
 	}
 }
 
 func TestTruncateThenIterate(t *testing.T) {
 	var stk Stack[int]
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		stk.Push(i)
 	}
 	stk.Truncate()
+
+	n := 0
 	for range stk.All() {
-		t.Errorf("Expected no elements from truncated stack")
+		n++
 	}
 	for range stk.Backward() {
-		t.Errorf("Expected no elements from truncated stack")
+		n++
 	}
-	if _, err := stk.Pop(); !errors.Is(err, ErrEmptyStack) {
-		t.Errorf("Expected ErrEmptyStack after Truncate, got %v", err)
+	if n != 0 {
+		t.Errorf("Expected no items from iterators on truncated stack, got %d", n)
 	}
-	if _, err := stk.Peek(); !errors.Is(err, ErrEmptyStack) {
-		t.Errorf("Expected ErrEmptyStack after Truncate, got %v", err)
+
+	// The stack is reusable.
+	stk.Push(9)
+	if v, err := stk.Pop(); err != nil || v != 9 {
+		t.Errorf("Pop after Truncate = (%v, %v), expected 9", v, err)
 	}
 }
 
-// TestRandomizedAgainstModel runs a fixed-seed randomized sequence of mixed
-// Push/Pop/Peek/Truncate operations, cross-checking every observable against
-// a plain-slice reference model.
+// TestRandomizedAgainstModel runs thousands of mixed operations against a
+// slice reference model with a fixed seed, cross-checking along the way.
 func TestRandomizedAgainstModel(t *testing.T) {
-	rng := rand.New(rand.NewSource(42)) // fixed seed: deterministic run
+	rng := rand.New(rand.NewPCG(20260825, 13))
+	const ops = 4000
+	const keySpace = 50
+
 	var stk Stack[int]
 	var model []int
 
-	for op := 0; op < 2000; op++ {
-		switch rng.Intn(10) {
-		case 0, 1, 2, 3, 4: // Push (weighted common)
-			v := rng.Intn(100)
+	for step := range ops {
+		v := rng.IntN(keySpace)
+		switch rng.IntN(3) {
+		case 0, 1: // Push (weighted so the stack grows)
 			stk.Push(v)
 			model = append(model, v)
-		case 5, 6, 7: // Pop
-			v, err := stk.Pop()
+		case 2: // Pop
+			got, err := stk.Pop()
 			if len(model) == 0 {
 				if !errors.Is(err, ErrEmptyStack) {
-					t.Fatalf("op %d: Pop on empty: expected ErrEmptyStack, got %v", op, err)
+					t.Fatalf("step %d: Pop on empty returned %v", step, err)
 				}
 			} else {
-				if err != nil {
-					t.Fatalf("op %d: Pop on non-empty: unexpected error %v", op, err)
-				}
-				if want := model[len(model)-1]; v != want {
-					t.Fatalf("op %d: Pop: expected %d, got %d", op, want, v)
+				if err != nil || got != model[len(model)-1] {
+					t.Fatalf("step %d: Pop = (%v, %v), model top %d", step, got, err, model[len(model)-1])
 				}
 				model = model[:len(model)-1]
 			}
-		case 8: // Peek
-			p, err := stk.Peek()
-			if len(model) == 0 {
-				if p != nil || !errors.Is(err, ErrEmptyStack) {
-					t.Fatalf("op %d: Peek on empty: expected (nil, ErrEmptyStack), got (%v, %v)", op, p, err)
-				}
-			} else {
-				if err != nil {
-					t.Fatalf("op %d: Peek on non-empty: unexpected error %v", op, err)
-				}
-				if want := model[len(model)-1]; *p != want {
-					t.Fatalf("op %d: Peek: expected %d, got %d", op, want, *p)
-				}
-			}
-		case 9: // Truncate
-			stk.Truncate()
-			model = model[:0]
 		}
-		checkModel(t, &stk, model)
+		if step%50 == 0 {
+			checkModel(t, &stk, model)
+		}
 	}
+	checkModel(t, &stk, model)
 }

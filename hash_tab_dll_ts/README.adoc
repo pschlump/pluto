@@ -1,0 +1,224 @@
+= hash_tab_dll_ts
+
+`hash_tab_dll_ts` is a generic, *thread-safe* hash table for Go with a
+fixed number of buckets in which *every bucket is a doubly linked list*
+(link:../dll[`dll`]) — the thread-safe twin of
+link:../hash_tab_dll[charon/hash_tab_dll].  Collisions chain in the
+bucket's list exactly like the singly chained
+link:../hash_tab_ts[`hash_tab_ts`] — what the dll buckets add is *O(1)
+deletion of a previously located element*: `Search` returns a live element
+handle and `DeleteFound` splices that element out through its prev/next
+pointers without re-walking the chain.  The bucket count is fixed at
+construction; when the number of elements is not known up front use
+link:../hash_grow_ts[`hash_grow_ts`], which grows and re-hashes
+automatically.
+
+Pluto has no `hash_tab_dll_ts`; the twin takes charon/hash_tab_dll and
+guards it with *one table-level* `sync.RWMutex`, following the pattern of
+link:../hash_tab_ts[`hash_tab_ts`] and
+link:../hash_tab_bt_ts[`hash_tab_bt_ts`].  The buckets stay *plain*
+(non-thread-safe) `dll` lists — like `hash_tab_bt_ts`, which keeps plain
+`binary_tree` buckets — because a per-bucket `dll_ts` would add n
+redundant locks on top of the table lock.  The buckets are unexported and
+touched only while the lock is held.
+
+* Elements are stored *by value* (`T`, not `*T`) inside the dll nodes.
+  The handles `Search` returns are the one pointer-bearing find in the
+  charon hash-table family, inherited from `dll`'s own `Search` because
+  the handle is what makes `DeleteFound` O(1); `DllElement.GetData`
+  returns the element by value, and a handle stays valid across an
+  `Insert` replacement (the replacement is `SetData` on the same node).
+* Keys of types comparable with `==` (all scalars, strings, pointers,
+arrays, and structs of comparable fields) need no functions at all:
+`hash_tab_dll_ts.NewHashTab[string](16)`.  Equality is the `==` operator
+and hashing is the stdlib `hash/maphash` with a per-table random seed.
+* Any other type — or identity by a single field — takes a plain equality
+function *and* a hash function, with no interface to implement:
++
+[source,go]
+----
+byID := hash_tab_dll_ts.NewHashTabFunc(
+	func(a, b User) bool { return a.ID == b.ID },
+	func(u User) uint64 { /* hash of u.ID */ },
+	8,
+)
+----
++
+The two functions must agree: whenever `eq(a, b)` is true, `hash(a)` and
+`hash(b)` must be equal.
+
+The default hashing is *randomized per table* (a `hash/maphash` seed) — a
+hash-flooding mitigation.  Bucket order in `All`, `Values`, `Walk` and
+`Dump` therefore varies from process to process and must not appear in
+fixed assertions or golden files.  *Within* a bucket the order is not
+random at all: the lists run head-newest to tail-oldest (`Insert` pushes
+at the head), the same newest-first order as `hash_tab`'s chains and the
+opposite of `hash_tab_bt`'s ascending trees.
+
+== Locking behavior
+
+* *Reads* (`Search`, `Peek`-style lookups, `Len`, `Length`, `IsEmpty`)
+take the read lock and release it before returning — they run in parallel
+with each other.
+* *Writes* (`Insert`, `Delete`, `DeleteFound`, `Truncate`) take the write
+lock.  `Delete` and `DeleteFound` hold it across the whole
+search-and-splice, so each is atomic on its own.
+* *`All` and `Values` operate on a snapshot* copied under the read lock
+when they are called (one O(n) copy).  It is safe to mutate the table
+while iterating — including from inside the loop — and an iterator never
+observes modifications made after it was created.
+* *`Walk` and `Dump` hold the read lock for the whole traversal* — the
+callback must not call methods on the same table, or the call can
+deadlock (use `All`/`Values` when the loop body needs to touch the
+table).
+* *`Lock`/`Unlock` + the `Nl*` methods* are the escape hatch for compound
+operations — most importantly the atomic locate-then-splice (below).
+
+== Handles under concurrency
+
+The element handle `Search` returns is a *live node* of a bucket list.
+When goroutines only read the table, `Search` + `DeleteFound` is safe as
+it is.  With competing writers the handle can go stale — another
+goroutine may delete its element (or replace its data) between the
+`Search` and the use — and passing a stale handle to `DeleteFound` is
+undefined (the same contract as `dll`/`dll_ts` `DeleteFound`).  The
+race-free form of the package's signature move is the compound pattern:
+
+[source,go]
+----
+ht.Lock()
+if el, found := ht.NlSearch(key); found {
+	ht.NlDeleteFound(el) // O(1) splice, atomically under the lock
+}
+ht.Unlock()
+----
+
+`NlSearch`, `NlDeleteFound` and the other `Nl*` methods are the unlocked
+bodies of the public methods; call them only while holding `Lock`
+(calling a locking public method while holding `Lock` deadlocks).
+
+== Complexity
+
+[cols="2,1,1,4",options="header"]
+|===
+| Operation                                | Average | Worst case | Notes
+
+| `Insert`                                 | O(1)    | O(n)       | chain scan for an equal element, then a head push or an in-place replace
+| `Search`                                 | O(1)    | O(n)       | walks the bucket list, returns the element handle
+| `Delete`                                 | O(1)    | O(n)       | chain walk, then an O(1) splice; atomic under the write lock
+| `DeleteFound`                            | O(1)    | O(1)       | splices the located element out through its prev/next pointers — no chain walk
+| `IsEmpty`, `Len`, `Length`               | O(1)    | O(1)       |
+| `Truncate`                               | O(k)    | O(k)       | k = bucket count; bucket lists are emptied
+| `Walk`, `Dump`, `All`, `Values`          | O(n)    | O(n)       |
+| `Lock` / `Unlock`                        | O(1)    | O(1)       | compound sequences of the `Nl*` methods
+|===
+
+Worst case occurs when many keys collide into one chain; average behavior
+is O(1) when hashes spread elements evenly over the k buckets.  Like
+`hash_tab_dll`, the table never grows: pick n for the expected element
+count, use `hash_tab_ts` for the smallest footprint, or `hash_grow_ts`
+when the size is unknown.
+
+== Usage
+
+[source,go]
+----
+package main
+
+import (
+	"fmt"
+
+	"github.com/pschlump/charon/hash_tab_dll_ts"
+)
+
+func main() {
+	ht := hash_tab_dll_ts.NewHashTab[string](16) // 16 buckets, fixed for the life of the table
+
+	ht.Insert("alpha")
+	ht.Insert("beta")
+	fmt.Println(ht.Insert("alpha")) // false — duplicate replaces the element
+
+	if el, found := ht.Search("alpha"); found {
+		fmt.Println("found", el.GetData()) // the stored element, by value
+		ht.DeleteFound(el)                 // O(1) removal of the located element
+	}
+
+	ht.Delete("beta") // or delete by value, like hash_tab
+
+	// Range-over-func iteration (Go 1.23+), over a snapshot:
+	for pos, item := range ht.All() { // (bucket position, element)
+		fmt.Println(pos, item)
+	}
+	for item := range ht.Values() {
+		fmt.Println(item)
+	}
+
+	ht.Truncate() // remove everything
+}
+----
+
+Runnable, tested copies of these examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and
+appear on pkg.go.dev.  The link:../hash_tab_dll[hash_tab_dll README]
+documents the full single-goroutine API usage; it applies unchanged
+modulo the locking behavior above.
+
+== Iteration
+
+Two styles are supported, both in bucket order (hash-dependent, see the
+randomization note above) and — within a bucket — from the most recently
+inserted element to the oldest:
+
+- Go 1.23+ range-over-func: `All() iter.Seq2[int, T]` (bucket position and
+  element — as with dll/sll/hash_tab, a single-variable range yields the
+  *bucket position*, not the element) and `Values() iter.Seq[T]`.  Both
+  walk a snapshot copied when they are called.
+- The `Walk(ApplyFunction[T])` callback: `fx(pos int, data T) bool`, where
+  returning *false stops the walk* (the tree-packages convention — dll's
+  own Walk is the opposite) and the closure captures caller state; Walk
+  returns true when the walk ran to completion.  The read lock is held
+  for the whole walk.
+
+== Panics
+
+The package panics in exactly four situations — all programmer errors with
+no sane fallback, each message naming the fix (identical in shape to
+`hash_tab_dll`, `hash_tab_ts`, `hash_tab_bt_ts` and `hash_grow_ts`):
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewHashTabFunc(nil eq, ...)` / `NewHashTabFunc(eq, nil hash, ...)` | nil function, caught at construction time
+| `NewHashTab`/`NewHashTabFunc` with n < 5 | a smaller table has no headroom
+| `Insert` on a nil `*HashTab` | a nil table cannot store an element
+| `Insert` on a zero-value table | no equality/hash functions; the message names the constructors
+|===
+
+Everything else tolerates a nil table and the zero value as an empty table:
+searches report not-found, `Delete` and `DeleteFound` return false, and the
+iterators visit nothing.  `NlInsert` (the `Insert` body) carries the same
+zero-value panic.  `Lock`/`Unlock` on a nil table are no-ops.
+
+== Differences from charon/hash_tab_dll
+
+* Same public API with a `sync.RWMutex` added: reads (`Search`, `Len`,
+  `Length`, `IsEmpty`) take the read lock, writes (`Insert`, `Delete`,
+  `DeleteFound`, `Truncate`) the write lock — plus the `Lock`/`Unlock`
+  pair and the `Nl*` methods (`NlIsEmpty`, `NlLen`, `NlSearch`,
+  `NlInsert`, `NlDelete`, `NlDeleteFound`) for compound operations.
+  Nil guards come *before* the lock acquisition (a nil-receiver
+  `lock.RLock()` would itself panic).
+* The buckets stay *plain* `dll` lists guarded by the one table lock — a
+  per-bucket `dll_ts` would add n redundant locks.
+* `All`/`Values` walk a *snapshot copied when they are called* — the plain
+  package's iterators walk the live bucket lists, which is not safe under
+  concurrency.  `Walk`/`Dump` hold the read lock for the whole traversal
+  (the plain package's do not).
+* The `Search` handle contract gains a concurrency clause: a handle can go
+  stale between the `Search` and its use; `Lock` + `NlSearch` +
+  `NlDeleteFound` is the atomic locate-then-splice.  On a single
+  goroutine the contract is unchanged.
+* Pluto has no `hash_tab_dll_ts`, so unlike most charon `_ts` packages
+  there is no pluto behavior to differ from — the differences above are
+  against charon's own `hash_tab_dll`.

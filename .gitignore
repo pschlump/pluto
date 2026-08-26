@@ -1,10 +1,7 @@
-note
 ,*
-y1
-iter0
-todo.adoc
-hydra/
-need-iter.1
-note.1
-sync-to-bellacoola.sh
+note*
+CLAUDE.md
+todo.md
+*.test
+*.out
 sync-to-victoria.sh

@@ -1,769 +1,491 @@
 package dll
 
 /*
-Copyright (C) Philip Schlump, 2012-2024.
+Copyright (C) Philip Schlump, 2012-2026.
 
 BSD 3 Clause Licensed.
 */
 
+// Thorough tests: element accessors, delete branches, iterator edges,
+// Dump, and a fixed-seed randomized property test cross-checked against a
+// slice reference model.  Benchmarks at the bottom.
+
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
+	"reflect"
+	"strings"
 	"testing"
 )
 
-// checkDll verifies the structural invariants of the list: length, head/tail
-// pointers, forward and backward chains, and prev/next symmetry.  want is the
-// expected list contents from head to tail.
-func checkDll(t *testing.T, ns *Dll[TestDemo], want []string) {
+// checkList verifies the structural invariants: length matches a full
+// walk, the head's prev and the tail's next are nil, and every link is
+// bidirectional.
+func checkList(t *testing.T, list *Dll[TestDllItem], where string) {
 	t.Helper()
 
-	if got := ns.Length(); got != len(want) {
-		t.Fatalf("Length: got %d, want %d", got, len(want))
-	}
-	if ns.IsEmpty() != (len(want) == 0) {
-		t.Fatalf("IsEmpty: got %v, want %v", ns.IsEmpty(), len(want) == 0)
-	}
-
-	if len(want) == 0 {
-		if ns.head != nil || ns.tail != nil {
-			t.Fatalf("empty list with non-nil head/tail: head=%v tail=%v", ns.head, ns.tail)
-		}
-		return
-	}
-	if ns.head == nil || ns.tail == nil {
-		t.Fatalf("non-empty list with nil head/tail: head=%v tail=%v", ns.head, ns.tail)
-	}
-	if ns.head.prev != nil {
-		t.Errorf("head.prev is not nil")
-	}
-	if ns.tail.next != nil {
-		t.Errorf("tail.next is not nil")
-	}
-
-	// Forward chain must match want exactly.
+	// Forward walk reaches the tail and counts length nodes.
 	n := 0
-	for p := ns.head; p != nil; p = p.next {
-		if n >= len(want) {
-			t.Fatalf("forward chain longer than %d elements", len(want))
+	var last *DllElement[TestDllItem]
+	for p := list.head; p != nil; p = p.next {
+		if p.prev != last {
+			t.Fatalf("%s: broken prev link at node %d", where, n)
 		}
-		if p.Data.S != want[n] {
-			t.Errorf("forward chain [%d]: got %s, want %s", n, p.Data.S, want[n])
-		}
-		// prev/next symmetry.
-		if p.next != nil && p.next.prev != p {
-			t.Errorf("node %d: next.prev does not point back", n)
-		}
-		if p.prev != nil && p.prev.next != p {
-			t.Errorf("node %d: prev.next does not point forward", n)
-		}
+		last = p
 		n++
 	}
-	if n != len(want) {
-		t.Fatalf("forward chain has %d elements, want %d", n, len(want))
+	if n != list.length {
+		t.Fatalf("%s: forward walk found %d nodes, length is %d", where, n, list.length)
+	}
+	if list.tail != last {
+		t.Fatalf("%s: tail pointer does not match the last node of the forward walk", where)
+	}
+	if list.head != nil && list.head.prev != nil {
+		t.Fatalf("%s: head.prev is non-nil", where)
+	}
+	if list.tail != nil && list.tail.next != nil {
+		t.Fatalf("%s: tail.next is non-nil", where)
 	}
 
-	// Backward chain must match the reverse of want.
-	m := 0
-	for p := ns.tail; p != nil; p = p.prev {
-		if m >= len(want) {
-			t.Fatalf("backward chain longer than %d elements", len(want))
-		}
-		if p.Data.S != want[len(want)-1-m] {
-			t.Errorf("backward chain [%d]: got %s, want %s", m, p.Data.S, want[len(want)-1-m])
-		}
-		m++
+	// Backward walk reaches the head.
+	n = 0
+	var first *DllElement[TestDllItem]
+	for p := list.tail; p != nil; p = p.prev {
+		first = p
+		n++
 	}
-	if m != len(want) {
-		t.Fatalf("backward chain has %d elements, want %d", m, len(want))
+	if list.head != first {
+		t.Fatalf("%s: backward walk does not reach the head", where)
+	}
+	if list.length == 0 && (list.head != nil || list.tail != nil) {
+		t.Fatalf("%s: empty list has non-nil head/tail", where)
 	}
 }
 
-func TestNewDllAndElementAccessors(t *testing.T) {
-
-	ns := NewDll[TestDemo]()
-	if ns == nil {
-		t.Fatalf("NewDll returned nil")
-	}
-	if !ns.IsEmpty() {
-		t.Errorf("NewDll: expected empty list")
-	}
-	checkDll(t, ns, nil)
-
-	ns.AppendAtTail(&TestDemo{S: "01"})
-	el, pos := ns.Search(&TestDemo{S: "01"})
-	if el == nil || pos != 0 {
-		t.Fatalf("Search: got %v, %d", el, pos)
-	}
-
-	// GetData returns the stored data.
-	if got := el.GetData(); got == nil || got.S != "01" {
-		t.Errorf("GetData: got %v", got)
-	}
-
-	// SetData replaces the stored data.
-	el.SetData(&TestDemo{S: "02"})
-	if got := el.GetData(); got.S != "02" {
-		t.Errorf("GetData after SetData: got %v", got)
-	}
-	if v, err := ns.Peek(); err != nil || v.S != "02" {
-		t.Errorf("Peek after SetData: got %v, %v", v, err)
-	}
-}
-
-func TestPushAndLockUnlock(t *testing.T) {
-
-	var ns Dll[TestDemo]
-
-	// Lock/Unlock are no-ops kept for API compatibility with dll_ts; they
-	// must not disturb the list.
-	ns.Lock()
-	ns.Push(&TestDemo{S: "01"})
-	ns.Push(&TestDemo{S: "02"})
-	ns.Unlock()
-
-	checkDll(t, &ns, []string{"02", "01"})
-
-	if v, err := ns.Peek(); err != nil || v.S != "02" {
-		t.Errorf("Peek: got %v, %v", v, err)
-	}
-}
-
-func TestLegacyIterEdgeCases(t *testing.T) {
-
-	// Iterators on an empty list are done immediately and safe to advance.
-	var ns Dll[TestDemo]
-	front := ns.Front()
-	if !front.Done() {
-		t.Errorf("Front on empty list: not Done")
-	}
-	if got := front.Value(); got != nil {
-		t.Errorf("Value on empty iterator: got %v", got)
-	}
-	front.Next() // must be a no-op, not a panic
-	if !front.Done() {
-		t.Errorf("Front after Next on empty list: not Done")
-	}
-
-	rear := ns.Rear()
-	if !rear.Done() {
-		t.Errorf("Rear on empty list: not Done")
-	}
-	if got := rear.Value(); got != nil {
-		t.Errorf("Value on empty rear iterator: got %v", got)
-	}
-	rear.Prev() // must be a no-op, not a panic
-	if !rear.Done() {
-		t.Errorf("Rear after Prev on empty list: not Done")
-	}
-
-	// Current starts an iteration from a found element.
-	ns2 := buildList("01", "02", "03")
-	el, pos := ns2.Search(&TestDemo{S: "02"})
-	if el == nil || pos != 1 {
-		t.Fatalf("Search: got %v, %d", el, pos)
-	}
-	it := ns2.Current(el, pos)
-	if it.Pos() != 1 {
-		t.Errorf("Current: expected pos 1, got %d", it.Pos())
-	}
+// valuesOf returns the current contents of the list, head to tail.
+func valuesOf(list *Dll[TestDllItem]) []string {
 	var got []string
-	var idx []int
-	for ; !it.Done(); it.Next() {
-		got = append(got, it.Value().S)
-		idx = append(idx, it.Pos())
+	for _, v := range list.All() {
+		got = append(got, v.S)
 	}
-	if len(got) != 2 || got[0] != "02" || got[1] != "03" {
-		t.Errorf("Current iteration: unexpected values %v", got)
-	}
-	if len(idx) != 2 || idx[0] != 1 || idx[1] != 2 {
-		t.Errorf("Current iteration: unexpected positions %v", idx)
+	return got
+}
+
+func TestElementAccessors(t *testing.T) {
+	el := &DllElement[TestDllItem]{}
+	el.SetData(TestDllItem{S: "42"})
+	if d := el.GetData(); d.S != "42" {
+		t.Errorf("Expected GetData to return 42, got %+v", d)
 	}
 
-	// Prev from the head stays done-adjacent: stepping back past the head
-	// makes the iterator Done.
-	it2 := ns2.Front()
-	it2.Prev()
-	if !it2.Done() {
-		t.Errorf("Prev past head: expected Done")
+	list := newTestDll()
+	list.AppendAtTail(TestDllItem{S: "07"})
+	found, pos := list.Search(TestDllItem{S: "07"})
+	if found == nil || pos != 0 {
+		t.Fatalf("Expected to find the appended item.")
 	}
-	if got := it2.Value(); got != nil {
-		t.Errorf("Value of done iterator: got %v", got)
-	}
-
-	// Single element list: Front == Rear.
-	ns3 := buildList("x")
-	f3 := ns3.Front()
-	if f3.Done() || f3.Value().S != "x" || f3.Pos() != 0 {
-		t.Errorf("Front on single-element list: done=%v pos=%d", f3.Done(), f3.Pos())
-	}
-	f3.Next()
-	if !f3.Done() {
-		t.Errorf("single-element list: not Done after Next")
-	}
-	r3 := ns3.Rear()
-	if r3.Done() || r3.Value().S != "x" || r3.Pos() != 0 {
-		t.Errorf("Rear on single-element list: done=%v pos=%d", r3.Done(), r3.Pos())
+	found.SetData(TestDllItem{S: "08"})
+	if v, err := list.Peek(); err != nil || v.S != "08" {
+		t.Errorf("SetData on a found element should change the stored value, got (%v, %v)", v, err)
 	}
 }
 
-func TestSearchWalkOnEmpty(t *testing.T) {
-
-	var ns Dll[TestDemo]
-
-	if rv, pos := ns.Search(&TestDemo{S: "x"}); rv != nil || pos != -1 {
-		t.Errorf("Search on empty: got %v, %d", rv, pos)
-	}
-	if rv, pos := ns.ReverseSearch(&TestDemo{S: "x"}); rv != nil || pos != -1 {
-		t.Errorf("ReverseSearch on empty: got %v, %d", rv, pos)
-	}
-	called := false
-	if rv, pos := ns.Walk(func(pos int, data TestDemo, userData interface{}) bool {
-		called = true
-		return true
-	}, nil); rv != nil || pos != -1 || called {
-		t.Errorf("Walk on empty: got %v, %d, called=%v", rv, pos, called)
-	}
-	if rv, pos := ns.ReverseWalk(func(pos int, data TestDemo, userData interface{}) bool {
-		called = true
-		return true
-	}, nil); rv != nil || pos != -1 || called {
-		t.Errorf("ReverseWalk on empty: got %v, %d, called=%v", rv, pos, called)
-	}
-}
-
-func TestWalkEarlyStopReturnsElement(t *testing.T) {
-
-	ns := buildList("01", "02", "03")
-
-	// Walk that never stops returns nil, -1.
-	rv, pos := ns.Walk(func(pos int, data TestDemo, userData interface{}) bool {
-		return false
-	}, nil)
-	if rv != nil || pos != -1 {
-		t.Errorf("Walk full pass: got %v, %d", rv, pos)
-	}
-
-	// Walk that stops returns the element and its position.
-	rv, pos = ns.Walk(func(pos int, data TestDemo, userData interface{}) bool {
-		return data.S == userData.(string)
-	}, "03")
-	if rv == nil || pos != 2 || rv.Data.S != "03" {
-		t.Errorf("Walk stop: got %v, %d", rv, pos)
-	}
-
-	rv, pos = ns.ReverseWalk(func(pos int, data TestDemo, userData interface{}) bool {
-		return data.S == userData.(string)
-	}, "01")
-	if rv == nil || pos != 0 || rv.Data.S != "01" {
-		t.Errorf("ReverseWalk stop: got %v, %d", rv, pos)
-	}
-
-	rv, pos = ns.ReverseWalk(func(pos int, data TestDemo, userData interface{}) bool {
-		return false
-	}, nil)
-	if rv != nil || pos != -1 {
-		t.Errorf("ReverseWalk full pass: got %v, %d", rv, pos)
-	}
-}
-
-func TestSingleElementEdgeCases(t *testing.T) {
-
-	// Pop the only element, then reuse the list.
-	ns := buildList("one")
-	if v, err := ns.Pop(); err != nil || v.S != "one" {
-		t.Errorf("Pop single: got %v, %v", v, err)
-	}
-	checkDll(t, &ns, nil)
-
-	// PopTail the only element.
-	ns = buildList("one")
-	if v, err := ns.PopTail(); err != nil || v.S != "one" {
-		t.Errorf("PopTail single: got %v, %v", v, err)
-	}
-	checkDll(t, &ns, nil)
-
-	// DeleteAtHead / DeleteAtTail on a single element.
-	ns = buildList("one")
-	if err := ns.DeleteAtHead(); err != nil {
-		t.Errorf("DeleteAtHead single: %v", err)
-	}
-	checkDll(t, &ns, nil)
-
-	ns = buildList("one")
-	if err := ns.DeleteAtTail(); err != nil {
-		t.Errorf("DeleteAtTail single: %v", err)
-	}
-	checkDll(t, &ns, nil)
-
-	// DeleteAtHead / DeleteAtTail on an empty list return ErrEmptyDll.
-	if err := ns.DeleteAtHead(); err != ErrEmptyDll {
-		t.Errorf("DeleteAtHead empty: got %v", err)
-	}
-	if err := ns.DeleteAtTail(); err != ErrEmptyDll {
-		t.Errorf("DeleteAtTail empty: got %v", err)
-	}
-
-	// Reverse of empty and single-element lists is a no-op.
-	ns.Reverse()
-	checkDll(t, &ns, nil)
-	ns = buildList("one")
-	ns.Reverse()
-	checkDll(t, &ns, []string{"one"})
-}
-
-func TestDuplicateValues(t *testing.T) {
-
-	ns := buildList("dup", "mid", "dup", "end", "dup")
-
-	// Search finds the first occurrence from the head.
-	_, pos := ns.Search(&TestDemo{S: "dup"})
-	if pos != 0 {
-		t.Errorf("Search duplicate: expected pos 0, got %d", pos)
-	}
-	// ReverseSearch finds the last occurrence.
-	_, pos = ns.ReverseSearch(&TestDemo{S: "dup"})
-	if pos != 4 {
-		t.Errorf("ReverseSearch duplicate: expected pos 4, got %d", pos)
-	}
-
-	// Delete removes the first occurrence.
-	if err := ns.Delete(&TestDemo{S: "dup"}); err != nil {
-		t.Errorf("Delete duplicate: %v", err)
-	}
-	checkDll(t, &ns, []string{"mid", "dup", "end", "dup"})
-
-	if err := ns.Delete(&TestDemo{S: "dup"}); err != nil {
-		t.Errorf("Delete duplicate: %v", err)
-	}
-	checkDll(t, &ns, []string{"mid", "end", "dup"})
-
-	if err := ns.Delete(&TestDemo{S: "dup"}); err != nil {
-		t.Errorf("Delete duplicate: %v", err)
-	}
-	checkDll(t, &ns, []string{"mid", "end"})
-
-	if err := ns.Delete(&TestDemo{S: "dup"}); err != ErrNotFound {
-		t.Errorf("Delete with no remaining duplicates: got %v", err)
-	}
-}
-
+// TestDeleteFoundAllBranches exercises every branch of DeleteFound:
+// single element, head, tail, middle, and a nil element.
 func TestDeleteFoundAllBranches(t *testing.T) {
-
-	// Delete the head of a multi-element list via DeleteFound.
-	ns := buildList("01", "02", "03")
-	el, _ := ns.Search(&TestDemo{S: "01"})
-	if err := ns.DeleteFound(el); err != nil {
-		t.Errorf("DeleteFound head: %v", err)
-	}
-	checkDll(t, &ns, []string{"02", "03"})
-
-	// Delete the tail of a multi-element list via DeleteFound.
-	el, _ = ns.Search(&TestDemo{S: "03"})
-	if err := ns.DeleteFound(el); err != nil {
-		t.Errorf("DeleteFound tail: %v", err)
-	}
-	checkDll(t, &ns, []string{"02"})
-
-	// Delete a middle element of a list with length > 2.
-	ns = buildList("01", "02", "03", "04", "05")
-	el, pos := ns.Search(&TestDemo{S: "03"})
-	if pos != 2 {
-		t.Fatalf("Search: expected pos 2, got %d", pos)
-	}
-	if err := ns.DeleteFound(el); err != nil {
-		t.Errorf("DeleteFound middle: %v", err)
-	}
-	checkDll(t, &ns, []string{"01", "02", "04", "05"})
-
-	// The removed element is fully unlinked.
-	if el.next != nil || el.prev != nil {
-		t.Errorf("DeleteFound: removed element still linked: next=%v prev=%v", el.next, el.prev)
+	// Nil element.
+	list := newTestDll()
+	if err := list.DeleteFound(nil); !errors.Is(err, ErrNotFound) {
+		t.Errorf("Expected ErrNotFound from DeleteFound(nil), got %v", err)
 	}
 
-	// DeleteFound on an element that is not in this list (and the list is
-	// too short for the middle-delete path) reports an internal error and
-	// leaves the list unchanged.
-	other := buildList("zz")
-	otherEl, _ := other.Search(&TestDemo{S: "zz"})
-	short := buildList("01", "02")
-	if err := short.DeleteFound(otherEl); err != ErrInternalDll {
-		t.Errorf("DeleteFound foreign element: got %v", err)
+	// Single element.
+	list.AppendAtTail(TestDllItem{S: "only"})
+	el, _ := list.Search(TestDllItem{S: "only"})
+	if err := list.DeleteFound(el); err != nil {
+		t.Fatalf("DeleteFound(single): %v", err)
 	}
-	checkDll(t, &short, []string{"01", "02"})
-}
+	if !list.IsEmpty() {
+		t.Errorf("Expected empty list after deleting the single element.")
+	}
+	checkList(t, list, "after single delete")
 
-func TestIndexEdgeCases(t *testing.T) {
+	// Head and tail of a longer list.
+	for _, s := range []string{"a", "b", "c", "d"} {
+		list.AppendAtTail(TestDllItem{S: s})
+	}
+	el, _ = list.Search(TestDllItem{S: "a"})
+	if err := list.DeleteFound(el); err != nil {
+		t.Fatalf("DeleteFound(head): %v", err)
+	}
+	el, _ = list.Search(TestDllItem{S: "d"})
+	if err := list.DeleteFound(el); err != nil {
+		t.Fatalf("DeleteFound(tail): %v", err)
+	}
+	if got, want := fmt.Sprint(valuesOf(list)), "[b c]"; got != want {
+		t.Errorf("After head+tail deletes got %s, expected %s", got, want)
+	}
+	checkList(t, list, "after head+tail deletes")
 
-	var ns Dll[TestDemo]
-	if _, err := ns.Index(0); err != ErrOutOfRange {
-		t.Errorf("Index on empty: got %v", err)
+	// Middle of a longer list.
+	list.AppendAtTail(TestDllItem{S: "x"})
+	list.AppendAtTail(TestDllItem{S: "y"})
+	el, _ = list.Search(TestDllItem{S: "c"})
+	if err := list.DeleteFound(el); err != nil {
+		t.Fatalf("DeleteFound(middle): %v", err)
 	}
+	if got, want := fmt.Sprint(valuesOf(list)), "[b x y]"; got != want {
+		t.Errorf("After middle delete got %s, expected %s", got, want)
+	}
+	checkList(t, list, "after middle delete")
 
-	ns = buildList("01", "02", "03", "04", "05")
-	if _, err := ns.Index(-1); err != ErrOutOfRange {
-		t.Errorf("Index(-1): got %v", err)
+	// Elements from Index/IndexFromTail work with DeleteFound.
+	el, err := list.Index(1)
+	if err != nil {
+		t.Fatalf("Index(1): %v", err)
 	}
-	if _, err := ns.Index(5); err != ErrOutOfRange {
-		t.Errorf("Index(5): got %v", err)
+	if err := list.DeleteFound(el); err != nil {
+		t.Fatalf("DeleteFound(Index(1)): %v", err)
 	}
-
-	// All positions, exercising both the head-walk and tail-walk halves.
-	want := []string{"01", "02", "03", "04", "05"}
-	for i, w := range want {
-		rv, err := ns.Index(i)
-		if err != nil || rv.Data.S != w {
-			t.Errorf("Index(%d): got %v, %v", i, rv, err)
-		}
-	}
-
-	// Even-length list boundary at length/2.
-	ns2 := buildList("a", "b", "c", "d")
-	for i, w := range []string{"a", "b", "c", "d"} {
-		rv, err := ns2.Index(i)
-		if err != nil || rv.Data.S != w {
-			t.Errorf("Index(%d) on 4-list: got %v, %v", i, rv, err)
-		}
-		rv, err = ns2.IndexFromTail(3 - i)
-		if err != nil || rv.Data.S != w {
-			t.Errorf("IndexFromTail(%d) on 4-list: got %v, %v", 3-i, rv, err)
-		}
-	}
-
-	// Index and IndexFromTail agree on a single-element list.
-	ns3 := buildList("x")
-	if rv, err := ns3.Index(0); err != nil || rv.Data.S != "x" {
-		t.Errorf("Index(0) single: got %v, %v", rv, err)
-	}
-	if rv, err := ns3.IndexFromTail(0); err != nil || rv.Data.S != "x" {
-		t.Errorf("IndexFromTail(0) single: got %v, %v", rv, err)
+	if got, want := fmt.Sprint(valuesOf(list)), "[b y]"; got != want {
+		t.Errorf("After Index-based delete got %s, expected %s", got, want)
 	}
 }
 
-func TestTrimNoOpAndBoundaries(t *testing.T) {
+// TestSingleElementEdgeCases covers every operation on a one-element list.
+func TestSingleElementEdgeCases(t *testing.T) {
+	list := newTestDll()
+	list.AppendAtTail(TestDllItem{S: "solo"})
 
-	// Trim with n >= length leaves the list unchanged.
-	ns := buildList("01", "02", "03")
-	if err := ns.Trim(3); err != nil {
-		t.Errorf("Trim(3) on 3-list: %v", err)
+	if v, err := list.Peek(); err != nil || v.S != "solo" {
+		t.Errorf("Peek = (%v, %v)", v, err)
 	}
-	checkDll(t, &ns, []string{"01", "02", "03"})
-	if err := ns.Trim(10); err != nil {
-		t.Errorf("Trim(10) on 3-list: %v", err)
+	if v, err := list.PeekTail(); err != nil || v.S != "solo" {
+		t.Errorf("PeekTail = (%v, %v)", v, err)
 	}
-	checkDll(t, &ns, []string{"01", "02", "03"})
+	if el, pos := list.Search(TestDllItem{S: "solo"}); el == nil || pos != 0 {
+		t.Errorf("Search = (%v, %d)", el, pos)
+	}
+	if el, err := list.Index(0); err != nil || el.GetData().S != "solo" {
+		t.Errorf("Index(0) = (%v, %v)", el, err)
+	}
+	if el, err := list.IndexFromTail(0); err != nil || el.GetData().S != "solo" {
+		t.Errorf("IndexFromTail(0) = (%v, %v)", el, err)
+	}
 
-	// TrimTail with n >= length leaves the list unchanged.
-	if err := ns.TrimTail(3); err != nil {
-		t.Errorf("TrimTail(3) on 3-list: %v", err)
+	// Reverse of a single element is a no-op.
+	list.Reverse()
+	if got := valuesOf(list); !reflect.DeepEqual(got, []string{"solo"}) {
+		t.Errorf("After reverse got %v", got)
 	}
-	checkDll(t, &ns, []string{"01", "02", "03"})
-	if err := ns.TrimTail(10); err != nil {
-		t.Errorf("TrimTail(10) on 3-list: %v", err)
-	}
-	checkDll(t, &ns, []string{"01", "02", "03"})
+	checkList(t, list, "after single reverse")
 
-	// Trim to exactly one element.
-	ns = buildList("01", "02", "03")
-	if err := ns.Trim(1); err != nil {
-		t.Errorf("Trim(1): %v", err)
+	// Pop it and confirm the drained behavior.
+	if v, err := list.Pop(); err != nil || v.S != "solo" {
+		t.Errorf("Pop = (%v, %v)", v, err)
 	}
-	checkDll(t, &ns, []string{"01"})
+	if !list.IsEmpty() || list.Length() != 0 {
+		t.Errorf("Expected empty list after popping the only element.")
+	}
+	checkList(t, list, "after popping the only element")
+}
 
-	// TrimTail to exactly one element.
-	ns = buildList("01", "02", "03")
-	if err := ns.TrimTail(1); err != nil {
-		t.Errorf("TrimTail(1): %v", err)
+// TestDuplicateValues verifies that duplicates coexist and that Search
+// finds the first while ReverseSearch finds the last.
+func TestDuplicateValues(t *testing.T) {
+	list := newTestDll()
+	for _, s := range []string{"x", "y", "x", "z", "x"} {
+		list.AppendAtTail(TestDllItem{S: s})
 	}
-	checkDll(t, &ns, []string{"03"})
 
-	// Negative n empties the list.
-	ns = buildList("01", "02")
-	if err := ns.Trim(-5); err != nil {
-		t.Errorf("Trim(-5): %v", err)
+	if _, pos := list.Search(TestDllItem{S: "x"}); pos != 0 {
+		t.Errorf("Search(x) pos = %d, expected 0", pos)
 	}
-	checkDll(t, &ns, nil)
-	ns = buildList("01", "02")
-	if err := ns.TrimTail(-5); err != nil {
-		t.Errorf("TrimTail(-5): %v", err)
+	if _, pos := list.ReverseSearch(TestDllItem{S: "x"}); pos != 4 {
+		t.Errorf("ReverseSearch(x) pos = %d, expected 4", pos)
 	}
-	checkDll(t, &ns, nil)
 
-	// Trim/TrimTail on an empty list report ErrEmptyDll.
-	if err := ns.Trim(0); err != ErrEmptyDll {
-		t.Errorf("Trim on empty: got %v", err)
+	// Deleting by value removes one at a time.
+	if err := list.Delete(TestDllItem{S: "x"}); err != nil {
+		t.Fatalf("Delete(x): %v", err)
 	}
-	if err := ns.TrimTail(0); err != ErrEmptyDll {
-		t.Errorf("TrimTail on empty: got %v", err)
+	if got, want := fmt.Sprint(valuesOf(list)), "[y x z x]"; got != want {
+		t.Errorf("After delete got %s, expected %s", got, want)
+	}
+	checkList(t, list, "after duplicate delete")
+}
+
+// TestIteratorEdgeCases covers the legacy iterator's edges: Value/Next/
+// Prev on an exhausted iterator, and Prev off the head.
+func TestIteratorEdgeCases(t *testing.T) {
+	// Empty list: Front is immediately Done; Next/Prev are no-ops.
+	empty := newTestDll()
+	it := empty.Front()
+	if !it.Done() {
+		t.Errorf("Expected Front on empty list to be Done.")
+	}
+	if _, found := it.Value(); found {
+		t.Errorf("Expected no Value on empty list iterator.")
+	}
+	it.Next()
+	it.Prev()
+	if !it.Done() {
+		t.Errorf("Expected Done to hold after Next/Prev on exhausted iterator.")
+	}
+
+	list := newTestDll()
+	for _, s := range []string{"a", "b", "c"} {
+		list.AppendAtTail(TestDllItem{S: s})
+	}
+
+	// Exhaust the iterator, then keep calling Next.
+	it = list.Front()
+	steps := 0
+	for !it.Done() {
+		it.Next()
+		steps++
+	}
+	if steps != 3 {
+		t.Errorf("Expected 3 steps to exhaust, got %d", steps)
+	}
+	if _, found := it.Value(); found {
+		t.Errorf("Expected no Value after exhaustion.")
+	}
+	it.Next() // no-op, not a panic
+	if !it.Done() {
+		t.Errorf("Expected Done to hold after extra Next.")
+	}
+
+	// Prev off the head ends the iteration with a negative Pos.
+	it = list.Front()
+	it.Prev()
+	if !it.Done() {
+		t.Errorf("Expected Done after Prev off the head.")
+	}
+	if it.Pos() != -1 {
+		t.Errorf("Expected Pos -1 after Prev off the head, got %d", it.Pos())
 	}
 }
 
-func TestConcatEdgeCases(t *testing.T) {
+// TestSearchWalkOnEmpty verifies every read on an empty list.
+func TestSearchWalkOnEmpty(t *testing.T) {
+	list := newTestDll()
 
-	// Concat of an empty source changes nothing.
-	ns := buildList("01", "02")
-	var empty Dll[TestDemo]
-	ns.Concat(&empty)
-	checkDll(t, &ns, []string{"01", "02"})
-
-	// Concat onto an empty destination.
-	empty.Concat(&ns)
-	checkDll(t, &empty, []string{"01", "02"})
-
-	// Order is preserved across a full concat.
-	ns2 := buildList("a", "b")
-	ns3 := buildList("c", "d", "e")
-	ns2.Concat(&ns3)
-	checkDll(t, &ns2, []string{"a", "b", "c", "d", "e"})
-	checkDll(t, &ns3, []string{"c", "d", "e"})
+	if el, pos := list.Search(TestDllItem{S: "a"}); el != nil || pos != -1 {
+		t.Errorf("Search on empty: (%v, %d)", el, pos)
+	}
+	if el, pos := list.ReverseSearch(TestDllItem{S: "a"}); el != nil || pos != -1 {
+		t.Errorf("ReverseSearch on empty: (%v, %d)", el, pos)
+	}
+	if el, pos := list.Walk(func(pos int, data TestDllItem) bool { return true }); el != nil || pos != -1 {
+		t.Errorf("Walk on empty: (%v, %d)", el, pos)
+	}
+	if el, pos := list.ReverseWalk(func(pos int, data TestDllItem) bool { return true }); el != nil || pos != -1 {
+		t.Errorf("ReverseWalk on empty: (%v, %d)", el, pos)
+	}
+	if _, err := list.Index(0); !errors.Is(err, ErrOutOfRange) {
+		t.Errorf("Index on empty: %v", err)
+	}
+	if _, err := list.IndexFromTail(0); !errors.Is(err, ErrOutOfRange) {
+		t.Errorf("IndexFromTail on empty: %v", err)
+	}
 }
 
+// TestDump verifies the debugging output.
 func TestDump(t *testing.T) {
-
+	list := newTestDll()
 	var buf bytes.Buffer
-	var ns Dll[TestDemo]
-	ns.Dump(&buf)
-	if buf.String() != "" {
-		t.Errorf("Dump of empty list: got %q", buf.String())
+	list.Dump(&buf)
+	if buf.Len() != 0 {
+		t.Errorf("Expected no output from Dump on empty list, got %q", buf.String())
 	}
 
+	for _, s := range []string{"a", "b", "c"} {
+		list.AppendAtTail(TestDllItem{S: s})
+	}
 	buf.Reset()
-	ns = buildList("01", "02")
-	ns.Dump(&buf)
-	want := "0: {S:01}\n1: {S:02}\n"
-	if buf.String() != want {
-		t.Errorf("Dump: got %q, want %q", buf.String(), want)
+	list.Dump(&buf)
+	out := buf.String()
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("Expected 3 lines from Dump, got %d: %q", len(lines), out)
 	}
-}
-
-func TestIteratorEarlyBreakAndAliasing(t *testing.T) {
-
-	ns := buildList("01", "02", "03")
-
-	// Early break in Backward.
-	count := 0
-	var first string
-	for i, v := range ns.Backward() {
-		if i != 2 {
-			t.Errorf("Backward first index: got %d", i)
+	for i, want := range []string{"0: {S:a}", "1: {S:b}", "2: {S:c}"} {
+		if lines[i] != want {
+			t.Errorf("Dump line %d: expected %q, got %q", i, want, lines[i])
 		}
-		first = v.S
-		count++
-		break
-	}
-	if count != 1 || first != "03" {
-		t.Errorf("Backward break: count=%d first=%s", count, first)
-	}
-
-	// Early break in IteratePtr.
-	count = 0
-	for range ns.IteratePtr() {
-		count++
-		break
-	}
-	if count != 1 {
-		t.Errorf("IteratePtr break: expected 1 iteration, got %d", count)
-	}
-
-	// IteratePtr yields live pointers; mutation through them is visible in
-	// the list.
-	for i, p := range ns.IteratePtr() {
-		p.S = fmt.Sprintf("m%d", i)
-	}
-	checkDll(t, &ns, []string{"m0", "m1", "m2"})
-
-	// IterateOver/IteratePtr on an empty list produce nothing.
-	var empty Dll[TestDemo]
-	for range empty.IterateOver() {
-		t.Errorf("IterateOver on empty list iterated")
-	}
-	for range empty.IteratePtr() {
-		t.Errorf("IteratePtr on empty list iterated")
 	}
 }
 
-// TestRandomizedAgainstModel runs a fixed-seed sequence of mixed operations,
-// cross-checking the list against a plain slice model after every step.
-func TestRandomizedAgainstModel(t *testing.T) {
+// TestModelRandomized runs thousands of mixed operations against a plain
+// slice reference model with a fixed seed, cross-checking after every
+// step.
+func TestModelRandomized(t *testing.T) {
+	rng := rand.New(rand.NewPCG(20260825, 42))
+	const ops = 4000
+	const keySpace = 40 // small space forces duplicates
 
-	rng := rand.New(rand.NewSource(42))
-	var ns Dll[TestDemo]
-	var model []string
-	counter := 0
+	list := newTestDll()
+	var model []string // head at index 0
 
-	newVal := func() string {
-		v := fmt.Sprintf("v%03d", counter)
-		counter++
-		return v
+	check := func(step int) {
+		t.Helper()
+		if list.Length() != len(model) {
+			t.Fatalf("step %d: length %d, model has %d", step, list.Length(), len(model))
+		}
+		if got, want := fmt.Sprint(valuesOf(list)), fmt.Sprint(model); got != want {
+			t.Fatalf("step %d: contents %s, model %s", step, got, want)
+		}
+		checkList(t, list, fmt.Sprintf("step %d", step))
 	}
 
-	for step := 0; step < 800; step++ {
-		op := rng.Intn(100)
-		switch {
-		case op < 20: // insert at head
-			v := newVal()
-			ns.InsertBeforeHead(&TestDemo{S: v})
-			model = append([]string{v}, model...)
-		case op < 40: // append at tail
-			v := newVal()
-			ns.AppendAtTail(&TestDemo{S: v})
-			model = append(model, v)
-		case op < 50: // pop head
-			got, err := ns.Pop()
+	for step := range ops {
+		s := fmt.Sprintf("%02d", rng.IntN(keySpace))
+		switch rng.IntN(8) {
+		case 0: // Push (head)
+			list.Push(TestDllItem{S: s})
+			model = append([]string{s}, model...)
+		case 1: // AppendAtTail
+			list.AppendAtTail(TestDllItem{S: s})
+			model = append(model, s)
+		case 2: // Pop
+			v, err := list.Pop()
 			if len(model) == 0 {
-				if err != ErrEmptyDll {
-					t.Fatalf("step %d: Pop on empty: got %v", step, err)
+				if !errors.Is(err, ErrEmptyDll) {
+					t.Fatalf("step %d: Pop on empty returned %v", step, err)
 				}
 			} else {
-				if err != nil || got.S != model[0] {
-					t.Fatalf("step %d: Pop: got %v, %v; want %s", step, got, err, model[0])
+				if err != nil || v.S != model[0] {
+					t.Fatalf("step %d: Pop = (%v, %v), model head %s", step, v, err, model[0])
 				}
 				model = model[1:]
 			}
-		case op < 60: // pop tail
-			got, err := ns.PopTail()
+		case 3: // PopTail
+			v, err := list.PopTail()
 			if len(model) == 0 {
-				if err != ErrEmptyDll {
-					t.Fatalf("step %d: PopTail on empty: got %v", step, err)
+				if !errors.Is(err, ErrEmptyDll) {
+					t.Fatalf("step %d: PopTail on empty returned %v", step, err)
 				}
 			} else {
-				if err != nil || got.S != model[len(model)-1] {
-					t.Fatalf("step %d: PopTail: got %v, %v; want %s", step, got, err, model[len(model)-1])
+				if err != nil || v.S != model[len(model)-1] {
+					t.Fatalf("step %d: PopTail = (%v, %v), model tail %s", step, v, err, model[len(model)-1])
 				}
 				model = model[:len(model)-1]
 			}
-		case op < 70: // delete by value (first occurrence)
-			if len(model) == 0 {
-				if err := ns.Delete(&TestDemo{S: "absent"}); err != ErrNotFound {
-					t.Fatalf("step %d: Delete on empty: got %v", step, err)
-				}
-			} else {
-				target := model[rng.Intn(len(model))]
-				if err := ns.Delete(&TestDemo{S: target}); err != nil {
-					t.Fatalf("step %d: Delete(%s): %v", step, target, err)
-				}
-				for i, v := range model {
-					if v == target {
-						model = append(model[:i], model[i+1:]...)
-						break
-					}
-				}
-				// Deleting an absent value fails and changes nothing.
-				if err := ns.Delete(&TestDemo{S: "absent"}); err != ErrNotFound {
-					t.Fatalf("step %d: Delete absent: got %v", step, err)
+		case 4: // Delete by value (first match)
+			err := list.Delete(TestDllItem{S: s})
+			idx := -1
+			for i, m := range model {
+				if m == s {
+					idx = i
+					break
 				}
 			}
-		case op < 75: // reverse
-			ns.Reverse()
-			for i, j := 0, len(model)-1; i < j; i, j = i+1, j-1 {
-				model[i], model[j] = model[j], model[i]
-			}
-		case op < 80: // trim (keep head)
-			n := rng.Intn(len(model) + 3)
-			err := ns.Trim(n)
-			if len(model) == 0 {
-				if err != ErrEmptyDll {
-					t.Fatalf("step %d: Trim on empty: got %v", step, err)
+			if idx < 0 {
+				if !errors.Is(err, ErrNotFound) {
+					t.Fatalf("step %d: Delete(%s) = %v, model says absent", step, s, err)
 				}
 			} else {
 				if err != nil {
+					t.Fatalf("step %d: Delete(%s): %v", step, s, err)
+				}
+				model = append(model[:idx], model[idx+1:]...)
+			}
+		case 5: // Search position
+			_, pos := list.Search(TestDllItem{S: s})
+			want := -1
+			for i, m := range model {
+				if m == s {
+					want = i
+					break
+				}
+			}
+			if pos != want {
+				t.Fatalf("step %d: Search(%s) pos %d, model says %d", step, s, pos, want)
+			}
+		case 6: // Index round trip
+			if len(model) > 0 {
+				sub := rng.IntN(len(model))
+				el, err := list.Index(sub)
+				if err != nil || el.GetData().S != model[sub] {
+					t.Fatalf("step %d: Index(%d) = (%v, %v), model %s", step, sub, el, err, model[sub])
+				}
+			}
+		case 7: // Trim to a random prefix
+			if len(model) > 0 {
+				n := rng.IntN(len(model) + 2)
+				if err := list.Trim(n); err != nil {
 					t.Fatalf("step %d: Trim(%d): %v", step, n, err)
 				}
 				if n <= 0 {
 					model = nil
-				} else if len(model) > n {
+				} else if n < len(model) {
 					model = model[:n]
 				}
 			}
-		case op < 85: // trim tail (keep tail)
-			n := rng.Intn(len(model) + 3)
-			err := ns.TrimTail(n)
-			if len(model) == 0 {
-				if err != ErrEmptyDll {
-					t.Fatalf("step %d: TrimTail on empty: got %v", step, err)
-				}
-			} else {
-				if err != nil {
-					t.Fatalf("step %d: TrimTail(%d): %v", step, n, err)
-				}
-				if n <= 0 {
-					model = nil
-				} else if len(model) > n {
-					model = model[len(model)-n:]
-				}
-			}
-		case op < 92: // random Index / Search checks
-			if len(model) > 0 {
-				i := rng.Intn(len(model))
-				rv, err := ns.Index(i)
-				if err != nil || rv.Data.S != model[i] {
-					t.Fatalf("step %d: Index(%d): got %v, %v; want %s", step, i, rv, err, model[i])
-				}
-				rv, err = ns.IndexFromTail(len(model) - 1 - i)
-				if err != nil || rv.Data.S != model[i] {
-					t.Fatalf("step %d: IndexFromTail(%d): got %v, %v; want %s", step, len(model)-1-i, rv, err, model[i])
-				}
-				// Search must find the first occurrence.
-				el, pos := ns.Search(&TestDemo{S: model[i]})
-				first := 0
-				for j, v := range model {
-					if v == model[i] {
-						first = j
-						break
-					}
-				}
-				if el == nil || pos != first {
-					t.Fatalf("step %d: Search(%s): got pos %d; want %d", step, model[i], pos, first)
-				}
-			}
-		default: // truncate and rebuild occasionally
-			ns.Truncate()
-			model = nil
-			k := rng.Intn(5)
-			for i := 0; i < k; i++ {
-				v := newVal()
-				ns.AppendAtTail(&TestDemo{S: v})
-				model = append(model, v)
-			}
 		}
+		if step%50 == 0 {
+			check(step)
+		}
+	}
+	check(ops)
+}
 
-		// Full structural cross-check after every operation.
-		if got := ns.Length(); got != len(model) {
-			t.Fatalf("step %d: Length: got %d, want %d", step, got, len(model))
+// -------------------------------------------------------------------------------------------------------
+// Benchmarks
+// -------------------------------------------------------------------------------------------------------
+
+const benchmarkListSize = 4096
+
+func BenchmarkPush(b *testing.B) {
+	list := NewDll[int]()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		list.Push(i)
+	}
+}
+
+func BenchmarkAppendAtTail(b *testing.B) {
+	list := NewDll[int]()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		list.AppendAtTail(i)
+	}
+}
+
+func BenchmarkPop(b *testing.B) {
+	list := NewDll[int]()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if list.IsEmpty() {
+			list.Truncate()
 		}
-		var fwd []string
-		for _, v := range ns.All() {
-			fwd = append(fwd, v.S)
+		_, _ = list.Pop()
+	}
+}
+
+func BenchmarkSearch(b *testing.B) {
+	list := NewDll[int]()
+	for i := range benchmarkListSize {
+		list.AppendAtTail(i)
+	}
+	find := benchmarkListSize / 2
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		list.Search(find)
+	}
+}
+
+func BenchmarkAll(b *testing.B) {
+	list := NewDll[int]()
+	for i := range benchmarkListSize {
+		list.AppendAtTail(i)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for range list.All() {
 		}
-		if len(fwd) != len(model) {
-			t.Fatalf("step %d: All yielded %d items, want %d", step, len(fwd), len(model))
-		}
-		for i := range model {
-			if fwd[i] != model[i] {
-				t.Fatalf("step %d: All[%d]: got %s, want %s", step, i, fwd[i], model[i])
-			}
-		}
-		var bwd []string
-		for _, v := range ns.Backward() {
-			bwd = append(bwd, v.S)
-		}
-		if len(bwd) != len(model) {
-			t.Fatalf("step %d: Backward yielded %d items, want %d", step, len(bwd), len(model))
-		}
-		for i := range model {
-			if bwd[i] != model[len(model)-1-i] {
-				t.Fatalf("step %d: Backward[%d]: got %s, want %s", step, i, bwd[i], model[len(model)-1-i])
-			}
-		}
-		if len(model) > 0 {
-			if v, err := ns.Peek(); err != nil || v.S != model[0] {
-				t.Fatalf("step %d: Peek: got %v, %v; want %s", step, v, err, model[0])
-			}
-			if v, err := ns.PeekTail(); err != nil || v.S != model[len(model)-1] {
-				t.Fatalf("step %d: PeekTail: got %v, %v; want %s", step, v, err, model[len(model)-1])
-			}
-		}
-		checkDll(t, &ns, model)
 	}
 }

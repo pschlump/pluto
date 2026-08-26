@@ -1,67 +1,110 @@
-= queue — a generics based FIFO queue
+= queue
 
-A generic FIFO (first-in, first-out) queue built on top of a slice, using
-Go generics (Go 1.18+; this module targets Go 1.26).
+A generic *FIFO queue* built on a slice — the simplest container in
+charon.  The element type needs *no constraints at all*: there is no
+ordering and no equality to supply, and the zero value of `Queue` is an
+empty queue ready to use without a constructor.
 
-The zero value of `Queue[T]` is an empty queue ready to use.
+It is a rework of
+link:https://github.com/pschlump/pluto/tree/main/queue[pluto/queue]
+with the charon conventions: elements are stored and returned *by
+value* — `Dequeue` and `Peek` return `(T, error)` instead of a pointer —
+so a dequeued or peeked element never aliases the queue's internals.
+
+Not safe for concurrent use (a mutex-guarded twin has the same
+interface).
 
 == Operations
 
+[options="header"]
 |===
-| Operation                | Description                                       | Complexity
+| Operation                    | Description                          | Complexity
 
-| `Push(t)` / `Enqueue(t)` | Insert an element at the tail                     | O(1) amortized
-| `Pop()`                  | Remove the head element                           | O(1)
-| `Dequeue()`              | Remove and return the head element                | O(1)
-| `Peek()`                 | Return the head element without removing it       | O(1)
-| `IsEmpty()`              | True if the queue is empty                        | O(1)
-| `Length()`               | Number of elements                                | O(1)
-| `Truncate()`             | Remove all elements                               | O(1)
-| `All()` / `Backward()`   | Range-over-func iterators (head→tail / tail→head) | O(n)
+| `Push` / `Enqueue`           | Insert at the tail                   | O(1) amortized
+| `Pop`                        | Remove the head                      | O(1)
+| `Dequeue`                    | Remove and return the head           | O(1)
+| `Peek`                       | Look at the head without removing    | O(1)
+| `IsEmpty` / `Len` / `Length` | Size queries                         | O(1)
+| `Truncate`                   | Remove all elements                  | O(1)
+| `All` / `Backward`           | Range-over-func iterators with index | O(n)
 |===
 
-`Pop`, `Dequeue` and `Truncate` zero/release the removed elements so the
-garbage collector can reclaim them.
+== Errors
 
-== Example
+The empty queue is reported with an error (compare with `errors.Is`):
+
+[options="header"]
+|===
+| Error           | Meaning
+
+| `ErrEmptyQueue` | `Pop`/`Dequeue`/`Peek` on an empty queue
+|===
+
+== Usage
 
 [source,go]
 ----
-package main
+var q queue.Queue[int] // no constructor needed
 
-import (
-	"fmt"
+q.Enqueue(1)
+q.Enqueue(2)
 
-	"github.com/pschlump/pluto/queue"
-)
+head, _ := q.Dequeue() // 1 — first in, first out
+next, _ := q.Peek()    // 2 — still queued
+----
 
-func main() {
-	var q queue.Queue[int]
-	q.Enqueue(1)
-	q.Enqueue(2)
-	q.Enqueue(3)
+Iteration, head (next out) to tail (last in) and back:
 
-	fmt.Println(q.Length()) // 3
-
-	for _, v := range q.All() {
-		fmt.Println(v) // 1, 2, 3
-	}
-
-	v, err := q.Dequeue() // v = 1, err = nil
-	_, _ = v, err
+[source,go]
+----
+for i, v := range q.All() {
+    ...
+}
+for i, v := range q.Backward() {
+    ...
 }
 ----
 
-== Thread safety
+The queue must not be modified while an iterator is running.
 
-This implementation is *not* thread safe.  Use
-`github.com/pschlump/pluto/queue_ts` for a mutex-guarded version with the
-exact same interface, or `github.com/pschlump/pluto/queue_dll_ts` for a
-thread safe queue built on a doubly linked list.
+== Panics
 
-== Notes
+The package has exactly *one* panic, a programmer error with no sane
+fallback:
 
-Because the queue is slice based, growth occasionally doubles the backing
-array and copies data (amortized O(1) `Push`).  A DLL based queue
-(`queue_dll_ts`) has strict O(1) costs for every operation but higher
-constant factors and per-element allocations.
+[options="header"]
+|===
+| Call                            | Why
+
+| `Push`/`Enqueue` on a nil queue | a nil queue cannot store an element
+|===
+
+Everything else — including the zero value, which is fully usable because
+there is no comparison or equality function to configure — tolerates a
+nil queue as an empty queue.
+
+== Memory behavior
+
+Pops advance the slice window (`data = data[1:]`), zeroing each vacated
+slot so the backing array does not keep dequeued elements alive; when the
+queue drains completely the backing array is released entirely.  A
+long-lived queue that grows and drains repeatedly will periodically
+reallocate as the window walks off the front of the backing array — for
+stable O(1) memory across arbitrary push/pop patterns, use the
+doubly-linked-list queue in link:../dll/[`dll`] (`Enqueue`/`Pop`).
+
+== Differences from pluto/queue
+
+* `Dequeue` returns `(T, error)` — pluto returned `*T` pointing at a copy.
+* `Peek` returns `(T, error)` — pluto returned `*T` *aliasing the
+element inside the queue*, so mutating the result mutated the queued
+element; with value semantics that hazard is gone.
+* `Len` is available as an alias for `Length`, matching the other charon
+packages.
+* A nil `*Queue` behaves as an empty queue for every operation except
+`Push`/`Enqueue`, which panic with a named message (pluto panicked with
+an unguarded nil dereference on writes to a nil queue... and tolerated
+reads inconsistently).
+* Complexity notes on each operation (O(1) amortized push, the slice
+window behavior) are documented on the methods and here.
+

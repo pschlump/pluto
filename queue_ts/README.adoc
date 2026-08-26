@@ -1,75 +1,112 @@
-= queue_ts — a thread safe generics based FIFO queue
+= queue_ts
 
-A generic FIFO (first-in, first-out) queue built on top of a slice, using
-Go generics (Go 1.18+; this module targets Go 1.26).
+A generic slice-backed *FIFO queue* that is *safe for concurrent use*
+— the thread-safe twin of link:../queue/[charon/queue].  Every operation is
+guarded by a `sync.RWMutex`: readers run in parallel with each other,
+writers are exclusive.
 
-This is the *thread safe* implementation: every operation is guarded by a
-`sync.RWMutex`.  It has the exact same interface as
-`github.com/pschlump/pluto/queue`.
+Like `queue`, the element type needs *no constraints at all* and the
+zero value is an empty queue ready to use without a constructor.  And
+like every charon package it is a rework of
+link:https://github.com/pschlump/pluto/tree/main/queue_ts[pluto/queue_ts]
+with value-semantics returns: `Dequeue` and `Peek` return `(T, error)` —
+an independent copy taken under the lock, never a pointer into the
+queue's internals.
 
-The zero value of `Queue[T]` is an empty queue ready to use.
+== Locking behavior
 
-== Operations
+* *Reads* (`Peek`, `Len`, `Length`, `IsEmpty`) take the read lock and
+release it before returning — they can run in parallel with each other.
+* *Writes* (`Push`, `Enqueue`, `Pop`, `Dequeue`, `Truncate`) take the
+write lock.
+* *`All` and `Backward` operate on a snapshot* copied under the read
+lock when they are called (one O(n) copy).  It is safe to mutate the
+queue while iterating — including from inside the loop — and an
+iterator never observes modifications made after it was created.
 
+[source,go]
+----
+for _, v := range q.All() {
+    q.Pop() // safe: All walks a snapshot
+    _ = v
+}
+----
+
+== Errors and panics
+
+Identical to `queue`: `ErrEmptyQueue` (compare with `errors.Is`) reports
+the empty queue, and the package has exactly *one* panic:
+
+[options="header"]
 |===
-| Operation                | Description                                          | Complexity
+| Call                            | Why
 
-| `Push(t)` / `Enqueue(t)` | Insert an element at the tail                        | O(1) amortized
-| `Pop()`                  | Remove the head element                              | O(1)
-| `Dequeue()`              | Remove and return the head element                   | O(1)
-| `Peek()`                 | Return the head element without removing it          | O(1)
-| `IsEmpty()`              | True if the queue is empty                           | O(1)
-| `Length()`               | Number of elements                                   | O(1)
-| `Truncate()`             | Remove all elements                                  | O(1)
-| `All()` / `Backward()`   | Range-over-func iterators over a consistent snapshot | O(n)
+| `Push`/`Enqueue` on a nil queue | a nil queue cannot store an element
 |===
 
-`Pop`, `Dequeue` and `Truncate` zero/release the removed elements so the
-garbage collector can reclaim them.
+Everything else — including the zero value, which is fully usable because
+there is no comparison or equality function to configure — tolerates a
+nil queue as an empty queue.
 
-`All` and `Backward` iterate over a snapshot taken under a read lock when
-the method is called; the lock is not held while the loop body runs, so it
-is safe to call other queue methods from inside the loop.
-
-== Example
+== Usage
 
 [source,go]
 ----
 package main
 
 import (
-	"fmt"
+    "fmt"
+    "sync"
 
-	queue "github.com/pschlump/pluto/queue_ts"
+    "github.com/pschlump/charon/queue_ts"
 )
 
 func main() {
-	var q queue.Queue[int]
-	q.Enqueue(1)
-	q.Enqueue(2)
-	q.Enqueue(3)
+    var q queue_ts.Queue[int]
 
-	fmt.Println(q.Length()) // 3
+    // Producers from many goroutines share one queue.
+    var wg sync.WaitGroup
+    for p := 0; p < 8; p++ {
+        wg.Add(1)
+        go func(p int) {
+            defer wg.Done()
+            for i := 0; i < 100; i++ {
+                q.Enqueue(p*1000 + i)
+            }
+        }(p)
+    }
+    wg.Wait()
+    fmt.Println(q.Len()) // 800
 
-	for _, v := range q.All() {
-		fmt.Println(v) // 1, 2, 3
-	}
-
-	v, err := q.Dequeue() // v = 1, err = nil
-	_, _ = v, err
+    // Consumers drain it.
+    for !q.IsEmpty() {
+        if _, err := q.Dequeue(); err != nil {
+            break
+        }
+    }
+    fmt.Println(q.IsEmpty()) // true
 }
 ----
 
-== Thread safety
+Runnable, tested copies of these examples live in
+link:example_test.go[`example_test.go`].  The link:../queue/[queue README]
+documents the full API usage and the slice-window memory behavior; they
+apply unchanged.
 
-This implementation is thread safe; all methods may be called concurrently
-from multiple goroutines.  Note that `Peek` returns a pointer to the head
-element that is only guaranteed valid while the element remains in the
-queue.  Run the tests with `go test -race` to validate usage.
+== Differences from pluto/queue_ts
 
-== Notes
+* `Dequeue` returns `(T, error)` — pluto returned `*T` pointing at a
+copy.
+* `Peek` returns `(T, error)` — pluto returned `&q.data[0]`, a pointer
+*into the queue released from the lock*, which could race with a
+concurrent pop zeroing that very slot; the value copy taken under the
+read lock removes that hazard.
+* `Len` is available as an alias for `Length`, matching the other charon
+packages.
+* A nil `*Queue` behaves as an empty queue for every operation except
+`Push`/`Enqueue`, which panic with a named message (the package's only
+panic); pluto panicked with an unguarded nil dereference.
+* The snapshots for `All`/`Backward` are taken when they are called
+(pluto did the same here — unlike its lazy iterators in other `_ts`
+packages).
 
-Because the queue is slice based, growth occasionally doubles the backing
-array and copies data (amortized O(1) `Push`).  A DLL based queue
-(`queue_dll_ts`) has strict O(1) costs for every operation but higher
-constant factors and per-element allocations.

@@ -1,7 +1,12 @@
-// Copyright (C) Philip Schlump, 2012-2021.
-// BSD 3 Clause Licensed.
+/*
+Copyright (C) Philip Schlump, 2012-2026.
+
+BSD 3 Clause Licensed.
+*/
 
 package queue
+
+import "slices"
 
 import "iter"
 
@@ -15,6 +20,9 @@ import "iter"
 // The queue must not be modified while the iterator is running.
 // Complexity is O(n).
 func (q *Queue[T]) All() iter.Seq2[int, T] {
+	if q == nil {
+		return func(func(int, T) bool) {} // a nil queue iterates as an empty one
+	}
 	return func(yield func(int, T) bool) {
 		for i, v := range q.data {
 			if !yield(i, v) {
@@ -34,9 +42,12 @@ func (q *Queue[T]) All() iter.Seq2[int, T] {
 // The queue must not be modified while the iterator is running.
 // Complexity is O(n).
 func (q *Queue[T]) Backward() iter.Seq2[int, T] {
+	if q == nil {
+		return func(func(int, T) bool) {} // a nil queue iterates as an empty one
+	}
 	return func(yield func(int, T) bool) {
-		for i := len(q.data) - 1; i >= 0; i-- {
-			if !yield(i, q.data[i]) {
+		for i, v := range slices.Backward(q.data) {
+			if !yield(i, v) {
 				return
 			}
 		}

@@ -1,223 +1,291 @@
 package queue
 
 /*
-Copyright (C) Philip Schlump, 2012-2021.
+Copyright (C) Philip Schlump, 2012-2026.
 
 BSD 3 Clause Licensed.
 */
 
 import (
 	"errors"
-	"fmt"
+	"reflect"
+	"strings"
 	"testing"
 )
 
 func TestQueue001(t *testing.T) {
-	type TestDemo struct {
-		S string
+	var q Queue[string]
+
+	if !q.IsEmpty() {
+		t.Errorf("Expected empty queue after declaration.")
+	}
+	if q.Len() != 0 || q.Length() != 0 {
+		t.Errorf("Expected length 0 after declaration, got %d/%d", q.Len(), q.Length())
 	}
 
-	var Que1 Queue[TestDemo]
-
-	if !Que1.IsEmpty() {
-		t.Errorf("Expected empty queue after declaration, failed to get one.")
+	if err := q.Pop(); !errors.Is(err, ErrEmptyQueue) {
+		t.Errorf("Expected ErrEmptyQueue from Pop on empty queue, got %v", err)
+	}
+	if _, err := q.Dequeue(); !errors.Is(err, ErrEmptyQueue) {
+		t.Errorf("Expected ErrEmptyQueue from Dequeue on empty queue, got %v", err)
+	}
+	if _, err := q.Peek(); !errors.Is(err, ErrEmptyQueue) {
+		t.Errorf("Expected ErrEmptyQueue from Peek on empty queue, got %v", err)
 	}
 
-	Que1.Push(TestDemo{S: "hi"})
+	q.Push("a")
+	q.Enqueue("b")
+	q.Push("c")
 
-	if Que1.IsEmpty() {
-		t.Errorf("Expected non-empty queue after 1st push, failed to get one.")
+	if q.IsEmpty() {
+		t.Errorf("Expected non-empty queue after pushes.")
 	}
-
-	err := Que1.Pop()
-	if err != nil {
-		t.Errorf("Unexpected empty queue error after 1 pop")
-	}
-	err = Que1.Pop()
-	if err == nil {
-		t.Errorf("Unexpected lack of error after pop on empty queue")
-	}
-	if !errors.Is(err, ErrEmptyQueue) {
-		t.Errorf("Expected ErrEmptyQueue, got %v", err)
+	if q.Length() != 3 {
+		t.Errorf("Expected length 3, got %d", q.Length())
 	}
 
-	Que1.Push(TestDemo{S: "hi2"})
-	Que1.Push(TestDemo{S: "hi3"})
-
-	got := Que1.Length()
-	expect := 2
-	if got != expect {
-		t.Errorf("Expected length of %d got %d", expect, got)
+	// FIFO order.
+	for i, want := range []string{"a", "b", "c"} {
+		if v, err := q.Peek(); err != nil || v != want {
+			t.Errorf("Peek step %d = (%q, %v), expected %q", i, v, err, want)
+		}
+		v, err := q.Dequeue()
+		if err != nil {
+			t.Fatalf("Dequeue step %d: %v", i, err)
+		}
+		if v != want {
+			t.Errorf("Dequeue step %d = %q, expected %q", i, v, want)
+		}
 	}
-
-	ss, err := Que1.Peek()
-	if err != nil {
-		t.Errorf("Unexpected error on non-empty queue")
+	if !q.IsEmpty() {
+		t.Errorf("Expected empty queue after draining.")
 	}
-	if ss.S != "hi2" {
-		t.Errorf("Expected %s got %s", "hi2", ss.S)
-	}
-
-	_ = Que1.Pop()
-	ss, err = Que1.Peek()
-	if err != nil {
-		t.Errorf("Unexpected error on non-empty queue")
-	}
-	if ss.S != "hi3" {
-		t.Errorf("Expected %s got %s", "hi3", ss.S)
+	if err := q.Pop(); !errors.Is(err, ErrEmptyQueue) {
+		t.Errorf("Expected ErrEmptyQueue after draining, got %v", err)
 	}
 }
 
 func TestEnqueueDequeue(t *testing.T) {
-	var q Queue[int]
-
-	if _, err := q.Dequeue(); !errors.Is(err, ErrEmptyQueue) {
-		t.Errorf("Expected ErrEmptyQueue on empty Dequeue, got %v", err)
-	}
-	if _, err := q.Peek(); !errors.Is(err, ErrEmptyQueue) {
-		t.Errorf("Expected ErrEmptyQueue on empty Peek, got %v", err)
-	}
-
-	// FIFO order check.
-	for i := 0; i < 10; i++ {
+	q := &Queue[int]{}
+	for i := range 100 {
 		q.Enqueue(i)
 	}
-	if q.Length() != 10 {
-		t.Errorf("Expected length of 10 got %d", q.Length())
+	if q.Length() != 100 {
+		t.Fatalf("Expected length 100, got %d", q.Length())
 	}
-	for i := 0; i < 10; i++ {
+	for i := range 100 {
 		v, err := q.Dequeue()
 		if err != nil {
-			t.Fatalf("Unexpected error on Dequeue: %s", err)
+			t.Fatalf("Dequeue(%d): %v", i, err)
 		}
-		if *v != i {
-			t.Errorf("Expected %d got %d", i, *v)
+		if v != i {
+			t.Fatalf("Dequeue = %d, expected %d", v, i)
 		}
 	}
 	if !q.IsEmpty() {
-		t.Errorf("Expected empty queue after dequeuing all elements")
-	}
-
-	// Interleaved push/pop.
-	for i := 0; i < 100; i++ {
-		q.Push(i)
-		v, err := q.Dequeue()
-		if err != nil {
-			t.Fatalf("Unexpected error on Dequeue: %s", err)
-		}
-		if *v != i {
-			t.Errorf("Expected %d got %d", i, *v)
-		}
-	}
-	if !q.IsEmpty() {
-		t.Errorf("Expected empty queue after interleaved push/pop")
+		t.Errorf("Expected empty queue after draining.")
 	}
 }
 
+// TestPopReleasesBackingArray verifies that draining the queue releases
+// the backing array entirely (data becomes nil), so a drained queue holds
+// no reference to the popped elements.
 func TestPopReleasesBackingArray(t *testing.T) {
-	var q Queue[*int]
-	a, b := 1, 2
-	q.Push(&a)
-	q.Push(&b)
-	if err := q.Pop(); err != nil {
-		t.Fatalf("Unexpected error on Pop: %s", err)
+	q := &Queue[int]{}
+	for i := range 10 {
+		q.Push(i)
 	}
-	if q.IsEmpty() {
-		t.Errorf("Expected non-empty queue after popping 1 of 2 elements")
+	for i := range 10 {
+		if err := q.Pop(); err != nil {
+			t.Fatalf("Pop(%d): %v", i, err)
+		}
 	}
-	v, err := q.Peek()
-	if err != nil || *v != &b {
-		t.Errorf("Expected head element to survive pop")
-	}
-	if err := q.Pop(); err != nil {
-		t.Fatalf("Unexpected error on Pop: %s", err)
-	}
-	// Popping the last element must release the backing array.
 	if q.data != nil {
-		t.Errorf("Expected backing array to be released after popping last element")
-	}
-	// Queue must still be usable.
-	q.Push(&a)
-	if q.Length() != 1 {
-		t.Errorf("Expected length of 1 got %d", q.Length())
+		t.Errorf("Expected nil backing array after draining, got len=%d cap=%d", len(q.data), cap(q.data))
 	}
 }
 
 func TestTruncate(t *testing.T) {
-	var q Queue[int]
-	for i := 0; i < 5; i++ {
+	q := &Queue[int]{}
+	for i := range 10 {
 		q.Push(i)
 	}
 	q.Truncate()
+
+	if !q.IsEmpty() || q.Length() != 0 {
+		t.Errorf("Expected empty queue after Truncate.")
+	}
+	if _, err := q.Peek(); !errors.Is(err, ErrEmptyQueue) {
+		t.Errorf("Expected ErrEmptyQueue from Peek after Truncate, got %v", err)
+	}
+
+	// The queue is reusable after a truncate.
+	q.Push(1)
+	q.Push(2)
+	if got, want := q.Length(), 2; got != want {
+		t.Errorf("Expected length %d after refill, got %d", want, got)
+	}
+	if v, err := q.Dequeue(); err != nil || v != 1 {
+		t.Errorf("Dequeue after refill = (%v, %v), expected 1", v, err)
+	}
+
+	// Truncating an already-empty queue is fine.
+	q.Truncate()
+	q.Truncate()
 	if !q.IsEmpty() {
-		t.Errorf("Expected empty queue after Truncate")
-	}
-	if q.Length() != 0 {
-		t.Errorf("Expected length of 0 got %d", q.Length())
-	}
-	if q.data != nil {
-		t.Errorf("Expected backing array to be released after Truncate")
-	}
-	q.Push(42)
-	v, err := q.Dequeue()
-	if err != nil || *v != 42 {
-		t.Errorf("Expected 42 after Truncate then Push, got %v, %v", v, err)
+		t.Errorf("Expected empty queue after double Truncate.")
 	}
 }
 
 func TestIterators(t *testing.T) {
-	var q Queue[int]
-	for i := 0; i < 5; i++ {
-		q.Push(i)
+	q := &Queue[string]{}
+	for _, s := range []string{"a", "b", "c"} {
+		q.Push(s)
 	}
 
-	// All: head to tail.
-	n := 0
+	var fwd []string
 	for i, v := range q.All() {
-		if i != v {
-			t.Errorf("All: expected index %d to match value %d", i, v)
+		if i != len(fwd) {
+			t.Fatalf("All: unexpected index %d at step %d", i, len(fwd))
 		}
-		n++
+		fwd = append(fwd, v)
 	}
-	if n != 5 {
-		t.Errorf("All: expected 5 elements got %d", n)
+	if expect := []string{"a", "b", "c"}; !reflect.DeepEqual(fwd, expect) {
+		t.Errorf("All got %v, expected %v", fwd, expect)
 	}
 
-	// All with early break.
-	n = 0
+	var bwd []string
+	for i, v := range q.Backward() {
+		if i != 3-1-len(bwd) {
+			t.Fatalf("Backward: unexpected index %d at step %d", i, len(bwd))
+		}
+		bwd = append(bwd, v)
+	}
+	if expect := []string{"c", "b", "a"}; !reflect.DeepEqual(bwd, expect) {
+		t.Errorf("Backward got %v, expected %v", bwd, expect)
+	}
+
+	// Early break stops iteration.
+	n := 0
 	for range q.All() {
 		n++
-		if n == 2 {
-			break
-		}
+		break
 	}
-	if n != 2 {
-		t.Errorf("All: expected early break after 2 elements, got %d", n)
+	if n != 1 {
+		t.Errorf("Expected early break to yield exactly 1 item, got %d", n)
 	}
 
-	// Backward: tail to head.
-	expect := 4
+	// Early break stops backward iteration too.
 	n = 0
-	for i, v := range q.Backward() {
-		if v != expect || i != expect {
-			t.Errorf("Backward: expected index/value %d got %d/%d", expect, i, v)
-		}
-		expect--
+	for range q.Backward() {
 		n++
+		break
 	}
-	if n != 5 {
-		t.Errorf("Backward: expected 5 elements got %d", n)
+	if n != 1 {
+		t.Errorf("Expected Backward early break to yield exactly 1 item, got %d", n)
 	}
 
 	// Iterating an empty queue yields nothing.
-	var empty Queue[int]
+	empty := &Queue[int]{}
 	for range empty.All() {
-		t.Errorf("All: expected no elements on empty queue")
+		t.Errorf("Expected no items from All on empty queue")
 	}
 	for range empty.Backward() {
-		t.Errorf("Backward: expected no elements on empty queue")
+		t.Errorf("Expected no items from Backward on empty queue")
 	}
 }
+
+// -------------------------------------------------------------------------------------------------------
+// Zero value and nil queue
+// -------------------------------------------------------------------------------------------------------
+
+// TestZeroValue exercises every operation on a freshly declared zero-value
+// queue — including Push, which needs no constructor here.
+func TestZeroValue(t *testing.T) {
+	var q Queue[int]
+
+	if !q.IsEmpty() {
+		t.Errorf("Expected zero value queue to be empty.")
+	}
+	if q.Len() != 0 || q.Length() != 0 {
+		t.Errorf("Expected zero value queue to have length 0.")
+	}
+	if err := q.Pop(); !errors.Is(err, ErrEmptyQueue) {
+		t.Errorf("Expected ErrEmptyQueue from Pop on zero value queue, got %v", err)
+	}
+	if _, err := q.Dequeue(); !errors.Is(err, ErrEmptyQueue) {
+		t.Errorf("Expected ErrEmptyQueue from Dequeue on zero value queue, got %v", err)
+	}
+	if _, err := q.Peek(); !errors.Is(err, ErrEmptyQueue) {
+		t.Errorf("Expected ErrEmptyQueue from Peek on zero value queue, got %v", err)
+	}
+
+	// The zero value is fully usable without a constructor: there is no
+	// comparison or equality function to supply.
+	q.Push(1)
+	q.Push(2)
+	if q.Length() != 2 {
+		t.Errorf("Expected length 2 after pushes, got %d", q.Length())
+	}
+	if v, err := q.Dequeue(); err != nil || v != 1 {
+		t.Errorf("Dequeue = (%v, %v), expected 1", v, err)
+	}
+}
+
+// TestNilQueueTolerated verifies that every operation except Push/Enqueue
+// treats a nil queue as an empty queue, and that Push/Enqueue panic with
+// a message naming the method — the package's only panic.
+func TestNilQueueTolerated(t *testing.T) {
+	var q *Queue[int]
+
+	if !q.IsEmpty() {
+		t.Errorf("Expected nil queue to be empty.")
+	}
+	if q.Len() != 0 || q.Length() != 0 {
+		t.Errorf("Expected nil queue to have length 0.")
+	}
+	if err := q.Pop(); !errors.Is(err, ErrEmptyQueue) {
+		t.Errorf("Expected ErrEmptyQueue from Pop on nil queue, got %v", err)
+	}
+	if _, err := q.Dequeue(); !errors.Is(err, ErrEmptyQueue) {
+		t.Errorf("Expected ErrEmptyQueue from Dequeue on nil queue, got %v", err)
+	}
+	if _, err := q.Peek(); !errors.Is(err, ErrEmptyQueue) {
+		t.Errorf("Expected ErrEmptyQueue from Peek on nil queue, got %v", err)
+	}
+	q.Truncate() // no-op, must not panic
+	for range q.All() {
+		t.Errorf("Expected no values from All on nil queue.")
+	}
+	for range q.Backward() {
+		t.Errorf("Expected no values from Backward on nil queue.")
+	}
+
+	for name, fx := range map[string]func(){
+		"Push":    func() { q.Push(1) },
+		"Enqueue": func() { q.Enqueue(1) },
+	} {
+		func() {
+			defer func() {
+				r := recover()
+				if r == nil {
+					t.Errorf("Expected %s on nil queue to panic.", name)
+					return
+				}
+				if msg, ok := r.(string); !ok || !strings.Contains(msg, name) {
+					t.Errorf("%s: unexpected panic message: %v", name, r)
+				}
+			}()
+			fx()
+		}()
+	}
+}
+
+// -------------------------------------------------------------------------------------------------------
+// Benchmarks
+// -------------------------------------------------------------------------------------------------------
+
+const benchmarkQueueSize = 4096
 
 func BenchmarkPush(b *testing.B) {
 	var q Queue[int]
@@ -229,14 +297,14 @@ func BenchmarkPush(b *testing.B) {
 
 func BenchmarkPop(b *testing.B) {
 	var q Queue[int]
-	for i := 0; i < b.N; i++ {
-		q.Push(i)
-	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if err := q.Pop(); err != nil {
-			b.Fatalf("Unexpected error on Pop: %s", err)
+		if q.IsEmpty() {
+			for j := range benchmarkQueueSize {
+				q.Push(j)
+			}
 		}
+		_ = q.Pop()
 	}
 }
 
@@ -246,32 +314,18 @@ func BenchmarkEnqueueDequeue(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		q.Enqueue(i)
 		if _, err := q.Dequeue(); err != nil {
-			b.Fatalf("Unexpected error on Dequeue: %s", err)
+			b.Fatalf("Dequeue: %v", err)
 		}
 	}
 }
 
 func BenchmarkPeek(b *testing.B) {
 	var q Queue[int]
-	q.Push(1)
+	for i := range benchmarkQueueSize {
+		q.Push(i)
+	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := q.Peek(); err != nil {
-			b.Fatalf("Unexpected error on Peek: %s", err)
-		}
+		_, _ = q.Peek()
 	}
-}
-
-func ExampleQueue() {
-	var q Queue[int]
-	q.Enqueue(1)
-	q.Enqueue(2)
-	q.Enqueue(3)
-	for _, v := range q.All() {
-		fmt.Println(v)
-	}
-	// Output:
-	// 1
-	// 2
-	// 3
 }

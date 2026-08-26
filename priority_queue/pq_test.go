@@ -1,313 +1,792 @@
 package priority_queue
 
+/*
+Copyright (C) Philip Schlump, 2012-2026.
+
+BSD 3 Clause Licensed.
+*/
+
 import (
 	"fmt"
+	"math/rand/v2"
+	"reflect"
+	"strings"
 	"testing"
-
-	"github.com/pschlump/pluto/comparable"
 )
 
-// PqTest is a "priority queue of int" test type.
+// PqTest is the test element type.  Note what is missing compared to the
+// pluto version of this test file: no Compare method, no interface
+// assertion, no type assertions inside a comparison.  Ordering is
+// supplied to the queue as a plain function (cmpPqTest below).
 type PqTest struct {
-	value    string // The value of the item; arbitrary.
-	priority int    // The priority of the item in the queue.
+	value    string
+	priority int
 }
 
-// At compile time verify that this is a correct type/interface setup.
-var _ comparable.Comparable = (*PqTest)(nil)
-
-// Compare implements the Compare function to satisfy the interface requirements.
-func (aa PqTest) Compare(x comparable.Comparable) int {
-	if bb, ok := x.(PqTest); ok {
-		return aa.priority - bb.priority
-	} else if bb, ok := x.(*PqTest); ok {
-		return aa.priority - bb.priority
-	} else {
-		panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
-	}
+// cmpPqTest orders PqTest by its priority field.
+func cmpPqTest(a, b PqTest) int {
+	return a.priority - b.priority
 }
 
+// newTestPQ builds a priority queue of PqTest ordered by priority,
+// pre-loaded with the given items.
 func newTestPQ(items ...PqTest) *PriorityQueue[PqTest] {
-	pq := NewPriorityQueue[PqTest]()
-	for i := range items {
-		pq.Insert(&items[i])
+	pq := NewPriorityQueueFunc(cmpPqTest)
+	for _, it := range items {
+		pq.Insert(it)
 	}
 	return pq
 }
 
+// pqPriorities collects the queue's priorities (via All, which is in
+// priority order) as a slice.
+func pqPriorities(pq *PriorityQueue[PqTest]) []int {
+	var got []int
+	for v := range pq.All() {
+		got = append(got, v.priority)
+	}
+	return got
+}
+
+// checkPQ verifies length, contents-as-multiset, and that the multiset
+// matches the model.
+func checkPQ(t *testing.T, pq *PriorityQueue[PqTest], want map[int]int, context string) {
+	t.Helper()
+	total := 0
+	for _, c := range want {
+		total += c
+	}
+	if pq.Len() != total {
+		t.Fatalf("%s: Len()=%d, want %d", context, pq.Len(), total)
+	}
+	got := map[int]int{}
+	for _, p := range pqPriorities(pq) {
+		got[p]++
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("%s: contents mismatch: got %v, want %v", context, got, want)
+	}
+}
+
 func TestNewEmptyQueue(t *testing.T) {
-	pq := NewPriorityQueue[PqTest]()
-	if pq == nil {
-		t.Fatal("NewPriorityQueue returned nil")
-	}
+	pq := NewPriorityQueueFunc(cmpPqTest)
+
 	if !pq.IsEmpty() {
-		t.Error("new queue should be empty")
+		t.Errorf("Expected empty queue.")
 	}
-	if pq.Len() != 0 {
-		t.Errorf("Len() = %d, want 0", pq.Len())
+	if pq.Len() != 0 || pq.Length() != 0 {
+		t.Errorf("Expected length 0, got %d/%d", pq.Len(), pq.Length())
 	}
-	if v := pq.Peek(); v != nil {
-		t.Errorf("Peek() on empty queue = %v, want nil", v)
+	if _, found := pq.Peek(); found {
+		t.Errorf("Expected Peek on empty queue to report false.")
 	}
-	if v := pq.Pop(); v != nil {
-		t.Errorf("Pop() on empty queue = %v, want nil", v)
+	if _, found := pq.Pop(); found {
+		t.Errorf("Expected Pop on empty queue to report false.")
 	}
+	if _, _, found := pq.Search(PqTest{priority: 1}); found {
+		t.Errorf("Expected Search on empty queue to report false.")
+	}
+	if _, found := pq.Delete(0); found {
+		t.Errorf("Expected Delete on empty queue to report false.")
+	}
+	if pq.UpdatePriority(0, PqTest{priority: 1}) {
+		t.Errorf("Expected UpdatePriority on empty queue to report false.")
+	}
+	n := 0
 	for range pq.All() {
-		t.Error("All() on empty queue should yield nothing")
+		n++
+	}
+	if n != 0 {
+		t.Errorf("Expected no items from All on empty queue, got %d", n)
 	}
 }
 
 func TestInsertPeekPop(t *testing.T) {
-	pq := newTestPQ(
-		PqTest{value: "banana", priority: 3},
-		PqTest{value: "apple", priority: 2},
-		PqTest{value: "pear", priority: 4},
-	)
+	pq := newTestPQ()
 
-	if pq.Len() != 3 {
-		t.Fatalf("Len() = %d, want 3", pq.Len())
+	// With equal input the minimum is stable across peeks.
+	pq.Insert(PqTest{value: "a", priority: 5})
+	if v, found := pq.Peek(); !found || v.priority != 5 {
+		t.Errorf("Peek = (%v, %v), want priority 5", v, found)
 	}
-	if pq.IsEmpty() {
-		t.Error("queue with 3 items should not be empty")
+	if pq.Len() != 1 {
+		t.Errorf("Peek must not remove; length %d", pq.Len())
 	}
 
-	if top := pq.Peek(); top == nil || top.value != "apple" {
-		t.Fatalf("Peek() = %v, want apple (priority 2)", top)
-	}
-	// Peek must not remove the element.
-	if pq.Len() != 3 {
-		t.Fatalf("Len() after Peek() = %d, want 3", pq.Len())
-	}
+	pq.Insert(PqTest{value: "b", priority: 2})
+	pq.Insert(PqTest{value: "c", priority: 8})
+	pq.Insert(PqTest{value: "d", priority: 1})
 
-	// Pop must return elements in ascending priority order (min-heap).
-	want := []string{"apple", "banana", "pear"}
-	for i, w := range want {
-		got := pq.Pop()
-		if got == nil {
-			t.Fatalf("Pop() #%d returned nil, want %q", i, w)
+	// Pop always returns the minimum.
+	for _, want := range []int{1, 2, 5, 8} {
+		v, found := pq.Pop()
+		if !found {
+			t.Fatalf("Pop: unexpectedly empty (want priority %d).", want)
 		}
-		if got.value != w {
-			t.Errorf("Pop() #%d = %q, want %q", i, got.value, w)
+		if v.priority != want {
+			t.Errorf("Pop priority = %d, want %d", v.priority, want)
 		}
+	}
+	if _, found := pq.Pop(); found {
+		t.Errorf("Expected Pop on drained queue to report false.")
 	}
 	if !pq.IsEmpty() {
-		t.Error("queue should be empty after popping all elements")
-	}
-	if v := pq.Pop(); v != nil {
-		t.Errorf("Pop() on drained queue = %v, want nil", v)
+		t.Errorf("Expected empty queue after draining.")
 	}
 }
 
 func TestSearch(t *testing.T) {
 	pq := newTestPQ(
-		PqTest{value: "banana", priority: 3},
-		PqTest{value: "apple", priority: 2},
-		PqTest{value: "pear", priority: 4},
+		PqTest{value: "a", priority: 5},
+		PqTest{value: "b", priority: 2},
+		PqTest{value: "c", priority: 8},
 	)
 
-	find := PqTest{priority: 3}
-	rv, pos, err := pq.Search(&find)
-	if err != nil {
-		t.Fatalf("Search() error = %v, want nil", err)
-	}
-	if rv == nil || rv.value != "banana" {
-		t.Errorf("Search() = %v, want banana", rv)
-	}
-	if pos < 0 || pos >= pq.Len() {
-		t.Errorf("Search() pos = %d, want in range [0..%d)", pos, pq.Len())
+	// A probe needs only the fields the comparison reads.
+	if v, pos, found := pq.Search(PqTest{priority: 8}); !found || pos < 0 || pos >= pq.Len() {
+		t.Errorf("Search(8) = (%v, %d, %v)", v, pos, found)
+	} else if v.value != "c" {
+		t.Errorf("Search(8) returned %q, want c", v.value)
 	}
 
-	missing := PqTest{priority: 99}
-	rv, _, err = pq.Search(&missing)
-	if err == nil {
-		t.Error("Search() for missing element should return an error")
-	}
-	if rv != nil {
-		t.Errorf("Search() for missing element = %v, want nil", rv)
+	if v, pos, found := pq.Search(PqTest{priority: 42}); found || pos != -1 {
+		t.Errorf("Search(42) = (%v, %d, %v), want (zero, -1, false)", v, pos, found)
 	}
 }
 
 func TestUpdatePriority(t *testing.T) {
 	pq := newTestPQ(
-		PqTest{value: "banana", priority: 3},
-		PqTest{value: "apple", priority: 2},
-		PqTest{value: "pear", priority: 4},
+		PqTest{value: "a", priority: 10},
+		PqTest{value: "b", priority: 20},
+		PqTest{value: "c", priority: 30},
 	)
 
-	// Demote "apple" to the lowest priority; "banana" becomes the new min.
-	_, pos, err := pq.Search(&PqTest{priority: 2})
-	if err != nil {
-		t.Fatalf("Search() error = %v", err)
+	// Lower "c" to the minimum.
+	_, pos, found := pq.Search(PqTest{priority: 30})
+	if !found {
+		t.Fatalf("Expected to find priority 30.")
 	}
-	if ok := pq.UpdatePriority(pos, &PqTest{value: "apple", priority: 9}); !ok {
-		t.Fatal("UpdatePriority() = false, want true for valid position")
+	if !pq.UpdatePriority(pos, PqTest{value: "c", priority: 1}) {
+		t.Fatalf("UpdatePriority(%d) reported false on a valid position.", pos)
 	}
-	if top := pq.Peek(); top == nil || top.value != "banana" {
-		t.Errorf("Peek() after UpdatePriority = %v, want banana", top)
+	if v, found := pq.Peek(); !found || v.priority != 1 {
+		t.Errorf("After lowering: Peek = (%v, %v), want priority 1", v, found)
 	}
 
-	if ok := pq.UpdatePriority(-1, &PqTest{priority: 1}); ok {
-		t.Error("UpdatePriority(-1) = true, want false")
+	// Raise the minimum to the maximum.
+	if !pq.UpdatePriority(0, PqTest{value: "c", priority: 99}) {
+		t.Fatalf("UpdatePriority(0) reported false.")
 	}
-	if ok := pq.UpdatePriority(pq.Len(), &PqTest{priority: 1}); ok {
-		t.Error("UpdatePriority(Len()) = true, want false")
+	if v, found := pq.Peek(); !found || v.priority != 10 {
+		t.Errorf("After raising: Peek = (%v, %v), want priority 10", v, found)
+	}
+
+	// Out of range reports false and changes nothing.
+	for _, bad := range []int{-1, pq.Len()} {
+		if pq.UpdatePriority(bad, PqTest{priority: 1}) {
+			t.Errorf("UpdatePriority(%d) reported true, want false", bad)
+		}
+	}
+	if pq.Len() != 3 {
+		t.Errorf("Invalid UpdatePriority changed length to %d", pq.Len())
 	}
 }
 
 func TestDelete(t *testing.T) {
 	pq := newTestPQ(
-		PqTest{value: "banana", priority: 3},
-		PqTest{value: "apple", priority: 2},
-		PqTest{value: "pear", priority: 4},
-		PqTest{value: "plum", priority: 1},
+		PqTest{value: "a", priority: 1},
+		PqTest{value: "b", priority: 2},
+		PqTest{value: "c", priority: 3},
 	)
 
-	_, pos, err := pq.Search(&PqTest{priority: 3})
-	if err != nil {
-		t.Fatalf("Search() error = %v", err)
+	// Delete the middle element by position.
+	_, pos, _ := pq.Search(PqTest{priority: 2})
+	if v, found := pq.Delete(pos); !found || v.priority != 2 {
+		t.Errorf("Delete(%d) = (%v, %v), want priority 2", pos, v, found)
 	}
-	if err := pq.Delete(pos); err != nil {
-		t.Fatalf("Delete() error = %v, want nil", err)
+	if pq.Len() != 2 {
+		t.Errorf("Expected length 2 after delete, got %d", pq.Len())
 	}
-	if pq.Len() != 3 {
-		t.Fatalf("Len() after Delete() = %d, want 3", pq.Len())
+	if v, found := pq.Peek(); !found || v.priority != 1 {
+		t.Errorf("Peek after delete = (%v, %v), want priority 1", v, found)
 	}
 
-	// The deleted element must be gone and the rest must pop in order.
-	want := []string{"plum", "apple", "pear"}
-	for i, w := range want {
-		got := pq.Pop()
-		if got == nil || got.value != w {
-			t.Fatalf("Pop() #%d = %v, want %q", i, got, w)
+	// Out of range reports false.
+	for _, bad := range []int{-1, pq.Len(), 100} {
+		if _, found := pq.Delete(bad); found {
+			t.Errorf("Delete(%d) reported true, want false", bad)
 		}
 	}
+	if pq.Len() != 2 {
+		t.Errorf("Invalid Delete changed length to %d", pq.Len())
+	}
 
-	// Out-of-range positions must return an error, not panic.
-	if err := pq.Delete(0); err == nil {
-		t.Error("Delete(0) on empty queue should return an out-of-range error")
-	}
-	pq.Insert(&PqTest{value: "fig", priority: 5})
-	if err := pq.Delete(-1); err == nil {
-		t.Error("Delete(-1) should return an error")
-	}
-	if err := pq.Delete(1); err == nil {
-		t.Error("Delete(Len()) should return an error")
-	}
-	if err := pq.Delete(0); err != nil {
-		t.Errorf("Delete(0) error = %v, want nil", err)
-	}
-	if !pq.IsEmpty() {
-		t.Error("queue should be empty after deleting last element")
+	// The drain is still in order.
+	for _, want := range []int{1, 3} {
+		if v, found := pq.Pop(); !found || v.priority != want {
+			t.Errorf("Pop = (%v, %v), want priority %d", v, found, want)
+		}
 	}
 }
 
 func TestTruncate(t *testing.T) {
 	pq := newTestPQ(
-		PqTest{value: "banana", priority: 3},
-		PqTest{value: "apple", priority: 2},
+		PqTest{value: "a", priority: 1},
+		PqTest{value: "b", priority: 2},
 	)
 	pq.Truncate()
+
 	if !pq.IsEmpty() || pq.Len() != 0 {
-		t.Errorf("after Truncate: Len() = %d, want 0", pq.Len())
+		t.Errorf("Expected empty queue after Truncate.")
 	}
-	if v := pq.Peek(); v != nil {
-		t.Errorf("Peek() after Truncate = %v, want nil", v)
+	if _, found := pq.Peek(); found {
+		t.Errorf("Expected Peek after Truncate to report false.")
 	}
-	// Queue must still be usable after Truncate.
-	pq.Insert(&PqTest{value: "fig", priority: 5})
-	if pq.Len() != 1 {
-		t.Errorf("Len() after Insert post-Truncate = %d, want 1", pq.Len())
+
+	// Reusable after the drain.
+	pq.Insert(PqTest{value: "z", priority: 9})
+	if v, found := pq.Peek(); !found || v.priority != 9 {
+		t.Errorf("Peek after Truncate+Insert = (%v, %v), want 9", v, found)
+	}
+
+	// Truncating an already-empty queue is fine.
+	pq.Truncate()
+	pq.Truncate()
+	if !pq.IsEmpty() {
+		t.Errorf("Expected empty queue after double Truncate.")
 	}
 }
 
 func TestAllIterator(t *testing.T) {
 	pq := newTestPQ(
-		PqTest{value: "banana", priority: 3},
-		PqTest{value: "apple", priority: 2},
-		PqTest{value: "pear", priority: 4},
-		PqTest{value: "plum", priority: 1},
+		PqTest{value: "a", priority: 5},
+		PqTest{value: "b", priority: 2},
+		PqTest{value: "c", priority: 8},
+		PqTest{value: "d", priority: 1},
 	)
 
-	var got []string
-	for item := range pq.All() {
-		got = append(got, item.value)
+	// All yields in priority order, minimum first.
+	var got []int
+	for v := range pq.All() {
+		got = append(got, v.priority)
 	}
-	want := []string{"plum", "apple", "banana", "pear"}
-	if fmt.Sprint(got) != fmt.Sprint(want) {
-		t.Errorf("All() yielded %v, want %v", got, want)
+	if expect := []int{1, 2, 5, 8}; !reflect.DeepEqual(got, expect) {
+		t.Errorf("All got %v, want %v", got, expect)
 	}
 
-	// Iteration must be non-destructive.
+	// The iteration is non-destructive.
 	if pq.Len() != 4 {
-		t.Errorf("Len() after All() = %d, want 4", pq.Len())
+		t.Errorf("All must not drain; length %d", pq.Len())
 	}
 
-	// Early break must stop iteration.
-	count := 0
+	// Early break stops iteration.
+	n := 0
 	for range pq.All() {
-		count++
+		n++
 		break
 	}
-	if count != 1 {
-		t.Errorf("early break: iterated %d elements, want 1", count)
+	if n != 1 {
+		t.Errorf("Expected early break to yield exactly 1 item, got %d", n)
 	}
 }
 
-// ExamplePriorityQueue is adapted from the classic container/heap priority
-// queue example: items are inserted, one priority is updated, and the items
-// come out in ascending priority order.
-func ExamplePriorityQueue() {
-	pq := NewPriorityQueue[PqTest]()
-	pq.Insert(&PqTest{value: "banana", priority: 3})
-	pq.Insert(&PqTest{value: "apple", priority: 2})
-	pq.Insert(&PqTest{value: "pear", priority: 4})
+// TestAllIteratorSnapshot verifies All operates on a snapshot taken when
+// it is called: later modifications — even truncating the whole queue —
+// are not observed, and mutating from inside the loop is safe.
+func TestAllIteratorSnapshot(t *testing.T) {
+	pq := newTestPQ(
+		PqTest{value: "a", priority: 5},
+		PqTest{value: "b", priority: 2},
+		PqTest{value: "c", priority: 8},
+	)
 
-	// Insert a new item and then lower its priority below all the others.
-	item := &PqTest{value: "orange", priority: 1}
-	pq.Insert(item)
-	_, pos, err := pq.Search(&PqTest{priority: 1})
-	if err != nil {
-		panic(err)
+	all := pq.All()
+
+	pq.Truncate() // the iterator above must not observe this
+
+	var got []int
+	for v := range all {
+		got = append(got, v.priority)
 	}
-	pq.UpdatePriority(pos, &PqTest{value: "orange", priority: 5})
+	if expect := []int{2, 5, 8}; !reflect.DeepEqual(got, expect) {
+		t.Errorf("All after Truncate got %v, want %v", got, expect)
+	}
 
-	// Take the items out; they arrive in increasing priority order.
+	// Mutating from inside the loop is safe.
+	pq = newTestPQ(
+		PqTest{value: "a", priority: 3},
+		PqTest{value: "b", priority: 1},
+	)
+	visited := 0
+	for v := range pq.All() {
+		visited++
+		pq.Pop()
+		_ = v
+	}
+	if visited != 2 {
+		t.Errorf("Expected 2 visits while popping during iteration, got %d", visited)
+	}
+	if !pq.IsEmpty() {
+		t.Errorf("Expected empty queue after popping during iteration.")
+	}
+}
+
+func TestAllEmptyAndSingle(t *testing.T) {
+	empty := NewPriorityQueueFunc(cmpPqTest)
+	n := 0
+	for range empty.All() {
+		n++
+	}
+	if n != 0 {
+		t.Errorf("Expected no items from All on empty queue, got %d", n)
+	}
+
+	single := newTestPQ(PqTest{value: "only", priority: 7})
+	var got []int
+	for v := range single.All() {
+		got = append(got, v.priority)
+	}
+	if expect := []int{7}; !reflect.DeepEqual(got, expect) {
+		t.Errorf("All on single-element queue got %v, want %v", got, expect)
+	}
+	if single.Len() != 1 {
+		t.Errorf("All must not drain; length %d", single.Len())
+	}
+}
+
+// -------------------------------------------------------------------------------------------------------
+// Constructors, zero value, nil queue
+// -------------------------------------------------------------------------------------------------------
+
+// TestNewPriorityQueueOrdered verifies the constructor for naturally
+// ordered element types.
+func TestNewPriorityQueueOrdered(t *testing.T) {
+	pq := NewPriorityQueue[int]()
+	for _, v := range []int{42, 7, 13} {
+		pq.Insert(v)
+	}
+	if v, found := pq.Peek(); !found || v != 7 {
+		t.Errorf("Peek = (%v, %v), want 7", v, found)
+	}
+	var got []int
+	for v := range pq.All() {
+		got = append(got, v)
+	}
+	if expect := []int{7, 13, 42}; !reflect.DeepEqual(got, expect) {
+		t.Errorf("All got %v, want %v", got, expect)
+	}
+}
+
+// TestNewPriorityQueueFunc verifies the func constructor, including a
+// reversed (max-first) ordering.
+func TestNewPriorityQueueFunc(t *testing.T) {
+	// Highest priority first: reversed comparison.
+	pq := NewPriorityQueueFunc(func(a, b int) int { return b - a })
+	for _, v := range []int{1, 5, 3} {
+		pq.Insert(v)
+	}
+	var got []int
+	for v := range pq.All() {
+		got = append(got, v)
+	}
+	if expect := []int{5, 3, 1}; !reflect.DeepEqual(got, expect) {
+		t.Errorf("Max-first All got %v, want %v", got, expect)
+	}
+}
+
+// TestNewPriorityQueueFuncNil verifies that a nil comparison function is
+// rejected at construction time, not on first use.
+func TestNewPriorityQueueFuncNil(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Expected NewPriorityQueueFunc(nil) to panic.")
+		}
+	}()
+	NewPriorityQueueFunc[PqTest](nil)
+}
+
+// TestZeroValueQueue verifies that the zero value of PriorityQueue
+// behaves as an empty queue for every read and that Insert fails loudly.
+func TestZeroValueQueue(t *testing.T) {
+	var pq PriorityQueue[PqTest]
+
+	if !pq.IsEmpty() {
+		t.Errorf("Expected zero value queue to be empty.")
+	}
+	if pq.Len() != 0 || pq.Length() != 0 {
+		t.Errorf("Expected zero value queue to have length 0.")
+	}
+	if _, found := pq.Peek(); found {
+		t.Errorf("Expected Peek on zero value queue to report false.")
+	}
+	if _, found := pq.Pop(); found {
+		t.Errorf("Expected Pop on zero value queue to report false.")
+	}
+	if _, _, found := pq.Search(PqTest{priority: 1}); found {
+		t.Errorf("Expected Search on zero value queue to report false.")
+	}
+	if _, found := pq.Delete(0); found {
+		t.Errorf("Expected Delete on zero value queue to report false.")
+	}
+	if pq.UpdatePriority(0, PqTest{priority: 1}) {
+		t.Errorf("Expected UpdatePriority on zero value queue to report false.")
+	}
+	pq.Truncate() // no-op, must not panic
+	n := 0
+	for range pq.All() {
+		n++
+	}
+	if n != 0 {
+		t.Errorf("Expected no items from All on zero value queue.")
+	}
+
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Fatalf("Expected Insert on zero value queue to panic.")
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "NewPriorityQueue") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		pq.Insert(PqTest{priority: 1})
+	}()
+}
+
+// TestNilQueueTolerated verifies that every operation except Insert
+// treats a nil queue as an empty queue, and that Insert panics with a
+// message naming the insert family.
+func TestNilQueueTolerated(t *testing.T) {
+	var pq *PriorityQueue[PqTest]
+
+	if !pq.IsEmpty() {
+		t.Errorf("Expected nil queue to be empty.")
+	}
+	if pq.Len() != 0 || pq.Length() != 0 {
+		t.Errorf("Expected nil queue to have length 0.")
+	}
+	if _, found := pq.Peek(); found {
+		t.Errorf("Expected Peek on nil queue to report false.")
+	}
+	if _, found := pq.Pop(); found {
+		t.Errorf("Expected Pop on nil queue to report false.")
+	}
+	if _, _, found := pq.Search(PqTest{priority: 1}); found {
+		t.Errorf("Expected Search on nil queue to report false.")
+	}
+	if _, found := pq.Delete(0); found {
+		t.Errorf("Expected Delete on nil queue to report false.")
+	}
+	if pq.UpdatePriority(0, PqTest{priority: 1}) {
+		t.Errorf("Expected UpdatePriority on nil queue to report false.")
+	}
+	pq.Lock()     // no-op
+	pq.Truncate() // no-op
+	pq.Unlock()   // no-op
+	n := 0
+	for range pq.All() {
+		n++
+	}
+	if n != 0 {
+		t.Errorf("Expected no items from All on nil queue.")
+	}
+
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected Insert on nil queue to panic.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "Insert") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		pq.Insert(PqTest{priority: 1})
+	}()
+}
+
+// TestLockUnlockNoop verifies the compatibility shims exist.
+func TestLockUnlockNoop(t *testing.T) {
+	pq := newTestPQ(PqTest{value: "a", priority: 1})
+	pq.Lock()
+	pq.Insert(PqTest{value: "b", priority: 2}) // the shims are no-ops, so Insert works inside the "critical section"
+	pq.Unlock()
+	if pq.Len() != 2 {
+		t.Errorf("Expected length 2, got %d", pq.Len())
+	}
+}
+
+func TestSingleElement(t *testing.T) {
+	pq := newTestPQ(PqTest{value: "only", priority: 7})
+
+	if pq.IsEmpty() || pq.Len() != 1 {
+		t.Errorf("Expected single-element queue, length %d", pq.Len())
+	}
+	if v, found := pq.Peek(); !found || v.value != "only" {
+		t.Errorf("Peek = (%v, %v)", v, found)
+	}
+	if _, pos, found := pq.Search(PqTest{priority: 7}); !found || pos != 0 {
+		t.Errorf("Search = (%d, %v)", pos, found)
+	}
+	if _, found := pq.Pop(); !found {
+		t.Errorf("Expected Pop on single-element queue to report true.")
+	}
+	if !pq.IsEmpty() {
+		t.Errorf("Expected empty queue after popping the only element.")
+	}
+}
+
+// TestDuplicatePriorities verifies duplicates coexist and pop in
+// non-decreasing priority order.
+func TestDuplicatePriorities(t *testing.T) {
+	pq := newTestPQ(
+		PqTest{value: "a", priority: 5},
+		PqTest{value: "b", priority: 5},
+		PqTest{value: "c", priority: 1},
+		PqTest{value: "d", priority: 5},
+	)
+
+	prev := -1
+	var got []int
 	for !pq.IsEmpty() {
-		item := pq.Pop()
-		fmt.Printf("%.2d:%s ", item.priority, item.value)
+		v, found := pq.Pop()
+		if !found {
+			t.Fatalf("Pop: unexpectedly empty.")
+		}
+		if v.priority < prev {
+			t.Fatalf("Pop out of order: %d after %d", v.priority, prev)
+		}
+		prev = v.priority
+		got = append(got, v.priority)
 	}
-	// Output:
-	// 02:apple 03:banana 04:pear 05:orange
+	if expect := []int{1, 5, 5, 5}; !reflect.DeepEqual(got, expect) {
+		t.Errorf("Drain got %v, want %v", got, expect)
+	}
 }
+
+// -------------------------------------------------------------------------------------------------------
+// Property test against a multiset reference model
+// -------------------------------------------------------------------------------------------------------
+
+// TestPQRandomOpsAgainstReference hammers Insert/Pop/Peek/Search/
+// UpdatePriority/Delete in random order (with duplicate priorities) and
+// cross-checks every operation against a multiset reference model.
+func TestPQRandomOpsAgainstReference(t *testing.T) {
+	rng := rand.New(rand.NewPCG(1234, 5678))
+
+	for trial := range 100 {
+		pq := NewPriorityQueueFunc(cmpPqTest)
+		want := make(map[int]int)
+
+		for op := range 200 {
+			ctx := fmt.Sprintf("trial %d op %d", trial, op)
+			n := pq.Len()
+			choice := rng.IntN(100)
+			switch {
+			case choice < 35 || n == 0:
+				// Insert
+				p := rng.IntN(50)
+				pq.Insert(PqTest{value: fmt.Sprintf("v%d", op), priority: p})
+				want[p]++
+			case choice < 55:
+				// Pop
+				got, found := pq.Pop()
+				mn, ok := refMin(want)
+				if !ok {
+					t.Fatalf("%s: Pop on non-empty queue reported false", ctx)
+				}
+				if !found || got.priority != mn {
+					t.Fatalf("%s: Pop got (%v, %v), want priority %d", ctx, got, found, mn)
+				}
+				refDel(want, mn)
+			case choice < 60:
+				// Peek
+				got, found := pq.Peek()
+				mn, _ := refMin(want)
+				if !found || got.priority != mn {
+					t.Fatalf("%s: Peek got (%v, %v), want %d", ctx, got, found, mn)
+				}
+				if pq.Len() != n {
+					t.Fatalf("%s: Peek changed length %d -> %d", ctx, n, pq.Len())
+				}
+			case choice < 70:
+				// Search for an existing or missing priority
+				probe := PqTest{priority: rng.IntN(55)}
+				rv, pos, found := pq.Search(probe)
+				if _, exists := want[probe.priority]; exists {
+					if !found || pos < 0 || pos >= pq.Len() {
+						t.Fatalf("%s: Search(%d) failed: rv=%v pos=%d found=%v", ctx, probe.priority, rv, pos, found)
+					}
+				} else {
+					if found || pos != -1 {
+						t.Fatalf("%s: Search(%d) should miss: rv=%v pos=%d found=%v", ctx, probe.priority, rv, pos, found)
+					}
+				}
+			case choice < 85:
+				// UpdatePriority at a random valid position
+				pos := rng.IntN(n)
+				old, _ := pq.h.GetValue(pos)
+				np := rng.IntN(50)
+				if !pq.UpdatePriority(pos, PqTest{value: "u", priority: np}) {
+					t.Fatalf("%s: UpdatePriority(%d) returned false on valid position", ctx, pos)
+				}
+				refDel(want, old.priority)
+				want[np]++
+			default:
+				// Delete at a random valid position
+				pos := rng.IntN(n)
+				old, _ := pq.h.GetValue(pos)
+				if _, found := pq.Delete(pos); !found {
+					t.Fatalf("%s: Delete(%d) returned false on valid position", ctx, pos)
+				}
+				refDel(want, old.priority)
+			}
+			checkPQ(t, pq, want, ctx)
+		}
+
+		// Drain in non-decreasing priority order.
+		prev := -1
+		for pq.Len() > 0 {
+			got, found := pq.Pop()
+			if !found {
+				t.Fatalf("trial %d drain: Pop reported false", trial)
+			}
+			if got.priority < prev {
+				t.Fatalf("trial %d drain: Pop out of order: %d after %d", trial, got.priority, prev)
+			}
+			prev = got.priority
+		}
+		if !pq.IsEmpty() {
+			t.Fatalf("trial %d: IsEmpty false after drain", trial)
+		}
+	}
+}
+
+func refMin(want map[int]int) (int, bool) {
+	keys := make([]int, 0, len(want))
+	for k := range want {
+		keys = append(keys, k)
+	}
+	if len(keys) == 0 {
+		return 0, false
+	}
+	for i := 1; i < len(keys); i++ { // tiny insertion sort; maps are unordered
+		for j := i; j > 0 && keys[j] < keys[j-1]; j-- {
+			keys[j], keys[j-1] = keys[j-1], keys[j]
+		}
+	}
+	return keys[0], true
+}
+
+func refDel(want map[int]int, v int) {
+	want[v]--
+	if want[v] <= 0 {
+		delete(want, v)
+	}
+}
+
+// TestPQOutOfRange verifies UpdatePriority/Delete reject invalid
+// positions without modifying the queue.
+func TestPQOutOfRange(t *testing.T) {
+	pq := newTestPQ(PqTest{value: "a", priority: 1}, PqTest{value: "b", priority: 2})
+	for _, pos := range []int{-1, 2, 100} {
+		if pq.UpdatePriority(pos, PqTest{priority: 9}) {
+			t.Errorf("UpdatePriority(%d) returned true, want false", pos)
+		}
+		if _, found := pq.Delete(pos); found {
+			t.Errorf("Delete(%d) reported true, want false", pos)
+		}
+		if pq.Len() != 2 {
+			t.Fatalf("invalid op changed length to %d", pq.Len())
+		}
+	}
+	if got, found := pq.Peek(); !found || got.priority != 1 {
+		t.Fatalf("Peek after invalid ops got (%v, %v), want priority 1", got, found)
+	}
+}
+
+// TestPQUpdatePriorityBothDirections verifies that raising and lowering a
+// priority both restore correct Pop order.
+func TestPQUpdatePriorityBothDirections(t *testing.T) {
+	pq := newTestPQ(
+		PqTest{value: "a", priority: 10},
+		PqTest{value: "b", priority: 20},
+		PqTest{value: "c", priority: 30},
+		PqTest{value: "d", priority: 40},
+	)
+
+	// Find "d" (priority 40) and make it the minimum.
+	_, pos, found := pq.Search(PqTest{priority: 40})
+	if !found {
+		t.Fatalf("Search(40) failed.")
+	}
+	if !pq.UpdatePriority(pos, PqTest{value: "d", priority: 5}) {
+		t.Fatalf("UpdatePriority(%d) failed", pos)
+	}
+	if got, found := pq.Peek(); !found || got.priority != 5 {
+		t.Fatalf("after lowering: Peek got (%v, %v), want priority 5", got, found)
+	}
+
+	// Find "a" (priority 10) and make it the maximum.
+	_, pos, found = pq.Search(PqTest{priority: 10})
+	if !found {
+		t.Fatalf("Search(10) failed.")
+	}
+	if !pq.UpdatePriority(pos, PqTest{value: "a", priority: 90}) {
+		t.Fatalf("UpdatePriority(%d) failed", pos)
+	}
+	if got, found := pq.Peek(); !found || got.priority != 5 {
+		t.Fatalf("after raising another: Peek got (%v, %v), want priority 5", got, found)
+	}
+
+	// The drain is fully ordered.
+	var got []int
+	for !pq.IsEmpty() {
+		v, _ := pq.Pop()
+		got = append(got, v.priority)
+	}
+	if expect := []int{5, 20, 30, 90}; !reflect.DeepEqual(got, expect) {
+		t.Errorf("Drain got %v, want %v", got, expect)
+	}
+}
+
+// -------------------------------------------------------------------------------------------------------
+// Benchmarks
+// -----------------------------------------------------------------------------------------------------------
+
+const benchmarkPQSize = 4096
 
 func BenchmarkInsert(b *testing.B) {
-	pq := NewPriorityQueue[PqTest]()
-	items := make([]PqTest, b.N)
-	for i := range items {
-		items[i] = PqTest{value: "x", priority: i * 2654435761 % 1000003}
-	}
+	pq := NewPriorityQueueFunc(cmpPqTest)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		pq.Insert(&items[i])
+		if pq.Len() >= benchmarkPQSize {
+			pq.Truncate()
+		}
+		pq.Insert(PqTest{value: "v", priority: i})
 	}
 }
 
 func BenchmarkPop(b *testing.B) {
-	pq := NewPriorityQueue[PqTest]()
-	for i := 0; i < b.N; i++ {
-		item := PqTest{value: "x", priority: i * 2654435761 % 1000003}
-		pq.Insert(&item)
-	}
+	pq := NewPriorityQueueFunc(cmpPqTest)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		if pq.IsEmpty() {
+			for j := range benchmarkPQSize {
+				pq.Insert(PqTest{value: "v", priority: j})
+			}
+		}
 		pq.Pop()
 	}
 }
 
 func BenchmarkPeek(b *testing.B) {
-	pq := NewPriorityQueue[PqTest]()
-	item := PqTest{value: "x", priority: 1}
-	pq.Insert(&item)
+	pq := NewPriorityQueueFunc(cmpPqTest)
+	for j := range benchmarkPQSize {
+		pq.Insert(PqTest{value: "v", priority: j})
+	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		pq.Peek()

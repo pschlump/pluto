@@ -1,108 +1,168 @@
-= dll — A generics based Go Doubly Linked List
-:toc:
+= dll
 
-A generic doubly linked list (DLL) with head-and-tail pointers.  Element data
-is stored as a `*T` where `T` satisfies `comparable.Equality` (an
-`IsEqual(b Equality) bool` method).  The zero value of `Dll[T]` is an empty
-list ready to use; `NewDll[T]()` is also provided.
+A generic doubly linked list with head and tail pointers — usable
+directly as a *stack* (`Push`/`Pop`/`Peek` at the head) and as a
+*queue* (`Enqueue` at the tail, `Pop` from the head), with positional
+access from either end and O(1) removal of previously found elements.
 
-The list can be used directly, as a stack (`Push`/`Pop`/`Peek`), or as a
-queue (`Enqueue`/`Pop`/`PeekTail`).
+It is a rework of
+link:https://github.com/pschlump/pluto/tree/main/dll[pluto/dll]
+that replaces the `comparable.Equality` interface constraint with pure Go
+type parameters, so element data is never boxed into an interface and
+never unboxed with a type assertion.
 
-The thread-safe version of this package is in `../dll_ts`.  It has the exact
-same exported API, with every operation guarded by a `sync.RWMutex`.
+* Elements are stored and returned *by value* (`T`, not `*T`).
+* Lists of types comparable with `==` (all scalars, strings, pointers,
+arrays, and structs of comparable fields) need no equality function:
+`dll.NewDll[int]()`.
+* Any other type — or equality by a single field — takes a plain equality
+function, with no interface to implement:
+`dll.NewDllFunc(func(a, b Item) bool { return a.ID == b.ID })`.
 
-== Complexity
+The equality function is consulted *only* by `Search`,
+`ReverseSearch`, and the `Delete` calls built on them.  The stack, queue
+and positional operations never compare elements.
 
-[cols="2,1,4",options="header"]
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and appear
+on pkg.go.dev.
+
+== Operations
+
+[options="header"]
 |===
-| Operation                                      | Cost | Notes
+| Operation                                | Description                                | Complexity
 
-| `InsertBeforeHead`, `Push`                     | O(1) | insert at head
-| `AppendAtTail`, `Enqueue`                      | O(1) | append at tail
-| `Pop`, `DeleteAtHead`                          | O(1) | remove from head
-| `PopTail`, `DeleteAtTail`                      | O(1) | remove from tail
-| `Peek`, `PeekTail`                             | O(1) | inspect head/tail
-| `IsEmpty`, `Length`                            | O(1) |
-| `Index`, `IndexFromTail`                       | O(n) | n/2 on average (walks from nearest end)
-| `Search`, `ReverseSearch`                      | O(n) | linear, uses `IsEqual`
-| `Delete`, `DeleteSearch`                       | O(n) | search + delete
-| `DeleteFound`                                  | O(1) | delete element from `Search`/`Index`
-| `Walk`, `ReverseWalk`                          | O(n) | callback iteration
-| `All`, `Backward`, `IterateOver`, `IteratePtr` | O(n) | Go 1.23+ range-over-func iterators
-| `Reverse`, `ReverseList`                       | O(n) | O(1) extra storage
-| `Trim`, `TrimTail`                             | O(n) | cut list to length n
-| `Concat`                                       | O(n) | append a copy of another list
-| `Truncate`                                     | O(1) | drop all elements
+| `Push` / `InsertBeforeHead`              | Insert at the head                         | O(1)
+| `Enqueue` / `AppendAtTail`               | Insert at the tail                         | O(1)
+| `Pop` / `DeleteAtHead`                   | Remove and return the head                 | O(1)
+| `PopTail` / `DeleteAtTail`               | Remove and return the tail                 | O(1)
+| `Peek` / `PeekTail`                      | Look at the head / tail without removing   | O(1)
+| `Search` / `ReverseSearch`               | Find an element, head→tail or tail→head    | O(n)
+| `Delete` / `DeleteSearch`                | Delete the first matching element          | O(n)
+| `DeleteFound`                            | Delete a previously found element          | O(1)
+| `Index` / `IndexFromTail`                | Nth element from the head / tail           | O(n), n/2
+| `Walk` / `ReverseWalk`                   | Callback traversal, stoppable              | O(n)
+| `All` / `Backward` / `IterateOver`       | Range-over-func iterators with index       | O(n)
+| `Front`/`Rear`/`Current` + `Next`/`Prev` | Legacy bidirectional iterator with `Pos()` | O(n) total
+| `Trim` / `TrimTail`                      | Keep first / last n elements               | O(n)
+| `Concat`                                 | Append a copy of another list              | O(len src)
+| `Reverse` / `ReverseList`                | Reverse in place, O(1) extra storage       | O(n)
+| `Truncate`                               | Remove all elements                        | O(1)
+| `IsEmpty` / `Len` / `Length`             | Size queries                               | O(1)
+| `Dump`                                   | One line per element, for debugging        | O(n)
 |===
 
-== Example
-
-[source,go]
-----
-package main
-
-import (
-	"fmt"
-
-	"github.com/pschlump/pluto/comparable"
-	"github.com/pschlump/pluto/dll"
-)
-
-type Item struct {
-	Name string
-}
-
-func (aa Item) IsEqual(x comparable.Equality) bool {
-	if bb, ok := x.(Item); ok {
-		return aa.Name == bb.Name
-	}
-	return false
-}
-
-func main() {
-	l := dll.NewDll[Item]()
-
-	l.Push(&Item{Name: "head"})        // insert at head
-	l.Enqueue(&Item{Name: "tail"})     // append at tail
-
-	// Go 1.23+ range-over-func iteration
-	for i, v := range l.All() {
-		fmt.Println(i, v.Name)
-	}
-
-	v, err := l.Pop()                  // remove from head
-	if err != nil {
-		// empty list
-	}
-	_ = v
-
-	l.Truncate()                       // drop all elements
-}
-----
-
-== Iteration
-
-Four styles are supported, all kept for compatibility:
-
-1. `Front()`/`Rear()` + `Done()`/`Next()`/`Prev()`/`Value()` — the legacy
-   `DllIter` type.
-2. `Walk`/`ReverseWalk` callbacks.
-3. `All()`/`Backward()` — Go 1.23+ range-over-func iterators returning
-   `iter.Seq2[int, T]`.
-4. `IterateOver()` (legacy name for `All`) and `IteratePtr()` — range-over-func
-   iterators yielding values or `*T` pointers.
-
-== Thread Safety
-
-This package is NOT safe for concurrent use.  The `Lock`/`Unlock` methods
-exist only so that code written against the thread-safe `dll_ts` package can
-be compiled against this package; they are no-ops.  Use
-`github.com/pschlump/pluto/dll_ts` when a list is shared between goroutines.
+`DllIter` (from `Front`, `Rear`, or `Current`) can be walked with `Next`
+or `Prev` and reports its position with `Pos()`; `Value` returns
+`(T, bool)`.
 
 == Errors
 
-* `ErrEmptyDll` — operation requires a non-empty list.
-* `ErrNotFound` — search/delete failed to find the element.
-* `ErrOutOfRange` — subscript out of range for `Index`/`IndexFromTail`.
-* `ErrInternalDll` — internal inconsistency (should never happen).
+Empty-list, not-found and out-of-range conditions are reported with
+errors (compare with `errors.Is`), not panics:
+
+[options="header"]
+|===
+| Error | Meaning 
+
+| `ErrEmptyDll` | pop/peek/trim on an empty list 
+| `ErrNotFound` | `Delete`/`DeleteSearch`/`DeleteFound(nil)` 
+| `ErrOutOfRange` | `Index`/`IndexFromTail` with a bad subscript 
+| `ErrInternalDll` | internal inconsistency (should never happen) 
+|===
+
+== Usage
+
+Stack:
+
+[source,go]
+----
+stack := dll.NewDll[string]()
+stack.Push("first")
+stack.Push("second")
+top, _ := stack.Peek()   // second
+v, _ := stack.Pop()      // second
+----
+
+Queue:
+
+[source,go]
+----
+queue := dll.NewDll[int]()
+queue.Enqueue(1)
+queue.Enqueue(2)
+head, _ := queue.Pop()   // 1 — first in, first out
+----
+
+Search and O(1) delete of a found element:
+
+[source,go]
+----
+el, pos := list.Search(probe)  // element + position, or nil/-1
+if el != nil {
+    list.DeleteFound(el)
+}
+----
+
+Iteration with the index, both directions:
+
+[source,go]
+----
+for i, v := range list.All() {
+    ...
+}
+for i, v := range list.Backward() {
+    ...
+}
+----
+
+The `Walk`/`ReverseWalk` callbacks capture caller state in a closure
+(statically typed, never boxed).  Note the dll convention: returning
+*true stops the walk* — the opposite of the charon tree packages — and
+the walk returns the element and position where it stopped.
+
+== Panics
+
+The package panics in exactly three situations — all programmer errors
+with no sane fallback:
+
+[options="header"]
+|===
+| Call | Why 
+
+| `NewDllFunc(nil)` | nil equality function, caught at construction time 
+| Insert-family on a nil `*Dll` | a nil list cannot store an element 
+| Insert-family on a zero-value list | no equality function; the message names the constructors 
+|===
+
+The insert family is `InsertBeforeHead`, `Push`, `AppendAtTail`,
+`Enqueue`, and `Concat` (which appends).  Everything else tolerates a nil
+list and the zero value as an empty list.
+
+== Differences from pluto/dll
+
+* The `comparable.Equality` interface constraint is gone: equality is
+either the type's `==` operator (`NewDll`, using the builtin
+`comparable` constraint — no interface, no boxing) or a caller supplied
+function (`NewDllFunc`).  No dynamic dispatch, no type assertions
+inside `IsEqual` methods.
+* The data is stored by value in each node (pluto stored a `*T` pointing
+at the inserted item).  `Pop`, `PopTail`, `Peek`, `PeekTail` and the
+iterators return `T` (with the existing error or bool signal) instead
+of a nil-able `*T`.
+* `Search`/`ReverseSearch` probes are passed by value; a probe only needs
+the fields the equality function reads.
+* The `Walk`/`ReverseWalk` callbacks capture state in closures instead of
+receiving an `interface{}` `userData` parameter.
+* `Len` is available as an alias for `Length`, matching the other charon
+packages.
+* `DllElement.Data` is an unexported `T`; use `GetData()`/`SetData()`.
+* `IteratePtr` (which yielded `*T`) is gone — with value storage there
+are no element pointers to yield; use `All`.
+* A nil `*Dll` behaves as an empty list for every operation except the
+insert family; pluto panics with an unguarded nil dereference on most
+methods.
+* The only panics are the three listed above, each with a message naming
+the fix.
+

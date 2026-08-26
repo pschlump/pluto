@@ -1,44 +1,89 @@
-= hash_tab_dll — A generic hash table with doubly linked list buckets
-:toc:
+= hash_tab_dll
 
-A generic hash table for Go (1.23+) with separate chaining. Each bucket is a
-doubly linked list (`github.com/pschlump/pluto/dll`), which allows O(1)
-removal of a previously located element (`DeleteFound`). It is otherwise the
-same structure as `github.com/pschlump/pluto/hash_tab` (which uses singly
-linked list buckets).
+`hash_tab_dll` is a generic hash table for Go with a fixed number of
+buckets in which *every bucket is a doubly linked list*
+(link:../dll[`dll`]).  Collisions chain in the bucket's list exactly like
+the singly chained link:../hash_tab[`hash_tab`] — what the dll buckets add
+is *O(1) deletion of a previously located element*: `Search` returns a
+live element handle and `DeleteFound` splices that element out through
+its prev/next pointers without re-walking the chain.  The bucket count is
+fixed at construction; when the number of elements is not known up front
+use link:../hash_grow[`hash_grow`], which grows and re-hashes
+automatically.
 
-Elements are stored as `*T`, where `T` implements
-`comparable.Equality` (an `IsEqual(x Equality) bool` method). Keys are hashed
-with FNV-32a over the element's `String()` method, or with the element's own
-`HashKey` method if it implements the `Hashable` interface.
+It is a rework of
+link:https://github.com/pschlump/pluto/tree/main/hash_tab_dll[pluto/hash_tab_dll]
+that replaces the `comparable.Equality` interface constraint (and the
+`Hashable`/`string`/`fmt.Stringer` hashing built on it) with pure Go type
+parameters, so element data is never boxed into an interface and never
+unboxed with a type assertion.  It is the fourth intra-charon composition
+after `priority_queue`, `heap_sort` and `hash_tab_bt`: a bucket that is a
+doubly linked list with O(1) splice-out is exactly what `dll` is, so the
+table stores one `*dll.Dll[T]` per bucket instead of reimplementing the
+lists (pluto composed its `dll` the same way; this is the counterpoint to
+`hash_tab`'s self-contained chains — here the bucket *does* use the dll's
+prev pointers, they are the feature).
 
-Duplicate inserts are allowed: the new item is placed at the head of its
-bucket, hiding the older one (the bucket acts like a stack). Each `Delete`
-removes exactly one copy.
+* Elements are stored *by value* (`T`, not `*T`) inside the dll nodes.
+  The handles `Search` returns are the one pointer-bearing find in the
+  charon hash-table family, inherited from `dll`'s own `Search` because
+  the handle is what makes `DeleteFound` O(1); `DllElement.GetData`
+  returns the element by value, and a handle stays valid across an
+  `Insert` replacement (the replacement is `SetData` on the same node).
+* Keys of types comparable with `==` (all scalars, strings, pointers,
+arrays, and structs of comparable fields) need no functions at all:
+`hash_tab_dll.NewHashTab[string](16)`.  Equality is the `==` operator and
+hashing is the stdlib `hash/maphash` with a per-table random seed.
+* Any other type — or identity by a single field — takes a plain equality
+function *and* a hash function, with no interface to implement:
++
+[source,go]
+----
+byID := hash_tab_dll.NewHashTabFunc(
+	func(a, b User) bool { return a.ID == b.ID },
+	func(u User) uint64 { /* hash of u.ID */ },
+	8,
+)
+----
++
+The two functions must agree: whenever `eq(a, b)` is true, `hash(a)` and
+`hash(b)` must be equal.
+
+The default hashing is *randomized per table* (a `hash/maphash` seed) — a
+hash-flooding mitigation.  Bucket order in `All`, `Values`, `Walk` and
+`Dump` therefore varies from process to process and must not appear in
+fixed assertions or golden files.  *Within* a bucket the order is not
+random at all: the lists run head-newest to tail-oldest (`Insert` pushes
+at the head), the same newest-first order as `hash_tab`'s chains and the
+opposite of `hash_tab_bt`'s ascending trees.
+
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and appear
+on pkg.go.dev.
 
 == Complexity
 
-`n` = number of elements, `k` = number of buckets. Bucket chains average
-`n/k` in length with a reasonable hash.
-
-[cols="2,1,4",options="header"]
+[cols="2,1,1,4",options="header"]
 |===
-| Operation      | Complexity | Notes
+| Operation                                | Average | Worst case | Notes
 
-| `Insert`       | O(1)       | insert at bucket head
-| `Search`       | O(n/k)     | hash + walk one bucket chain
-| `Delete`       | O(n/k)     | hash + walk one bucket chain
-| `DeleteFound`  | O(1)       | remove an element returned by `Search`/`Walk`
-| `ItemExists`   | O(n/k)     | membership test
-| `IsEmpty`      | O(1)       |
-| `Len`/`Length` | O(1)       |
-| `Truncate`     | O(k)       | clears every bucket
-| `Walk`         | O(n)       | callback iteration, can stop early
-| `All`          | O(n)       | range-over-func iterator over all elements
-| `Dump`         | O(n)       | diagnostic print
+| `Insert`                                 | O(1)    | O(n)       | chain scan for an equal element, then a head push or an in-place replace
+| `Search`                                 | O(1)    | O(n)       | walks the bucket list, returns the element handle
+| `Delete`                                 | O(1)    | O(n)       | chain walk, then an O(1) splice
+| `DeleteFound`                            | O(1)    | O(1)       | splices the located element out through its prev/next pointers — no chain walk
+| `IsEmpty`, `Len`, `Length`               | O(1)    | O(1)       |
+| `Truncate`                               | O(k)    | O(k)       | k = bucket count; bucket lists are emptied
+| `Walk`, `Dump`, `All`, `Values`          | O(n)    | O(n)       |
 |===
 
-== Example
+Worst case occurs when many keys collide into one chain; average behavior
+is O(1) when hashes spread elements evenly over the k buckets.  The price
+of the O(1) `DeleteFound` is two links per node (prev and next) instead
+of `hash_tab`'s one, and — like `hash_tab` — the table never grows: pick
+n for the expected element count, use `hash_tab` for the smallest
+footprint, or `hash_tab_bt` for log-time collision behavior.
+
+== Usage
 
 [source,go]
 ----
@@ -47,53 +92,123 @@ package main
 import (
 	"fmt"
 
-	"github.com/pschlump/pluto/comparable"
-	hash_tab_dll "github.com/pschlump/pluto/hash_tab_dll" // package name is hash_tab
+	"github.com/pschlump/charon/hash_tab_dll"
 )
 
-type Item struct {
-	Name string
-}
-
-func (a Item) IsEqual(x comparable.Equality) bool {
-	if b, ok := x.(Item); ok {
-		return a.Name == b.Name
-	}
-	if b, ok := x.(*Item); ok {
-		return a.Name == b.Name
-	}
-	return false
-}
-
 func main() {
-	ht := hash_tab_dll.NewHashTab[Item](101) // 101 buckets, must be >= 5
+	ht := hash_tab_dll.NewHashTab[string](16) // 16 buckets, fixed for the life of the table
 
-	ht.Insert(&Item{Name: "alice"})
-	ht.Insert(&Item{Name: "bob"})
+	ht.Insert("alpha")
+	ht.Insert("beta")
+	fmt.Println(ht.Insert("alpha")) // false — duplicate replaces the element
 
-	// Search returns the bucket element, which can be deleted in O(1):
-	if el := ht.Search(&Item{Name: "alice"}); el != nil {
-		fmt.Println("found", el.GetData().Name)
-		ht.DeleteFound(el)
+	if el, found := ht.Search("alpha"); found {
+		fmt.Println("found", el.GetData()) // the stored element, by value
+		ht.DeleteFound(el)                 // O(1) removal of the located element
 	}
 
-	fmt.Println("bob present:", ht.ItemExists(&Item{Name: "bob"}))
+	ht.Delete("beta") // or delete by value, like hash_tab
 
-	// Range-over-func iteration (Go 1.23+):
-	for i, v := range ht.All() {
-		fmt.Println(i, v.Name)
+	// Range-over-func iteration (Go 1.23+), in bucket order:
+	for pos, item := range ht.All() { // (bucket position, element)
+		fmt.Println(pos, item)
 	}
+	for item := range ht.Values() {
+		fmt.Println(item)
+	}
+
+	ht.Truncate() // remove everything
 }
 ----
 
-An element type may override the default hashing by implementing:
+The element passed to `DeleteFound` must be a live element of this table
+(the same contract as `dll.DeleteFound`): deleting an element twice, or
+passing an element of another table, is undefined.
 
-[source,go]
-----
-func (a Item) HashKey(x interface{}) int { /* ... */ }
-----
+== Iteration
 
-== Thread Safety
+Two styles are supported, both in bucket order (hash-dependent, see the
+randomization note above) and — within a bucket — from the most recently
+inserted element to the oldest:
 
-`HashTab` is *not* thread safe. If the table is shared between goroutines,
-all access must be serialized by the caller (e.g. with a `sync.RWMutex`).
+- Go 1.23+ range-over-func: `All() iter.Seq2[int, T]` (bucket position and
+  element — as with dll/sll/hash_tab, a single-variable range yields the
+  *bucket position*, not the element) and `Values() iter.Seq[T]`.
+- The `Walk(ApplyFunction[T])` callback: `fx(pos int, data T) bool`, where
+  returning *false stops the walk* (the tree-packages convention — dll's
+  own Walk is the opposite) and the closure captures caller state; Walk
+  returns true when the walk ran to completion.
+
+== Panics
+
+The package panics in exactly four situations — all programmer errors with
+no sane fallback, each message naming the fix:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewHashTabFunc(nil eq, ...)` / `NewHashTabFunc(eq, nil hash, ...)` | nil function, caught at construction time
+| `NewHashTab`/`NewHashTabFunc` with n < 5 | a smaller table has no headroom
+| `Insert` on a nil `*HashTab` | a nil table cannot store an element
+| `Insert` on a zero-value table | no equality/hash functions; the message names the constructors
+|===
+
+Everything else tolerates a nil table and the zero value as an empty table:
+searches report not-found, `Delete` and `DeleteFound` return false, and the
+iterators visit nothing.
+
+== Differences from pluto/hash_tab_dll
+
+* The `comparable.Equality` constraint and the
+  `Hashable`/`string`/`fmt.Stringer` hash-key priority are gone — pluto
+  hashed through `hash(x interface{})` with type assertions (and panicked
+  on types implementing none of the three).  Equality is either the type's
+  `==` operator (`NewHashTab`, no interface, no boxing) or a caller
+  supplied function paired with a caller supplied `func(T) uint64` hash
+  (`NewHashTabFunc`).  `NewHashTab` hashes with a per-table random
+  `hash/maphash` seed; pluto's FNV-1a hashes were deterministic per
+  process.
+* The buckets are `charon/dll` lists (as pluto's were pluto `dll` lists)
+  with value semantics inside the nodes: each node holds `T` by value
+  (pluto stored a `*T` pointing at the inserted item), so `Insert`,
+  `Delete` and `Search` take the probe by value — a probe only needs the
+  fields the equality and hash functions read.  `Search` returns the
+  element handle together with a found bool instead of a bare nil-able
+  pointer, and `GetData` returns the element by value.
+* `Insert` *replaces* an equal element and returns bool — true when a new
+  element was added, false when it replaced one (the replacement is
+  `SetData` on the existing node, so previously returned handles stay
+  valid).  Pluto stacked duplicates so the newest shadowed the oldest,
+  and returned nothing.
+* `Walk` is `func(pos int, data T) bool` with the *bucket index* as `pos`
+  and no `interface{}` userData (state is captured in a closure); returning
+  false stops the walk across all buckets and `Walk` returns a completed
+  bool.  Pluto forwarded dll's `Walk`, whose callback returns *true* to
+  stop, took a userData `interface{}`, and returned the element it stopped
+  at with its per-bucket position — use `Search` + `DeleteFound` for the
+  find-then-splice flow.
+* `ItemExists` was dropped (`Search`'s found bool covers it).  `Values`
+  was added and `All` now yields the bucket position with the element
+  (pluto's `All` yielded `*T` only).
+* `Dump` prints an `empty` marker for vacant buckets and one line per
+  element; no hash values are shown (the dll nodes keep none, unlike
+  charon `hash_tab`'s `h=`-annotated dump).  Pluto delegated each bucket
+  to `dll.Dump`, which printed bare `index: value` lines with no bucket
+  markers and no vacancy listing.
+* A nil table and the zero value behave as an empty table for every read;
+  pluto's `Insert` on a zero-value table died on a division by zero.
+  The n < 5 constructor guard keeps the same rule as every charon hash
+  table but with a message that names the constructor and the minimum
+  (pluto panicked with a bare "n too small").
+* A hash of exactly 0 needs no remapping here (an empty bucket is an
+  empty list, not a hash marker, unlike `hash_grow`'s open addressing).
+
+== Thread safety
+
+`hash_tab_dll` is *not* safe for concurrent use. Use the thread-safe twin
+link:../hash_tab_dll_ts[`hash_tab_dll_ts`] (the same dll-bucket table with
+the O(1) `DeleteFound` behind one `sync.RWMutex`), or
+link:../hash_grow_ts[`hash_grow_ts`] (the auto-growing thread-safe hash
+table) when the size is not known up front, when the table is shared
+between goroutines.

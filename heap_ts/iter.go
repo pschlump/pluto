@@ -1,28 +1,33 @@
-// Copyright (C) 2026 Philip Schlump. All rights reserved.
+/*
+Copyright (C) Philip Schlump, 2012-2026.
+
+BSD 3 Clause Licensed.
+*/
 
 package heap_ts
 
 import "iter"
 
-// All returns an iterator (Go 1.23+ range-over-func) over the elements of the
-// heap.  The elements are produced in internal heap (breadth-first tree)
-// order — this is NOT sorted order; repeatedly calling Pop is the way to
-// consume a heap in sorted order.
-//
-// The iterator walks a snapshot of the heap taken under the read lock, so it
-// is safe to call heap methods (including Push/Pop/Delete) from inside the
-// loop body; changes made after the snapshot are not visible to the
-// iteration.
+// All returns an iterator over a snapshot of the heap's elements.  The
+// elements are produced in internal heap (breadth-first tree) order —
+// this is NOT sorted order; repeatedly calling Pop is the way to consume
+// a heap in sorted order.
 //
 //	for v := range h.All() {
-//		fmt.Println(*v)
+//		fmt.Println(v)
 //	}
 //
-// Complexity is O(n) for a full iteration, plus O(n) extra space for the
-// snapshot.
-func (hp *Heap[T]) All() iter.Seq[*T] {
-	return func(yield func(*T) bool) {
-		for _, v := range hp.snapshot() {
+// The snapshot is taken when All is called, so it is safe to call other
+// heap operations — including from inside the loop — and it never
+// observes later modifications.
+// Complexity is O(n) for a full iteration.
+func (hp *Heap[T]) All() iter.Seq[T] {
+	if hp == nil {
+		return func(func(T) bool) {} // a nil heap iterates as an empty one
+	}
+	items := hp.snapshot()
+	return func(yield func(T) bool) {
+		for _, v := range items {
 			if !yield(v) {
 				return
 			}

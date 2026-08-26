@@ -12,289 +12,361 @@ import (
 	"math/rand/v2"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
-
-	"github.com/pschlump/pluto/comparable"
 )
 
-// TestKeyedNode has a payload separate from the sort key so that duplicate
-// replacement can be observed: two items can Compare equal (same Key) while
-// carrying different Val data.
-type TestKeyedNode struct {
-	Key string
-	Val int
-}
-
-// At compile time verify that this is a correct type/interface setup.
-var _ comparable.Comparable = (*TestKeyedNode)(nil)
-
-// Compare implements the Compare function to satisfy the interface
-// requirements.  Only Key participates in the ordering.
-func (aa TestKeyedNode) Compare(x comparable.Comparable) int {
-	bb, ok := x.(TestKeyedNode)
-	if !ok {
-		panic(fmt.Sprintf("Passed invalid type %T to a Compare function.", x))
-	}
-	if aa.Key < bb.Key {
-		return -1
-	} else if aa.Key > bb.Key {
-		return 1
-	}
-	return 0
-}
-
-// checkInvariants verifies the internal structural invariants of the list:
-// the level-0 chain holds exactly length items in ascending order, and the
-// head's forward pointers agree with tt.level.
-func checkInvariants[T comparable.Comparable](t *testing.T, tt *SkipList[T], where string) {
+// expectPanic runs fn and fails the test unless it panics.
+func expectPanic(t *testing.T, name string, fn func()) {
 	t.Helper()
-	if tt.length < 0 {
-		t.Fatalf("%s: negative length %d", where, tt.length)
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Expected %s to panic, it did not.", name)
+		}
+	}()
+	fn()
+}
+
+// TestNilReceiverPanics verifies the documented panic when Insert is
+// called on a nil list — the one operation with no sane answer.
+func TestNilReceiverPanics(t *testing.T) {
+	var List1 *SkipList[TestSkipListNode]
+	key := TestSkipListNode{S: "12"}
+
+	expectPanic(t, "Insert", func() { List1.Insert(key) })
+
+	// Verify the panic message names the method.
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected Insert to panic on nil list.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "Insert") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		List1.Insert(key)
+	}()
+}
+
+// TestNilReceiverTolerated verifies that every operation other than Insert
+// treats a nil list as an empty list instead of panicking.
+func TestNilReceiverTolerated(t *testing.T) {
+	var List1 *SkipList[TestSkipListNode]
+	key := TestSkipListNode{S: "12"}
+
+	if !List1.IsEmpty() {
+		t.Errorf("Expected nil list to be empty.")
 	}
-	if tt.length == 0 && tt.head == nil {
+	if List1.Len() != 0 || List1.Length() != 0 {
+		t.Errorf("Expected nil list to have length 0.")
+	}
+	if _, found := List1.Search(key); found {
+		t.Errorf("Expected not-found from Search on nil list.")
+	}
+	if List1.Delete(key) {
+		t.Errorf("Expected false from Delete on nil list.")
+	}
+	if _, found := List1.FindMin(); found {
+		t.Errorf("Expected not-found from FindMin on nil list.")
+	}
+	if _, found := List1.FindMax(); found {
+		t.Errorf("Expected not-found from FindMax on nil list.")
+	}
+	if List1.DeleteAtHead() || List1.DeleteAtTail() {
+		t.Errorf("Expected false from DeleteAtHead/DeleteAtTail on nil list.")
+	}
+	List1.Truncate() // no-op, must not panic
+
+	for range List1.All() {
+		t.Errorf("Expected no values from All on nil list.")
+	}
+	for range List1.Backward() {
+		t.Errorf("Expected no values from Backward on nil list.")
+	}
+
+	var buf bytes.Buffer
+	List1.Dump(&buf)
+	if buf.String() != "SkipList (empty)\n" {
+		t.Errorf("Expected empty dump message on nil list, got %q", buf.String())
+	}
+}
+
+// checkInvariant verifies the internal structural invariants of the list:
+// the number of level-0 nodes equals Length(), every level is in strictly
+// ascending order, head.forward[i] is non-nil exactly for i < level, and no
+// node participates in a level >= tt.level.
+func checkInvariant(t *testing.T, tt *SkipList[TestSkipListNode], where string) {
+	t.Helper()
+
+	if tt.length == 0 {
 		if tt.level != 0 {
-			t.Fatalf("%s: empty list with nil head has level %d", where, tt.level)
+			t.Errorf("%s: empty list should have level 0, got %d", where, tt.level)
+		}
+		// The sentinel head may still be allocated after a drain, but it must
+		// not link to any node.
+		if tt.head != nil {
+			for i := range maxLevel {
+				if tt.head.forward[i] != nil {
+					t.Errorf("%s: empty list head.forward[%d] is non-nil", where, i)
+				}
+			}
 		}
 		return
 	}
 	if tt.head == nil {
-		t.Fatalf("%s: non-empty list (length=%d) has nil head", where, tt.length)
+		t.Fatalf("%s: non-empty list has nil head", where)
 	}
-	// Levels above tt.level must be empty; the top used level must not be.
-	for i := tt.level; i < maxLevel; i++ {
-		if tt.head.forward[i] != nil {
-			t.Fatalf("%s: head.forward[%d] non-nil above level %d", where, i, tt.level)
-		}
+	if tt.level < 1 || tt.level > maxLevel {
+		t.Errorf("%s: level %d out of range [1,%d]", where, tt.level, maxLevel)
 	}
-	if tt.level > 0 && tt.head.forward[tt.level-1] == nil {
-		t.Fatalf("%s: head.forward[%d] nil at top level %d", where, tt.level-1, tt.level)
-	}
-	// Walk level 0: count nodes and verify ascending order.
-	n := 0
-	var prev *T
-	for cur := tt.head.forward[0]; cur != nil; cur = cur.forward[0] {
-		if prev != nil && (*prev).Compare(*cur.data) >= 0 {
-			t.Fatalf("%s: level-0 chain out of order at item %d", where, n)
-		}
-		cp := *cur.data
-		prev = &cp
-		n++
-	}
-	if n != tt.length {
-		t.Fatalf("%s: level-0 chain has %d nodes, length says %d", where, n, tt.length)
-	}
-}
 
-// TestNilReceiverPanics verifies the documented panics on a nil list.
-func TestNilReceiverPanics(t *testing.T) {
-	var nilList *SkipList[TestSkipListNode]
-
-	mustPanic := func(name string, f func()) {
-		t.Helper()
-		defer func() {
-			if r := recover(); r == nil {
-				t.Errorf("Expected %s on nil list to panic", name)
+	// head.forward[i] must be non-nil for i < level and nil for i >= level.
+	for i := range maxLevel {
+		if i < tt.level {
+			if tt.head.forward[i] == nil {
+				t.Errorf("%s: head.forward[%d] is nil but level=%d", where, i, tt.level)
 			}
-		}()
-		f()
+		} else {
+			if tt.head.forward[i] != nil {
+				t.Errorf("%s: head.forward[%d] is non-nil but level=%d", where, i, tt.level)
+			}
+		}
 	}
 
-	mustPanic("Insert", func() { nilList.Insert(TestSkipListNode{S: "00"}) })
-	mustPanic("Delete", func() { nilList.Delete(TestSkipListNode{S: "00"}) })
-	mustPanic("DeleteAtHead", func() { nilList.DeleteAtHead() })
-	mustPanic("DeleteAtTail", func() { nilList.DeleteAtTail() })
-}
-
-// TestZeroValueOperations exercises every read-only operation on a freshly
-// declared (zero value) list.
-func TestZeroValueOperations(t *testing.T) {
-	var List1 SkipList[TestSkipListNode]
-	checkInvariants(t, &List1, "zero value")
-
-	if !List1.IsEmpty() {
-		t.Errorf("Expected zero value list to be empty")
-	}
-	if List1.Length() != 0 {
-		t.Errorf("Expected zero value length of 0, got %d", List1.Length())
-	}
-	if p := List1.Search(TestSkipListNode{S: "x"}); p != nil {
-		t.Errorf("Expected Search on zero value list to return nil, got %+v", *p)
-	}
-	if p := List1.FindMin(); p != nil {
-		t.Errorf("Expected FindMin on zero value list to return nil, got %+v", *p)
-	}
-	if p := List1.FindMax(); p != nil {
-		t.Errorf("Expected FindMax on zero value list to return nil, got %+v", *p)
-	}
-
-	// Truncate on an empty list must be a no-op and leave it usable.
-	List1.Truncate()
-	checkInvariants(t, &List1, "truncate of empty")
-	if !List1.IsEmpty() {
-		t.Errorf("Expected list to be empty after truncating an empty list")
-	}
-	List1.Insert(TestSkipListNode{S: "01"})
-	if List1.Length() != 1 {
-		t.Errorf("Expected length 1 after insert post-truncate, got %d", List1.Length())
+	// Every level must be strictly ascending and the level-0 chain must have
+	// exactly length nodes.
+	for i := 0; i < tt.level; i++ {
+		n := 0
+		var prev *string
+		for cur := tt.head.forward[i]; cur != nil; cur = cur.forward[i] {
+			if len(cur.forward) > tt.level {
+				t.Errorf("%s: node %s has %d forward pointers but list level is %d",
+					where, cur.data.S, len(cur.forward), tt.level)
+			}
+			if prev != nil && *prev >= cur.data.S {
+				t.Errorf("%s: level %d not strictly ascending: %s then %s", where, i, *prev, cur.data.S)
+			}
+			s := cur.data.S
+			prev = &s
+			n++
+		}
+		if i == 0 && n != tt.length {
+			t.Errorf("%s: level-0 chain has %d nodes but Length()=%d", where, n, tt.length)
+		}
 	}
 }
 
-// TestSingleElement covers the one-element edge cases.
+// TestSingleElement exercises every operation on a list holding exactly one
+// item.
 func TestSingleElement(t *testing.T) {
-	var List1 SkipList[TestSkipListNode]
-	List1.Insert(TestSkipListNode{S: "42"})
-	checkInvariants(t, &List1, "single element")
+	List1 := newTestList()
 
-	if mn := List1.FindMin(); mn == nil || mn.S != "42" {
-		t.Errorf("Expected min of 42, got %+v", mn)
-	}
-	if mx := List1.FindMax(); mx == nil || mx.S != "42" {
-		t.Errorf("Expected max of 42, got %+v", mx)
-	}
+	List1.Insert(TestSkipListNode{S: "12"})
+	checkInvariant(t, List1, "after single insert")
 
-	// Elements on either side of the single item are absent.
-	if p := List1.Search(TestSkipListNode{S: "41"}); p != nil {
-		t.Errorf("Expected Search(41) to return nil, got %+v", *p)
-	}
-	if p := List1.Search(TestSkipListNode{S: "43"}); p != nil {
-		t.Errorf("Expected Search(43) to return nil, got %+v", *p)
+	mn, mnOK := List1.FindMin()
+	mx, mxOK := List1.FindMax()
+	if !mnOK || !mxOK || mn.S != "12" || mx.S != "12" {
+		t.Errorf("Expected FindMin/FindMax of single-item list to be 12/12, got %+v/%+v", mn, mx)
 	}
 
-	// DeleteAtTail on a single-element list must empty it (head == tail).
-	if !List1.DeleteAtTail() {
-		t.Errorf("Expected DeleteAtTail on single-element list to return true")
+	// Duplicate insert replaces the data but keeps the length at 1.
+	List1.Insert(TestSkipListNode{S: "12"})
+	if List1.Length() != 1 {
+		t.Errorf("Expected length of 1 after duplicate insert, got %d", List1.Length())
 	}
-	checkInvariants(t, &List1, "after DeleteAtTail of single element")
-	if !List1.IsEmpty() {
-		t.Errorf("Expected empty list after DeleteAtTail of single element")
+	checkInvariant(t, List1, "after duplicate insert")
+
+	// Iterators yield exactly one item.
+	n := 0
+	for v := range List1.All() {
+		n++
+		if v.S != "12" {
+			t.Errorf("All: expected 12, got %s", v.S)
+		}
+	}
+	if n != 1 {
+		t.Errorf("All: expected 1 item from single-item list, got %d", n)
+	}
+	n = 0
+	for v := range List1.Backward() {
+		n++
+		if v.S != "12" {
+			t.Errorf("Backward: expected 12, got %s", v.S)
+		}
+	}
+	if n != 1 {
+		t.Errorf("Backward: expected 1 item from single-item list, got %d", n)
 	}
 
-	// Same for DeleteAtHead.
-	List1.Insert(TestSkipListNode{S: "42"})
+	// Remove the only element via Delete.
+	if !List1.Delete(TestSkipListNode{S: "12"}) {
+		t.Errorf("Expected delete of single item to return true")
+	}
+	if !List1.IsEmpty() || List1.Length() != 0 {
+		t.Errorf("Expected empty list after deleting only item, length=%d", List1.Length())
+	}
+	checkInvariant(t, List1, "after deleting only item")
+	if _, found := List1.FindMin(); found {
+		t.Errorf("Expected FindMin of emptied list to report not-found")
+	}
+	if _, found := List1.FindMax(); found {
+		t.Errorf("Expected FindMax of emptied list to report not-found")
+	}
+
+	// Insert again and remove via DeleteAtHead.
+	List1.Insert(TestSkipListNode{S: "34"})
 	if !List1.DeleteAtHead() {
-		t.Errorf("Expected DeleteAtHead on single-element list to return true")
+		t.Errorf("Expected DeleteAtHead of single-item list to return true")
 	}
-	checkInvariants(t, &List1, "after DeleteAtHead of single element")
 	if !List1.IsEmpty() {
-		t.Errorf("Expected empty list after DeleteAtHead of single element")
+		t.Errorf("Expected empty list after DeleteAtHead of only item")
+	}
+	checkInvariant(t, List1, "after DeleteAtHead of only item")
+
+	// Insert again and remove via DeleteAtTail.
+	List1.Insert(TestSkipListNode{S: "56"})
+	if !List1.DeleteAtTail() {
+		t.Errorf("Expected DeleteAtTail of single-item list to return true")
+	}
+	if !List1.IsEmpty() {
+		t.Errorf("Expected empty list after DeleteAtTail of only item")
+	}
+	checkInvariant(t, List1, "after DeleteAtTail of only item")
+}
+
+// TestSortedAndReverseInsert verifies the claim that a skip list does not
+// degrade on sorted input: inserting in ascending and descending order must
+// still produce a correct, sorted list.
+func TestSortedAndReverseInsert(t *testing.T) {
+	const N = 2000
+
+	asc := newTestList()
+	for i := range N {
+		asc.Insert(TestSkipListNode{S: fmt.Sprintf("%06d", i)})
+	}
+	if asc.Length() != N {
+		t.Errorf("Expected length %d, got %d", N, asc.Length())
+	}
+	if mn, found := asc.FindMin(); !found || mn.S != "000000" {
+		t.Errorf("Expected min 000000, got %+v", mn)
+	}
+	if mx, found := asc.FindMax(); !found || mx.S != fmt.Sprintf("%06d", N-1) {
+		t.Errorf("Expected max %06d, got %+v", N-1, mx)
+	}
+	checkInvariant(t, asc, "ascending insert")
+
+	desc := newTestList()
+	for i := N - 1; i >= 0; i-- {
+		desc.Insert(TestSkipListNode{S: fmt.Sprintf("%06d", i)})
+	}
+	checkInvariant(t, desc, "descending insert")
+	prev := ""
+	first := true
+	for v := range desc.All() {
+		if !first && prev >= v.S {
+			t.Fatalf("All after descending inserts not ascending: %s then %s", prev, v.S)
+		}
+		first = false
+		prev = v.S
 	}
 }
 
-// TestDuplicateReplacesData verifies that re-inserting a Compare-equal item
-// replaces the stored data and does not change the length.
-func TestDuplicateReplacesData(t *testing.T) {
-	var List1 SkipList[TestKeyedNode]
+// TestDeleteLevelsDrop verifies that the internal level shrinks when the
+// tallest nodes are removed and that the level-0 chain stays correct.
+func TestDeleteLevelsDrop(t *testing.T) {
+	const N = 500
 
-	List1.Insert(TestKeyedNode{Key: "k1", Val: 1})
-	List1.Insert(TestKeyedNode{Key: "k2", Val: 2})
-	List1.Insert(TestKeyedNode{Key: "k1", Val: 100})
-
-	if List1.Length() != 2 {
-		t.Errorf("Expected length of 2 after duplicate insert, got %d", List1.Length())
+	List1 := newTestList()
+	for i := range N {
+		List1.Insert(TestSkipListNode{S: fmt.Sprintf("%06d", i)})
 	}
-	p := List1.Search(TestKeyedNode{Key: "k1"})
-	if p == nil {
-		t.Fatalf("Expected to find k1 in list")
-	}
-	if p.Val != 100 {
-		t.Errorf("Expected duplicate insert to replace data (Val=100), got Val=%d", p.Val)
+	maxSeen := List1.level
+	if maxSeen < 2 {
+		t.Fatalf("Test setup: expected level >= 2 with %d nodes, got %d", N, maxSeen)
 	}
 
-	// The duplicate of the current head and tail must also be replaced.
-	List1.Insert(TestKeyedNode{Key: "k2", Val: 200})
-	if mx := List1.FindMax(); mx == nil || mx.Val != 200 {
-		t.Errorf("Expected max Val of 200 after replace, got %+v", mx)
+	// Delete from the tail down; the level must never exceed the max seen and
+	// the invariant must hold after every delete.
+	for i := N - 1; i >= 0; i-- {
+		if !List1.DeleteAtTail() {
+			t.Fatalf("DeleteAtTail of %06d failed", i)
+		}
+		if List1.level > maxSeen {
+			t.Errorf("Level grew to %d beyond max %d during deletes", List1.level, maxSeen)
+		}
 	}
-	List1.Insert(TestKeyedNode{Key: "k1", Val: 300})
-	if mn := List1.FindMin(); mn == nil || mn.Val != 300 {
-		t.Errorf("Expected min Val of 300 after replace, got %+v", mn)
-	}
-	if List1.Length() != 2 {
-		t.Errorf("Expected length of 2, got %d", List1.Length())
-	}
-	checkInvariants(t, &List1, "duplicate replace")
-}
-
-// TestSearchReturnsCopy verifies that Search, FindMin and FindMax hand back
-// copies: mutating the returned value must not corrupt the list.
-func TestSearchReturnsCopy(t *testing.T) {
-	var List1 SkipList[TestKeyedNode]
-	List1.Insert(TestKeyedNode{Key: "a", Val: 1})
-	List1.Insert(TestKeyedNode{Key: "b", Val: 2})
-
-	p := List1.Search(TestKeyedNode{Key: "a"})
-	if p == nil {
-		t.Fatalf("Expected to find a in list")
-	}
-	p.Val = 999
-	if q := List1.Search(TestKeyedNode{Key: "a"}); q == nil || q.Val != 1 {
-		t.Errorf("Mutating Search result changed the list: %+v", q)
+	checkInvariant(t, List1, "after tail drain")
+	if List1.level != 0 {
+		t.Errorf("Expected level 0 after draining, got %d", List1.level)
 	}
 
-	if mn := List1.FindMin(); mn != nil {
-		mn.Val = 888
+	// Same, draining from the head.
+	for i := range N {
+		List1.Insert(TestSkipListNode{S: fmt.Sprintf("%06d", i)})
 	}
-	if q := List1.FindMin(); q == nil || q.Val != 1 {
-		t.Errorf("Mutating FindMin result changed the list: %+v", q)
+	for i := range N {
+		if !List1.DeleteAtHead() {
+			t.Fatalf("DeleteAtHead %d failed", i)
+		}
 	}
-
-	if mx := List1.FindMax(); mx != nil {
-		mx.Val = 777
-	}
-	if q := List1.FindMax(); q == nil || q.Val != 2 {
-		t.Errorf("Mutating FindMax result changed the list: %+v", q)
+	checkInvariant(t, List1, "after head drain")
+	if !List1.IsEmpty() {
+		t.Errorf("Expected empty list after draining from head")
 	}
 }
 
-// TestDeleteBoundariesAndGaps deletes the min, the max, and probes for keys
-// that fall between stored keys.
-func TestDeleteBoundariesAndGaps(t *testing.T) {
-	var List1 SkipList[TestSkipListNode]
-	for _, s := range []string{"10", "20", "30", "40", "50"} {
+// TestDeleteNonMembers verifies that deleting items that sort between,
+// before, or after existing members returns false and changes nothing.
+func TestDeleteNonMembers(t *testing.T) {
+	List1 := newTestList()
+	for _, s := range []string{"10", "20", "30"} {
 		List1.Insert(TestSkipListNode{S: s})
 	}
+	before := List1.Length()
 
-	// Gap probes: below min, between keys, above max.
-	for _, s := range []string{"05", "15", "25", "35", "45", "55"} {
+	for _, s := range []string{"05", "15", "25", "35"} {
 		if List1.Delete(TestSkipListNode{S: s}) {
-			t.Errorf("Expected delete of absent %s to return false", s)
-		}
-		if List1.Search(TestSkipListNode{S: s}) != nil {
-			t.Errorf("Expected search of absent %s to return nil", s)
+			t.Errorf("Expected delete of non-member %s to return false", s)
 		}
 	}
-	if List1.Length() != 5 {
-		t.Fatalf("Expected length of 5, got %d", List1.Length())
+	if List1.Length() != before {
+		t.Errorf("Expected length to stay %d, got %d", before, List1.Length())
 	}
-
-	// Delete min then max.
-	if !List1.Delete(TestSkipListNode{S: "10"}) {
-		t.Errorf("Expected delete of min (10) to return true")
+	for _, s := range []string{"10", "20", "30"} {
+		if _, found := List1.Search(TestSkipListNode{S: s}); !found {
+			t.Errorf("Expected %s to still be present", s)
+		}
 	}
-	checkInvariants(t, &List1, "after deleting min")
-	if mn := List1.FindMin(); mn == nil || mn.S != "20" {
-		t.Errorf("Expected min of 20 after deleting 10, got %+v", mn)
-	}
-	if !List1.Delete(TestSkipListNode{S: "50"}) {
-		t.Errorf("Expected delete of max (50) to return true")
-	}
-	checkInvariants(t, &List1, "after deleting max")
-	if mx := List1.FindMax(); mx == nil || mx.S != "40" {
-		t.Errorf("Expected max of 40 after deleting 50, got %+v", mx)
-	}
-	if List1.Length() != 3 {
-		t.Errorf("Expected length of 3, got %d", List1.Length())
-	}
+	checkInvariant(t, List1, "after deleting non-members")
 }
 
-// TestBackwardEarlyBreak covers the early-exit path of the Backward
-// iterator, and checks that only the expected prefix is produced.
+// TestBackwardEarlyBreak verifies that breaking out of the Backward
+// iterator stops it immediately.
 func TestBackwardEarlyBreak(t *testing.T) {
-	var List1 SkipList[TestSkipListNode]
+	List1 := newTestList()
 	for _, s := range []string{"01", "02", "03", "04", "05"} {
 		List1.Insert(TestSkipListNode{S: s})
 	}
 
+	n := 0
+	var first string
+	for v := range List1.Backward() {
+		n++
+		first = v.S
+		break
+	}
+	if n != 1 {
+		t.Errorf("Expected early break to yield exactly 1 item, got %d", n)
+	}
+	if first != "05" {
+		t.Errorf("Expected first Backward item to be the max (05), got %s", first)
+	}
+
+	// Take exactly two items, in descending order.
 	var got []string
 	for v := range List1.Backward() {
 		got = append(got, v.S)
@@ -302,63 +374,35 @@ func TestBackwardEarlyBreak(t *testing.T) {
 			break
 		}
 	}
-	want := []string{"05", "04"}
-	if fmt.Sprintf("%v", got) != fmt.Sprintf("%v", want) {
-		t.Errorf("Backward with early break: expected %v, got %v", want, got)
-	}
-
-	// Early break in All must also stop immediately after the first item.
-	got = nil
-	for v := range List1.All() {
-		got = append(got, v.S)
-		break
-	}
-	want = []string{"01"}
-	if fmt.Sprintf("%v", got) != fmt.Sprintf("%v", want) {
-		t.Errorf("All with early break: expected %v, got %v", want, got)
+	if fmt.Sprintf("%v", got) != fmt.Sprintf("%v", []string{"05", "04"}) {
+		t.Errorf("Expected [05 04] from partial Backward, got %v", got)
 	}
 }
 
-// TestIteratorsUseSnapshot verifies that All/Backward iterate over a
-// snapshot: mutating the list from inside the loop body is safe (no
-// deadlock, no race) and does not change what the iteration yields.
-func TestIteratorsUseSnapshot(t *testing.T) {
-	var List1 SkipList[TestSkipListNode]
+// TestAllEarlyBreakFirstItem verifies All stops after a break on the first
+// (smallest) item.
+func TestAllEarlyBreakFirstItem(t *testing.T) {
+	List1 := newTestList()
 	for _, s := range []string{"01", "02", "03"} {
 		List1.Insert(TestSkipListNode{S: s})
 	}
-
-	var got []string
+	var first string
+	n := 0
 	for v := range List1.All() {
-		got = append(got, v.S)
-		// Mutations during iteration must not affect the snapshot.
-		List1.Insert(TestSkipListNode{S: "9" + v.S})
-		List1.Delete(TestSkipListNode{S: "02"})
+		first = v.S
+		n++
+		break
 	}
-	want := []string{"01", "02", "03"}
-	if fmt.Sprintf("%v", got) != fmt.Sprintf("%v", want) {
-		t.Errorf("All snapshot: expected %v, got %v", want, got)
-	}
-
-	got = nil
-	for v := range List1.Backward() {
-		got = append(got, v.S)
-		List1.Truncate()
-	}
-	if len(got) == 0 {
-		t.Errorf("Backward snapshot: expected items even though list was truncated mid-iteration")
-	}
-	// The snapshot must have been in descending order.
-	sorted := sort.SliceIsSorted(got, func(i, j int) bool { return got[i] > got[j] })
-	if !sorted {
-		t.Errorf("Backward snapshot: items not in descending order: %v", got)
+	if n != 1 || first != "01" {
+		t.Errorf("Expected first All item to be 01 (n=1), got %s (n=%d)", first, n)
 	}
 }
 
-// TestDump verifies the debugging dump of both an empty and a populated
-// list.
+// TestDump verifies the debugging output for both an empty and a populated
+// list.  It uses a plain string list so each node prints as a single
+// whitespace token.
 func TestDump(t *testing.T) {
-	var List1 SkipList[TestSkipListNode]
+	List1 := NewSkipList[string]()
 
 	var buf bytes.Buffer
 	List1.Dump(&buf)
@@ -366,265 +410,392 @@ func TestDump(t *testing.T) {
 		t.Errorf("Dump of empty list: expected %q, got %q", "SkipList (empty)\n", got)
 	}
 
-	items := []string{"05", "02", "09", "00", "03", "07"}
-	for _, s := range items {
-		List1.Insert(TestSkipListNode{S: s})
+	const N = 100
+	for i := range N {
+		List1.Insert(fmt.Sprintf("%06d", i))
 	}
 
 	buf.Reset()
 	List1.Dump(&buf)
 	out := buf.String()
 
-	header := fmt.Sprintf("SkipList length=%d level=", len(items))
-	if !strings.HasPrefix(out, header) {
-		t.Errorf("Dump: expected output to start with %q, got:\n%s", header, out)
+	head := fmt.Sprintf("SkipList length=%d level=%d\n", N, List1.level)
+	if !strings.HasPrefix(out, head) {
+		t.Errorf("Dump header: expected prefix %q, got %q", head, out)
 	}
 
-	// The L0 line must list every item in ascending order.  Items print in
-	// their %v form, e.g. "{05}" for TestSkipListNode{S: "05"}.
-	sorted := append([]string(nil), items...)
-	sort.Strings(sorted)
-	rendered := make([]string, len(sorted))
-	for i, s := range sorted {
-		rendered[i] = fmt.Sprintf("%v", TestSkipListNode{S: s})
+	lines := strings.Split(strings.TrimSuffix(out, "\n"), "\n")
+	if len(lines) != 1+List1.level {
+		t.Fatalf("Expected 1 header + %d level lines, got %d lines", List1.level, len(lines))
 	}
-	wantL0 := "L0: " + strings.Join(rendered, " ") + " \n"
-	foundL0 := false
-	for _, line := range strings.SplitAfter(out, "\n") {
-		if strings.HasPrefix(line, "L0: ") {
-			foundL0 = true
-			if line != wantL0 {
-				t.Errorf("Dump: expected L0 line %q, got %q", wantL0, line)
-			}
+	for i := 1; i < len(lines); i++ {
+		wantPrefix := fmt.Sprintf("L%d: ", List1.level-i)
+		if !strings.HasPrefix(lines[i], wantPrefix) {
+			t.Errorf("Dump line %d: expected prefix %q, got %q", i, wantPrefix, lines[i])
 		}
 	}
-	if !foundL0 {
-		t.Errorf("Dump: no L0 line in output:\n%s", out)
+
+	// The bottom level (L0) must list every node in ascending order.
+	l0 := lines[len(lines)-1]
+	if !strings.HasPrefix(l0, "L0: ") {
+		t.Fatalf("Expected last line to be L0, got %q", l0)
+	}
+	fields := strings.Fields(strings.TrimPrefix(l0, "L0: "))
+	if len(fields) != N {
+		t.Errorf("L0: expected %d items, got %d", N, len(fields))
+	}
+	if !sort.StringsAreSorted(fields) {
+		t.Errorf("L0: items not in ascending order")
 	}
 
-	// Higher levels list a subset of L0, in order.
-	for _, line := range strings.Split(strings.TrimSuffix(out, "\n"), "\n") {
-		if !strings.HasPrefix(line, "L") || strings.HasPrefix(line, "L0: ") {
+	// Higher levels must be subsequences of level 0.
+	inL0 := make(map[string]bool, len(fields))
+	for _, f := range fields {
+		inL0[f] = true
+	}
+	for i := 1; i < len(lines)-1; i++ {
+		lvlFields := strings.Fields(lines[i])
+		if len(lvlFields) < 1 {
+			t.Errorf("Dump line %d is empty: %q", i, lines[i])
 			continue
 		}
-		fields := strings.Fields(strings.TrimPrefix(line, strings.SplitN(line, ": ", 2)[0]+": "))
-		pos := 0
-		for _, f := range fields {
-			for pos < len(rendered) && rendered[pos] != f {
-				pos++
+		for _, f := range lvlFields[1:] { // skip the "Ln:" label itself
+			if !inL0[f] {
+				t.Errorf("%s: item %s not present in L0", lvlFields[0], f)
 			}
-			if pos == len(rendered) {
-				t.Errorf("Dump: item %q on line %q not in ascending L0 sequence", f, line)
-				break
-			}
-			pos++
 		}
 	}
 }
 
-// TestTruncateRestoresZeroState checks that truncate fully resets the list
-// and that it behaves like new afterwards.
-func TestTruncateRestoresZeroState(t *testing.T) {
-	var List1 SkipList[TestSkipListNode]
-	for i := 0; i < 500; i++ {
-		List1.Insert(TestSkipListNode{S: fmt.Sprintf("%04d", i)})
-	}
-	List1.Truncate()
-	checkInvariants(t, &List1, "after truncate")
+// TestMixedRandomized runs hundreds of mixed operations against a reference
+// model (a sorted-set built from a map) using a fixed seed, and
+// cross-checks the list after every step.
+func TestMixedRandomized(t *testing.T) {
+	const Ops = 4000
+	const KeySpace = 300 // small key space forces plenty of duplicates
 
-	if List1.Delete(TestSkipListNode{S: "0001"}) {
-		t.Errorf("Expected delete after truncate to return false")
-	}
-	if List1.DeleteAtHead() || List1.DeleteAtTail() {
-		t.Errorf("Expected DeleteAtHead/DeleteAtTail after truncate to return false")
-	}
-	if List1.FindMin() != nil || List1.FindMax() != nil {
-		t.Errorf("Expected FindMin/FindMax after truncate to return nil")
-	}
-	for range List1.All() {
-		t.Errorf("Expected no items from All after truncate")
-	}
-}
+	rng := rand.New(rand.NewPCG(20260825, 99))
 
-// TestMixedOpsAgainstModel is a randomized property test with a fixed seed.
-// It performs hundreds of mixed operations and cross-checks the list against
-// a simple reference model (a sorted-set map) after each step.
-func TestMixedOpsAgainstModel(t *testing.T) {
-	const ops = 3000
-	const keySpace = 200 // small key space forces duplicates and delete misses
+	List1 := newTestList()
+	ref := make(map[string]bool)
 
-	rng := rand.New(rand.NewPCG(12345, 67890))
+	key := func(n int) string { return fmt.Sprintf("%06d", n) }
 
-	var List1 SkipList[TestKeyedNode]
-	model := make(map[string]int) // key -> Val
-
-	key := func(n int) string { return fmt.Sprintf("%03d", n) }
-
-	sortedKeys := func() []string {
-		keys := make([]string, 0, len(model))
-		for k := range model {
+	// sortedRef returns the reference keys in ascending order.
+	sortedRef := func() []string {
+		keys := make([]string, 0, len(ref))
+		for k := range ref {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
 		return keys
 	}
 
-	verify := func(step int) {
+	check := func(step int) {
 		t.Helper()
-		if List1.Length() != len(model) {
-			t.Fatalf("step %d: length mismatch: list=%d model=%d", step, List1.Length(), len(model))
+		if List1.Length() != len(ref) {
+			t.Fatalf("step %d: expected length %d, got %d", step, len(ref), List1.Length())
 		}
-		keys := sortedKeys()
+		keys := sortedRef()
 		if len(keys) == 0 {
 			if !List1.IsEmpty() {
-				t.Fatalf("step %d: list not empty but model is", step)
+				t.Errorf("step %d: expected IsEmpty, length=%d", step, List1.Length())
 			}
-			if List1.FindMin() != nil || List1.FindMax() != nil {
-				t.Fatalf("step %d: FindMin/FindMax non-nil on empty model", step)
+			if _, found := List1.FindMin(); found {
+				t.Errorf("step %d: expected not-found FindMin on empty list", step)
 			}
-			return
-		}
-		if List1.IsEmpty() {
-			t.Fatalf("step %d: list empty but model has %d keys", step, len(model))
-		}
-		if mn := List1.FindMin(); mn == nil || mn.Key != keys[0] || mn.Val != model[keys[0]] {
-			t.Fatalf("step %d: min mismatch: got %+v want key=%s", step, mn, keys[0])
-		}
-		if mx := List1.FindMax(); mx == nil || mx.Key != keys[len(keys)-1] || mx.Val != model[keys[len(keys)-1]] {
-			t.Fatalf("step %d: max mismatch: got %+v want key=%s", step, mx, keys[len(keys)-1])
-		}
-		// Full iteration must match the model exactly, in order.
-		i := 0
-		for v := range List1.All() {
-			if i >= len(keys) {
-				t.Fatalf("step %d: All yielded more than %d items", step, len(keys))
+			if _, found := List1.FindMax(); found {
+				t.Errorf("step %d: expected not-found FindMax on empty list", step)
 			}
-			if v.Key != keys[i] || v.Val != model[keys[i]] {
-				t.Fatalf("step %d: All[%d] = %+v, want key=%s val=%d", step, i, v, keys[i], model[keys[i]])
+		} else {
+			if mn, found := List1.FindMin(); !found || mn.S != keys[0] {
+				t.Errorf("step %d: expected min %s, got %+v", step, keys[0], mn)
 			}
-			i++
-		}
-		if i != len(keys) {
-			t.Fatalf("step %d: All yielded %d items, want %d", step, i, len(keys))
-		}
-		// Backward must be the exact reverse.
-		i = len(keys) - 1
-		for v := range List1.Backward() {
-			if i < 0 {
-				t.Fatalf("step %d: Backward yielded too many items", step)
+			if mx, found := List1.FindMax(); !found || mx.S != keys[len(keys)-1] {
+				t.Errorf("step %d: expected max %s, got %+v", step, keys[len(keys)-1], mx)
 			}
-			if v.Key != keys[i] || v.Val != model[keys[i]] {
-				t.Fatalf("step %d: Backward mismatch at %d: %+v want key=%s", step, i, v, keys[i])
-			}
-			i--
-		}
-		if i != -1 {
-			t.Fatalf("step %d: Backward yielded too few items", step)
 		}
 	}
 
-	for step := 0; step < ops; step++ {
-		k := key(rng.IntN(keySpace))
-		switch rng.IntN(10) {
-		case 0, 1, 2, 3: // insert (40%)
-			val := rng.IntN(10000)
-			List1.Insert(TestKeyedNode{Key: k, Val: val})
-			model[k] = val
-		case 4, 5, 6: // delete (30%)
-			_, inModel := model[k]
-			if got := List1.Delete(TestKeyedNode{Key: k}); got != inModel {
-				t.Fatalf("step %d: Delete(%s) = %v, model says present=%v", step, k, got, inModel)
+	for i := range Ops {
+		k := key(rng.IntN(KeySpace))
+		switch rng.IntN(6) {
+		case 0, 1, 2: // Insert (duplicates replace)
+			added := List1.Insert(TestSkipListNode{S: k})
+			if added == ref[k] {
+				t.Fatalf("step %d: Insert(%s)=%v, model said present=%v", i, k, added, ref[k])
 			}
-			delete(model, k)
-		case 7: // search hit/miss (10%)
-			val, inModel := model[k]
-			p := List1.Search(TestKeyedNode{Key: k})
-			if inModel {
-				if p == nil || p.Val != val {
-					t.Fatalf("step %d: Search(%s) = %+v, model has val=%d", step, k, p, val)
+			ref[k] = true
+		case 3: // Delete
+			got := List1.Delete(TestSkipListNode{S: k})
+			want := ref[k]
+			if got != want {
+				t.Fatalf("step %d: Delete(%s) returned %v, model says %v", i, k, got, want)
+			}
+			delete(ref, k)
+		case 4: // Search
+			_, found := List1.Search(TestSkipListNode{S: k})
+			want := ref[k]
+			if found != want {
+				t.Fatalf("step %d: Search(%s) found=%v, model says %v", i, k, found, want)
+			}
+		case 5: // DeleteAtHead / DeleteAtTail
+			keys := sortedRef()
+			if rng.IntN(2) == 0 {
+				got := List1.DeleteAtHead()
+				if len(keys) == 0 {
+					if got {
+						t.Fatalf("step %d: DeleteAtHead on empty list returned true", i)
+					}
+				} else {
+					if !got {
+						t.Fatalf("step %d: DeleteAtHead returned false on non-empty list", i)
+					}
+					delete(ref, keys[0])
 				}
-			} else if p != nil {
-				t.Fatalf("step %d: Search(%s) = %+v, model says absent", step, k, *p)
-			}
-		case 8: // DeleteAtHead (10%)
-			keys := sortedKeys()
-			if got := List1.DeleteAtHead(); got != (len(keys) > 0) {
-				t.Fatalf("step %d: DeleteAtHead = %v, model size=%d", step, got, len(keys))
-			}
-			if len(keys) > 0 {
-				delete(model, keys[0])
-			}
-		case 9: // DeleteAtTail (10%)
-			keys := sortedKeys()
-			if got := List1.DeleteAtTail(); got != (len(keys) > 0) {
-				t.Fatalf("step %d: DeleteAtTail = %v, model size=%d", step, got, len(keys))
-			}
-			if len(keys) > 0 {
-				delete(model, keys[len(keys)-1])
+			} else {
+				got := List1.DeleteAtTail()
+				if len(keys) == 0 {
+					if got {
+						t.Fatalf("step %d: DeleteAtTail on empty list returned true", i)
+					}
+				} else {
+					if !got {
+						t.Fatalf("step %d: DeleteAtTail returned false on non-empty list", i)
+					}
+					delete(ref, keys[len(keys)-1])
+				}
 			}
 		}
-		if step%50 == 0 {
-			verify(step)
-			checkInvariants(t, &List1, fmt.Sprintf("step %d", step))
+		if i%100 == 0 {
+			checkInvariant(t, List1, fmt.Sprintf("step %d", i))
 		}
 	}
-	verify(ops)
-	checkInvariants(t, &List1, "final")
+	check(Ops)
+
+	// Final full-iteration cross-check in both directions.
+	keys := sortedRef()
+	var fwd []string
+	for v := range List1.All() {
+		fwd = append(fwd, v.S)
+	}
+	if fmt.Sprintf("%v", fwd) != fmt.Sprintf("%v", keys) {
+		t.Errorf("Final All: expected %v, got %v", keys, fwd)
+	}
+	var bwd []string
+	for v := range List1.Backward() {
+		bwd = append(bwd, v.S)
+	}
+	for i := range keys {
+		want := keys[len(keys)-1-i]
+		if i >= len(bwd) || bwd[i] != want {
+			t.Fatalf("Final Backward: position %d expected %s, got %v", i, want, bwd)
+		}
+	}
+	if len(bwd) != len(keys) {
+		t.Errorf("Final Backward: expected %d items, got %d", len(keys), len(bwd))
+	}
+
+	// Truncate mid-stream and rebuild, verifying the list stays correct.
+	List1.Truncate()
+	ref = make(map[string]bool)
+	check(Ops)
+	for range 100 {
+		k := key(rng.IntN(KeySpace))
+		List1.Insert(TestSkipListNode{S: k})
+		ref[k] = true
+	}
+	checkInvariant(t, List1, "after rebuild")
 }
 
-// TestSortedAndReverseSortedInsert covers the degenerate insertion orders.
-func TestSortedAndReverseSortedInsert(t *testing.T) {
-	const N = 500
+// TestZeroValueOperations exercises read-only operations on a freshly
+// declared zero-value list before any insert, and verifies that Insert
+// fails loudly because no comparison function has been set.
+func TestZeroValueOperations(t *testing.T) {
+	var List1 SkipList[TestSkipListNode]
 
-	var asc SkipList[TestSkipListNode]
-	for i := 0; i < N; i++ {
-		asc.Insert(TestSkipListNode{S: fmt.Sprintf("%06d", i)})
+	if !List1.IsEmpty() {
+		t.Errorf("Expected zero-value list to be empty")
 	}
-	checkInvariants(t, &asc, "ascending insert")
-	if asc.Length() != N {
-		t.Errorf("Expected length %d, got %d", N, asc.Length())
+	if List1.Len() != 0 || List1.Length() != 0 {
+		t.Errorf("Expected zero-value list length 0, got %d", List1.Length())
 	}
-	if mn := asc.FindMin(); mn == nil || mn.S != "000000" {
-		t.Errorf("Expected min 000000, got %+v", mn)
+	if _, found := List1.Search(TestSkipListNode{S: "12"}); found {
+		t.Errorf("Expected Search on zero-value list to report not-found")
 	}
-	if mx := asc.FindMax(); mx == nil || mx.S != fmt.Sprintf("%06d", N-1) {
-		t.Errorf("Expected max %06d, got %+v", N-1, mx)
+	if _, found := List1.FindMin(); found {
+		t.Errorf("Expected FindMin on zero-value list to report not-found")
+	}
+	if _, found := List1.FindMax(); found {
+		t.Errorf("Expected FindMax on zero-value list to report not-found")
+	}
+	if List1.Delete(TestSkipListNode{S: "12"}) {
+		t.Errorf("Expected Delete on zero-value list to return false")
+	}
+	if List1.DeleteAtHead() {
+		t.Errorf("Expected DeleteAtHead on zero-value list to return false")
+	}
+	if List1.DeleteAtTail() {
+		t.Errorf("Expected DeleteAtTail on zero-value list to return false")
 	}
 
-	var desc SkipList[TestSkipListNode]
-	for i := N - 1; i >= 0; i-- {
-		desc.Insert(TestSkipListNode{S: fmt.Sprintf("%06d", i)})
+	n := 0
+	for range List1.All() {
+		n++
 	}
-	checkInvariants(t, &desc, "descending insert")
-	if desc.Length() != N {
-		t.Errorf("Expected length %d, got %d", N, desc.Length())
+	for range List1.Backward() {
+		n++
+	}
+	if n != 0 {
+		t.Errorf("Expected zero items from iterators on zero-value list, got %d", n)
 	}
 
-	// Drain the ascending list from the head: every DeleteAtHead must remove
-	// the current minimum, in order.
-	for i := 0; i < N; i++ {
-		if !asc.DeleteAtHead() {
-			t.Fatalf("DeleteAtHead %d failed", i)
-		}
-		if asc.Length() > 0 {
-			if mn := asc.FindMin(); mn == nil || mn.S != fmt.Sprintf("%06d", i+1) {
-				t.Fatalf("After DeleteAtHead %d, expected min %06d, got %+v", i, i+1, mn)
+	// Truncate on a zero-value list is a no-op.
+	List1.Truncate()
+	if !List1.IsEmpty() {
+		t.Errorf("Expected zero-value list to be empty after Truncate")
+	}
+
+	// Insert without a comparison function panics with a clear message.
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Fatalf("Expected Insert on zero-value list to panic.")
 			}
-		}
-	}
-	checkInvariants(t, &asc, "drained from head")
-
-	// Drain the descending list from the tail: every DeleteAtTail must
-	// remove the current maximum, in order.
-	for i := N - 1; i >= 0; i-- {
-		if !desc.DeleteAtTail() {
-			t.Fatalf("DeleteAtTail %d failed", i)
-		}
-		if desc.Length() > 0 {
-			if mx := desc.FindMax(); mx == nil || mx.S != fmt.Sprintf("%06d", i-1) {
-				t.Fatalf("After DeleteAtTail %d, expected max %06d, got %+v", i, i-1, mx)
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "NewSkipList") {
+				t.Errorf("Unexpected panic message: %v", r)
 			}
+		}()
+		List1.Insert(TestSkipListNode{S: "12"})
+	}()
+
+	// A list from the constructor remains fully usable after the same drain.
+	live := newTestList()
+	live.Truncate()
+	live.Insert(TestSkipListNode{S: "12"})
+	if live.Length() != 1 {
+		t.Errorf("Expected length 1 after insert into truncated list, got %d", live.Length())
+	}
+}
+
+// -------------------------------------------------------------------------------------------------------
+// Thread-safety: snapshot iterators and concurrent access
+// -------------------------------------------------------------------------------------------------------
+
+// TestListIterateSnapshot verifies that the All/Backward iterators operate
+// on a snapshot taken when they are called: later modifications — even
+// truncating the whole list — are not observed, and mutating the list from
+// inside the loop is safe.
+func TestListIterateSnapshot(t *testing.T) {
+	list := newTestList()
+	for _, s := range []string{"05", "02", "09", "00", "03"} {
+		list.Insert(TestSkipListNode{S: s})
+	}
+
+	all := list.All()
+	backward := list.Backward()
+
+	list.Truncate() // the iterators above must not observe this
+
+	expect := []string{"00", "02", "03", "05", "09"}
+
+	var got []string
+	for v := range all {
+		got = append(got, v.S)
+	}
+	if fmt.Sprintf("%v", got) != fmt.Sprintf("%v", expect) {
+		t.Errorf("All after Truncate error, expected %v got %v", expect, got)
+	}
+
+	var gotB []string
+	for v := range backward {
+		gotB = append(gotB, v.S)
+	}
+	for i := range expect {
+		if gotB[i] != expect[len(expect)-1-i] {
+			t.Fatalf("Backward after Truncate error, expected reverse of %v got %v", expect, gotB)
 		}
 	}
-	checkInvariants(t, &desc, "drained from tail")
+
+	// Mutating from inside the loop is safe: the loop sees the snapshot.
+	list = newTestList()
+	for _, s := range []string{"05", "02", "09"} {
+		list.Insert(TestSkipListNode{S: s})
+	}
+	visited := 0
+	for v := range list.All() {
+		visited++
+		list.Delete(v)
+	}
+	if visited != 3 {
+		t.Errorf("Expected 3 visits while deleting during iteration, got %d", visited)
+	}
+	if !list.IsEmpty() {
+		t.Errorf("Expected empty list after deleting every visited element.")
+	}
+}
+
+// TestListConcurrent runs writers (each owning a disjoint key range)
+// against a reader that iterates snapshots and queries metadata in a
+// tight loop.  It is primarily a test for the race detector (`make race`);
+// it also verifies that every operation reports success and that the list
+// ends up empty and consistent.
+func TestListConcurrent(t *testing.T) {
+	list := NewSkipListFunc(cmpTestSkipListNode)
+
+	const workers = 8
+	const perWorker = 200
+
+	stop := make(chan struct{})
+	var writers sync.WaitGroup
+
+	// Reader: iterate snapshots and query metadata while the writers work.
+	go func() {
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			for range list.All() {
+			}
+			for range list.Backward() {
+			}
+			_ = list.Len()
+			_ = list.IsEmpty()
+			_, _ = list.FindMin()
+			_, _ = list.FindMax()
+		}
+	}()
+
+	for w := range workers {
+		writers.Add(1)
+		go func(w int) {
+			defer writers.Done()
+			for i := range perWorker {
+				k := TestSkipListNode{S: fmt.Sprintf("%02d-%04d", w, i)}
+				if !list.Insert(k) {
+					t.Errorf("worker %d: Insert(%s) returned false", w, k.S)
+					return
+				}
+			}
+			for i := range perWorker {
+				k := TestSkipListNode{S: fmt.Sprintf("%02d-%04d", w, i)}
+				if _, found := list.Search(k); !found {
+					t.Errorf("worker %d: Search(%s) not found", w, k.S)
+				}
+				if !list.Delete(k) {
+					t.Errorf("worker %d: Delete(%s) returned false", w, k.S)
+				}
+			}
+		}(w)
+	}
+
+	writers.Wait()
+	close(stop)
+
+	if !list.IsEmpty() || list.Length() != 0 {
+		t.Errorf("Expected empty list after concurrent insert/delete, got length %d", list.Length())
+	}
 }

@@ -1,90 +1,151 @@
-= skip_list — Ordered Collection (Skip List)
-:toc:
+= skip_list
 
-Package `skip_list` implements an ordered collection of generic items as a
-link:https://en.wikipedia.org/wiki/Skip_list[skip list]: a probabilistic data
-structure with multiple levels of linked lists, where each higher level acts
-as an "express lane" that skips over roughly half of the nodes below it.
-Items must implement `github.com/pschlump/pluto/comparable.Comparable` (a
-single `Compare` method).
+A generic *skip list* — an ordered collection built from multiple levels
+of linked lists, where each higher level acts as an "express lane" that
+skips over roughly half the nodes below it.  Insert, Search and Delete are
+*O(log₂ n) expected*, and — unlike an unbalanced
+link:../binary_tree/[`binary_tree`] — performance does not degrade when items
+arrive in sorted order.  See
+link:https://en.wikipedia.org/wiki/Skip_list[]
+for the theory; link:../avl_tree/[`avl_tree`] and link:../rb_tree/[`rb_tree`]
+are the deterministic self-balancing alternatives.
 
-Unlike an unbalanced binary search tree (see `bst`), a skip list does not
-degrade when items are inserted in sorted order.  For a deterministic
-balanced alternative, see `avl_tree`.  For a thread-safe version of this
-package with an identical API, see `skip_list_ts`.
+It is a rework of
+link:https://github.com/pschlump/pluto/tree/main/skip_list[pluto/skip_list]
+that replaces the `comparable.Comparable` interface constraint with pure
+Go type parameters, so element data is never boxed into an interface and
+never unboxed with a type assertion.
 
-== Complexity
+* Elements are stored and returned *by value* (`T`, not `*T`); find-style
+operations return `(T, bool)`.
+* Lists of ordered key types (integers, floats, strings) are ordered by the
+built-in `<` / `>` operators: `skip_list.NewSkipList[int]()`.
+* Lists of any other type — including structs ordered by a single field —
+take a plain comparison function, with no interface to implement:
+`skip_list.NewSkipListFunc(func(a, b Item) int { ... })`.
 
-Skip lists are probabilistic: the expected cost of the ordered operations is
-`O(log n)`, with an `O(n)` worst case.
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and appear
+on pkg.go.dev.
 
-[cols="2,1,1,4",options="header"]
+== Operations
+
+[options="header"]
 |===
-| Operation        | Expected | Worst case | Notes
+| Operation                    | Description                                      | Complexity
 
-| `Insert`          | O(log n) | O(n)       | duplicate keys replace stored item
-| `Search`          | O(log n) | O(n)       | returns `nil` when not found
-| `Delete`          | O(log n) | O(n)       | returns `false` when not found
-| `FindMin`         | O(1)     | O(1)       | first node on level 0
-| `FindMax`         | O(log n) | O(n)       |
-| `DeleteAtHead`    | O(1)     | O(log n)   | remove smallest
-| `DeleteAtTail`    | O(log n) | O(n)       | remove largest
-| `IsEmpty`/`Length` | O(1)    | O(1)       |
-| `Truncate`        | O(1)     | O(1)       | drops the whole list
-| `All`/`Backward`  | O(n)     | O(n)       | full traversal
+| `Insert`                     | Add an item; duplicates replace the stored value | O(log₂ n) expected
+| `Delete`                     | Remove an item; reports whether it was found     | O(log₂ n) expected
+| `Search`                     | Return the stored item equal to the probe        | O(log₂ n) expected
+| `FindMin` / `DeleteAtHead`   | Smallest item / remove it                        | O(1) / O(1) amortized
+| `FindMax` / `DeleteAtTail`   | Largest item / remove it                         | O(log₂ n) expected
+| `IsEmpty` / `Len` / `Length` | Size queries                                     | O(1)
+| `Truncate`                   | Remove all items                                 | O(1)
+| `Dump`                       | Per-level picture of the list, for debugging     | O(n)
+| `All`                        | Ascending range-over-func iterator               | O(n), O(1) space
+| `Backward`                   | Descending range-over-func iterator              | O(n), O(n) space
 |===
+
+`Insert` returns `true` when a new node was added and `false` when a
+duplicate replaced the stored value.
+
+Skip lists are *probabilistic*: the expected cost of the ordered
+operations is O(log₂ n) but the worst case is O(n).  Node tower heights
+are drawn (from the global `math/rand/v2` source, promotion probability
+0.5, up to 32 levels); the observable ordering semantics are deterministic
+regardless of the heights drawn.
+
+The list is *not* safe for concurrent use.
 
 == Usage
 
 [source,go]
 ----
-package main
+list := skip_list.NewSkipList[int]()
 
-import (
-	"fmt"
-
-	"github.com/pschlump/pluto/comparable"
-	"github.com/pschlump/pluto/skip_list"
-)
-
-type Item int
-
-func (a Item) Compare(x comparable.Comparable) int {
-	b := x.(Item)
-	if a < b {
-		return -1
-	} else if a > b {
-		return 1
-	}
-	return 0
+// Sorted input is no problem for a skip list.
+for i := range 1000 {
+    list.Insert(i)
 }
 
-func main() {
-	var list skip_list.SkipList[Item]
+min, _ := list.FindMin()
+max, _ := list.FindMax()
+fmt.Println(min, max) // 0 999
+----
 
-	list.Insert(Item(5))
-	list.Insert(Item(2))
-	list.Insert(Item(9))
+Structs ordered by a field — the element type implements no interface, and
+the exported `Compare` helper builds the field comparison:
 
-	if p := list.Search(Item(2)); p != nil {
-		fmt.Println("found", *p)
-	}
+[source,go]
+----
+type Employee struct {
+    ID   int
+    Name string
+}
 
-	// Modern Go 1.23+ range-over-func iteration, ascending order:
-	for v := range list.All() {
-		fmt.Println(v) // 2 5 9
-	}
-	// Descending order:
-	for v := range list.Backward() {
-		fmt.Println(v) // 9 5 2
-	}
+byID := skip_list.NewSkipListFunc(func(a, b Employee) int {
+    return skip_list.Compare(a.ID, b.ID)
+})
+byID.Insert(Employee{ID: 3, Name: "Ada"})
 
-	list.Delete(Item(5))
-	fmt.Println(list.Length()) // 2
+// A search probe only needs the fields the comparison reads: the ID.
+if e, found := byID.Search(Employee{ID: 3}); found {
+    fmt.Println(e.Name) // Ada
 }
 ----
 
-== Thread Safety
+== Iteration
 
-`SkipList` is *not* safe for concurrent use.  Use `skip_list_ts` instead,
-or guard all access with an external mutex.
+`All()` walks the level-0 chain directly (O(1) extra space).
+`Backward()` collects the chain into a slice first and yields it in
+reverse, because skip list nodes have no back pointers (O(n) extra
+space).  Both support early exit via `break`, and the list must not be
+modified while an iterator is being consumed.
+
+[source,go]
+----
+for v := range list.All() {
+    ...
+}
+for v := range list.Backward() {
+    ...
+}
+----
+
+== Panics
+
+The package panics in exactly three situations — all programmer errors
+with no sane fallback:
+
+[options="header"]
+|===
+| Call                          | Why
+
+| `NewSkipListFunc(nil)`        | nil comparison function, caught at construction time
+| `Insert` on a nil `*SkipList` | a nil list cannot store an element
+| `Insert` on a zero-value list | no comparison function; the message names the constructors
+|===
+
+Everything else tolerates a nil list and the zero value as an empty list:
+searches find nothing, deletes return `false`, and the iterators visit
+nothing.
+
+== Differences from pluto/skip_list
+
+* The `comparable.Comparable` interface constraint is gone: ordering is
+either the key type's built-in operators (`NewSkipList`) or a caller
+supplied function (`NewSkipListFunc`).  No boxing of elements, no
+dynamic dispatch, no type assertions inside `Compare` methods.
+* The data is stored by value in each node (pluto stored a `*T` pointing
+at the inserted item).  `Search`, `FindMin` and `FindMax` return
+`(T, bool)` instead of a nil-able `*T`.
+* `Insert` reports whether a new node was added (`true`) or a duplicate
+replaced the old value (`false`); the pluto version returns nothing.
+* `Len` is available as an alias for `Length`, matching the other charon
+packages.
+* A nil `*SkipList` behaves as an empty list for every operation except
+`Insert`; pluto panics on `Insert`, `Delete`, `DeleteAtHead` and
+`DeleteAtTail` called on a nil list.
+* The only panics are the three listed above, each with a message naming
+the fix.
+

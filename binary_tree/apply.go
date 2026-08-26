@@ -1,13 +1,16 @@
+/*
+Copyright (C) Philip Schlump, 2012-2026.
+
+BSD 3 Clause Licensed.
+*/
+
 package binary_tree
 
 // WalkFunc applies `Fx` to every element of the tree in pre-order
 // (node, left, right) order.
 // Complexity is O(n).
-func (tt *BinaryTree[T]) WalkFunc(Fx func(a *T)) {
-	if tt == nil {
-		panic("binary_tree: WalkFunc called on a nil tree")
-	}
-	if tt.IsEmpty() {
+func (tt *BinaryTree[T]) WalkFunc(Fx func(a T)) {
+	if tt == nil || tt.IsEmpty() {
 		return
 	}
 

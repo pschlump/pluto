@@ -1,44 +1,77 @@
+/*
+Copyright (C) Philip Schlump, 2012-2026.
+
+BSD 3 Clause Licensed.
+*/
+
 package hash_tab_bt_ts
 
 import "iter"
 
-// WalkFunc calls `fx` on every element of the table.  Iteration order is
-// bucket order, not sorted order.  The table is read-locked for the
-// duration of the walk; `fx` must not call back into the table or it will
-// deadlock.
+// All returns an iterator (Go 1.23 range-over-func) over the elements of the
+// table as (bucket-position, element) pairs, in bucket order and — within a
+// bucket — in the tree's in-order (ascending per the comparison function).
+// Typical use:
+//
+//	for pos, item := range ht.All() { ... }
+//
+// As with dll/sll/hash_tab, a single-variable range yields the bucket
+// position, not the element.  The iterator operates on a snapshot of the
+// table copied under the read lock when All is called, so it is safe to
+// call other table methods from the loop body.  Bucket order depends on
+// the per-table hash seed, so it varies from process to process — never
+// assert a fixed order.
 // Complexity is O(n).
-func (tt *HashTab[T]) WalkFunc(fx func(a *T)) {
+func (tt *HashTab[T]) All() iter.Seq2[int, T] {
+	if tt == nil {
+		return func(func(int, T) bool) {} // a nil table iterates as an empty one
+	}
+	type pair struct {
+		pos  int
+		item T
+	}
+	var snap []pair
 	tt.lock.RLock()
-	defer tt.lock.RUnlock()
-	for i := 0; i < tt.size; i++ {
-		if tt.buckets[i] != nil {
-			tt.buckets[i].WalkFunc(fx)
+	for i := range tt.buckets {
+		for data := range tt.buckets[i].All() {
+			snap = append(snap, pair{pos: i, item: data})
+		}
+	}
+	tt.lock.RUnlock()
+	return func(yield func(int, T) bool) {
+		for _, p := range snap {
+			if !yield(p.pos, p.item) {
+				return
+			}
 		}
 	}
 }
 
-// All returns an iterator (a Go 1.23 range-over-func sequence) over every
-// element of the table:
+// Values returns an iterator (Go 1.23 range-over-func) over the elements of
+// the table, in the same order All yields them.  Typical use:
 //
-//	for item := range ht.All() { ... }
+//	for item := range ht.Values() { ... }
 //
-// A consistent snapshot of the table is taken under a read lock when All
-// is called; the iteration itself runs without holding any lock, so it is
-// safe to call other table methods from inside the loop.  Iteration order
-// is bucket order, not sorted order.
+// The iterator operates on a snapshot of the table copied under the read
+// lock when Values is called, so it is safe to call other table methods
+// from the loop body.  Bucket order depends on the per-table hash seed, so
+// it varies from process to process — never assert a fixed order.
 // Complexity is O(n).
-func (tt *HashTab[T]) All() iter.Seq[*T] {
+func (tt *HashTab[T]) Values() iter.Seq[T] {
+	if tt == nil {
+		return func(func(T) bool) {} // a nil table iterates as an empty one
+	}
+	var snap []T
 	tt.lock.RLock()
-	items := make([]*T, 0, tt.length)
-	for _, b := range tt.buckets {
-		b.WalkFunc(func(a *T) {
-			items = append(items, a)
-		})
+	for i := range tt.buckets {
+		for data := range tt.buckets[i].All() {
+			snap = append(snap, data)
+		}
 	}
 	tt.lock.RUnlock()
-	return func(yield func(*T) bool) {
-		for _, item := range items {
-			if !yield(item) {
+	return func(yield func(T) bool) {
+		for _, v := range snap {
+			if !yield(v) {
 				return
 			}
 		}

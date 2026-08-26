@@ -1,14 +1,15 @@
 package avl_tree
 
 /*
-Copyright (C) Philip Schlump, 2012-2021.
+Copyright (C) Philip Schlump, 2012-2026.
 
 BSD 3 Clause Licensed.
 */
 
 // Thorough tests: GetData, Dump, nil-tree panics, iterator edge cases,
-// duplicate-replace semantics, walk early termination, and a fixed-seed
-// randomized property test cross-checked against a sorted-slice model.
+// duplicate-replace semantics, walk early termination, set-operation
+// edges, and a fixed-seed randomized property test cross-checked against a
+// sorted-slice model.
 
 import (
 	"fmt"
@@ -19,15 +20,14 @@ import (
 )
 
 func TestTreeGetData(t *testing.T) {
-	x := TestTreeNode{S: "hello"}
-	e := NewAvlTreeElement(&x)
-	if got := e.GetData(); got == nil || got.S != "hello" {
+	e := NewAvlTreeElement(TestTreeNode{S: "hello"})
+	if got := e.GetData(); got.S != "hello" {
 		t.Errorf("GetData: expected hello, got %v", got)
 	}
 }
 
 func TestTreeDump(t *testing.T) {
-	var tree AvlTree[TestTreeNode]
+	tree := newTestTree()
 
 	// Dump on an empty tree must not panic and must produce no output.
 	var sb strings.Builder
@@ -66,58 +66,148 @@ func (failingWriter) Write(p []byte) (int, error) {
 	return 0, fmt.Errorf("write failed")
 }
 
-// mustPanic runs f and fails the test unless f panics.
-func mustPanic(t *testing.T, name string, f func()) {
+// expectPanic runs fx and fails the test unless it panics.
+func expectPanic(t *testing.T, name string, fx func()) {
 	t.Helper()
 	defer func() {
 		if r := recover(); r == nil {
-			t.Errorf("%s: expected panic, got none", name)
+			t.Errorf("Expected %s to panic, it did not.", name)
 		}
 	}()
-	f()
+	fx()
 }
 
+// TestTreeNilPanics verifies the documented panic when Insert is called on
+// a nil tree — the one operation with no sane answer.
 func TestTreeNilPanics(t *testing.T) {
 	var nilTree *AvlTree[TestTreeNode]
 	key := mkKey(1)
 
-	mustPanic(t, "Insert on nil tree", func() { nilTree.Insert(key) })
-	mustPanic(t, "Search on nil tree", func() { nilTree.Search(key) })
-	mustPanic(t, "Delete on nil tree", func() { nilTree.Delete(key) })
-	mustPanic(t, "FindMin on nil tree", func() { nilTree.FindMin() })
-	mustPanic(t, "FindMax on nil tree", func() { nilTree.FindMax() })
-	mustPanic(t, "DeleteAtHead on nil tree", func() { nilTree.DeleteAtHead() })
-	mustPanic(t, "DeleteAtTail on nil tree", func() { nilTree.DeleteAtTail() })
-	mustPanic(t, "Reverse on nil tree", func() { nilTree.Reverse() })
-	mustPanic(t, "Index on nil tree", func() { nilTree.Index(0) })
-	mustPanic(t, "Depth on nil tree", func() { nilTree.Depth() })
+	expectPanic(t, "Insert", func() { nilTree.Insert(key) })
 
-	var live AvlTree[TestTreeNode]
-	mustPanic(t, "Copy on nil tree", func() { nilTree.Copy(&live) })
-	mustPanic(t, "Union on nil tree", func() { nilTree.Union(&live, &live) })
-	mustPanic(t, "Minus on nil tree", func() { nilTree.Minus(&live, &live) })
-	mustPanic(t, "Intersect on nil tree", func() { nilTree.Intersect(&live, &live) })
+	// Verify the panic message names the method.
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected Insert to panic on nil tree.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "Insert") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		nilTree.Insert(key)
+	}()
+}
+
+// TestTreeNilTolerated verifies that every operation other than Insert
+// treats a nil tree as an empty tree instead of panicking.
+func TestTreeNilTolerated(t *testing.T) {
+	var nilTree *AvlTree[TestTreeNode]
+	key := mkKey(1)
+
+	if !nilTree.IsEmpty() {
+		t.Errorf("Expected nil tree to be empty.")
+	}
+	if nilTree.Len() != 0 || nilTree.Length() != 0 {
+		t.Errorf("Expected nil tree to have length 0.")
+	}
+	if nilTree.Depth() != 0 {
+		t.Errorf("Expected depth 0 on nil tree.")
+	}
+	if _, found := nilTree.Search(key); found {
+		t.Errorf("Expected not-found from Search on nil tree.")
+	}
+	if nilTree.Delete(key) {
+		t.Errorf("Expected false from Delete on nil tree.")
+	}
+	if _, found := nilTree.FindMin(); found {
+		t.Errorf("Expected not-found from FindMin on nil tree.")
+	}
+	if _, found := nilTree.FindMax(); found {
+		t.Errorf("Expected not-found from FindMax on nil tree.")
+	}
+	if nilTree.DeleteAtHead() || nilTree.DeleteAtTail() {
+		t.Errorf("Expected false from DeleteAtHead/DeleteAtTail on nil tree.")
+	}
+	if _, found := nilTree.Index(0); found {
+		t.Errorf("Expected not-found from Index on nil tree.")
+	}
+	nilTree.Reverse()  // no-op, must not panic
+	nilTree.Truncate() // no-op, must not panic
+
+	called := false
+	noop := func(pos, depth int, data TestTreeNode) bool {
+		called = true
+		return true
+	}
+	nilTree.WalkInOrder(noop)
+	nilTree.WalkPreOrder(noop)
+	nilTree.WalkPostOrder(noop)
+	if called {
+		t.Errorf("Expected no walk visits on nil tree.")
+	}
+
+	if it := nilTree.Front(); !it.Done() {
+		t.Errorf("Expected iterator on nil tree to be Done immediately.")
+	}
+	for range nilTree.All() {
+		t.Errorf("Expected no values from All on nil tree.")
+	}
+	for range nilTree.Backward() {
+		t.Errorf("Expected no values from Backward on nil tree.")
+	}
+
+	var sb strings.Builder
+	nilTree.Dump(&sb)
+	if sb.Len() != 0 {
+		t.Errorf("Expected no output from Dump on nil tree.")
+	}
+
+	// Set operations tolerate nil in every position: a nil destination is a
+	// no-op and a nil operand acts as the empty set.
+	live := newTestTree()
+	live.Insert(mkKey(1))
+	nilTree.Copy(live) // no-op on nil destination
+	nilTree.Union(live, live)
+	nilTree.Minus(live, live)
+	nilTree.Intersect(live, live)
+
+	dst := newTestTree()
+	dst.Insert(mkKey(1))
+	dst.Copy(nilTree)
+	if !dst.IsEmpty() {
+		t.Errorf("Expected Copy of a nil tree to empty the destination.")
+	}
+	dst.Insert(mkKey(1))
+	dst.Union(live, nilTree) // a nil operand is the empty set: the result is live's contents
+	if dst.Length() != live.Length() {
+		t.Errorf("Expected Union with nil operand to treat it as empty, got length %d", dst.Length())
+	}
 }
 
 // TestTreeIteratorEdge covers the edge branches of the old-style iterator:
 // Value/Next after the iterator is exhausted.
 func TestTreeIteratorEdge(t *testing.T) {
-	var tree AvlTree[TestTreeNode]
+	tree := newTestTree()
 
-	// Empty tree: Front is immediately Done, Value is nil, Next is a no-op.
+	// Empty tree: Front is immediately Done, Value is not-found, Next is a
+	// no-op.
 	it := tree.Front()
 	if !it.Done() {
 		t.Errorf("Expected Front() to be Done on empty tree")
 	}
-	if it.Value() != nil {
-		t.Errorf("Expected nil Value() on empty tree iterator")
+	if _, found := it.Value(); found {
+		t.Errorf("Expected no Value() on empty tree iterator")
 	}
 	it.Next() // must not panic
 	if !it.Done() {
 		t.Errorf("Expected Done() after Next() on empty tree iterator")
 	}
 
-	// Non-empty tree: walk to the end, then Value is nil and Next stays done.
+	// Non-empty tree: walk to the end, then Value is not-found and Next
+	// stays done.
 	tree.Insert(mkKey(1))
 	tree.Insert(mkKey(2))
 	it = tree.Front()
@@ -129,8 +219,8 @@ func TestTreeIteratorEdge(t *testing.T) {
 	if steps != 2 {
 		t.Errorf("Expected 2 steps to exhaust iterator, got %d", steps)
 	}
-	if it.Value() != nil {
-		t.Errorf("Expected nil Value() after iterator exhausted")
+	if _, found := it.Value(); found {
+		t.Errorf("Expected no Value() after iterator exhausted")
 	}
 	it.Next() // Next on exhausted iterator must be a no-op, not a panic
 	if !it.Done() {
@@ -140,13 +230,14 @@ func TestTreeIteratorEdge(t *testing.T) {
 	// Next must descend the left spine of the right subtree: with the
 	// balanced tree of keys 1..7, node 4's right child 6 has left child 5,
 	// so after 4 the iterator pushes 6 and lands on 5.
-	var tree2 AvlTree[TestTreeNode]
+	tree2 := newTestTree()
 	for v := 1; v <= 7; v++ {
 		tree2.Insert(mkKey(v))
 	}
 	var order []string
 	for it := tree2.Front(); !it.Done(); it.Next() {
-		order = append(order, it.Value().S)
+		v, _ := it.Value()
+		order = append(order, v.S)
 	}
 	var expect []string
 	for v := 1; v <= 7; v++ {
@@ -165,10 +256,10 @@ func TestTreeIteratorEdge(t *testing.T) {
 	}
 }
 
-// TestTreeDuplicateReplace verifies that inserting a duplicate replaces the
-// stored item (keeps the newest pointer) and does not change the length.
+// TestTreeDuplicateReplace verifies that inserting a duplicate replaces
+// the stored value and does not change the length.
 func TestTreeDuplicateReplace(t *testing.T) {
-	var tree AvlTree[TestTreeNode]
+	tree := newTestTree()
 	for _, v := range []int{5, 2, 9, 0, 3} {
 		tree.Insert(mkKey(v))
 	}
@@ -176,32 +267,36 @@ func TestTreeDuplicateReplace(t *testing.T) {
 		t.Fatalf("Expected length 5, got %d", got)
 	}
 
-	// Insert a duplicate of "2" and check the stored pointer is the new one.
-	repl := mkKey(2)
-	tree.Insert(repl)
+	// Insert a duplicate of "2" and check the stored satellite data is the
+	// new one.
+	if tree.Insert(TestTreeNode{S: mkKey(2).S, N: 7}) {
+		t.Fatalf("Expected duplicate insert to return false")
+	}
 	if got := tree.Length(); got != 5 {
 		t.Fatalf("Expected length to stay 5 after duplicate insert, got %d", got)
 	}
-	got := tree.Search(mkKey(2))
-	if got != repl {
-		t.Errorf("Expected duplicate insert to replace stored item pointer")
+	got, found := tree.Search(mkKey(2))
+	if !found || got.N != 7 {
+		t.Errorf("Expected duplicate insert to replace stored value, got %+v found=%v", got, found)
 	}
 
 	// Replace the root too, then check the tree is still structurally sound.
-	repl = mkKey(5)
-	tree.Insert(repl)
+	if tree.Insert(TestTreeNode{S: mkKey(5).S, N: 7}) {
+		t.Fatalf("Expected duplicate root insert to return false")
+	}
 	if got := tree.Length(); got != 5 {
 		t.Fatalf("Expected length to stay 5 after duplicate root insert, got %d", got)
 	}
-	if tree.Search(mkKey(5)) != repl {
-		t.Errorf("Expected duplicate root insert to replace stored item pointer")
+	if got, found := tree.Search(mkKey(5)); !found || got.N != 7 {
+		t.Errorf("Expected duplicate root insert to replace stored value, got %+v", got)
 	}
 	validateAVLNode(t, tree.root)
 }
 
-// TestTreeSingleElement covers operations on a tree holding exactly one item.
+// TestTreeSingleElement covers operations on a tree holding exactly one
+// item.
 func TestTreeSingleElement(t *testing.T) {
-	var tree AvlTree[TestTreeNode]
+	tree := newTestTree()
 	tree.Insert(mkKey(7))
 
 	if tree.IsEmpty() {
@@ -213,17 +308,20 @@ func TestTreeSingleElement(t *testing.T) {
 	if got := tree.Depth(); got != 1 {
 		t.Errorf("Expected depth 1, got %d", got)
 	}
-	if got := tree.FindMin(); got == nil || got.S != mkKey(7).S {
+	if got, found := tree.FindMin(); !found || got.S != mkKey(7).S {
 		t.Errorf("FindMin on single-element tree: got %v", got)
 	}
-	if got := tree.FindMax(); got == nil || got.S != mkKey(7).S {
+	if got, found := tree.FindMax(); !found || got.S != mkKey(7).S {
 		t.Errorf("FindMax on single-element tree: got %v", got)
 	}
-	if got := tree.Index(0); got == nil || got.S != mkKey(7).S {
+	if got, found := tree.Index(0); !found || got.S != mkKey(7).S {
 		t.Errorf("Index(0) on single-element tree: got %v", got)
 	}
-	if tree.Index(1) != nil || tree.Index(-1) != nil {
-		t.Errorf("Expected nil for out-of-range Index on single-element tree")
+	if _, found := tree.Index(1); found {
+		t.Errorf("Expected not-found for out-of-range Index on single-element tree")
+	}
+	if _, found := tree.Index(-1); found {
+		t.Errorf("Expected not-found for negative Index on single-element tree")
 	}
 	// DeleteAtTail on a single element must drain the tree.
 	if !tree.DeleteAtTail() {
@@ -242,89 +340,105 @@ func TestTreeSingleElement(t *testing.T) {
 	}
 }
 
-// TestTreeWalkEarlyStop verifies that returning false from the walk callback
-// terminates WalkInOrder, WalkPreOrder and WalkPostOrder, and that the walks
-// on an empty tree never invoke the callback.
+// TestTreeWalkEarlyStop verifies that returning false from the walk
+// callback terminates WalkInOrder, WalkPreOrder and WalkPostOrder, and
+// that the walks on an empty tree never invoke the callback.
 func TestTreeWalkEarlyStop(t *testing.T) {
-	var tree AvlTree[TestTreeNode]
+	tree := newTestTree()
 	for _, v := range []int{5, 2, 9, 0, 3} {
 		tree.Insert(mkKey(v))
 	}
 
 	// Early stop after 2 nodes for each order.
-	for name, walk := range map[string]func(ApplyFunction[TestTreeNode], interface{}){
+	for name, walk := range map[string]func(ApplyFunction[TestTreeNode]){
 		"WalkInOrder":   tree.WalkInOrder,
 		"WalkPreOrder":  tree.WalkPreOrder,
 		"WalkPostOrder": tree.WalkPostOrder,
 	} {
 		count := 0
-		walk(func(pos, depth int, data *TestTreeNode, userData interface{}) bool {
+		walk(func(pos, depth int, data TestTreeNode) bool {
 			count++
-			if userData == nil {
-				t.Errorf("%s: userData was not passed through", name)
-			}
 			return count < 2
-		}, "sentinel")
+		})
 		if count != 2 {
 			t.Errorf("%s early stop: expected 2 callbacks, got %d", name, count)
 		}
 	}
 
 	// Empty tree: no callbacks at all.
-	var empty AvlTree[TestTreeNode]
+	empty := newTestTree()
 	called := false
-	fx := func(pos, depth int, data *TestTreeNode, userData interface{}) bool {
+	fx := func(pos, depth int, data TestTreeNode) bool {
 		called = true
 		return true
 	}
-	empty.WalkInOrder(fx, nil)
-	empty.WalkPreOrder(fx, nil)
-	empty.WalkPostOrder(fx, nil)
+	empty.WalkInOrder(fx)
+	empty.WalkPreOrder(fx)
+	empty.WalkPostOrder(fx)
 	if called {
 		t.Errorf("Expected no callbacks when walking an empty tree")
 	}
 }
 
-// TestTreeSetOpsEdge covers set operations with empty operands.
+// TestTreeSetOpsEdge covers set operations with empty and nil operands,
+// and the zero-value destination adopting a comparison function.
 func TestTreeSetOpsEdge(t *testing.T) {
-	var empty1, empty2, dst AvlTree[TestTreeNode]
+	empty1, empty2 := newTestTree(), newTestTree()
+	dst := newTestTree()
 
 	dst.Insert(mkKey(1))
 
-	dst.Copy(&empty1)
+	dst.Copy(empty1)
 	if !dst.IsEmpty() {
 		t.Errorf("Copy of empty tree: expected empty destination")
 	}
 
-	dst.Union(&empty1, &empty2)
+	dst.Union(empty1, empty2)
 	if !dst.IsEmpty() {
 		t.Errorf("Union of two empty trees: expected empty result")
 	}
 
 	dst.Insert(mkKey(1))
 	dst.Insert(mkKey(2))
-	dst.Minus(&dst, &dst)
+	dst.Minus(dst, dst)
 	if !dst.IsEmpty() {
 		t.Errorf("Minus of tree with itself: expected empty result")
 	}
 
 	dst.Insert(mkKey(1))
-	var other AvlTree[TestTreeNode]
-	dst.Intersect(&dst, &other)
+	other := newTestTree()
+	dst.Intersect(dst, other)
 	if !dst.IsEmpty() {
 		t.Errorf("Intersect with empty tree: expected empty result")
 	}
+
+	// A zero-value destination adopts the source's comparison function.
+	src := newTestTree()
+	for _, v := range []int{3, 1, 2} {
+		src.Insert(mkKey(v))
+	}
+	var zero AvlTree[TestTreeNode]
+	zero.Copy(src)
+	if zero.Length() != 3 {
+		t.Fatalf("Expected Copy onto zero-value tree to adopt the comparator and copy 3 items, got %d", zero.Length())
+	}
+	if got, found := zero.FindMin(); !found || got.S != mkKey(1).S {
+		t.Errorf("Expected min 1 on adopted-comparator tree, got %+v", got)
+	}
+	if !zero.Insert(mkKey(0)) {
+		t.Errorf("Expected Insert to work on a tree that adopted its comparator")
+	}
 }
 
-// TestTreeRandomModel is a fixed-seed randomized property test.  It performs
-// hundreds of mixed operations (Insert, Delete, Search, FindMin, FindMax,
-// Index, DeleteAtHead, DeleteAtTail, iteration) and cross-checks every result
-// against a plain sorted-slice reference model.
+// TestTreeRandomModel is a fixed-seed randomized property test.  It
+// performs hundreds of mixed operations (Insert, Delete, Search, FindMin,
+// FindMax, Index, DeleteAtHead, DeleteAtTail, iteration) and cross-checks
+// every result against a plain sorted-slice reference model.
 func TestTreeRandomModel(t *testing.T) {
 	rng := rand.New(rand.NewPCG(12345, 67890))
 	const keySpace = 100 // small key space to force duplicate inserts
 
-	var tree AvlTree[TestTreeNode]
+	tree := NewAvlTreeFunc(cmpTestTreeNode)
 	var model []int // sorted, unique
 
 	contains := func(v int) bool {
@@ -382,31 +496,39 @@ func TestTreeRandomModel(t *testing.T) {
 		validateAVLNode(t, tree.root)
 	}
 
-	for step := 0; step < 1000; step++ {
+	for step := range 1000 {
 		v := rng.IntN(keySpace)
 		switch rng.IntN(9) {
 		case 0, 1, 2: // Insert (may be a duplicate -> replace)
-			tree.Insert(mkKey(v))
+			added := tree.Insert(mkKey(v))
+			if added == contains(v) {
+				t.Fatalf("step %d: Insert(%d)=%v, model said present=%v", step, v, added, contains(v))
+			}
 			modelInsert(v)
 		case 3, 4: // Delete
 			if got := tree.Delete(mkKey(v)); got != modelDelete(v) {
-				t.Fatalf("step %d: Delete(%d) returned %v, model says %v", step, v, got, contains(v))
+				t.Fatalf("step %d: Delete(%d) returned %v, model said %v", step, v, got, contains(v))
 			}
 		case 5: // Search
-			got := tree.Search(mkKey(v))
-			if want := contains(v); (got != nil) != want {
-				t.Fatalf("step %d: Search(%d) found=%v, model says %v", step, v, got != nil, want)
+			_, found := tree.Search(mkKey(v))
+			if want := contains(v); found != want {
+				t.Fatalf("step %d: Search(%d) found=%v, model says %v", step, v, found, want)
 			}
 		case 6: // FindMin / FindMax
-			mn, mx := tree.FindMin(), tree.FindMax()
+			mn, mnOK := tree.FindMin()
+			mx, mxOK := tree.FindMax()
 			if len(model) == 0 {
-				if mn != nil || mx != nil {
+				if mnOK || mxOK {
 					t.Fatalf("step %d: FindMin/FindMax on empty tree returned %v/%v", step, mn, mx)
 				}
 			} else {
 				var mnv, mxv int
-				fmt.Sscanf(mn.S, "%d", &mnv)
-				fmt.Sscanf(mx.S, "%d", &mxv)
+				if _, err := fmt.Sscanf(mn.S, "%d", &mnv); err != nil {
+					t.Fatalf("step %d: bad min key %q: %v", step, mn.S, err)
+				}
+				if _, err := fmt.Sscanf(mx.S, "%d", &mxv); err != nil {
+					t.Fatalf("step %d: bad max key %q: %v", step, mx.S, err)
+				}
 				if mnv != model[0] || mxv != model[len(model)-1] {
 					t.Fatalf("step %d: FindMin=%d FindMax=%d, model %v", step, mnv, mxv, model)
 				}
@@ -437,22 +559,27 @@ func TestTreeRandomModel(t *testing.T) {
 			}
 		case 8: // Index
 			if len(model) == 0 {
-				if tree.Index(0) != nil {
-					t.Fatalf("step %d: Index(0) on empty tree returned non-nil", step)
+				if _, found := tree.Index(0); found {
+					t.Fatalf("step %d: Index(0) on empty tree returned found", step)
 				}
 			} else {
 				pos := rng.IntN(len(model))
-				got := tree.Index(pos)
-				if got == nil {
-					t.Fatalf("step %d: Index(%d) returned nil, model %v", step, pos, model)
+				got, found := tree.Index(pos)
+				if !found {
+					t.Fatalf("step %d: Index(%d) returned not-found, model %v", step, pos, model)
 				}
 				var gv int
-				fmt.Sscanf(got.S, "%d", &gv)
+				if _, err := fmt.Sscanf(got.S, "%d", &gv); err != nil {
+					t.Fatalf("step %d: bad key %q: %v", step, got.S, err)
+				}
 				if gv != model[pos] {
 					t.Fatalf("step %d: Index(%d)=%d, model says %d", step, pos, gv, model[pos])
 				}
-				if tree.Index(len(model)) != nil || tree.Index(-1) != nil {
-					t.Fatalf("step %d: out-of-range Index returned non-nil", step)
+				if _, found := tree.Index(len(model)); found {
+					t.Fatalf("step %d: out-of-range Index returned found", step)
+				}
+				if _, found := tree.Index(-1); found {
+					t.Fatalf("step %d: negative Index returned found", step)
 				}
 			}
 		}

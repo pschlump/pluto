@@ -15,40 +15,91 @@ import (
 	"testing"
 )
 
-// expectPanic runs f and fails the test unless f panics with the expected
-// message.
-func expectPanic(t *testing.T, name, want string, f func()) {
+// expectPanic runs f and fails the test unless it panics.
+func expectPanic(t *testing.T, name string, f func()) {
 	t.Helper()
 	defer func() {
-		r := recover()
-		if r == nil {
-			t.Errorf("%s: expected panic %q, got none", name, want)
-			return
-		}
-		if s, ok := r.(string); !ok || s != want {
-			t.Errorf("%s: expected panic %q, got %v", name, want, r)
+		if r := recover(); r == nil {
+			t.Errorf("Expected %s to panic, it did not.", name)
 		}
 	}()
 	f()
 }
 
-// TestTreeNilPanics verifies that the operations documented to panic on a
-// nil tree actually do so.
+// TestTreeNilPanics verifies the documented panic when Insert is called on
+// a nil tree — the one operation with no sane answer.
 func TestTreeNilPanics(t *testing.T) {
 	var nilTree *RbTree[TestRbTreeNode]
-	const want = "tree should not be nil"
+	key := TestRbTreeNode{S: "00"}
 
-	expectPanic(t, "Insert", want, func() { nilTree.Insert(TestRbTreeNode{S: "00"}) })
-	expectPanic(t, "Delete", want, func() { nilTree.Delete(TestRbTreeNode{S: "00"}) })
-	expectPanic(t, "DeleteAtHead", want, func() { nilTree.DeleteAtHead() })
-	expectPanic(t, "DeleteAtTail", want, func() { nilTree.DeleteAtTail() })
-	expectPanic(t, "Depth", want, func() { nilTree.Depth() })
+	expectPanic(t, "Insert", func() { nilTree.Insert(key) })
+
+	// Verify the panic message names the method.
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected Insert to panic on nil tree.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "Insert") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		nilTree.Insert(key)
+	}()
+}
+
+// TestTreeNilTolerated verifies that every operation other than Insert
+// treats a nil tree as an empty tree instead of panicking.
+func TestTreeNilTolerated(t *testing.T) {
+	var nilTree *RbTree[TestRbTreeNode]
+	key := TestRbTreeNode{S: "00"}
+
+	if !nilTree.IsEmpty() {
+		t.Errorf("Expected nil tree to be empty.")
+	}
+	if nilTree.Len() != 0 || nilTree.Length() != 0 {
+		t.Errorf("Expected nil tree to have length 0.")
+	}
+	if nilTree.Depth() != 0 {
+		t.Errorf("Expected depth 0 on nil tree.")
+	}
+	if _, found := nilTree.Search(key); found {
+		t.Errorf("Expected not-found from Search on nil tree.")
+	}
+	if nilTree.Delete(key) {
+		t.Errorf("Expected false from Delete on nil tree.")
+	}
+	if _, found := nilTree.FindMin(); found {
+		t.Errorf("Expected not-found from FindMin on nil tree.")
+	}
+	if _, found := nilTree.FindMax(); found {
+		t.Errorf("Expected not-found from FindMax on nil tree.")
+	}
+	if nilTree.DeleteAtHead() || nilTree.DeleteAtTail() {
+		t.Errorf("Expected false from DeleteAtHead/DeleteAtTail on nil tree.")
+	}
+	nilTree.Truncate() // no-op, must not panic
+
+	for range nilTree.All() {
+		t.Errorf("Expected no values from All on nil tree.")
+	}
+	for range nilTree.Backward() {
+		t.Errorf("Expected no values from Backward on nil tree.")
+	}
+
+	var buf bytes.Buffer
+	nilTree.Dump(&buf)
+	if buf.String() != "RbTree (empty)\n" {
+		t.Errorf("Expected empty dump message on nil tree, got %q", buf.String())
+	}
 }
 
 // TestTreeDepth verifies Depth on an empty tree, a single-node tree and a
 // small balanced tree.
 func TestTreeDepth(t *testing.T) {
-	var Tree1 RbTree[TestRbTreeNode]
+	Tree1 := newTestTree()
 
 	if d := Tree1.Depth(); d != 0 {
 		t.Errorf("Expected depth 0 on empty tree, got %d", d)
@@ -65,19 +116,19 @@ func TestTreeDepth(t *testing.T) {
 	if d := Tree1.Depth(); d != 2 {
 		t.Errorf("Expected depth 2 on 3-node balanced tree, got %d", d)
 	}
-	checkInvariants(t, &Tree1)
+	checkInvariants(t, Tree1)
 }
 
-// TestTreeSingleElement exercises every operation on a tree holding exactly
-// one item.
+// TestTreeSingleElement exercises every operation on a tree holding
+// exactly one item.
 func TestTreeSingleElement(t *testing.T) {
-	var Tree1 RbTree[TestRbTreeNode]
+	Tree1 := newTestTree()
 	Tree1.Insert(TestRbTreeNode{S: "42"})
 
-	if mn := Tree1.FindMin(); mn == nil || mn.S != "42" {
+	if mn, found := Tree1.FindMin(); !found || mn.S != "42" {
 		t.Errorf("Expected min of 42, got %+v", mn)
 	}
-	if mx := Tree1.FindMax(); mx == nil || mx.S != "42" {
+	if mx, found := Tree1.FindMax(); !found || mx.S != "42" {
 		t.Errorf("Expected max of 42, got %+v", mx)
 	}
 
@@ -96,7 +147,7 @@ func TestTreeSingleElement(t *testing.T) {
 	}
 
 	// Removing the only element from the head and from the tail.
-	var Head RbTree[TestRbTreeNode]
+	Head := newTestTree()
 	Head.Insert(TestRbTreeNode{S: "42"})
 	if !Head.DeleteAtHead() {
 		t.Errorf("Expected DeleteAtHead on single-node tree to return true")
@@ -104,9 +155,9 @@ func TestTreeSingleElement(t *testing.T) {
 	if !Head.IsEmpty() || Head.Length() != 0 {
 		t.Errorf("Expected empty tree after DeleteAtHead, length=%d", Head.Length())
 	}
-	checkInvariants(t, &Head)
+	checkInvariants(t, Head)
 
-	var Tail RbTree[TestRbTreeNode]
+	Tail := newTestTree()
 	Tail.Insert(TestRbTreeNode{S: "42"})
 	if !Tail.DeleteAtTail() {
 		t.Errorf("Expected DeleteAtTail on single-node tree to return true")
@@ -114,7 +165,7 @@ func TestTreeSingleElement(t *testing.T) {
 	if !Tail.IsEmpty() || Tail.Length() != 0 {
 		t.Errorf("Expected empty tree after DeleteAtTail, length=%d", Tail.Length())
 	}
-	checkInvariants(t, &Tail)
+	checkInvariants(t, Tail)
 
 	if !Tree1.Delete(TestRbTreeNode{S: "42"}) {
 		t.Errorf("Expected Delete of the only item to return true")
@@ -122,10 +173,13 @@ func TestTreeSingleElement(t *testing.T) {
 	if !Tree1.IsEmpty() {
 		t.Errorf("Expected empty tree after deleting the only item")
 	}
-	if Tree1.FindMin() != nil || Tree1.FindMax() != nil {
-		t.Errorf("Expected FindMin/FindMax to return nil after deleting the only item")
+	if _, found := Tree1.FindMin(); found {
+		t.Errorf("Expected FindMin to report not-found after deleting the only item")
 	}
-	checkInvariants(t, &Tree1)
+	if _, found := Tree1.FindMax(); found {
+		t.Errorf("Expected FindMax to report not-found after deleting the only item")
+	}
+	checkInvariants(t, Tree1)
 }
 
 // TestTreeDeleteTwoChildren covers the delete paths for a node with two
@@ -133,7 +187,7 @@ func TestTreeSingleElement(t *testing.T) {
 // successor is deeper in the right subtree.
 func TestTreeDeleteTwoChildren(t *testing.T) {
 	// Successor is the direct right child of the deleted node.
-	var T1 RbTree[TestRbTreeNode]
+	T1 := newTestTree()
 	for _, s := range []string{"02", "01", "03"} {
 		T1.Insert(TestRbTreeNode{S: s})
 	}
@@ -147,11 +201,11 @@ func TestTreeDeleteTwoChildren(t *testing.T) {
 	if fmt.Sprintf("%v", got) != "[01 03]" {
 		t.Errorf("Expected [01 03] after delete, got %v", got)
 	}
-	checkInvariants(t, &T1)
+	checkInvariants(t, T1)
 
 	// Successor is deeper in the right subtree (its parent is not the
 	// deleted node).
-	var T2 RbTree[TestRbTreeNode]
+	T2 := newTestTree()
 	for _, s := range []string{"10", "05", "20", "15", "25", "12"} {
 		T2.Insert(TestRbTreeNode{S: s})
 	}
@@ -165,17 +219,17 @@ func TestTreeDeleteTwoChildren(t *testing.T) {
 	if fmt.Sprintf("%v", got) != "[05 12 15 20 25]" {
 		t.Errorf("Expected [05 12 15 20 25] after delete, got %v", got)
 	}
-	checkInvariants(t, &T2)
+	checkInvariants(t, T2)
 
 	// Deleting a leaf and a node with a single child.
 	if !T2.Delete(TestRbTreeNode{S: "25"}) { // leaf
 		t.Errorf("Expected delete of leaf to return true")
 	}
-	checkInvariants(t, &T2)
+	checkInvariants(t, T2)
 	if !T2.Delete(TestRbTreeNode{S: "20"}) { // single child (15)
 		t.Errorf("Expected delete of single-child node to return true")
 	}
-	checkInvariants(t, &T2)
+	checkInvariants(t, T2)
 	got = got[:0]
 	for v := range T2.All() {
 		got = append(got, v.S)
@@ -188,14 +242,14 @@ func TestTreeDeleteTwoChildren(t *testing.T) {
 // TestTreeDump verifies that Dump produces the expected empty-tree message
 // and includes every node, its color and the header on a populated tree.
 func TestTreeDump(t *testing.T) {
-	var Empty RbTree[TestRbTreeNode]
+	Empty := newTestTree()
 	var buf bytes.Buffer
 	Empty.Dump(&buf)
 	if buf.String() != "RbTree (empty)\n" {
 		t.Errorf("Expected empty dump message, got %q", buf.String())
 	}
 
-	var Tree1 RbTree[TestRbTreeNode]
+	Tree1 := newTestTree()
 	for _, s := range []string{"05", "02", "09", "00", "03"} {
 		Tree1.Insert(TestRbTreeNode{S: s})
 	}
@@ -207,11 +261,14 @@ func TestTreeDump(t *testing.T) {
 		t.Errorf("Dump header mismatch, output:\n%s", out)
 	}
 	for _, s := range []string{"00", "02", "03", "05", "09"} {
-		if !strings.Contains(out, "{"+s+"}(B)") && !strings.Contains(out, "{"+s+"}(R)") {
+		if !strings.Contains(out, "{"+s+" ") {
 			t.Errorf("Dump output missing node %s, output:\n%s", s, out)
 		}
 	}
-	// One line per node plus the header.
+	// Every node is printed red or black, one line each, plus the header.
+	if n := strings.Count(out, "(R)\n") + strings.Count(out, "(B)\n"); n != Tree1.Length() {
+		t.Errorf("Expected %d colored node lines in dump, got %d", Tree1.Length(), n)
+	}
 	if n := strings.Count(out, "\n"); n != Tree1.Length()+1 {
 		t.Errorf("Expected %d lines in dump, got %d", Tree1.Length()+1, n)
 	}
@@ -229,7 +286,7 @@ func TestTreeModelBased(t *testing.T) {
 	rng := rand.New(rand.NewPCG(1234, 5678))
 	key := func(n int) string { return fmt.Sprintf("%06d", n) }
 
-	var Tree1 RbTree[TestRbTreeNode]
+	Tree1 := newTestTree()
 	model := make(map[string]bool)
 
 	modelMinMax := func() (mn, mx string, ok bool) {
@@ -244,11 +301,14 @@ func TestTreeModelBased(t *testing.T) {
 		return keys[0], keys[len(keys)-1], true
 	}
 
-	for i := 0; i < nOps; i++ {
+	for i := range nOps {
 		k := key(rng.IntN(keySpace))
 		switch rng.IntN(10) {
 		case 0, 1, 2, 3, 4, 5: // Insert
-			Tree1.Insert(TestRbTreeNode{S: k})
+			added := Tree1.Insert(TestRbTreeNode{S: k})
+			if added == model[k] {
+				t.Fatalf("op %d: Insert(%s) = %v, model says present=%v", i, k, added, model[k])
+			}
 			model[k] = true
 		case 6, 7, 8: // Delete
 			want := model[k]
@@ -257,11 +317,11 @@ func TestTreeModelBased(t *testing.T) {
 			}
 			delete(model, k)
 		default: // Search
-			got := Tree1.Search(TestRbTreeNode{S: k})
-			if model[k] && (got == nil || got.S != k) {
+			got, found := Tree1.Search(TestRbTreeNode{S: k})
+			if model[k] && (!found || got.S != k) {
 				t.Fatalf("op %d: Search(%s) = %+v, model says present", i, k, got)
 			}
-			if !model[k] && got != nil {
+			if !model[k] && found {
 				t.Fatalf("op %d: Search(%s) = %+v, model says absent", i, k, got)
 			}
 		}
@@ -271,10 +331,10 @@ func TestTreeModelBased(t *testing.T) {
 		}
 
 		mn, mx, ok := modelMinMax()
-		if got := Tree1.FindMin(); (got == nil) == ok || (ok && got.S != mn) {
+		if got, found := Tree1.FindMin(); found != ok || (ok && got.S != mn) {
 			t.Fatalf("op %d: FindMin() = %+v, model says %s", i, got, mn)
 		}
-		if got := Tree1.FindMax(); (got == nil) == ok || (ok && got.S != mx) {
+		if got, found := Tree1.FindMax(); found != ok || (ok && got.S != mx) {
 			t.Fatalf("op %d: FindMax() = %+v, model says %s", i, got, mx)
 		}
 		if Tree1.IsEmpty() == ok {
@@ -282,7 +342,7 @@ func TestTreeModelBased(t *testing.T) {
 		}
 
 		if i%250 == 0 {
-			checkInvariants(t, &Tree1)
+			checkInvariants(t, Tree1)
 		}
 	}
 
@@ -312,14 +372,14 @@ func TestTreeModelBased(t *testing.T) {
 
 	// Drain via DeleteAtHead / DeleteAtTail, checking order against the model.
 	var fromHead []string
-	var Head RbTree[TestRbTreeNode]
+	Head := newTestTree()
 	for _, k := range want {
 		Head.Insert(TestRbTreeNode{S: k})
 	}
 	rest := append([]string(nil), want...)
 	for len(rest) > 0 {
 		mn := rest[0]
-		if got := Head.FindMin(); got == nil || got.S != mn {
+		if got, found := Head.FindMin(); !found || got.S != mn {
 			t.Fatalf("DeleteAtHead drain: expected min %s, got %+v", mn, got)
 		}
 		if !Head.DeleteAtHead() {
@@ -336,14 +396,14 @@ func TestTreeModelBased(t *testing.T) {
 	}
 
 	var fromTail []string
-	var Tail RbTree[TestRbTreeNode]
+	Tail := newTestTree()
 	for _, k := range want {
 		Tail.Insert(TestRbTreeNode{S: k})
 	}
 	rest = append([]string(nil), want...)
 	for len(rest) > 0 {
 		mx := rest[len(rest)-1]
-		if got := Tail.FindMax(); got == nil || got.S != mx {
+		if got, found := Tail.FindMax(); !found || got.S != mx {
 			t.Fatalf("DeleteAtTail drain: expected max %s, got %+v", mx, got)
 		}
 		if !Tail.DeleteAtTail() {
@@ -355,6 +415,12 @@ func TestTreeModelBased(t *testing.T) {
 	if Tail.DeleteAtTail() || !Tail.IsEmpty() {
 		t.Fatalf("DeleteAtTail drain: expected empty tree and false at the end")
 	}
-	checkInvariants(t, &Head)
-	checkInvariants(t, &Tail)
+	// The tail drain must have removed the items largest-first: want reversed.
+	for j := range want {
+		if fromTail[j] != want[len(want)-1-j] {
+			t.Fatalf("DeleteAtTail drain order mismatch: position %d: expected %s, got %s", j, want[len(want)-1-j], fromTail[j])
+		}
+	}
+	checkInvariants(t, Head)
+	checkInvariants(t, Tail)
 }

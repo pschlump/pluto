@@ -1,10 +1,10 @@
-package hash_grow
-
 /*
-Copyright (C) Philip Schlump, 2023.
+Copyright (C) Philip Schlump, 2012-2026.
 
-BSD 3 Clause Licensed. See ../LICENSE
+BSD 3 Clause Licensed.
 */
+
+package hash_grow
 
 import "iter"
 
@@ -13,12 +13,18 @@ import "iter"
 //
 //	for pos, item := range ht.All() { ... }
 //
+// As with dll/sll, a single-variable range yields the bucket position, not
+// the element.  Bucket order depends on the per-table hash seed, so it
+// varies from process to process — never assert a fixed order.
 // Complexity is O(n).
-func (tt *HashTab[T]) All() iter.Seq2[int, *T] {
-	return func(yield func(int, *T) bool) {
-		for i, v := range tt.buckets {
-			if v != nil {
-				if !yield(i, v) {
+func (tt *HashTab[T]) All() iter.Seq2[int, T] {
+	return func(yield func(int, T) bool) {
+		if tt == nil {
+			return
+		}
+		for i := range tt.buckets {
+			if tt.originalHash[i] != 0 {
+				if !yield(i, tt.buckets[i]) {
 					return
 				}
 			}
@@ -31,17 +37,20 @@ func (tt *HashTab[T]) All() iter.Seq2[int, *T] {
 //
 //	for item := range ht.Values() { ... }
 //
+// Bucket order depends on the per-table hash seed, so it varies from process
+// to process — never assert a fixed order.
 // Complexity is O(n).
-func (tt *HashTab[T]) Values() iter.Seq[*T] {
-	return func(yield func(*T) bool) {
-		for _, v := range tt.buckets {
-			if v != nil {
-				if !yield(v) {
+func (tt *HashTab[T]) Values() iter.Seq[T] {
+	return func(yield func(T) bool) {
+		if tt == nil {
+			return
+		}
+		for i := range tt.buckets {
+			if tt.originalHash[i] != 0 {
+				if !yield(tt.buckets[i]) {
 					return
 				}
 			}
 		}
 	}
 }
-
-/* vim: set noai ts=4 sw=4: */

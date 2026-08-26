@@ -1,21 +1,45 @@
 = hash_grow
-:toc:
 
-`hash_grow` is a generic hash table for Go using open addressing with linear
-probing. When the load factor exceeds a configurable saturation threshold
-(default 0.5) the table automatically doubles in size and re-hashes all
-entries.
+`hash_grow` is a generic hash table for Go using open addressing with
+linear probing. When the load factor exceeds a configurable saturation
+threshold (default 0.5) the table automatically doubles in size and
+re-hashes all entries.
 
-Elements must implement `comparable.Comparable` (a `Compare` method). Hash
-keys come from, in priority order:
+It is a rework of
+link:https://github.com/pschlump/pluto/tree/main/hash_grow[pluto/hash_grow]
+that replaces the `comparable.Comparable` interface constraint (and the
+`Hashable`/`fmt.Stringer` hashing built on it) with pure Go type
+parameters, so element data is never boxed into an interface and never
+unboxed with a type assertion.
 
-. the `Hashable` interface (`HashKey(x any) int`), if the element implements it,
-. the element itself if it is a `string`,
-. `fmt.Stringer`, hashed with FNV-1a.
+* Elements are stored and returned *by value* (`T`, not `*T`).
+* Keys of types comparable with `==` (all scalars, strings, pointers,
+arrays, and structs of comparable fields) need no functions at all:
+`hash_grow.NewHashTab[string](16, 0)`.  Equality is the `==` operator and
+hashing is the stdlib `hash/maphash` with a per-table random seed.
+* Any other type — or identity by a single field — takes a plain equality
+function *and* a hash function, with no interface to implement:
++
+[source,go]
+----
+byID := hash_grow.NewHashTabFunc(
+	func(a, b User) bool { return a.ID == b.ID },
+	func(u User) uint64 { /* hash of u.ID */ },
+	8, 0,
+)
+----
++
+The two functions must agree: whenever `eq(a, b)` is true, `hash(a)` and
+`hash(b)` must be equal.
 
-This is the *non-locking* variant. For concurrent use see
-link:../hash_grow_ts[`hash_grow_ts`], which provides an identical API guarded by
-a `sync.RWMutex`.
+The default hashing is *randomized per table* (a `hash/maphash` seed) — a
+hash-flooding mitigation.  Bucket order in `All`, `Values`, `Walk` and
+`Dump`, and the raw hash values `Dump` prints, therefore vary from process
+to process and must not appear in fixed assertions or golden files.
+
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and appear
+on pkg.go.dev.
 
 == Complexity
 
@@ -28,11 +52,15 @@ a `sync.RWMutex`.
 | `Delete`                                 | O(1)    | O(n)       | backward-shift keeps probe chains intact
 | `IsEmpty`, `Len`, `Length`               | O(1)    | O(1)       |
 | `Truncate`                               | O(n)    | O(n)       | clears all buckets for GC
-| `Walk`, `Print`, `Dump`, `All`, `Values` | O(n)    | O(n)       |
+| `Walk`, `Dump`, `All`, `Values`          | O(n)    | O(n)       |
 |===
 
 Worst case occurs when many keys collide; the load factor is kept below the
 saturation threshold (default 0.5) so average behavior is O(1).
+
+A saturation of 1.0 or more defers growth until the table is actually full;
+growth is then forced, so a completely full table can neither silently drop
+an insert nor wedge a probe (pluto did both).
 
 == Usage
 
@@ -42,67 +70,104 @@ package main
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/pschlump/pluto/comparable"
-	"github.com/pschlump/pluto/hash_grow"
+	"github.com/pschlump/charon/hash_grow"
 )
 
-type Item struct {
-	Key string
-}
-
-func (a Item) Compare(x comparable.Comparable) int {
-	b := x.(Item)
-	if a.Key < b.Key {
-		return -1
-	} else if a.Key > b.Key {
-		return 1
-	}
-	return 0
-}
-
 func main() {
-	ht := hash_grow.NewHashTab[Item](16, 0) // initial size 16, default saturation 0.5
+	ht := hash_grow.NewHashTab[string](16, 0) // initial size 16, default saturation 0.5
 
-	ht.Insert(&Item{Key: "alpha"})
-	ht.Insert(&Item{Key: "beta"})
+	ht.Insert("alpha")
+	ht.Insert("beta")
+	fmt.Println(ht.Insert("alpha")) // false — duplicate replaces the element
 
-	if it := ht.Search(&Item{Key: "alpha"}); it != nil {
-		fmt.Println("found", it.Key)
+	if v, found := ht.Search("alpha"); found {
+		fmt.Println("found", v)
 	}
 
-	ht.Delete(&Item{Key: "alpha"})
+	ht.Delete("alpha")
 
-	// Range-over-func iteration (Go 1.23+):
-	for pos, item := range ht.All() {
-		fmt.Printf("bucket %d: %s\n", pos, item.Key)
+	// Range-over-func iteration (Go 1.23+), in bucket order:
+	for pos, item := range ht.All() { // (bucket position, element)
+		fmt.Println(pos, item)
 	}
 	for item := range ht.Values() {
-		fmt.Println(item.Key)
+		fmt.Println(item)
 	}
 
-	// Callback-style iteration (kept for compatibility):
-	ht.Walk(func(pos, depth int, data *Item, userData any) bool {
-		fmt.Println(data.Key)
-		return true // return false to stop the walk
-	}, nil)
-
-	ht.Print(os.Stdout) // one element per line, bucket order
-	ht.Truncate()       // remove everything
+	ht.Truncate() // remove everything
 }
 ----
 
 == Iteration
 
-Two styles are supported:
+Two styles are supported, both in bucket order (hash-dependent, see the
+randomization note above):
 
-- Go 1.23+ range-over-func: `All() iter.Seq2[int, *T]` (bucket position and
-  element) and `Values() iter.Seq[*T]`, both in bucket order.
-- The legacy `Walk(ApplyFunction[T], userData)` callback API.
+- Go 1.23+ range-over-func: `All() iter.Seq2[int, T]` (bucket position and
+  element — as with dll/sll, a single-variable range yields the *bucket
+  position*, not the element) and `Values() iter.Seq[T]`.
+- The `Walk(ApplyFunction[T])` callback: `fx(pos int, data T) bool`, where
+  returning *false stops the walk* (the tree-packages convention — dll and
+  sll are the opposite) and the closure captures caller state; Walk returns
+  true when the walk ran to completion.
+
+== Panics
+
+The package panics in exactly four situations — all programmer errors with
+no sane fallback, each message naming the fix:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewHashTabFunc(nil eq, ...)` / `NewHashTabFunc(eq, nil hash, ...)` | nil function, caught at construction time
+| `NewHashTab`/`NewHashTabFunc` with n < 5 | a smaller table has no headroom
+| `Insert` on a nil `*HashTab` | a nil table cannot store an element
+| `Insert` on a zero-value table | no equality/hash functions; the message names the constructors
+|===
+
+Everything else tolerates a nil table and the zero value as an empty table:
+searches report not-found, `Delete` returns false, and the iterators visit
+nothing.
+
+== Differences from pluto/hash_grow
+
+* The `comparable.Comparable` constraint and the `Hashable`/`string`/
+`fmt.Stringer` hash-key priority are gone — pluto hashed through
+`hash(x any)` with type assertions (and panicked on types implementing
+none of the three).  Equality is either the type's `==` operator
+(`NewHashTab`, no interface, no boxing) or a caller supplied function
+paired with a caller supplied `func(T) uint64` hash
+(`NewHashTabFunc`).  `NewHashTab` hashes with a per-table random
+`hash/maphash` seed; pluto's FNV-1a hashes were deterministic per process.
+* The data is stored by value in each bucket (pluto stored a `*T` pointing
+  at the inserted item).  `Search` returns `(T, bool)` instead of a
+  nil-able `*T`, and `Insert`/`Delete` take the probe by value — a probe
+  only needs the fields the equality/hash functions read.
+* `Insert` returns bool — true when a new element was added, false when it
+  replaced an equal element (pluto returned nothing).
+* `Walk`'s callback is `func(pos int, data T) bool` — no `depth` parameter
+  (always 0 for a flat table) and no `interface{}` userData (state is
+  captured in a closure).  The false-stops convention is unchanged.
+* `Print` is gone — `for _, v := range ht.All() { fmt.Fprintln(out, v) }`
+  is the one-line replacement.  `Dump` prints an `empty` marker for vacant
+  buckets (pluto printed the nil pointer).
+* An empty bucket is marked by a zero raw hash (pluto used a nil bucket
+  pointer); a hash of exactly 0 is remapped to 1 on every path.
+* Probes (`Insert`/`Search`/`Delete`) stop after one full cycle of the
+  table, and an insert into a completely full table forces growth instead
+  of being silently dropped — pluto could loop forever searching a full
+  table and dropped inserts at saturation ≥ 1.0.
+* A saturation ≤ 0 or NaN selects the 0.5 default (pluto only remapped
+  exactly 0; negative grew on every insert and NaN never grew).
+* The public `NlSearch`/`NlDelete` aliases are gone (the `_ts` twin keeps
+  the code shape with unexported internals); a nil table is tolerated
+  instead of panicking with an unguarded nil dereference on most reads.
 
 == Thread safety
 
-`hash_grow` is *not* safe for concurrent use. Use the `hash_grow_ts`
-package, which guards every operation with a `sync.RWMutex`, when the table
-is shared between goroutines.
+`hash_grow` is *not* safe for concurrent use. Use the
+link:../hash_grow_ts[`hash_grow_ts`] package, which guards every operation
+with a `sync.RWMutex` and adds `Lock`/`Unlock` plus the `Nl*` methods for
+compound operations, when the table is shared between goroutines.

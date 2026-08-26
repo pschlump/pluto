@@ -1,64 +1,132 @@
 = heap_ts
-:toc:
 
-A *thread-safe* generic min-heap for Go (1.23+), the locking twin of
-link:../heap/[`heap`]. It has the exact same API as `heap`; every operation is
-guarded by an internal `sync.RWMutex`. Pop always removes and returns the
-minimum element (per `comparable.Comparable.Compare`).
+A generic, *thread-safe min-heap* — the twin of
+link:../heap/[charon/heap].  Every operation is guarded by a `sync.RWMutex`:
+readers run in parallel with each other, writers are exclusive.  Like
+`heap`, `Pop` always removes the minimum, a reversed comparison function
+turns it into a max-heap, and it is a rework of
+link:https://github.com/pschlump/pluto/tree/main/heap_ts[pluto/heap_ts]
+with the charon conventions (no interface constraint, elements stored
+and returned by value, out-of-range index operations reporting `false`
+instead of panicking).
 
-== Differences from `heap`
+The public API is identical to `heap`, *plus* the real `Lock`/`Unlock`
+pair and the `Nl*` (no-lock) methods for compound operations.
 
-- Every method takes the internal `sync.RWMutex` (read lock for readers).
-- `All()` iterates a *snapshot* taken under the read lock — it is safe to
-  call heap methods from inside the loop body; changes made after the
-  snapshot are not visible to the iteration.
-- `Lock`/`Unlock` expose the write lock for atomic batching. While the lock
-  is held, call only the `Nl`-prefixed no-lock methods (`NlPush`, `NlPop`,
-  `NlDelete`, `NlFix`, `NlLen`, `NlGetValue`); calling a regular method will
-  deadlock. The plain `heap` package provides no-op `Lock`/`Unlock` and
-  pass-through `Nl*` aliases so the same code compiles against either
-  package.
-- Pointers returned by `Peek`/`GetValue`/`Search` alias data stored in the
-  heap — treat them as read-only. Indexes returned by `Search` may be
-  invalidated by any concurrent mutation.
+== Locking behavior
 
-== Operations and complexity
-
-[cols="1,3,1",options="header"]
-|===
-| Operation      | Description                                               | Complexity
-
-| `NewHeap`      | Create an empty heap                                      | O(1)
-| `Push`         | Add an element                                            | O(log n)
-| `Pop`          | Remove and return the minimum element (`nil` if empty)    | O(log n)
-| `Peek`         | Return the minimum element without removing it            | O(1)
-| `Delete`       | Remove and return the element at an index                 | O(log n)
-| `Fix`          | Replace the element at an index and restore heap order    | O(log n)
-| `SetValue`     | Alias for `Fix`                                           | O(log n)
-| `GetValue`     | Return the element at an index                            | O(1)
-| `Search`       | Linear scan by value; returns value, index                | O(n)
-| `Len`/`Length` | Number of elements                                        | O(1)
-| `Truncate`     | Remove all elements                                       | O(1)
-| `AppendHeap`   | Bulk append (breaks heap order; rebuild with `Heapify`)   | O(m)
-| `Heapify`      | Restore heap order of the sub-tree rooted at an index     | O(log n)
-| `All`          | Range-over-func iterator over a snapshot (internal order) | O(n)
-|===
-
-== Example
+* *Reads* (`Peek`, `GetValue`, `Search`, `Len`, `Length`, `IsEmpty`)
+take the read lock and release it before returning — they can run in
+parallel with each other.
+* *Writes* (`Push`, `Pop`, `Delete`, `Fix`/`SetValue`, `Truncate`,
+`AppendHeap`, `Heapify`) take the write lock.
+* *`All` operates on a snapshot* copied under the read lock when it is
+called (one O(n) copy).  It is safe to mutate the heap while iterating
+— including from inside the loop — and an iterator never observes
+modifications made after it was created.  `All` yields internal
+breadth-first order, *not* sorted order.
+* *`Dump` holds the read lock for the whole dump*, so the writer must
+not call methods on the same heap.
+* *`Lock`/`Unlock` expose the write lock* for compound operations that
+must be atomic.  While the lock is held, only the `Nl*` methods may be
+called — calling a regular method will deadlock:
+`NlLen`, `NlGetValue`, `NlPush`, `NlPop`, `NlDelete`, `NlFix`,
+`NlAppendHeap`, `NlHeapify`.
 
 [source,go]
 ----
-h := heap_ts.NewHeap[Item]()
-h.Push(&Item{Priority: 3})
-h.Push(&Item{Priority: 1})
-fmt.Println(h.Pop().Priority) // 1 — the minimum
-
-// Atomic batch:
-h.Lock()
-h.NlPush(&Item{Priority: 2})
-_ = h.NlPop()
-h.Unlock()
+hp.Lock()
+if v, found := hp.NlGetValue(0); found && v > 3 {
+    hp.NlFix(0, 3) // atomic clamp of the minimum
+}
+hp.Unlock()
 ----
 
-Tests include a goroutine concurrency test; run `go test -race` (or
-`make race` at the repo root) after any change.
+== Errors and panics
+
+Identical to `heap`: no errors — every empty or out-of-range outcome is a
+`false` return — and exactly three panics:
+
+[options="header"]
+|===
+| Call                                     | Why
+
+| `NewHeapFunc(nil)`                       | nil comparison function, caught at construction time
+| `Push`/`AppendHeap` on a nil heap        | a nil heap cannot store an element
+| `Push`/`AppendHeap` on a zero-value heap | no comparison function; the message names the constructors
+|===
+
+Everything else tolerates a nil heap and the zero value as an empty heap.
+
+== Usage
+
+[source,go]
+----
+package main
+
+import (
+    "fmt"
+    "sync"
+
+    "github.com/pschlump/charon/heap_ts"
+)
+
+func main() {
+    hp := heap_ts.NewHeap[int]()
+
+    // Writers from many goroutines share one heap.
+    var wg sync.WaitGroup
+    for p := 0; p < 8; p++ {
+        wg.Add(1)
+        go func(p int) {
+            defer wg.Done()
+            for i := 0; i < 100; i++ {
+                hp.Push(p*1000 + i)
+            }
+        }(p)
+    }
+    wg.Wait()
+    fmt.Println(hp.Len()) // 800
+
+    // Concurrent pops drain it in ascending order overall.
+    for !hp.IsEmpty() {
+        if _, found := hp.Pop(); !found {
+            break
+        }
+    }
+    fmt.Println(hp.IsEmpty()) // true
+}
+----
+
+Runnable, tested copies of these examples live in
+link:example_test.go[`example_test.go`].  The link:../heap/[heap README]
+documents the full API usage; it applies unchanged.
+
+== Differences from pluto/heap_ts
+
+* The `comparable.Equality`... `comparable.Comparable` interface
+constraint is gone: ordering is either the element type's built-in
+operators (`NewHeap`) or a caller supplied function (`NewHeapFunc`).
+No boxing, no dynamic dispatch, no type assertions.
+* Elements are stored and returned by value: `Pop`, `Peek`, `Delete`,
+`GetValue` return `(T, bool)` instead of a nil-able `*T`.  Pluto's
+`Peek`/`GetValue`/`Search` returned pointers *aliasing elements in
+the heap* with the lock already released; the value copies taken
+under the read lock remove that hazard.
+* The out-of-range index operations (`Delete`, `Fix`, `SetValue`,
+`GetValue` — and their `Nl*` counterparts) report `false` instead of
+panicking; `Fix`/`SetValue` return `bool`.
+* `Search` returns `(T, int, bool)` — pluto returned a vestigial
+always-nil `err`.
+* `IsEmpty` added; `Len` and `Length` both kept.
+* `Pop`/`Delete` (and `NlPop`/`NlDelete`) zero the vacated slot and
+release the backing array on a full drain.
+* `All` is `iter.Seq[T]` over an *eager value snapshot* taken when it
+is called (pluto exposed the snapshot only internally and had no
+iterator).
+* `Dump` prints an indexed internal-order listing; pluto used the
+external `dbgo` package.
+* A nil `*Heap` behaves as an empty heap for every operation except
+`Push`/`AppendHeap`; pluto panicked with an unguarded nil dereference
+on most methods.
+

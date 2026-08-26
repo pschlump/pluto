@@ -1,83 +1,146 @@
-= sll_ts — A thread-safe generics-based Go Singly Linked List
+= sll_ts
 
-A generic, thread-safe singly linked list (SLL) of `*T` elements, where `T`
-implements `comparable.Equality` (an `IsEqual(b Equality) bool` method).
+A generic *singly linked list* that is *safe for concurrent use* —
+the thread-safe twin of link:../sll/[charon/sll].  Every operation is
+guarded by a `sync.RWMutex`: readers run in parallel with each other,
+writers are exclusive.  Like `sll`, it works as a stack
+(`Push`/`Pop`/`Peek` at the head), supports O(1) tail insertion
+(`InsertAfterTail`), value-based search and delete, and in-place
+reversal.
 
-This is the mutex-guarded variant of the `sll` package and exposes the same
-API.  All methods on `Sll` and `SllIter` are protected by read/write mutexes
-and are safe to call from multiple goroutines.
+Like every charon package it is a rework of
+link:https://github.com/pschlump/pluto/tree/main/sll_ts[pluto/sll_ts]
+that replaces the `comparable.Equality` interface constraint with pure
+Go type parameters, so element data is never boxed into an interface and
+never unboxed with a type assertion.
 
-The list supports stack-like operations at the head (`Push`, `Pop`, `Peek`),
-queue-like insertion at the tail (`InsertAfterTail`), value-based `Search`,
-`Delete` and `DeleteFound`, in-place `Reverse`, and two kinds of iteration:
+* Elements are stored and returned *by value* (`T`, not `*T`).
+* Lists of types comparable with `==` need no equality function:
+`sll_ts.NewSll[int]()`.
+* Any other type — or equality by a single field — takes a plain equality
+function, with no interface to implement.
 
-* a cursor iterator: `Front`/`Current` with `Done`/`Next`/`Value`/`Pos`
-* Go 1.23 range-over-func iterators: `IterateOver` and `IteratePtr`
+The public API is identical to `sll` (plus the locking behavior below),
+so switching between the two is a package-name change.
 
-== Complexity
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and appear
+on pkg.go.dev.  The link:../sll/[sll README] documents the full API usage;
+it applies unchanged.
 
-[cols="2,1,3"]
+== Locking behavior
+
+* *Reads* (`Search`, `Peek`, `Len`, `Length`, `IsEmpty`) take the read
+lock and release it before returning — they can run in parallel with
+each other.
+* *Writes* (`InsertBeforeHead`, `InsertAfterTail`, `Push`, `Pop`,
+`Delete`, `DeleteFound`, `Reverse`, `Truncate`) take the write lock.
+*`Delete`/`DeleteFound` hold the write lock across their search*, so
+search-and-delete is atomic.
+* *`IterateOver` operates on a snapshot* taken when it is called (one
+O(n) copy, under the read lock).  It is safe to mutate the list while
+iterating — including from inside the loop — and an iterator never
+observes modifications made after it was created.
+* *The cursor iterator (`Front`/`Current`) walks the live list*: each
+iterator method takes the list's read lock for the duration of that
+call only (plus the iterator's own mutex, so one iterator may be shared
+between goroutines).  This is race-free, but the iterator observes
+concurrent modifications as they happen and terminates early if its
+current element is deleted.  Prefer `IterateOver` for a stable view.
+* *`Dump` holds the read lock for the whole dump*, so the writer must
+not call methods on the same list.
+
+[source,go]
+----
+for _, v := range list.IterateOver() {
+    list.Delete(v) // safe: IterateOver walks a snapshot
+}
+----
+
+== Errors and panics
+
+Identical to `sll`.  Empty-list and not-found conditions are errors
+(`ErrEmptySll`, `ErrNotFound`; compare with `errors.Is`), and the package
+panics in exactly three situations, all programmer errors:
+
+[options="header"]
 |===
-| Operation                  | Complexity | Notes
+| Call                               | Why
 
-| `NewSll`                   | O(1)       |
-| `IsEmpty`                  | O(1)       |
-| `Length`                   | O(1)       |
-| `InsertBeforeHead`         | O(1)       | also `Push`
-| `InsertAfterTail`          | O(1)       | maintains a tail pointer
-| `Pop`                      | O(1)       | returns `ErrEmptySll` when empty
-| `Peek`                     | O(1)       | returns `ErrEmptySll` when empty
-| `Search`                   | O(n)       | head to tail, returns element and position
-| `Delete`                   | O(n)       | returns `ErrNotFound` when missing
-| `DeleteFound`              | O(n)       | deletes by value of a found element
-| `Reverse`                  | O(n)       | O(1) extra storage
-| `Truncate`                 | O(1)       | drops all elements
-| `Dump`                     | O(n)       |
-| `IterateOver`/`IteratePtr` | O(n)       | full traversal, O(n) snapshot
+| `NewSllFunc(nil)`                  | nil equality function, caught at construction time
+| Insert-family on a nil `*Sll`      | a nil list cannot store an element
+| Insert-family on a zero-value list | no equality function; the message names the constructors
 |===
 
-== Example
+The insert family is `InsertBeforeHead`, `InsertAfterTail` and `Push`.
+Everything else tolerates a nil list and the zero value as an empty list.
+
+== Usage
 
 [source,go]
 ----
 package main
 
 import (
-	"fmt"
+    "fmt"
+    "sync"
 
-	"github.com/pschlump/pluto/comparable"
-	"github.com/pschlump/pluto/sll_ts"
+    "github.com/pschlump/charon/sll_ts"
 )
 
-type Name string
-
-func (a Name) IsEqual(x comparable.Equality) bool {
-	b, ok := x.(Name)
-	return ok && a == b
-}
-
 func main() {
-	list := sll_ts.NewSll[Name]()
-	a, b := Name("ada"), Name("bob")
-	list.Push(&a)            // head: ada
-	list.InsertAfterTail(&b) // ada, bob
+    stack := sll_ts.NewSll[int]()
 
-	for i, v := range list.IterateOver() {
-		fmt.Println(i, v)
-	}
+    // Writers from many goroutines share one stack.
+    var wg sync.WaitGroup
+    for w := 0; w < 8; w++ {
+        wg.Add(1)
+        go func(w int) {
+            defer wg.Done()
+            for i := 0; i < 100; i++ {
+                stack.Push(w*1000 + i)
+            }
+        }(w)
+    }
+    wg.Wait()
+    fmt.Println(stack.Len()) // 800
 
-	v, _ := list.Pop() // v == ada
-	_ = v
+    // Deleting from inside an IterateOver loop is safe: it walks a snapshot.
+    for _, v := range stack.IterateOver() {
+        stack.Delete(v)
+    }
+    fmt.Println(stack.IsEmpty()) // true
 }
 ----
 
-== Thread Safety
+== Differences from pluto/sll_ts
 
-All methods are safe for concurrent use; each takes the list's read or write
-lock as appropriate.  The range-over-func iterators (`IterateOver`,
-`IteratePtr`) operate on a snapshot of the list taken when iteration begins,
-so it is safe to mutate the list from inside the loop body — but changes made
-after the snapshot are not visible to the ongoing iteration.
+* The `comparable.Equality` interface constraint is gone: equality is
+either the type's `==` operator (`NewSll`, using the builtin
+`comparable` constraint — no interface, no boxing) or a caller supplied
+function (`NewSllFunc`).  No dynamic dispatch, no type assertions
+inside `IsEqual` methods.
+* The data is stored by value in each node (pluto stored a `*T` pointing
+at the inserted item).  `Pop`, `Peek` and the iterators return `T`
+(with the existing error or bool signal) instead of a nil-able `*T`;
+snapshots are `[]T`, not `[]*T`.
+* Search probes are passed by value; a probe only needs the fields the
+equality function reads.
+* `Len` is available as an alias for `Length`, matching the other charon
+packages.
+* `SllElement.data` is an unexported `T`; use `GetData()`.
+* `IteratePtr` (which yielded `*T`) is gone — with value storage there
+are no element pointers to yield; use `IterateOver`.
+* A nil `*Sll` behaves as an empty list for every operation except the
+insert family; pluto panics with an unguarded nil dereference on most
+methods.
+* The only panics are the three listed above, each with a message naming
+the fix.
+* *The error precedence matches the plain `sll` package exactly*:
+`Delete` on an empty list returns `ErrNotFound` and `DeleteFound`
+returns `ErrEmptySll`.  (Pluto's `sll_ts` returned `ErrEmptySll` from
+both, diverging from its own plain package.)
+* The snapshot for `IterateOver` is taken when it is called, not when
+the range loop starts, so an iterator never observes modifications
+made after its creation.
 
-An element returned by `Search` is no longer protected by the list lock once
-`Search` returns; treat it as read-only.

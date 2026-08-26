@@ -1,86 +1,171 @@
-= dqueue_ts — a thread safe generics based double ended queue (deque) on a doubly linked list
+= dqueue_ts
 
-A generic double ended queue (deque) built on top of the generic doubly
-linked list in `github.com/pschlump/pluto/dll_ts`.  The underlying list is
-thread safe, so this deque is safe for concurrent use.
+A generic *double ended queue (deque)* built on a doubly linked list
+that is *safe for concurrent use* — the charon counterpart of pluto's
+link:https://github.com/pschlump/pluto/tree/main/dqueue_ts[dqueue_ts].
+Every operation is guarded by a `sync.RWMutex`: readers run in parallel
+with each other, writers are exclusive.  For single-goroutine use,
+link:../dqueue/[`dqueue`] is the identical deque without the lock (its
+iterators walk the live list instead of snapshotting).
 
-Elements can be inserted and removed at both ends of the queue.  Every
-operation is strictly O(1) with no memory copy cost.  Elements are stored
-as pointers: `PushFront`/`PushBack` take a `*T` and `PeekFront`/`PeekBack`/
-`PopFront`/`PopBack` return a `*T`.  The element type must implement
-`comparable.Equality`.
+The element type needs *no constraints at all* and the zero value of
+`Deque` is an empty deque ready to use without a constructor.  Elements
+are stored and returned *by value* (`PopFront`, `PopBack`, `PeekFront`
+and `PeekBack` return `(T, error)`).
 
-The zero value of `Deque[T]` is an empty queue ready to use.
+== Why self-contained?
+
+Pluto built `dqueue_ts` as a thin wrapper delegating to its `dll_ts`
+list.  Charon's `dll_ts` requires an equality function at construction
+(its `Search` needs one), but a deque never compares elements — so
+wrapping would force a dummy equality function and break the
+constraint-free contract.  Like every charon `_ts` package this one is
+self-contained, with its own lock and a plain doubly linked list
+underneath; the `prev` pointers are what make `PopBack` and `Backward`
+O(1) per step.
+
+The practical difference from the slice-based link:../queue_ts/[`queue_ts`]
+is the same as link:../stack_sll_ts/[`stack_sll_ts`] vs
+link:../stack/[`stack`]: *memory behavior*.  Pushes and pops at either
+end allocate and free one small node each and never reallocate, so
+memory use is stable across arbitrary push/pop patterns (a slice window
+periodically reallocates as it walks).  Trade-off: one allocation per
+push.  Used at one end only it behaves as a stack; used with
+`PushBack`/`PopFront` it behaves as a FIFO queue.
 
 == Operations
 
+[options="header"]
 |===
-| Operation                  | Description                                     | Complexity
+| Operation                    | Description                               | Complexity
 
-| `PushFront(t)`             | Insert an element at the front                  | O(1)
-| `PushBack(t)`              | Insert an element at the back                   | O(1)
-| `PopFront()`               | Remove and return the front element             | O(1)
-| `PopBack()`                | Remove and return the back element              | O(1)
-| `PeekFront()`              | Return the front element without removing it    | O(1)
-| `PeekBack()`               | Return the back element without removing it     | O(1)
-| `IsEmpty()`                | True if the queue is empty                      | O(1)
-| `Length()`                 | Number of elements                              | O(1)
-| `Truncate()`               | Remove all elements                             | O(1)
-| `All()` / `Backward()`     | Range-over-func iterators (front→back / back→front) | O(n)
+| `PushFront` / `PushBack`     | Insert at the front / back                | O(1)
+| `PopFront` / `PopBack`       | Remove and return from the front / back   | O(1)
+| `PeekFront` / `PeekBack`     | Look at the front / back without removing | O(1)
+| `IsEmpty` / `Len` / `Length` | Size queries                              | O(1)
+| `Truncate`                   | Remove all elements                       | O(1)
+| `All` / `Backward`           | Range-over-func iterators over a snapshot | O(n)
 |===
 
-== Example
+`All` iterates from the *front* (index 0) to the back; `Backward`
+from the back to the front, with indexes counting down from
+`Length()-1` so they match the index `All` assigns to the same element.
+
+== Locking behavior
+
+* *Reads* (`PeekFront`, `PeekBack`, `Len`, `Length`, `IsEmpty`) take
+the read lock and release it before returning — they can run in
+parallel with each other.
+* *Writes* (`PushFront`, `PushBack`, `PopFront`, `PopBack`,
+`Truncate`) take the write lock.
+* *`All` and `Backward` operate on a snapshot* taken when they are
+called (one O(n) copy, under the read lock).  It is safe to mutate the
+deque while iterating — including from inside the loop — and an
+iterator never observes modifications made after it was created.
+
+[source,go]
+----
+for _, v := range q.All() {
+    q.PopFront() // safe: All walks a snapshot
+    _ = v
+}
+----
+
+== Errors and panics
+
+The empty deque is reported with an error (compare with `errors.Is`):
+
+[options="header"]
+|===
+| Error | Meaning 
+
+| `ErrEmptyDeque` | `PopFront`/`PopBack`/`PeekFront`/`PeekBack` on empty 
+|===
+
+The package has exactly *two* panics:
+
+[options="header"]
+|===
+| Call | Why 
+
+| `PushFront` on a nil deque | a nil deque cannot store an element 
+| `PushBack` on a nil deque | a nil deque cannot store an element 
+|===
+
+Everything else — including the zero value, which is fully usable
+because there is no comparison or equality function to configure —
+tolerates a nil deque as an empty deque.
+
+== Usage
 
 [source,go]
 ----
 package main
 
 import (
-	"fmt"
+    "fmt"
+    "sync"
 
-	"github.com/pschlump/pluto/comparable"
-	"github.com/pschlump/pluto/dqueue_ts"
+    "github.com/pschlump/charon/dqueue_ts"
 )
 
-type Item struct {
-	Name string
-}
-
-func (a Item) IsEqual(x comparable.Equality) bool {
-	b, ok := x.(Item)
-	return ok && a.Name == b.Name
-}
-
 func main() {
-	var q dqueue_ts.Deque[Item]
-	q.PushBack(&Item{Name: "b"})
-	q.PushFront(&Item{Name: "a"})
-	q.PushBack(&Item{Name: "c"})
+    var q dqueue_ts.Deque[int]
 
-	for _, v := range q.All() {
-		fmt.Println(v.Name) // a, b, c
-	}
+    // Writers from many goroutines share one deque, at both ends.
+    var wg sync.WaitGroup
+    for w := 0; w < 8; w++ {
+        wg.Add(1)
+        go func(w int) {
+            defer wg.Done()
+            for i := 0; i < 100; i++ {
+                if w%2 == 0 {
+                    q.PushFront(w*1000 + i)
+                } else {
+                    q.PushBack(w*1000 + i)
+                }
+            }
+        }(w)
+    }
+    wg.Wait()
+    fmt.Println(q.Len()) // 800
 
-	v, err := q.PopBack() // v.Name = "c", err = nil
-	_, _ = v, err
+    // Concurrent poppers drain it from both ends.
+    drained := 0
+    for !q.IsEmpty() {
+        if _, err := q.PopFront(); err != nil {
+            break
+        }
+        drained++
+    }
+    fmt.Println(drained, q.IsEmpty()) // 800 true
 }
 ----
 
-== Thread safety
+Runnable, tested copies of these examples live in
+link:example_test.go[`example_test.go`].
 
-This implementation is thread safe; all methods may be called concurrently
-from multiple goroutines (the underlying `dll_ts` list guards every
-operation with a `sync.RWMutex`).  `All` and `Backward` use the list's
-thread safe step-at-a-time iterator: safe to use concurrently, but not a
-consistent snapshot — elements pushed while iterating may be visited and
-elements popped by another goroutine may be skipped.  Run the tests with
-`go test -race` to validate usage.
+== Differences from pluto/dqueue_ts
 
-== Notes
+* Self-contained doubly linked list + `sync.RWMutex` instead of a
+wrapper delegating to `dll_ts` (charon's `dll_ts` requires an equality
+function at construction; a deque never compares, so the wrapper would
+need a dummy equality function).
+* No `comparable.Equality` constraint on the element type — `T` is
+`any`, so elements are never boxed into an interface.
+* Elements are stored and returned by value (pluto stored `*T` and
+returned `*T`): the pops and peeks return `(T, error)` instead of a
+nil-able pointer.
+* `ErrEmptyDeque` is this package's own error (pluto aliased
+`dll_ts.ErrEmptyDll`).
+* `All`/`Backward` are `iter.Seq2[int, T]` over an *eager value
+snapshot* taken when they are called (pluto's walked the live list
+step-at-a-time under per-step locks — safe to run concurrently but not
+a consistent snapshot, and it yielded `*T` aliasing live nodes).
+* `Len` is available as an alias for `Length`, matching the other charon
+packages.
+* No constructors; the zero value is fully usable.
+* A nil `*Deque` behaves as an empty deque for every operation except
+`PushFront` and `PushBack`, which panic with named messages — the
+package's only panics.
 
-This package is a thin, deque-focused wrapper over `dll_ts`.  You can use
-`dll_ts` directly, but this wrapper makes the intent — a double ended
-queue — explicit.  Used only at one end, it behaves as a stack; used with
-`PushBack`/`PopFront`, it behaves as a FIFO queue (see `../queue_dll_ts`).
-Each element requires a node allocation; if that cost matters and the
-queue is large, a slice based structure may be faster in practice.

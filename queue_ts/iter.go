@@ -1,7 +1,12 @@
-// Copyright (C) Philip Schlump, 2012-2023.
-// BSD 3 Clause Licensed.
+/*
+Copyright (C) Philip Schlump, 2012-2026.
 
-package queue
+BSD 3 Clause Licensed.
+*/
+
+package queue_ts
+
+import "slices"
 
 import "iter"
 
@@ -12,11 +17,14 @@ import "iter"
 //		...
 //	}
 //
-// The iterator operates on a consistent snapshot of the queue taken when
-// All is called; the lock is not held while the loop body runs, so it is
-// safe to call other Queue methods from inside the loop.
+// The iterator operates on a snapshot copied under the read lock when All
+// is called, so it is safe to call other queue operations — including
+// from inside the loop — and it never observes later modifications.
 // Complexity is O(n).
 func (q *Queue[T]) All() iter.Seq2[int, T] {
+	if q == nil {
+		return func(func(int, T) bool) {} // a nil queue iterates as an empty one
+	}
 	q.lock.RLock()
 	snapshot := make([]T, len(q.data))
 	copy(snapshot, q.data)
@@ -37,22 +45,24 @@ func (q *Queue[T]) All() iter.Seq2[int, T] {
 //		...
 //	}
 //
-// The iterator operates on a consistent snapshot of the queue taken when
-// Backward is called; the lock is not held while the loop body runs, so it is
-// safe to call other Queue methods from inside the loop.
+// The iterator operates on a snapshot copied under the read lock when
+// Backward is called, so it is safe to call other queue operations —
+// including from inside the loop — and it never observes later
+// modifications.
 // Complexity is O(n).
 func (q *Queue[T]) Backward() iter.Seq2[int, T] {
+	if q == nil {
+		return func(func(int, T) bool) {} // a nil queue iterates as an empty one
+	}
 	q.lock.RLock()
 	snapshot := make([]T, len(q.data))
 	copy(snapshot, q.data)
 	q.lock.RUnlock()
 	return func(yield func(int, T) bool) {
-		for i := len(snapshot) - 1; i >= 0; i-- {
-			if !yield(i, snapshot[i]) {
+		for i, s := range slices.Backward(snapshot) {
+			if !yield(i, s) {
 				return
 			}
 		}
 	}
 }
-
-/* vim: set noai ts=4 sw=4: */

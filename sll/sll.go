@@ -1,5 +1,5 @@
 /*
-Copyright (C) Philip Schlump, 2012-2024.
+Copyright (C) Philip Schlump, 2012-2026.
 
 BSD 3 Clause Licensed.
 */
@@ -9,13 +9,57 @@ BSD 3 Clause Licensed.
 // The list supports stack-like operations (Push/Pop/Peek at the head),
 // queue-like insertion at the tail (InsertAfterTail), value-based search
 // and delete, in-place reversal, and both a cursor-style iterator
-// (Front/Next/Done/Value) and Go 1.23 range-over-func iterators
-// (IterateOver/IteratePtr).
+// (Front/Next/Done/Value) and a Go 1.23 range-over-func iterator
+// (IterateOver).
 //
-// Elements are stored as *T where T must implement comparable.Equality.
+// It is a rework of github.com/pschlump/pluto/sll in which the
+// comparable.Equality interface constraint has been replaced with plain
+// Go type parameters.  Elements are stored and returned by value, so
+// element data is never boxed into an interface and never unboxed with a
+// type assertion.  Lists of types that can be compared with == (the
+// builtin comparable constraint — all scalars, strings, arrays, and
+// structs of comparable fields) are created with NewSll, which compares
+// elements with the == operator; lists of any other type — or with
+// field-based equality — are created with NewSllFunc, which takes a
+// caller supplied equality function; the element type does not have to
+// implement any interface.  The equality function is consulted only by
+// Search, Delete and DeleteFound; the stack and positional operations
+// never compare elements.
 //
-// This package is NOT safe for concurrent use; see the sll_ts package
-// for a mutex-guarded version with the same API.
+// Operations:
+//
+//	InsertBeforeHead / Push — prepend at the head.  										O(1)
+//	InsertAfterTail — append at the tail (queue-style insertion).						O(1)
+//	Pop — remove and return the head element.											O(1)
+//	Peek — look at the head element.														O(1)
+//	Search — find the first element equal to a probe, head to tail.						O(n)
+//	Delete — remove the first element equal to a probe.									O(n)
+//	DeleteFound — remove the first element equal to a found element's data.				O(n)
+//	Reverse — reverse the list in place.													O(n), O(1) storage
+//	Truncate — remove all elements.														O(1)
+//	IsEmpty / Len / Length — size queries.												O(1)
+//	Dump — print the list, one element per line.											O(n)
+//	Front/Current + Next/Done/Pos/Value — cursor iterator.								O(n) total
+//	IterateOver — iter.Seq2[int, T], head to tail.										O(n)
+//
+// Errors, not panics, report empty-list and not-found conditions:
+// ErrEmptySll and ErrNotFound.  Compare them with errors.Is.
+//
+// A nil *Sll and the zero value both behave as an empty list for every
+// operation except the insert family: searches report not-found, pops and
+// peeks return ErrEmptySll, and the iterators visit nothing.
+//
+// The package panics in exactly three situations, all programmer errors
+// that cannot be handled where they occur:
+//
+//	NewSllFunc(nil)                — nil equality function, caught at construction.
+//	Insert-family on a nil list    — a nil list cannot store an element.
+//	Insert-family on a zero-value list — no equality function; the message names the constructors.
+//
+// The insert family is InsertBeforeHead, InsertAfterTail and Push.
+//
+// This package is NOT safe for concurrent use; a mutex guarded
+// thread-safe twin has the exact same interface.
 package sll
 
 import (
@@ -23,26 +67,31 @@ import (
 	"fmt"
 	"io"
 	"iter"
-
-	"github.com/pschlump/pluto/comparable"
 )
 
 // SllElement is a node in the singly linked list.
-type SllElement[T comparable.Equality] struct {
+type SllElement[T any] struct {
 	next *SllElement[T]
-	data *T
+	data T
 }
 
-// Sll is a generic singly linked list of *T elements.
-type Sll[T comparable.Equality] struct {
+// Sll is a generic singly linked list of T elements.  Use NewSll for
+// element types that support ==, or NewSllFunc for a caller supplied
+// equality function.  The zero value is an empty list.
+type Sll[T any] struct {
 	head, tail *SllElement[T]
 	length     int
+
+	// eq reports whether two elements are considered the same.  It is set
+	// by the constructors and is the only thing that knows how to compare
+	// T — T itself never has to implement an interface.  It is consulted
+	// only by Search, Delete and DeleteFound.
+	eq func(a, b T) bool
 }
 
 // SllIter is a cursor that allows a for loop to walk the list.
-type SllIter[T comparable.Equality] struct {
+type SllIter[T any] struct {
 	cur *SllElement[T]
-	sll *Sll[T]
 	pos int
 }
 
@@ -54,15 +103,40 @@ var ErrNotFound = errors.New("not found in sll")
 
 // -------------------------------------------------------------------------------------------------------
 
-// NewSll creates a new empty SLL and returns it.
+// NewSll creates a new empty SLL for any element type that can be compared
+// with the == operator (the builtin comparable constraint: all scalars,
+// strings, arrays, pointers and structs of comparable fields).  Equality
+// testing never boxes an element into an interface.
 // Complexity is O(1).
-func NewSll[T comparable.Equality]() *Sll[T] {
-	return &Sll[T]{}
+func NewSll[T comparable]() *Sll[T] {
+	return &Sll[T]{eq: func(a, b T) bool { return a == b }}
+}
+
+// NewSllFunc creates a new empty SLL that compares elements with the
+// caller supplied equality function fx.  This lets any type — including
+// types that are not comparable with == (slices, maps, funcs) and structs
+// whose identity is a single field — be stored without implementing any
+// interface.
+// Complexity is O(1).
+func NewSllFunc[T any](fx func(a, b T) bool) *Sll[T] {
+	if fx == nil {
+		panic("sll: NewSllFunc called with a nil equality function")
+	}
+	return &Sll[T]{eq: fx}
+}
+
+// equal compares a and b, guarding against a zero-value list that was not
+// created by one of the constructors.
+func (ns *Sll[T]) equal(a, b T) bool {
+	if ns.eq == nil {
+		panic("sll: no equality function (create the list with NewSll or NewSllFunc)")
+	}
+	return ns.eq(a, b)
 }
 
 // GetData returns the data stored in this element.
 // Complexity is O(1).
-func (ee *SllElement[T]) GetData() *T {
+func (ee *SllElement[T]) GetData() T {
 	return ee.data
 }
 
@@ -70,31 +144,28 @@ func (ee *SllElement[T]) GetData() *T {
 
 // Front returns an iterator positioned at the beginning of the list.
 func (ns *Sll[T]) Front() *SllIter[T] {
-	return &SllIter[T]{
-		cur: ns.head,
-		sll: ns,
+	if ns == nil {
+		return &SllIter[T]{}
 	}
+	return &SllIter[T]{cur: ns.head}
 }
 
 // Current takes the node returned from Search
 //
-//	func (ns *Sll[T]) Search(t *T) (rv *SllElement[T], pos int)
+//	func (ns *Sll[T]) Search(t T) (rv *SllElement[T], pos int)
 //
 // and allows you to start an iteration from that point.
 func (ns *Sll[T]) Current(el *SllElement[T], pos int) *SllIter[T] {
-	return &SllIter[T]{
-		cur: el,
-		sll: ns,
-		pos: pos,
-	}
+	return &SllIter[T]{cur: el, pos: pos}
 }
 
-// Value returns the current data for this element in the list.
-func (iter *SllIter[T]) Value() *T {
+// Value returns the current data for this element in the list, or false
+// if the iteration is done.
+func (iter *SllIter[T]) Value() (rv T, found bool) {
 	if iter.cur != nil {
-		return iter.cur.data
+		return iter.cur.data, true
 	}
-	return nil
+	return
 }
 
 // Next advances to the next element in the list.
@@ -122,12 +193,20 @@ func (iter *SllIter[T]) Pos() int {
 // IsEmpty will return true if the list is empty.
 // Complexity is O(1).
 func (ns *Sll[T]) IsEmpty() bool {
-	return ns.length == 0
+	return ns == nil || ns.length == 0
 }
 
 // InsertBeforeHead will prepend a new node at the head of the list.
+// It panics on a nil list or on a zero-value list (no equality
+// function); see the package documentation for the panic contract.
 // Complexity is O(1).
-func (ns *Sll[T]) InsertBeforeHead(t *T) {
+func (ns *Sll[T]) InsertBeforeHead(t T) {
+	if ns == nil {
+		panic("sll: InsertBeforeHead called on a nil list")
+	}
+	if ns.eq == nil {
+		panic("sll: InsertBeforeHead called on a list with no equality function (create the list with NewSll or NewSllFunc)")
+	}
 	x := &SllElement[T]{data: t} // Create the node
 	if ns.head == nil {
 		ns.tail = x
@@ -139,8 +218,16 @@ func (ns *Sll[T]) InsertBeforeHead(t *T) {
 }
 
 // InsertAfterTail will append a new node at the end of the list.
+// It panics on a nil list or on a zero-value list (no equality
+// function); see the package documentation for the panic contract.
 // Complexity is O(1).
-func (ns *Sll[T]) InsertAfterTail(t *T) {
+func (ns *Sll[T]) InsertAfterTail(t T) {
+	if ns == nil {
+		panic("sll: InsertAfterTail called on a nil list")
+	}
+	if ns.eq == nil {
+		panic("sll: InsertAfterTail called on a list with no equality function (create the list with NewSll or NewSllFunc)")
+	}
 	x := &SllElement[T]{data: t} // Create the node
 	if ns.tail == nil {
 		ns.head = x
@@ -152,22 +239,36 @@ func (ns *Sll[T]) InsertAfterTail(t *T) {
 }
 
 // Push will prepend a new node at the head of the list (stack semantics).
+// This is just an alias for InsertBeforeHead.
 // Complexity is O(1).
-func (ns *Sll[T]) Push(t *T) {
+func (ns *Sll[T]) Push(t T) {
 	ns.InsertBeforeHead(t)
+}
+
+// Len returns the number of elements in the list.
+// Complexity is O(1).
+func (ns *Sll[T]) Len() int {
+	if ns == nil {
+		return 0
+	}
+	return ns.length
 }
 
 // Length returns the number of elements in the list.
 // Complexity is O(1).
 func (ns *Sll[T]) Length() int {
+	if ns == nil {
+		return 0
+	}
 	return ns.length
 }
 
-// Pop will remove the head element from the list.  ErrEmptySll is returned if the list is empty.
+// Pop will remove the head element from the list.  ErrEmptySll is
+// returned if the list is empty.
 // Complexity is O(1).
-func (ns *Sll[T]) Pop() (rv *T, err error) {
+func (ns *Sll[T]) Pop() (rv T, err error) {
 	if ns.IsEmpty() {
-		return nil, ErrEmptySll
+		return rv, ErrEmptySll
 	}
 	rv = ns.head.data
 	ns.head = ns.head.next
@@ -178,10 +279,11 @@ func (ns *Sll[T]) Pop() (rv *T, err error) {
 	return
 }
 
-// Delete removes the first element whose data IsEqual to t.
+// Delete removes the first element whose data equals t.
 // ErrNotFound is returned if no such element exists.
+// The probe only needs the fields that the equality function reads.
 // Complexity is O(n).
-func (ns *Sll[T]) Delete(t *T) (err error) {
+func (ns *Sll[T]) Delete(t T) (err error) {
 	el, pos := ns.Search(t)
 	if pos < 0 {
 		return ErrNotFound
@@ -189,20 +291,23 @@ func (ns *Sll[T]) Delete(t *T) (err error) {
 	return ns.DeleteFound(el)
 }
 
-// DeleteFound removes the first element whose data IsEqual to the data of the
-// element t (typically obtained from Search).  ErrEmptySll is returned for an
-// empty list and ErrNotFound if no matching element exists.
+// DeleteFound removes the first element whose data equals the data of the
+// element t (typically obtained from Search).  Note that — unlike the dll
+// package — this is a value-based re-search, not a direct splice: the
+// first element equal to t's data is removed, in O(n).
+// ErrEmptySll is returned for an empty list and ErrNotFound for a nil
+// element or no match.
 // Complexity is O(n).
 func (ns *Sll[T]) DeleteFound(t *SllElement[T]) (err error) {
 	if ns.IsEmpty() {
 		return ErrEmptySll
 	}
-	if t == nil || t.data == nil {
+	if t == nil {
 		return ErrNotFound
 	}
 	var prev *SllElement[T]
 	for p := ns.head; p != nil; p = p.next {
-		if (*p.data).IsEqual(*t.data) {
+		if ns.equal(p.data, t.data) {
 			if prev == nil {
 				ns.head = p.next
 			} else {
@@ -213,7 +318,6 @@ func (ns *Sll[T]) DeleteFound(t *SllElement[T]) (err error) {
 			}
 			ns.length--
 			p.next = nil // unlink so the GC can reclaim the node
-			p.data = nil
 			return nil
 		}
 		prev = p
@@ -221,16 +325,17 @@ func (ns *Sll[T]) DeleteFound(t *SllElement[T]) (err error) {
 	return ErrNotFound
 }
 
-// Search returns the first element whose data IsEqual to t, and its position.
+// Search returns the first element whose data equals t, and its position.
 // Search is from head to tail.  If not found, it returns (nil, -1).
+// The probe only needs the fields that the equality function reads.
 // Complexity is O(n).
-func (ns *Sll[T]) Search(t *T) (rv *SllElement[T], pos int) {
-	if t == nil {
+func (ns *Sll[T]) Search(t T) (rv *SllElement[T], pos int) {
+	if ns.IsEmpty() {
 		return nil, -1
 	}
 	i := 0
 	for p := ns.head; p != nil; p = p.next {
-		if (*p.data).IsEqual(*t) {
+		if ns.equal(p.data, t) {
 			return p, i
 		}
 		i++
@@ -238,30 +343,37 @@ func (ns *Sll[T]) Search(t *T) (rv *SllElement[T], pos int) {
 	return nil, -1 // not found
 }
 
-// Peek returns the head element of the list or an error indicating that the list is empty.
+// Peek returns the head element of the list or ErrEmptySll indicating
+// that the list is empty.
 // Complexity is O(1).
-func (ns *Sll[T]) Peek() (rv *T, err error) {
+func (ns *Sll[T]) Peek() (rv T, err error) {
 	if ns.IsEmpty() {
-		return nil, ErrEmptySll
+		return rv, ErrEmptySll
 	}
-	rv = ns.head.data
-	return
+	return ns.head.data, nil
 }
 
-// Truncate removes all data from the list.
+// Truncate removes all data from the list.  The equality function is
+// kept, so the list remains usable and can simply be refilled.
 // Complexity is O(1).
 func (ns *Sll[T]) Truncate() {
+	if ns == nil {
+		return
+	}
 	ns.head = nil
 	ns.tail = nil
 	ns.length = 0
 }
 
-// Dump prints out the list.
+// Dump prints out the list, one element per line.
 // Complexity is O(n).
-func (tt *Sll[T]) Dump(fp io.Writer) {
+func (ns *Sll[T]) Dump(fp io.Writer) {
+	if ns == nil {
+		return
+	}
 	i := 0
-	for p := tt.head; p != nil; p = p.next {
-		_, _ = fmt.Fprintf(fp, "%d: %+v\n", i, *(p.data))
+	for p := ns.head; p != nil; p = p.next {
+		_, _ = fmt.Fprintf(fp, "%d: %+v\n", i, p.data)
 		i++
 	}
 }
@@ -269,6 +381,9 @@ func (tt *Sll[T]) Dump(fp io.Writer) {
 // Reverse efficiently reverses the direction of the list.
 // Complexity is O(n) with O(1) extra storage.
 func (ns *Sll[T]) Reverse() {
+	if ns == nil {
+		return
+	}
 	var prev, next *SllElement[T]
 	for cp := ns.head; cp != nil; cp = next {
 		next = cp.next // save next pointer at beginning
@@ -283,23 +398,14 @@ func (ns *Sll[T]) Reverse() {
 //
 //	for i, v := range list.IterateOver() { ... }
 //
+// The list must not be modified while the iterator is being consumed — it
+// walks the live nodes.
 // Complexity is O(n) for a full traversal.
 func (ns *Sll[T]) IterateOver() iter.Seq2[int, T] {
-	return func(yield func(int, T) bool) {
-		for i, p := 0, ns.head; p != nil; i, p = i+1, p.next {
-			if !yield(i, *p.data) {
-				return
-			}
-		}
+	if ns == nil {
+		return func(func(int, T) bool) {} // a nil list iterates as an empty one
 	}
-}
-
-// IteratePtr returns an iterator over index/value-pointer pairs in the list (head to tail),
-// for use with Go 1.23 range-over-func loops.  The pointers alias the data stored in the list.
-//
-// Complexity is O(n) for a full traversal.
-func (ns *Sll[T]) IteratePtr() iter.Seq2[int, *T] {
-	return func(yield func(int, *T) bool) {
+	return func(yield func(int, T) bool) {
 		for i, p := 0, ns.head; p != nil; i, p = i+1, p.next {
 			if !yield(i, p.data) {
 				return

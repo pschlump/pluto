@@ -1,7 +1,7 @@
 package avl_tree
 
 /*
-Copyright (C) Philip Schlump, 2012-2021.
+Copyright (C) Philip Schlump, 2012-2026.
 
 BSD 3 Clause Licensed.
 */
@@ -26,30 +26,26 @@ func validateAVLNode(t *testing.T, n *AvlTreeElement[TestTreeNode]) int {
 	}
 	lh := validateAVLNode(t, n.left)
 	rh := validateAVLNode(t, n.right)
-	if n.left != nil && (*n.left.data).Compare(*n.data) >= 0 {
-		t.Fatalf("BST order violated: left child %v >= node %v", *(n.left.data), *(n.data))
+	if n.left != nil && cmpTestTreeNode(n.left.data, n.data) >= 0 {
+		t.Fatalf("BST order violated: left child %v >= node %v", n.left.data, n.data)
 	}
-	if n.right != nil && (*n.right.data).Compare(*n.data) <= 0 {
-		t.Fatalf("BST order violated: right child %v <= node %v", *(n.right.data), *(n.data))
+	if n.right != nil && cmpTestTreeNode(n.right.data, n.data) <= 0 {
+		t.Fatalf("BST order violated: right child %v <= node %v", n.right.data, n.data)
 	}
 	if d := lh - rh; d < -1 || d > 1 {
-		t.Fatalf("AVL balance violated at node %v: left=%d right=%d", *(n.data), lh, rh)
+		t.Fatalf("AVL balance violated at node %v: left=%d right=%d", n.data, lh, rh)
 	}
 	if want := max(lh, rh) + 1; n.height != want {
-		t.Fatalf("cached height wrong at node %v: got %d want %d", *(n.data), n.height, want)
+		t.Fatalf("cached height wrong at node %v: got %d want %d", n.data, n.height, want)
 	}
 	return max(lh, rh) + 1
 }
 
-func mkKey(i int) *TestTreeNode {
-	return &TestTreeNode{S: fmt.Sprintf("%08d", i)}
-}
-
-// TestTreeDeleteSuccessor is a regression test for deleting a node with two
-// children where the node used to patch the hole has a subtree of its own.
-// The old implementation dropped that subtree, silently losing data.
+// TestTreeDeleteSuccessor is a regression test for deleting a node with
+// two children where the node used to patch the hole has a subtree of its
+// own.  The old implementation dropped that subtree, silently losing data.
 func TestTreeDeleteSuccessor(t *testing.T) {
-	var tree AvlTree[TestTreeNode]
+	tree := newTestTree()
 	for _, v := range []int{50, 30, 70, 90, 80} {
 		tree.Insert(mkKey(v))
 	}
@@ -60,7 +56,7 @@ func TestTreeDeleteSuccessor(t *testing.T) {
 		t.Fatalf("Expected length 4 after delete, got %d", got)
 	}
 	for _, v := range []int{30, 70, 80, 90} {
-		if tree.Search(mkKey(v)) == nil {
+		if _, found := tree.Search(mkKey(v)); !found {
 			t.Errorf("Expected %d to still be in the tree after deleting 50", v)
 		}
 	}
@@ -73,7 +69,7 @@ func TestTreeRandomOps(t *testing.T) {
 	rng := rand.New(rand.NewPCG(42, 7))
 	const n = 2000
 
-	var tree AvlTree[TestTreeNode]
+	tree := newTestTree()
 	ref := make(map[int]bool, n)
 
 	for _, v := range rng.Perm(n) {
@@ -117,12 +113,12 @@ func TestTreeRandomOps(t *testing.T) {
 	}
 
 	// Everything in ref must be found, everything else must not.
-	for i := 0; i < n; i++ {
-		got := tree.Search(mkKey(i))
-		if ref[i] && got == nil {
+	for i := range n {
+		_, found := tree.Search(mkKey(i))
+		if ref[i] && !found {
 			t.Errorf("Expected to find %d", i)
 		}
-		if !ref[i] && got != nil {
+		if !ref[i] && found {
 			t.Errorf("Expected not to find %d", i)
 		}
 	}
@@ -133,7 +129,7 @@ func TestTreeRandomOps(t *testing.T) {
 }
 
 func TestTreeIterators(t *testing.T) {
-	var tree AvlTree[TestTreeNode]
+	tree := newTestTree()
 	for _, v := range []int{5, 2, 9, 0, 3} {
 		tree.Insert(mkKey(v))
 	}
@@ -142,12 +138,13 @@ func TestTreeIterators(t *testing.T) {
 	// Old-style Front/Value/Next/Done iterator.
 	var got []string
 	for it := tree.Front(); !it.Done(); it.Next() {
-		got = append(got, it.Value().S)
+		v, _ := it.Value()
+		got = append(got, v.S)
 	}
 	if fmt.Sprintf("%v", got) != fmt.Sprintf("%v", expect) {
 		t.Errorf("Front/Next iteration: expected %v got %v", expect, got)
 	}
-	if v := tree.Front().Value(); v == nil || v.S != expect[0] {
+	if v, found := tree.Front().Value(); !found || v.S != expect[0] {
 		t.Errorf("Front().Value(): expected %s got %v", expect[0], v)
 	}
 
@@ -185,7 +182,7 @@ func TestTreeIterators(t *testing.T) {
 }
 
 func TestTreeEmptyOps(t *testing.T) {
-	var tree AvlTree[TestTreeNode]
+	tree := newTestTree()
 	if !tree.IsEmpty() {
 		t.Errorf("Expected empty tree")
 	}
@@ -195,11 +192,14 @@ func TestTreeEmptyOps(t *testing.T) {
 	if tree.Depth() != 0 {
 		t.Errorf("Expected depth 0 on empty tree")
 	}
-	if tree.FindMin() != nil || tree.FindMax() != nil {
-		t.Errorf("Expected nil from FindMin/FindMax on empty tree")
+	if _, found := tree.FindMin(); found {
+		t.Errorf("Expected not-found from FindMin on empty tree")
 	}
-	if tree.Search(mkKey(1)) != nil {
-		t.Errorf("Expected nil from Search on empty tree")
+	if _, found := tree.FindMax(); found {
+		t.Errorf("Expected not-found from FindMax on empty tree")
+	}
+	if _, found := tree.Search(mkKey(1)); found {
+		t.Errorf("Expected not-found from Search on empty tree")
 	}
 	if tree.Delete(mkKey(1)) {
 		t.Errorf("Expected false from Delete on empty tree")
@@ -207,8 +207,8 @@ func TestTreeEmptyOps(t *testing.T) {
 	if tree.DeleteAtHead() || tree.DeleteAtTail() {
 		t.Errorf("Expected false from DeleteAtHead/DeleteAtTail on empty tree")
 	}
-	if tree.Index(0) != nil {
-		t.Errorf("Expected nil from Index on empty tree")
+	if _, found := tree.Index(0); found {
+		t.Errorf("Expected not-found from Index on empty tree")
 	}
 	if !tree.Front().Done() {
 		t.Errorf("Expected Front() to be Done on empty tree")
@@ -229,7 +229,7 @@ func TestTreeEmptyOps(t *testing.T) {
 
 func TestTreeSetOps(t *testing.T) {
 	build := func(keys ...int) *AvlTree[TestTreeNode] {
-		tr := NewAvlTree[TestTreeNode]()
+		tr := newTestTree()
 		for _, k := range keys {
 			tr.Insert(mkKey(k))
 		}
@@ -251,31 +251,32 @@ func TestTreeSetOps(t *testing.T) {
 	t2 := build(3, 4)
 
 	// Copy
-	var dst AvlTree[TestTreeNode]
+	dst := newTestTree()
 	dst.Insert(mkKey(99))
 	dst.Copy(t2)
-	eq("Copy", keys(&dst), keys(t2))
+	eq("Copy", keys(dst), keys(t2))
 
 	// Copy onto itself must be a no-op.
-	dst.Copy(&dst)
-	eq("Copy self", keys(&dst), keys(t2))
+	dst.Copy(dst)
+	eq("Copy self", keys(dst), keys(t2))
 
 	// Union
 	t3 := build(2, 5)
 	dst.Union(t1, t3)
-	eq("Union", keys(&dst), keys(build(1, 2, 5)))
+	eq("Union", keys(dst), keys(build(1, 2, 5)))
 
-	// Union with aliased destination must not corrupt the sources mid-operation.
-	dst.Union(t1, &dst)
-	eq("Union self", keys(&dst), keys(build(1, 2, 5)))
+	// Union with aliased destination must not corrupt the sources
+	// mid-operation.
+	dst.Union(t1, dst)
+	eq("Union self", keys(dst), keys(build(1, 2, 5)))
 
 	// Minus
 	dst.Minus(t1, t3)
-	eq("Minus", keys(&dst), keys(build(1)))
+	eq("Minus", keys(dst), keys(build(1)))
 
 	// Intersect
 	dst.Intersect(t1, t3)
-	eq("Intersect", keys(&dst), keys(build(2)))
+	eq("Intersect", keys(dst), keys(build(2)))
 }
 
 // -------------------------------------------------------------------------------------------------------
@@ -283,8 +284,8 @@ func TestTreeSetOps(t *testing.T) {
 // -------------------------------------------------------------------------------------------------------
 
 func BenchmarkInsert(b *testing.B) {
-	var tree AvlTree[TestTreeNode]
-	keys := make([]*TestTreeNode, b.N)
+	tree := newTestTree()
+	keys := make([]TestTreeNode, b.N)
 	for i := range keys {
 		keys[i] = mkKey(i)
 	}
@@ -296,8 +297,8 @@ func BenchmarkInsert(b *testing.B) {
 
 func BenchmarkSearch(b *testing.B) {
 	const size = 4096
-	var tree AvlTree[TestTreeNode]
-	keys := make([]*TestTreeNode, size)
+	tree := newTestTree()
+	keys := make([]TestTreeNode, size)
 	for i := range keys {
 		keys[i] = mkKey(i)
 		tree.Insert(keys[i])
@@ -310,11 +311,11 @@ func BenchmarkSearch(b *testing.B) {
 
 func BenchmarkDelete(b *testing.B) {
 	const size = 4096
-	keys := make([]*TestTreeNode, size)
+	tree := newTestTree()
+	keys := make([]TestTreeNode, size)
 	for i := range keys {
 		keys[i] = mkKey(i)
 	}
-	var tree AvlTree[TestTreeNode]
 	fill := func() {
 		for _, k := range keys {
 			tree.Insert(k)

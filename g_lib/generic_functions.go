@@ -1,13 +1,27 @@
-// Package g_lib provides small generic utility functions: min/max, slice
-// searching and manipulation, set conversion, and map key extraction.
+/*
+Copyright (C) Philip Schlump, 2012-2026.
+
+BSD 3 Clause Licensed.
+*/
+
+// Package g_lib provides small generic utility functions: min/max,
+// absolute value and exponentiation, slice searching and manipulation,
+// set conversion, map key extraction, and a pointer helper.  There are
+// no data structures here — just pure functions on slices and maps,
+// plus the numeric constraint interfaces (Numeric, SignedInteger,
+// SignedNumeric, Unsigned, Number) they are parameterized with.
 //
 // All functions are safe for concurrent use; they operate only on their
-// arguments and keep no shared state.
+// arguments and keep no shared state.  The functions that return a
+// slice never modify their input; RemoveAt returns a fresh copy even on
+// a hit, and the others (Remove, RemoveComparable, Unique) build a new
+// slice from the kept elements only.
 package g_lib
 
 import (
 	"cmp"
 	"reflect"
+	"slices"
 	"sort"
 )
 
@@ -65,12 +79,7 @@ func IfTrue[T any](on bool, a, b T) T {
 
 // InArray reports whether needle occurs in haystack, using a linear search.
 func InArray[T comparable](needle T, haystack []T) bool {
-	for _, val := range haystack {
-		if val == needle {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(haystack, needle)
 }
 
 // LocationInArray returns the index of the first occurrence of needle in
@@ -93,25 +102,29 @@ func KeysForStringMap[T any](aMap map[string]T) (rv []string) {
 }
 
 // Numeric is a constraint with a type set of all integer and
-// floating-point types.
+// floating-point types, including types defined from them (~T).
+// uintptr is not in the set; see Unsigned.
 type Numeric interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64 |
 		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 |
 		~float32 | ~float64
 }
 
-// SignedInteger is a constraint with a type set of all signed integer types.
+// SignedInteger is a constraint with a type set of all signed integer
+// types, including types defined from them (~T).
 type SignedInteger interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64
 }
 
-// SignedNumeric is a constraint with a type set of all signed types.
+// SignedNumeric is a constraint with a type set of all signed integer
+// and floating-point types, including types defined from them (~T).
 type SignedNumeric interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64 |
 		~float32 | ~float64
 }
 
-// Unsigned is a constraint with a type set of all unsigned integer types.
+// Unsigned is a constraint with a type set of all unsigned integer
+// types plus uintptr, including types defined from them (~T).
 type Unsigned interface {
 	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
 }
@@ -136,9 +149,7 @@ func GetMapKeys[K comparable, V any](m map[K]V) []K {
 
 // SortSlice sorts s in place in ascending order.
 func SortSlice[T cmp.Ordered](s []T) {
-	sort.Slice(s, func(i, j int) bool {
-		return s[i] < s[j]
-	})
+	slices.Sort(s)
 }
 
 // EqualSlice reports whether s and t have the same length and equal
@@ -231,9 +242,11 @@ func ToBoolMap[T comparable](src []T) map[T]bool {
 	return result
 }
 
-// ptr returns a pointer to the given value.
-func ptr[T any](v T) *T {
-	return &v
+// Ptr returns a pointer to a copy of the given value — the Go 1.26
+// new(expr) form.  v is evaluated at call time, so mutating the
+// original variable afterwards does not change *Ptr(v).
+func Ptr[T any](v T) *T {
+	return new(v)
 }
 
 /* vim: set noai ts=4 sw=4: */

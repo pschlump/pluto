@@ -1,66 +1,112 @@
-= A generics based Go Stack.
+= stack
 
-A simple generic LIFO stack with `Push`, `Pop`, `Peek`, `Length`, `IsEmpty`
-and `Truncate`, implemented on top of a slice.  Go 1.23+ range-over-func
-iterators (`All`, `Backward`) are provided for walking the stack.
+A generic slice-backed *LIFO stack* — the simplest container in charon
+alongside `queue`.  The element type needs *no constraints at all*:
+there is no ordering and no equality to supply, and the zero value of
+`Stack` is an empty stack ready to use without a constructor.
 
-This is a demo of how to use a generic in a type declaration and how to
-declare methods on that generic type.  Specifically look at the declaration
-of `Stack[T any]` and also see how the functions are instantiated with
-the generic type.
+It is a rework of
+link:https://github.com/pschlump/pluto/tree/main/stack[pluto/stack]
+with the charon conventions:
 
-The code is a conversion of an earlier `Stack` that used `interface{}`.
+* The stack is a *struct wrapping the slice* (pluto used a defined
+slice type, `type Stack[T any] []T`), matching the shape of every other
+charon container.
+* Elements are stored and returned *by value* — `Pop` and `Peek` return
+`(T, error)` — so a peeked element is an independent copy, never a
+pointer aliasing the top of the stack (pluto's `Peek` returned `*T`
+documented as invalidated by the next Push or Pop).
 
-== Complexity
+Not safe for concurrent use.
 
-[cols="1,1,2"]
+== Operations
+
+[options="header"]
 |===
-| Operation  | Cost           | Notes
+| Operation                    | Description                          | Complexity
 
-| `Push`     | amortized O(1) | appends to the backing slice
-| `Pop`      | O(1)           | zeroes the popped slot so the GC can reclaim the value
-| `Peek`     | O(1)           | returns a pointer to the top element
-| `IsEmpty`  | O(1)           |
-| `Length`   | O(1)           |
-| `Truncate` | O(1)           | releases the backing array
-| `All`      | O(n)           | iterates top to bottom
-| `Backward` | O(n)           | iterates bottom to top
+| `Push`                       | Insert at the top                    | O(1) amortized
+| `Pop`                        | Remove and return the top            | O(1)
+| `Peek`                       | Look at the top without removing     | O(1)
+| `IsEmpty` / `Len` / `Length` | Size queries                         | O(1)
+| `Truncate`                   | Remove all elements                  | O(1)
+| `All` / `Backward`           | Range-over-func iterators with index | O(n)
 |===
 
-== Example
+`All` iterates from the *top* (most recently pushed, index 0) to the
+bottom; `Backward` iterates from the bottom to the top.  Both reflect the
+live stack — pushing or popping between iterations changes what they see.
+
+== Errors
+
+The empty stack is reported with an error (compare with `errors.Is`):
+
+[options="header"]
+|===
+| Error | Meaning 
+
+| `ErrEmptyStack` | `Pop`/`Peek` on an empty stack 
+|===
+
+== Usage
 
 [source,go]
 ----
-package main
+var stk stack.Stack[int] // no constructor needed
 
-import (
-	"fmt"
+stk.Push(1)
+stk.Push(2)
 
-	"github.com/pschlump/pluto/stack"
-)
+top, _ := stk.Peek() // 2 — still on the stack
+v, _ := stk.Pop()    // 2 — last in, first out
+----
 
-func main() {
-	var stk stack.Stack[int]
+Iteration, top to bottom and back:
 
-	stk.Push(1)
-	stk.Push(2)
-	stk.Push(3)
-
-	top, _ := stk.Peek()
-	fmt.Println(*top) // 3
-
-	for i, v := range stk.All() { // 3, 2, 1 (top to bottom)
-		fmt.Println(i, v)
-	}
-
-	for !stk.IsEmpty() {
-		v, _ := stk.Pop()
-		fmt.Println(v) // 3, then 2, then 1
-	}
+[source,go]
+----
+for i, v := range stk.All() {
+    ...
+}
+for i, v := range stk.Backward() {
+    ...
 }
 ----
 
-== Thread Safety
+== Panics
 
-This package is *not* safe for concurrent use.  Use
-`github.com/pschlump/pluto/stack_sll_ts` for a thread-safe stack.
+The package has exactly *one* panic, a programmer error with no sane
+fallback:
+
+[options="header"]
+|===
+| Call | Why 
+
+| `Push` on a nil stack | a nil stack cannot store an element 
+|===
+
+Everything else — including the zero value, which is fully usable because
+there is no comparison or equality function to configure — tolerates a
+nil stack as an empty stack.
+
+== Memory behavior
+
+`Pop` zeroes the vacated slot so the backing array does not keep popped
+elements alive, and releases the backing array entirely when the stack
+drains completely (verified by `TestStackPopZeroesSlot`).
+
+== Differences from pluto/stack
+
+* `Stack` is a struct wrapping the slice (pluto: `type Stack[T any] []T`
+— a defined slice type whose internals were directly indexable).
+* `Pop` and `Peek` return `(T, error)` — pluto's `Peek` returned `*T`
+aliasing the top element, documented as invalidated by Push/Pop/Pop/
+Truncate; with value semantics that hazard is gone.
+* `Len` is available as an alias for `Length`, matching the other charon
+packages.
+* `Pop` releases the backing array on a full drain (pluto left the empty
+slice in place).
+* A nil `*Stack` behaves as an empty stack for every operation except
+`Push`, which panics with a named message — the package's only panic.
+* Complexity notes on each operation.
+

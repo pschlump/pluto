@@ -1,0 +1,139 @@
+= dqueue
+
+A generic *double ended queue (deque)* built on a doubly linked list
+that is *not safe for concurrent use*.  Pluto has no plain `dqueue`
+(only the thread-safe `dqueue_ts`), so this package is charon's own —
+the design of link:../dqueue_ts/[`dqueue_ts`] with the lock left out.  A
+mutex-guarded version with the *identical interface* lives alongside
+it; point shared-deque callers there.
+
+The element type needs *no constraints at all* and the zero value of
+`Deque` is an empty deque ready to use without a constructor.  Elements
+are stored and returned *by value* (`PopFront`, `PopBack`, `PeekFront`
+and `PeekBack` return `(T, error)`).
+
+== Why self-contained?
+
+Not a wrapper over link:../dll/[`dll`]: charon's `dll` requires an
+equality function at construction (its `Search` needs one), but a deque
+never compares elements — so wrapping would force a dummy equality
+function and break the constraint-free contract.  The package carries
+its own plain doubly linked list; the `prev` pointers are what make
+`PopBack` and `Backward` O(1) per step.
+
+The practical difference from the slice-based link:../queue/[`queue`]
+is the same as link:../stack_sll_ts/[`stack_sll_ts`] vs
+link:../stack/[`stack`]: *memory behavior*.  Pushes and pops at either
+end allocate and free one small node each and never reallocate, so
+memory use is stable across arbitrary push/pop patterns (a slice window
+periodically reallocates as it walks).  Trade-off: one allocation per
+push.  Used at one end only it behaves as a stack; used with
+`PushBack`/`PopFront` it behaves as a FIFO queue.
+
+== Operations
+
+[options="header"]
+|===
+| Operation                    | Description                               | Complexity
+
+| `PushFront` / `PushBack`     | Insert at the front / back                | O(1)
+| `PopFront` / `PopBack`       | Remove and return from the front / back   | O(1)
+| `PeekFront` / `PeekBack`     | Look at the front / back without removing | O(1)
+| `IsEmpty` / `Len` / `Length` | Size queries                              | O(1)
+| `Truncate`                   | Remove all elements                       | O(1)
+| `All` / `Backward`           | Range-over-func iterators over the live list | O(n)
+|===
+
+`All` iterates from the *front* (index 0) to the back; `Backward`
+from the back to the front, with indexes counting down from
+`Length()-1` so they match the index `All` assigns to the same element.
+
+== Iterators walk the live list
+
+Unlike the `dqueue_ts` twins, `All` and `Backward` do *not* copy a
+snapshot: `All` follows the `next` pointers from the head, `Backward`
+the `prev` pointers from the tail — both cost O(n) time with *O(1)
+extra space*.  The price is the usual one for a plain package:
+
+[source,go]
+----
+for _, v := range q.All() {
+    // q.PopFront() here would be a bug: the deque must not be
+    // modified while an iterator is running.
+    _ = v
+}
+----
+
+Mutating the deque from inside the loop requires the `dqueue_ts` twin,
+whose iterators walk an eager value snapshot instead.
+
+== Errors and panics
+
+The empty deque is reported with an error (compare with `errors.Is`):
+
+[options="header"]
+|===
+| Error | Meaning
+
+| `ErrEmptyDeque` | `PopFront`/`PopBack`/`PeekFront`/`PeekBack` on empty
+|===
+
+The package has exactly *two* panics:
+
+[options="header"]
+|===
+| Call | Why
+
+| `PushFront` on a nil deque | a nil deque cannot store an element
+| `PushBack` on a nil deque | a nil deque cannot store an element
+|===
+
+Everything else — including the zero value, which is fully usable
+because there is no comparison or equality function to configure —
+tolerates a nil deque as an empty deque.
+
+== Usage
+
+[source,go]
+----
+package main
+
+import (
+    "fmt"
+
+    "github.com/pschlump/charon/dqueue"
+)
+
+func main() {
+    var q dqueue.Deque[int]
+
+    // A work queue: arrivals at the back, urgent jobs at the front.
+    q.PushBack(1)
+    q.PushBack(2)
+    q.PushFront(0) // jumps the line
+
+    // Draining from the front pops the urgent job first.
+    for !q.IsEmpty() {
+        v, _ := q.PopFront()
+        fmt.Println(v) // 0, 1, 2
+    }
+}
+----
+
+Runnable, tested copies of these examples live in
+link:example_test.go[`example_test.go`].
+
+== Differences from charon/dqueue_ts
+
+This package is `dqueue_ts` with the lock removed; the API, value
+semantics, `ErrEmptyDeque`, and the two panics are identical by
+construction.  The differences:
+
+* No `sync.RWMutex` — *not safe for concurrent use*.  Every operation
+is the ts body with the locking (and the nil-guard-before-lock dance)
+left out, so it is also slightly faster on a single goroutine.
+* `All`/`Backward` *walk the live list* (O(1) extra space;
+`Backward` follows the `prev` pointers from the tail) instead of
+copying an eager value snapshot — the deque must not be modified while
+an iterator runs.  `dqueue_ts` snapshots, so its loops may mutate the
+deque.

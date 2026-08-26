@@ -1,0 +1,137 @@
+= heap_sort_ts
+
+A generic *heap sort* that is *safe for concurrent use* — the
+thread-safe twin of link:../heap_sort/[charon/heap_sort], composing the
+thread-safe heap in link:../heap_ts/[`heap_ts`].  Elements are added
+with `Insert` or `InsertArray`, then drained in ascending order with
+`Sort` or descending order with `SortDown`.  The two Sort calls empty
+the sorter atomically; it is reusable afterwards.
+
+The public API is identical to `heap_sort` (plus the locking behavior
+below), so switching between the two is a package-name change.  Pluto
+has no `heap_sort_ts`; this package is charon's own design, and the
+differences section below is written against
+link:../heap_sort/[charon/heap_sort].
+
+== Locking behavior
+
+* Every operation delegates to the guarded methods of the underlying
+`heap_ts.Heap`: *reads* (`Len`, `Length`, `IsEmpty`) run under the read
+lock and in parallel with each other; *writes* (`Insert`, `Truncate`)
+are exclusive.
+* *The three multi-step operations are atomic.* `InsertArray` (append
+plus bottom-up rebuild) and `Sort`/`SortDown` (drain) hold the heap's
+write lock for the whole operation, so a concurrent operation can never
+observe the heap mid-rebuild, and `Sort` returns exactly the elements
+that were present when it started, leaving the sorter empty.
+* *`Lock`/`Unlock` expose the write lock* for compound operations that
+must be atomic (e.g. an insert-batch-then-sort sequence).  While the
+lock is held, only the `Nl*` methods may be called — calling a regular
+method will deadlock: `NlLen`, `NlIsEmpty`, `NlInsert`,
+`NlInsertArray`, `NlSort`, `NlSortDown`.  Locking a nil sorter is a
+no-op.
+
+[source,go]
+----
+hs.Lock()
+hs.NlInsertArray(batch)
+sorted := hs.NlSort() // drains the batch — and anything else present — atomically
+hs.Unlock()
+----
+
+== Operations
+
+[options="header"]
+|===
+| Operation                    | Description                                       | Complexity
+
+| `Insert(x)`                  | Add a single element                              | O(log n)
+| `InsertArray(xs)`            | Add a slice and rebuild the heap, atomically      | O(m + n)
+| `Sort()`                     | Remove all elements, ascending — atomic drain     | O(n log n)
+| `SortDown()`                 | Remove all elements, descending — atomic drain    | O(n log n)
+| `Len` / `Length` / `IsEmpty` | Size queries                                      | O(1)
+| `Truncate`                   | Remove all pending elements                       | O(1)
+|===
+
+`InsertArray` may be called repeatedly and interleaved with `Insert`;
+the batch is copied in, so the caller's slice can be mutated afterwards.
+The sort is *not stable*: elements that compare equal may come out in
+any relative order.
+
+== Panics
+
+Identical to `heap_sort` — exactly three panics, all programmer errors
+with no sane fallback:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewHeapSortFunc(nil)` | nil comparison function, caught at construction time
+| `Insert`/`InsertArray` on a nil sorter | a nil sorter cannot store an element
+| `Insert`/`InsertArray` on a zero value | no underlying heap; the message names the constructors
+|===
+
+Everything else — including `Sort`/`SortDown` on an empty sorter and
+`Lock`/`Unlock` on a nil sorter — tolerates a nil sorter and the zero
+value as an empty sorter (`Sort` returns an empty slice, `Len` returns
+0).
+
+== Usage
+
+[source,go]
+----
+package main
+
+import (
+    "fmt"
+    "sync"
+
+    "github.com/pschlump/charon/heap_sort_ts"
+)
+
+func main() {
+    hs := heap_sort_ts.NewHeapSort[int]()
+
+    // Writers from many goroutines share one sorter.
+    var wg sync.WaitGroup
+    for p := 0; p < 8; p++ {
+        wg.Add(1)
+        go func(p int) {
+            defer wg.Done()
+            for i := 0; i < 100; i++ {
+                hs.Insert(p*1000 + i)
+            }
+        }(p)
+    }
+    wg.Wait()
+    fmt.Println(hs.Len()) // 800
+
+    // Sort atomically drains everything present, in order.
+    fmt.Println(len(hs.Sort()), hs.IsEmpty()) // 800 true
+}
+----
+
+Runnable, tested copies of these examples live in
+link:example_test.go[`example_test.go`].  The
+link:../heap_sort/[heap_sort README] documents the full API usage; it
+applies unchanged.
+
+== Differences from charon/heap_sort
+
+* The backing heap is `heap_ts.Heap` instead of `heap.Heap`; there is no
+separate sorter-level lock — all locking delegates to the heap's
+`sync.RWMutex`, the same composition `priority_queue_ts` uses.
+* `InsertArray`, `Sort` and `SortDown` are *atomic*: each runs under one
+hold of the heap's write lock (via the heap's `Nl` internals), where
+the plain package's append, per-node heapify and per-element pops take
+and release nothing (no lock) — a concurrent insert between the append
+and the rebuild would leave the plain heap's invariant broken.
+* `Lock`/`Unlock` are the *real* exposed write lock (no-ops in
+`heap_sort`), and the `Nl*` methods
+(`NlLen`, `NlIsEmpty`, `NlInsert`, `NlInsertArray`, `NlSort`,
+`NlSortDown`) are added for compound operations; calling a regular
+method while the lock is held will deadlock.
+* Everything else — the two constructors, value semantics, the
+not-stable sort, the three-panic contract, nil/zero tolerance — is
+unchanged from `heap_sort`.

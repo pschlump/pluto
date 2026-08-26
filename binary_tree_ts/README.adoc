@@ -1,35 +1,100 @@
 = binary_tree_ts
-:toc:
 
-Package `binary_tree_ts` implements a generic, *unbalanced* binary search
-tree that is safe for concurrent use. Every operation is guarded by a
-`sync.RWMutex`. It exposes exactly the same API as
-link:../binary_tree[`binary_tree`] — see that package for a non-thread-safe
-version without the locking overhead. For a self-balancing tree with
-guaranteed `O(log n)` operations see link:../avl_tree[`avl_tree`].
+A generic, unbalanced binary search tree that is *safe for concurrent
+use* — the thread-safe twin of
+link:../binary_tree/[charon/binary_tree].  Every operation is guarded by a
+`sync.RWMutex`: readers run in parallel with each other, writers are
+exclusive.
 
-== Operations and Complexity
+Like `binary_tree`, it is a rework of
+link:https://github.com/pschlump/pluto/tree/main/binary_tree_ts[pluto/binary_tree_ts]
+that replaces the `comparable.Comparable` interface constraint with pure Go
+type parameters, so element data is never boxed into an interface and never
+unboxed with a type assertion.
 
-Because the tree is not self-balancing, the "average" column assumes randomly
-ordered input; sorted input degenerates to a linked list.
+* Elements are stored and returned *by value* (`T`, not `*T`).
+* Trees of ordered key types (integers, floats, strings) are ordered by the
+built-in `<` / `>` operators of the key type:
+`binary_tree_ts.NewBinaryTree[int]()`.
+* Trees of any other type — including structs ordered by a single field —
+take a plain comparison function, with no interface to implement:
+`NewBinaryTreeFunc(func(a, b Item) int { ... })`.
 
-[cols="2,1,1,3",options="header"]
+The public API is identical to `binary_tree` (plus the locking behavior
+below), so switching between the two is a package-name change.
+
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and appear
+on pkg.go.dev.  The link:../binary_tree/[binary_tree README] documents the
+full API usage and recipes (priority queue, rank queries, sorted-order
+draining); they all apply unchanged.
+
+== Complexity
+
+Same as `binary_tree`:
+
+[options="header"]
 |===
-| Operation                                                    | Average    | Worst case | Notes
+| Operation                         | Complexity
 
-| `Insert`                                                     | O(log₂ n)  | O(n)       | duplicate replaces existing element, returns false
-| `Search`                                                     | O(log₂ n)  | O(n)       | returns nil when not found
-| `Delete` / `DeleteMatch`                                     | O(log₂ n)  | O(n)       | returns false when not found
-| `FindMin` / `FindMax`                                        | O(log₂ n)  | O(n)       | nil on an empty tree
-| `DeleteAtHead` / `DeleteAtTail`                              | O(log₂ n)  | O(n)       | removes the min / max element
-| `IsEmpty`, `Len`, `Length`                                   | O(1)       | O(1)       |
-| `Truncate`                                                   | O(1)       | O(1)       | drops the whole tree
-| `Index`                                                      | O(n)       | O(n)       | Nth element in in-order order
-| `Depth`                                                      | O(n)       | O(n)       | levels in the deepest part; empty tree is 0
-| `Reverse`                                                    | O(n)       | O(n)       | swaps left/right children of every node
-| `WalkInOrder` / `WalkPreOrder` / `WalkPostOrder`, `WalkFunc` | O(n)       | O(n)       | callback traversals
-| `Front` iterator, `All`, `Backward`                          | O(n) total | O(n) total | see Iteration below
+| Insert                            | O(log₂ n) average, O(n) worst
+| Delete / DeleteMatch              | O(log₂ n) average, O(n) worst
+| Search                            | O(log₂ n) average, O(n) worst
+| FindMin / FindMax                 | O(log₂ n) average, O(n) worst
+| DeleteAtHead / DeleteAtTail       | O(log₂ n) average, O(n) worst
+| Index                             | O(n)
+| Depth                             | O(n)
+| Walk* / WalkFunc / Dump           | O(n)
+| All / Backward (full iteration)   | O(n) — plus an O(n) snapshot
+| IsEmpty / Len / Length / Truncate | O(1)
 |===
+
+The tree is *not* self-balancing.  Insert of a duplicate replaces the
+stored value in place and returns `false`.
+
+== Locking behavior
+
+* *Reads* (`Search`, `FindMin`, `FindMax`, `Index`, `Depth`, `Len`,
+`IsEmpty`) take the read lock and release it before returning — they can
+run in parallel with each other.
+* *Writes* (`Insert`, `Delete`, `DeleteMatch`, `DeleteAtHead`,
+`DeleteAtTail`, `Reverse`, `Truncate`) take the write lock.
+* *`Front`, `All` and `Backward` operate on a snapshot* of the tree taken
+when they are called (under the read lock, released immediately after).
+It is safe to mutate the tree while iterating — including from inside the
+loop — and an iterator never observes modifications made after it was
+created.  The snapshot costs one O(n) copy.
+* *`WalkInOrder` / `WalkPreOrder` / `WalkPostOrder` / `WalkFunc` and
+`Dump` hold the read lock for the whole traversal.*  Their callbacks
+must *not* call any method on the same tree — a write from a callback
+deadlocks on the lock, and even a read can deadlock if a writer is
+waiting.  If you need to mutate while visiting elements, iterate a
+snapshot with `All()` instead.
+
+[source,go]
+----
+for v := range tree.All() {
+    tree.Delete(v) // safe: All iterates a snapshot
+}
+----
+
+== Panics
+
+Identical to `binary_tree` — the package panics in exactly three
+situations, all programmer errors with no sane fallback:
+
+[options="header"]
+|===
+| Call | Why 
+
+| `NewBinaryTreeFunc(nil)` | nil comparison function, caught at construction time 
+| `Insert` on a nil `*BinaryTree` | a nil tree cannot store an element 
+| `Insert` on a zero-value tree | no comparison function; the message names the constructors 
+|===
+
+Everything else tolerates a nil tree and the zero value as an empty tree
+(the zero value of `sync.RWMutex` is a working lock): searches find
+nothing, deletes return `false`, walks and iterators visit nothing.
 
 == Usage
 
@@ -38,67 +103,53 @@ ordered input; sorted input degenerates to a linked list.
 package main
 
 import (
-	"fmt"
+    "fmt"
+    "sync"
 
-	"github.com/pschlump/pluto/binary_tree_ts"
-	"github.com/pschlump/pluto/comparable"
+    "github.com/pschlump/charon/binary_tree_ts"
 )
 
-type Str string
-
-func (s Str) Compare(x comparable.Comparable) int {
-	o := x.(Str)
-	if s < o {
-		return -1
-	} else if s > o {
-		return 1
-	}
-	return 0
-}
-
 func main() {
-	tree := binary_tree_ts.NewBinaryTree[Str]()
-	bob, carol := Str("bob"), Str("carol")
-	tree.Insert(&bob)
-	tree.Insert(&carol)
+    tree := binary_tree_ts.NewBinaryTree[int]()
 
-	found := tree.Search(&carol) // *Str, or nil
-	fmt.Println(*found)
+    // Writers from many goroutines share one tree.
+    var wg sync.WaitGroup
+    for w := 0; w < 8; w++ {
+        wg.Add(1)
+        go func(w int) {
+            defer wg.Done()
+            for i := 0; i < 100; i++ {
+                tree.Insert(w*1000 + i)
+            }
+        }(w)
+    }
+    wg.Wait()
+    fmt.Println(tree.Len()) // 800
 
-	// Range-over-func iteration (Go 1.23+), in ascending order:
-	for v := range tree.All() {
-		fmt.Println(*v)
-	}
-
-	tree.Delete(&bob)
+    // Deleting from inside an All loop is safe: it iterates a snapshot.
+    for v := range tree.All() {
+        tree.Delete(v)
+    }
+    fmt.Println(tree.IsEmpty()) // true
 }
 ----
 
-== Iteration
+== Differences from pluto/binary_tree_ts
 
-Three styles are supported, all kept for compatibility:
+* The `comparable.Comparable` interface constraint is gone: ordering is
+either the key type's built-in operators (`NewBinaryTree`) or a caller
+supplied function (`NewBinaryTreeFunc`).  No boxing of elements, no
+dynamic dispatch, no type assertions inside `Compare` methods.
+* Elements are stored and returned by value; find-style operations return
+`(T, bool)` instead of a nil-able `*T`.  (Snapshots are `[]T`, not
+`[]*T`.)
+* A nil `*BinaryTree` behaves as an empty tree for every operation except
+`Insert`; pluto panics on nearly every method called on a nil tree.
+* The only panics are the three listed above, each with a message naming
+the fix.
+* The `Walk*` callbacks capture state in closures instead of receiving an
+`interface{}` `userData` parameter.
+* `DeleteAtHead` / `DeleteAtTail` splice the extreme node out directly in a
+single descent under the write lock, instead of a locked
+`FindMin`/`FindMax` followed by a `Delete`.
 
-- `All()` / `Backward()` — Go 1.23 range-over-func iterators
-  (`iter.Seq[*T]`) in ascending / descending order. Preferred for new code.
-- `Front()` with `Value()` / `Next()` / `Done()` — old-style in-order
-  iterator.
-- `WalkInOrder` / `WalkPreOrder` / `WalkPostOrder` / `WalkFunc` —
-  callback-based traversals; returning `false` from an `ApplyFunction`
-  callback stops the walk.
-
-== Thread Safety
-
-`BinaryTree` *is* safe for concurrent use: every operation takes the
-tree's `sync.RWMutex` (read operations take the read lock).
-
-Caveats:
-
-- The iterators (`Front`, `All`, `Backward`) operate on a *snapshot* of the
-  tree taken when the iterator is created, so it is safe to call other tree
-  operations (including `Insert`/`Delete`) from inside a loop; the iteration
-  does not observe those modifications.
-- The `Walk*` callbacks run while the tree's read lock is held. A callback
-  must not call back into the same tree (that would deadlock) and should be
-  fast so it does not block writers.
-- The returned `*T` values alias the data stored in the tree; mutating a
-  returned value concurrently is the caller's responsibility.

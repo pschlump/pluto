@@ -1,62 +1,131 @@
-= skip_list_ts — Ordered Collection (Thread-Safe Skip List)
-:toc:
+= skip_list_ts
 
-Package `skip_list_ts` implements an ordered collection of generic items as a
-link:https://en.wikipedia.org/wiki/Skip_list[skip list] that is safe for
-concurrent use.  All operations are guarded by an internal `sync.RWMutex`.
-Items must implement `github.com/pschlump/pluto/comparable.Comparable` (a
-single `Compare` method).
+A generic *skip list* that is *safe for concurrent use* — the
+thread-safe twin of link:../skip_list/[charon/skip_list].  Every operation is
+guarded by a `sync.RWMutex`: readers run in parallel with each other,
+writers are exclusive.
 
-This is the thread-safe version of `skip_list`; both packages expose the
-identical API.
+Like `skip_list`, it is a probabilistic ordered collection — multiple
+levels of linked lists where each higher level acts as an "express lane"
+— with Insert, Search and Delete at *O(log₂ n) expected*, and no
+degradation on sorted input.  And like every charon package it is a
+rework of
+link:https://github.com/pschlump/pluto/tree/main/skip_list_ts[pluto/skip_list_ts]
+that replaces the `comparable.Comparable` interface constraint with pure
+Go type parameters, so element data is never boxed into an interface and
+never unboxed with a type assertion.
 
-== Complexity
+* Elements are stored and returned *by value* (`T`, not `*T`); find-style
+operations return `(T, bool)`.
+* Lists of ordered key types (integers, floats, strings) are ordered by the
+built-in `<` / `>` operators: `skip_list_ts.NewSkipList[int]()`.
+* Lists of any other type — including structs ordered by a single field —
+take a plain comparison function, with no interface to implement.
 
-Skip lists are probabilistic: the expected cost of the ordered operations is
-`O(log n)`, with an `O(n)` worst case.
+The public API is identical to `skip_list` (plus the locking behavior
+below), so switching between the two is a package-name change.
 
-[cols="2,1,1,3",options="header"]
-|===
-| Operation                     | Expected | Worst case | Notes
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and appear
+on pkg.go.dev.  The link:../skip_list/[skip_list README] documents the full
+API usage; it applies unchanged.
 
-| `Insert`                      | O(log n) | O(n)       | duplicate keys replace stored item
-| `Search`                      | O(log n) | O(n)       | returns `nil` when not found
-| `Delete`                      | O(log n) | O(n)       | returns `false` when not found
-| `FindMin`                     | O(1)     | O(1)       | first node on level 0
-| `FindMax`                     | O(log n) | O(n)       |
-| `DeleteAtHead`                | O(1)     | O(log n)   | remove smallest
-| `DeleteAtTail`                | O(log n) | O(n)       | remove largest
-| `IsEmpty`/`Length`            | O(1)     | O(1)       |
-| `Truncate`                    | O(1)     | O(1)       | drops the whole list
-| `All`/`Backward`              | O(n)     | O(n)       | iterate over a snapshot
-|===
+== Locking behavior
 
-== Usage
-
-Identical to `skip_list`; import `github.com/pschlump/pluto/skip_list_ts`
-instead:
+* *Reads* (`Search`, `FindMin`, `FindMax`, `Len`, `Length`, `IsEmpty`)
+take the read lock and release it before returning — they can run in
+parallel with each other.
+* *Writes* (`Insert`, `Delete`, `DeleteAtHead`, `DeleteAtTail`,
+`Truncate`) take the write lock.
+* *`All` and `Backward` operate on a snapshot* of the list taken when
+they are called (under the read lock, released immediately after).  It
+is safe to mutate the list while iterating — including from inside the
+loop — and an iterator never observes modifications made after it was
+created.  The snapshot costs one O(n) copy.
+* *`Dump` holds the read lock for the whole dump*, so the writer must
+not call methods on the same list.
 
 [source,go]
 ----
-var list skip_list_ts.SkipList[Item]
-
-list.Insert(Item(5))
-if p := list.Search(Item(5)); p != nil {
-	fmt.Println("found", *p)
-}
 for v := range list.All() {
-	fmt.Println(v)
+    list.Delete(v) // safe: All iterates a snapshot
 }
 ----
 
-== Thread Safety
+== Panics
 
-`SkipList` *is* safe for concurrent use.  Reads (`Search`, `FindMin`,
-`FindMax`, `IsEmpty`, `Length`, and the iterators) take the read lock;
-mutations take the write lock.
+Identical to `skip_list` — the package panics in exactly three situations,
+all programmer errors with no sane fallback:
 
-`Search`, `FindMin` and `FindMax` return a *copy* of the stored item, so
-mutating the returned value cannot corrupt the list.  The `All` and
-`Backward` iterators operate on a consistent snapshot taken under the read
-lock when iteration starts; the lock is never held while the loop body runs,
-and concurrent modifications are not reflected in the iteration.
+[options="header"]
+|===
+| Call                          | Why
+
+| `NewSkipListFunc(nil)`        | nil comparison function, caught at construction time
+| `Insert` on a nil `*SkipList` | a nil list cannot store an element
+| `Insert` on a zero-value list | no comparison function; the message names the constructors
+|===
+
+Everything else tolerates a nil list and the zero value as an empty list
+(the zero value of `sync.RWMutex` is a working lock).
+
+== Usage
+
+[source,go]
+----
+package main
+
+import (
+    "fmt"
+    "sync"
+
+    "github.com/pschlump/charon/skip_list_ts"
+)
+
+func main() {
+    list := skip_list_ts.NewSkipList[int]()
+
+    // Writers from many goroutines share one list.
+    var wg sync.WaitGroup
+    for w := 0; w < 8; w++ {
+        wg.Add(1)
+        go func(w int) {
+            defer wg.Done()
+            for i := 0; i < 100; i++ {
+                list.Insert(w*1000 + i)
+            }
+        }(w)
+    }
+    wg.Wait()
+    fmt.Println(list.Len()) // 800
+
+    // Deleting from inside an All loop is safe: it iterates a snapshot.
+    for v := range list.All() {
+        list.Delete(v)
+    }
+    fmt.Println(list.IsEmpty()) // true
+}
+----
+
+== Differences from pluto/skip_list_ts
+
+* The `comparable.Comparable` interface constraint is gone: ordering is
+either the key type's built-in operators (`NewSkipList`) or a caller
+supplied function (`NewSkipListFunc`).  No boxing of elements, no
+dynamic dispatch, no type assertions inside `Compare` methods.
+* The data is stored by value in each node (pluto stored a `*T` pointing
+at the inserted item).  `Search`, `FindMin` and `FindMax` return
+`(T, bool)` instead of a nil-able `*T`; snapshots are `[]T`, not `[]*T`.
+* `Insert` reports whether a new node was added (`true`) or a duplicate
+replaced the old value (`false`); the pluto version returns nothing.
+* `Len` is available as an alias for `Length`, matching the other charon
+packages.
+* A nil `*SkipList` behaves as an empty list for every operation except
+`Insert`; pluto panics on `Insert`, `Delete`, `DeleteAtHead` and
+`DeleteAtTail` called on a nil list.
+* The only panics are the three listed above, each with a message naming
+the fix.
+* The snapshot for `All`/`Backward` is taken when they are called, not
+when the range loop starts, so an iterator never observes modifications
+made after its creation.
+

@@ -1,0 +1,206 @@
+= cuckoo_ts
+
+`cuckoo_ts` is a thread-safe generic cuckoo hash table for Go. Every
+element is hashed once into a full 64-bit base hash, and from that one base
+hash four candidate slot positions are derived — the table size is a power
+of two, and with `mask = size-1` the candidates are
+
+[indent=0]
+....
+pos1 =  h        & mask        (the 1st hash: the base hash itself)
+pos2 = (h >> 1)  & mask        (the 2nd hash: 1-bit shift right, then mask)
+pos3 = (h >> 2)  & mask        (the 3rd hash: 2-bit shift right, then mask)
+pos4 = (h >> 3)  & mask        (the 4th hash: 3-bit shift right, then mask)
+....
+
+An element may live in any one of its four candidate slots; Search and
+Delete look at exactly those four slots, and an insert that finds all four
+occupied displaces existing elements (the "cuckoo" step) until everything
+has a slot.
+
+It is the thread-safe twin of link:../cuckoo[charon/cuckoo] — the same
+cuckoo scheme, the same API, guarded by a `sync.RWMutex` — with three
+additions: the `Lock`/`Unlock` pair, the `Nl*`-prefixed (no-lock) methods
+for compound operations, and *background resizes* (see below). Pluto has no
+cuckoo package, so like `stack_ts`/`heap_sort_ts` the differences section
+is written against charon's own plain package.
+
+* Elements are stored and returned *by value* (`T`, not `*T`).
+* Keys of types comparable with `==` need no functions at all:
+  `cuckoo_ts.NewHashTab[string](16, 0, 0)`. Equality is the `==` operator
+  and hashing is the stdlib `hash/maphash` (the Go hash) with a per-table
+  random seed.
+* Any other type — or identity by a single field — takes a plain equality
+  function *and* a hash function, which must agree: whenever `eq(a, b)` is
+  true, `hash(a)` and `hash(b)` must be equal.
+
+The default hashing is *randomized per table* — slot order in `All`,
+`Values`, `Walk` and `Dump`, and the raw hash values `Dump` prints, vary
+from process to process and must not appear in fixed assertions.
+
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and appear
+on pkg.go.dev.
+
+== Resizing — the collision loop and the two thresholds
+
+The table keeps a saturation rate (`Len` divided by the table size,
+reported by `Saturation()`) and resizes on two triggers:
+
+* *A collision loop* — an insert's displacement chain runs past the kick
+  limit at any saturation. That resize runs *synchronously*, inside the
+  insert: the element must be placed before Insert can return.
+* *A threshold passed* — an addition taking the saturation *above the grow
+  threshold* (default 0.85) or a deletion taking it *below the shrink
+  threshold* (default 0.10, down to the minimum size of 256). That resize
+  runs *asynchronously*: a goroutine is started that takes the table's
+  write lock on its own thread and rebuilds the table, re-checking the
+  thresholds after each rebuild and exiting when neither is due. At most
+  one background resizer runs per table; a trigger that fires while one is
+  in flight simply wakes it.
+
+The table is always consistent: operations between the trigger and the
+rebuild run against the current table, which is valid — merely saturated.
+Right after a threshold is crossed, `Capacity()` may still report the old
+size until the rebuild lands (a subsequent collision-loop resize would
+also fix the size synchronously — a completely full table can never wedge
+an insert).
+
+Both thresholds are configured at construction. A value <= 0 or NaN
+selects its default, a shrink threshold >= the grow threshold selects
+both defaults, and the shrink threshold is clamped to at most half the
+grow threshold — growing halves the saturation, so a higher shrink
+threshold would make a resize oscillate (grow, shrink, grow, ...)
+forever. A grow threshold above 1.0 defers threshold growth entirely
+(the collision-loop path still grows the table).
+
+A background resizer needs the write lock, so a compound `Lock` section
+must not be held indefinitely — the resizer waits behind it.
+
+== Complexity
+
+[cols="2,1,1,4",options="header"]
+|===
+| Operation                                | Average | Worst case | Notes
+
+| `Insert`                                 | O(1)    | O(n)       | a collision-loop resize is synchronous
+| `Search`                                 | O(1)    | O(1)       | exactly four slots are examined
+| `Delete`                                 | O(1)    | O(1)       | clearing a slot repairs nothing
+| `IsEmpty`, `Len`, `Length`, `Capacity`, `Saturation` | O(1) | O(1) |
+| `Truncate`                               | O(n)    | O(n)       | clears all slots for GC
+| `Walk`, `Dump`                           | O(n)    | O(n)       | read lock held for the whole traversal
+| `All`, `Values`                          | O(n)    | O(n)       | snapshot copied under the read lock
+| `Lock` / `Unlock` + `Nl*`                | O(1)    | O(1)       | to lock; then the Nl body's cost
+|===
+
+== Usage
+
+[source,go]
+----
+package main
+
+import (
+	"fmt"
+
+	"github.com/pschlump/charon/cuckoo_ts"
+)
+
+func main() {
+	ht := cuckoo_ts.NewHashTab[string](16, 0, 0) // size 16, default thresholds 0.85/0.10
+
+	ht.Insert("alpha")
+	ht.Insert("beta")
+	fmt.Println(ht.Insert("alpha")) // false — duplicate replaces the element
+
+	if v, found := ht.Search("alpha"); found {
+		fmt.Println("found", v)
+	}
+
+	ht.Delete("alpha")
+
+	// Snapshot iterators (Go 1.23+) — safe to touch the table from the body:
+	for pos, item := range ht.All() { // (slot position, element)
+		fmt.Println(pos, item)
+	}
+
+	// A compound atomic step — Lock plus the Nl methods:
+	ht.Lock()
+	if _, found := ht.NlSearch("beta"); found {
+		ht.NlDelete("beta")
+	}
+	ht.Unlock()
+
+	ht.Truncate() // remove everything
+}
+----
+
+== Compound operations
+
+`Lock` takes the table's real write lock; the `Nl*` methods
+(`NlIsEmpty`, `NlLen`, `NlSearch`, `NlInsert`, `NlDelete`) are the
+operation bodies without locking, so a multi-step sequence runs as one
+atomic step:
+
+----
+ht.Lock()
+v, found := ht.NlSearch(key)
+if found {
+    ht.NlDelete(v) // no other goroutine can slip in between
+}
+ht.Unlock()
+----
+
+Calling a locking public method while holding `Lock` deadlocks — inside the
+critical section use only the `Nl` methods. `Walk` and `Dump` hold the read
+lock for the whole traversal, so their callbacks must not call methods on
+the same table either; use the snapshot `All`/`Values` when the loop body
+needs to touch the table.
+
+== Panics
+
+The package panics in exactly four situations — all programmer errors with
+no sane fallback, each message naming the fix:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewHashTabFunc(nil eq, ...)` / `NewHashTabFunc(eq, nil hash, ...)` | nil function, caught at construction time
+| `NewHashTab`/`NewHashTabFunc` with n < 5 | a smaller table has no headroom
+| `Insert` on a nil `*HashTab` | a nil table cannot store an element
+| `Insert` on a zero-value table | no equality/hash functions; the message names the constructors
+|===
+
+One further, pathological panic exists (raised on the background resizer
+when a growth rebuild triggers it): if several distinct elements' four
+candidate positions coincide at every table size — at the extreme, more
+than four elements sharing one 64-bit hash — no table size can separate
+them. With `NewHashTab`'s per-table random `maphash` seed this is
+unreachable for practical purposes.
+
+Everything else tolerates a nil table and the zero value as an empty table:
+searches report not-found, `Delete` returns false, and the iterators visit
+nothing.
+
+== Differences from charon/cuckoo
+
+The cuckoo scheme, the API surface, the panic contract, and the threshold
+defaulting rules are identical to link:../cuckoo[charon/cuckoo]; the
+differences are the twin mechanics:
+
+* *Every operation is guarded* by a `sync.RWMutex`; nil guards come before
+  the lock acquisition (a nil-receiver `lock.RLock()` would itself panic).
+* *Threshold-triggered resizes are asynchronous*: the plain package doubles
+  or halves synchronously inside the triggering `Insert`/`Delete`; this
+  package starts the background resizer goroutine and returns against the
+  still-valid table. The collision-loop resize stays synchronous in both.
+* *`All`/`Values` iterate a value snapshot* copied under the read lock when
+  they are called — safe to call other table methods from the loop body,
+  and unaffected by (and non-blocking for) a concurrent background rebuild.
+  The plain package's iterators walk the live table.
+* *`Walk`/`Dump` hold the read lock for the whole traversal*, so callbacks
+  must not touch the table.
+* *`Lock`/`Unlock` plus the `Nl*` methods* are added for compound
+  operations; a threshold-triggered resizer queues behind a held `Lock`.
+* *`Capacity`/`Saturation` may briefly report the pre-rebuild state* right
+  after a threshold crossing, until the background rebuild lands.

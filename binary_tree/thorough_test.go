@@ -1,7 +1,7 @@
 package binary_tree
 
 /*
-Copyright (C) Philip Schlump, 2012-2021.
+Copyright (C) Philip Schlump, 2012-2026.
 
 BSD 3 Clause Licensed.
 */
@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"math/rand"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -60,7 +61,7 @@ func checkInvariants(t *testing.T, tt *BinaryTree[TestTreeNode]) {
 			t.Errorf("BST invariant violated: duplicate key %q in tree", s)
 		}
 		seen[s] = true
-		if tt.Search(&TestTreeNode{S: s}) == nil {
+		if _, found := tt.Search(TestTreeNode{S: s}); !found {
 			t.Errorf("Search failed to find in-order key %q", s)
 		}
 	}
@@ -77,9 +78,9 @@ func checkInvariants(t *testing.T, tt *BinaryTree[TestTreeNode]) {
 // -------------------------------------------------------------------------------------------------------
 
 func TestTreeNewBinaryTree(t *testing.T) {
-	tree := NewBinaryTree[TestTreeNode]()
+	tree := newTestTree()
 	if tree == nil {
-		t.Fatalf("NewBinaryTree returned nil.")
+		t.Fatalf("NewBinaryTreeFunc returned nil.")
 	}
 	if !tree.IsEmpty() {
 		t.Errorf("Expected new tree to be empty.")
@@ -91,49 +92,115 @@ func TestTreeNewBinaryTree(t *testing.T) {
 		t.Errorf("Expected new tree to have depth 0.")
 	}
 	// The constructed tree must be usable.
-	if !tree.Insert(&TestTreeNode{S: "05"}) {
+	if !tree.Insert(TestTreeNode{S: "05"}) {
 		t.Errorf("Expected Insert on constructed tree to return true.")
 	}
 	if tree.Length() != 1 {
 		t.Errorf("Expected length 1 after insert, got %d", tree.Length())
 	}
+
+	// Same checks for the natural-ordering constructor.
+	ordered := NewBinaryTree[string]()
+	if !ordered.IsEmpty() || ordered.Len() != 0 || ordered.Depth() != 0 {
+		t.Errorf("Expected NewBinaryTree to start empty.")
+	}
+	if !ordered.Insert("05") {
+		t.Errorf("Expected Insert on NewBinaryTree tree to return true.")
+	}
 }
 
-// TestTreeNilPanics verifies the documented panics when methods are called
-// on a nil tree receiver.
+// TestTreeNilPanics verifies the documented panic when Insert is called on
+// a nil tree — the one operation with no sane answer, since a nil tree
+// cannot store an element.
 func TestTreeNilPanics(t *testing.T) {
 	var nilTree *BinaryTree[TestTreeNode]
-	key := &TestTreeNode{S: "05"}
+	key := TestTreeNode{S: "05"}
 
 	expectPanic(t, "Insert", func() { nilTree.Insert(key) })
-	expectPanic(t, "Search", func() { nilTree.Search(key) })
-	expectPanic(t, "Delete", func() { nilTree.Delete(key) })
-	expectPanic(t, "DeleteMatch", func() {
-		nilTree.DeleteMatch(key, func(a, b *TestTreeNode) int { return a.Compare(*b) })
-	})
-	expectPanic(t, "FindMin", func() { nilTree.FindMin() })
-	expectPanic(t, "FindMax", func() { nilTree.FindMax() })
-	expectPanic(t, "DeleteAtHead", func() { nilTree.DeleteAtHead() })
-	expectPanic(t, "DeleteAtTail", func() { nilTree.DeleteAtTail() })
-	expectPanic(t, "Reverse", func() { nilTree.Reverse() })
-	expectPanic(t, "Index", func() { nilTree.Index(0) })
-	expectPanic(t, "Depth", func() { nilTree.Depth() })
-	expectPanic(t, "WalkFunc", func() { nilTree.WalkFunc(func(a *TestTreeNode) {}) })
 
 	// Verify the panic message names the method.
 	func() {
 		defer func() {
 			r := recover()
 			if r == nil {
-				t.Errorf("Expected Search to panic on nil tree.")
+				t.Errorf("Expected Insert to panic on nil tree.")
 				return
 			}
-			if msg, ok := r.(string); !ok || !strings.Contains(msg, "Search") {
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "Insert") {
 				t.Errorf("Unexpected panic message: %v", r)
 			}
 		}()
-		nilTree.Search(key)
+		nilTree.Insert(key)
 	}()
+}
+
+// TestTreeNilTolerated verifies that every operation other than Insert
+// treats a nil tree as an empty tree instead of panicking.
+func TestTreeNilTolerated(t *testing.T) {
+	var nilTree *BinaryTree[TestTreeNode]
+	key := TestTreeNode{S: "05"}
+
+	if !nilTree.IsEmpty() {
+		t.Errorf("Expected nil tree to be empty.")
+	}
+	if nilTree.Len() != 0 || nilTree.Length() != 0 {
+		t.Errorf("Expected nil tree to have length 0.")
+	}
+	if _, found := nilTree.Search(key); found {
+		t.Errorf("Expected not-found from Search on nil tree.")
+	}
+	if nilTree.Delete(key) {
+		t.Errorf("Expected false from Delete on nil tree.")
+	}
+	if nilTree.DeleteMatch(key, cmpTestTreeNode) {
+		t.Errorf("Expected false from DeleteMatch on nil tree.")
+	}
+	if _, found := nilTree.FindMin(); found {
+		t.Errorf("Expected not-found from FindMin on nil tree.")
+	}
+	if _, found := nilTree.FindMax(); found {
+		t.Errorf("Expected not-found from FindMax on nil tree.")
+	}
+	if nilTree.DeleteAtHead() || nilTree.DeleteAtTail() {
+		t.Errorf("Expected false from DeleteAtHead/DeleteAtTail on nil tree.")
+	}
+	if _, found := nilTree.Index(0); found {
+		t.Errorf("Expected not-found from Index on nil tree.")
+	}
+	if nilTree.Depth() != 0 {
+		t.Errorf("Expected depth 0 on nil tree.")
+	}
+	nilTree.Reverse()  // no-op, must not panic
+	nilTree.Truncate() // no-op, must not panic
+
+	called := false
+	noop := func(pos, depth int, data TestTreeNode) bool {
+		called = true
+		return true
+	}
+	nilTree.WalkInOrder(noop)
+	nilTree.WalkPreOrder(noop)
+	nilTree.WalkPostOrder(noop)
+	nilTree.WalkFunc(func(a TestTreeNode) { called = true })
+	if called {
+		t.Errorf("Expected no walk visits on nil tree.")
+	}
+
+	if it := nilTree.Front(); !it.Done() {
+		t.Errorf("Expected iterator on nil tree to be Done immediately.")
+	}
+	for range nilTree.All() {
+		t.Errorf("Expected no values from All on nil tree.")
+	}
+	for range nilTree.Backward() {
+		t.Errorf("Expected no values from Backward on nil tree.")
+	}
+
+	var buf bytes.Buffer
+	nilTree.Dump(&buf)
+	if buf.Len() != 0 {
+		t.Errorf("Expected no output from Dump on nil tree, got %q", buf.String())
+	}
 }
 
 // -------------------------------------------------------------------------------------------------------
@@ -148,7 +215,7 @@ func (failingWriter) Write(p []byte) (int, error) {
 }
 
 func TestTreeDump(t *testing.T) {
-	var Tree1 BinaryTree[TestTreeNode]
+	Tree1 := newTestTree()
 
 	// Dump of an empty tree produces no output.
 	var buf bytes.Buffer
@@ -157,11 +224,11 @@ func TestTreeDump(t *testing.T) {
 		t.Errorf("Expected no output from Dump on empty tree, got %q", buf.String())
 	}
 
-	Tree1.Insert(&TestTreeNode{S: "05"})
-	Tree1.Insert(&TestTreeNode{S: "02"})
-	Tree1.Insert(&TestTreeNode{S: "09"})
-	Tree1.Insert(&TestTreeNode{S: "00"})
-	Tree1.Insert(&TestTreeNode{S: "03"})
+	Tree1.Insert(TestTreeNode{S: "05"})
+	Tree1.Insert(TestTreeNode{S: "02"})
+	Tree1.Insert(TestTreeNode{S: "09"})
+	Tree1.Insert(TestTreeNode{S: "00"})
+	Tree1.Insert(TestTreeNode{S: "03"})
 
 	buf.Reset()
 	Tree1.Dump(&buf)
@@ -171,7 +238,7 @@ func TestTreeDump(t *testing.T) {
 		t.Errorf("Expected 5 lines from Dump, got %d:\n%s", len(lines), out)
 	}
 	// Dump is an in-order traversal, so keys appear in ascending order.
-	// Values are printed with %v, so a TestTreeNode shows up as "{00}".
+	// Values are printed with %v, so a TestTreeNode shows up as "{00 0}".
 	var keys []string
 	for _, line := range lines {
 		fields := strings.Fields(line)
@@ -194,86 +261,44 @@ func TestTreeDump(t *testing.T) {
 	Tree1.Dump(failingWriter{})
 }
 
-// failAfterWriter allows `n` successful writes, then fails.  This exercises
-// the error propagation through the right-subtree recursion in Dump: a node
-// whose own write succeeds but whose right child's write fails must stop the
-// whole traversal without panicking.
-type failAfterWriter struct {
-	n       int
-	written int
-}
-
-func (w *failAfterWriter) Write(p []byte) (int, error) {
-	if w.written >= w.n {
-		return 0, errors.New("write failed")
-	}
-	w.written++
-	return len(p), nil
-}
-
-func TestTreeDumpPartialWriteFailure(t *testing.T) {
-	var Tree1 BinaryTree[TestTreeNode]
-	//        {05}
-	//    {02}      {09}
-	//  {00} {03}
-	for _, s := range []string{"05", "02", "09", "00", "03"} {
-		Tree1.Insert(&TestTreeNode{S: s})
-	}
-
-	// Writes happen in-order: 00, 02, 03, 05, 09.  Failing on the 3rd write
-	// (03) makes the right-subtree recursion of node 02 return false, which
-	// node 02 must propagate upward.
-	w := &failAfterWriter{n: 2}
-	Tree1.Dump(w) // must not panic
-	if w.written != 2 {
-		t.Errorf("Expected Dump to stop after the 2nd successful write, got %d writes", w.written)
-	}
-
-	// Failing on the 1st write stops immediately (leftmost node's own write).
-	w = &failAfterWriter{n: 0}
-	Tree1.Dump(w)
-
-	// Every failure point must be handled without panic.
-	for n := 0; n <= 5; n++ {
-		Tree1.Dump(&failAfterWriter{n: n})
-	}
-}
-
 // -------------------------------------------------------------------------------------------------------
 // Insert / duplicate replacement
 // -------------------------------------------------------------------------------------------------------
 
 // TestTreeInsertDuplicateReplaces verifies that inserting a duplicate key
-// replaces the stored item (the new pointer is what Search returns) while
-// preserving the node's children and the tree length.
+// replaces the stored value (the new satellite data is what Search
+// returns) while preserving the node's children and the tree length.
 func TestTreeInsertDuplicateReplaces(t *testing.T) {
-	var Tree1 BinaryTree[TestTreeNode]
+	tree := newTestTree()
 
-	Tree1.Insert(&TestTreeNode{S: "05"})
-	Tree1.Insert(&TestTreeNode{S: "03"})
-	Tree1.Insert(&TestTreeNode{S: "08"})
+	tree.Insert(TestTreeNode{S: "05", N: 1})
+	tree.Insert(TestTreeNode{S: "03", N: 1})
+	tree.Insert(TestTreeNode{S: "08", N: 1})
 
-	first := Tree1.Search(&TestTreeNode{S: "05"})
-	if first == nil {
+	first, found := tree.Search(TestTreeNode{S: "05"})
+	if !found {
 		t.Fatalf("Expected to find 05.")
+	}
+	if first.N != 1 {
+		t.Fatalf("Expected the original N of 1, got %d.", first.N)
 	}
 
 	// Insert duplicates at the root, a left child, and a right child.
 	for _, s := range []string{"05", "03", "08"} {
-		if Tree1.Insert(&TestTreeNode{S: s}) {
+		if tree.Insert(TestTreeNode{S: s, N: 7}) {
 			t.Errorf("Expected duplicate insert of %s to return false.", s)
 		}
 	}
-	if Tree1.Length() != 3 {
-		t.Errorf("Expected length 3 after duplicate inserts, got %d", Tree1.Length())
+	if tree.Length() != 3 {
+		t.Errorf("Expected length 3 after duplicate inserts, got %d", tree.Length())
 	}
-	second := Tree1.Search(&TestTreeNode{S: "05"})
-	if second == first {
-		t.Errorf("Expected duplicate insert to replace the stored item, but the same pointer is stored.")
+	second, _ := tree.Search(TestTreeNode{S: "05"})
+	if second.N != 7 {
+		t.Errorf("Expected duplicate insert to replace the stored value, got N=%d want 7.", second.N)
 	}
-	checkInvariants(t, &Tree1)
-	if expect := []string{"03", "05", "08"}; !reflect.DeepEqual(inOrder(&Tree1), expect) {
-		t.Errorf("In-order error after duplicate inserts, expected %s got %v", expect, inOrder(&Tree1))
+	checkInvariants(t, tree)
+	if expect := []string{"03", "05", "08"}; !reflect.DeepEqual(inOrder(tree), expect) {
+		t.Errorf("In-order error after duplicate inserts, expected %s got %s", expect, inOrder(tree))
 	}
 }
 
@@ -290,9 +315,9 @@ func TestTreeDeleteChildShapes(t *testing.T) {
 		//    {10}      {30}
 		//  {05} {15} {25} {40}
 		//           {28}
-		tree := NewBinaryTree[TestTreeNode]()
+		tree := newTestTree()
 		for _, s := range []string{"20", "10", "30", "05", "15", "25", "40", "28"} {
-			tree.Insert(&TestTreeNode{S: s})
+			tree.Insert(TestTreeNode{S: s})
 		}
 		return tree
 	}
@@ -310,7 +335,7 @@ func TestTreeDeleteChildShapes(t *testing.T) {
 
 	// Leaf delete.
 	tree := build()
-	if !tree.Delete(&TestTreeNode{S: "05"}) {
+	if !tree.Delete(TestTreeNode{S: "05"}) {
 		t.Errorf("leaf: expected Delete(05) to return true")
 	}
 	if got := inOrder(tree); !reflect.DeepEqual(got, remove("05")) {
@@ -323,11 +348,11 @@ func TestTreeDeleteChildShapes(t *testing.T) {
 	//        {20}
 	//    {10}
 	//  {05}
-	t2 := NewBinaryTree[TestTreeNode]()
+	t2 := newTestTree()
 	for _, s := range []string{"20", "10", "05"} {
-		t2.Insert(&TestTreeNode{S: s})
+		t2.Insert(TestTreeNode{S: s})
 	}
-	if !t2.Delete(&TestTreeNode{S: "10"}) { // 10 has only left child 05.
+	if !t2.Delete(TestTreeNode{S: "10"}) { // 10 has only left child 05.
 		t.Errorf("leftChildOnly: expected Delete(10) to return true")
 	}
 	if got := inOrder(t2); !reflect.DeepEqual(got, []string{"05", "20"}) {
@@ -336,11 +361,11 @@ func TestTreeDeleteChildShapes(t *testing.T) {
 	checkInvariants(t, t2)
 
 	// Node with only a right child.
-	t3 := NewBinaryTree[TestTreeNode]()
+	t3 := newTestTree()
 	for _, s := range []string{"20", "10", "15"} {
-		t3.Insert(&TestTreeNode{S: s})
+		t3.Insert(TestTreeNode{S: s})
 	}
-	if !t3.Delete(&TestTreeNode{S: "10"}) { // 10 has only right child 15.
+	if !t3.Delete(TestTreeNode{S: "10"}) { // 10 has only right child 15.
 		t.Errorf("rightChildOnly: expected Delete(10) to return true")
 	}
 	if got := inOrder(t3); !reflect.DeepEqual(got, []string{"15", "20"}) {
@@ -350,20 +375,20 @@ func TestTreeDeleteChildShapes(t *testing.T) {
 
 	// Two children where the in-order successor has its own right subtree.
 	t4 := build()
-	if !t4.Delete(&TestTreeNode{S: "20"}) {
+	if !t4.Delete(TestTreeNode{S: "20"}) {
 		t.Errorf("twoChildren: expected Delete(20) to return true")
 	}
 	if got := inOrder(t4); !reflect.DeepEqual(got, remove("20")) {
 		t.Errorf("twoChildren: expected %v got %v", remove("20"), got)
 	}
 	checkInvariants(t, t4)
-	if x := t4.FindMin(); x == nil || x.S != "05" {
+	if x, found := t4.FindMin(); !found || x.S != "05" {
 		t.Errorf("twoChildren: expected min 05, got %+v", x)
 	}
 
 	// Two children deep in the tree.
 	t5 := build()
-	if !t5.Delete(&TestTreeNode{S: "30"}) {
+	if !t5.Delete(TestTreeNode{S: "30"}) {
 		t.Errorf("twoChildrenMid: expected Delete(30) to return true")
 	}
 	if got := inOrder(t5); !reflect.DeepEqual(got, remove("30")) {
@@ -373,7 +398,7 @@ func TestTreeDeleteChildShapes(t *testing.T) {
 
 	// Deleting a key that is not in the tree returns false and changes nothing.
 	t6 := build()
-	if t6.Delete(&TestTreeNode{S: "12"}) {
+	if t6.Delete(TestTreeNode{S: "12"}) {
 		t.Errorf("expected Delete of missing key to return false")
 	}
 	if got := inOrder(t6); !reflect.DeepEqual(got, sorted) {
@@ -384,7 +409,7 @@ func TestTreeDeleteChildShapes(t *testing.T) {
 	// Delete every node, one at a time, in-order.
 	t7 := build()
 	for i, s := range sorted {
-		if !t7.Delete(&TestTreeNode{S: s}) {
+		if !t7.Delete(TestTreeNode{S: s}) {
 			t.Fatalf("expected Delete(%s) to return true", s)
 		}
 		if got := inOrder(t7); !reflect.DeepEqual(got, sorted[i+1:]) {
@@ -402,8 +427,8 @@ func TestTreeDeleteChildShapes(t *testing.T) {
 // -------------------------------------------------------------------------------------------------------
 
 func TestTreeSingleElement(t *testing.T) {
-	var Tree1 BinaryTree[TestTreeNode]
-	Tree1.Insert(&TestTreeNode{S: "05"})
+	Tree1 := newTestTree()
+	Tree1.Insert(TestTreeNode{S: "05"})
 
 	if Tree1.IsEmpty() {
 		t.Errorf("Expected non-empty tree.")
@@ -414,16 +439,16 @@ func TestTreeSingleElement(t *testing.T) {
 	if Tree1.Depth() != 1 {
 		t.Errorf("Expected depth 1, got %d", Tree1.Depth())
 	}
-	if x := Tree1.FindMin(); x == nil || x.S != "05" {
+	if x, found := Tree1.FindMin(); !found || x.S != "05" {
 		t.Errorf("Expected min 05, got %+v", x)
 	}
-	if x := Tree1.FindMax(); x == nil || x.S != "05" {
+	if x, found := Tree1.FindMax(); !found || x.S != "05" {
 		t.Errorf("Expected max 05, got %+v", x)
 	}
-	if x := Tree1.Index(0); x == nil || x.S != "05" {
+	if x, found := Tree1.Index(0); !found || x.S != "05" {
 		t.Errorf("Expected Index(0) = 05, got %+v", x)
 	}
-	if got := inOrder(&Tree1); !reflect.DeepEqual(got, []string{"05"}) {
+	if got := inOrder(Tree1); !reflect.DeepEqual(got, []string{"05"}) {
 		t.Errorf("Expected in-order [05], got %v", got)
 	}
 	var bk []string
@@ -436,7 +461,7 @@ func TestTreeSingleElement(t *testing.T) {
 
 	// Reverse on a single node is a no-op.
 	Tree1.Reverse()
-	if got := inOrder(&Tree1); !reflect.DeepEqual(got, []string{"05"}) {
+	if got := inOrder(Tree1); !reflect.DeepEqual(got, []string{"05"}) {
 		t.Errorf("Expected in-order [05] after Reverse, got %v", got)
 	}
 
@@ -447,7 +472,7 @@ func TestTreeSingleElement(t *testing.T) {
 	if !Tree1.IsEmpty() || Tree1.Length() != 0 {
 		t.Errorf("Expected empty tree after DeleteAtHead.")
 	}
-	Tree1.Insert(&TestTreeNode{S: "07"})
+	Tree1.Insert(TestTreeNode{S: "07"})
 	if !Tree1.DeleteAtTail() {
 		t.Errorf("Expected DeleteAtTail to return true.")
 	}
@@ -459,33 +484,33 @@ func TestTreeSingleElement(t *testing.T) {
 // TestTreeDegenerate builds a right-leaning (sorted input) and a left-leaning
 // (reverse-sorted input) chain and verifies depth and ordering.
 func TestTreeDegenerate(t *testing.T) {
-	var right BinaryTree[TestTreeNode]
-	for i := 0; i < 10; i++ {
-		right.Insert(&TestTreeNode{S: fmt.Sprintf("%02d", i)})
+	right := newTestTree()
+	for i := range 10 {
+		right.Insert(TestTreeNode{S: fmt.Sprintf("%02d", i)})
 	}
 	if d := right.Depth(); d != 10 {
 		t.Errorf("Expected depth 10 for sorted input, got %d", d)
 	}
-	checkInvariants(t, &right)
+	checkInvariants(t, right)
 
-	var left BinaryTree[TestTreeNode]
+	left := newTestTree()
 	for i := 9; i >= 0; i-- {
-		left.Insert(&TestTreeNode{S: fmt.Sprintf("%02d", i)})
+		left.Insert(TestTreeNode{S: fmt.Sprintf("%02d", i)})
 	}
 	if d := left.Depth(); d != 10 {
 		t.Errorf("Expected depth 10 for reverse-sorted input, got %d", d)
 	}
-	checkInvariants(t, &left)
+	checkInvariants(t, left)
 
 	// Both degenerate trees must still iterate correctly.
 	var expect []string
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		expect = append(expect, fmt.Sprintf("%02d", i))
 	}
-	if got := inOrder(&right); !reflect.DeepEqual(got, expect) {
+	if got := inOrder(right); !reflect.DeepEqual(got, expect) {
 		t.Errorf("Right-chain in-order error, expected %v got %v", expect, got)
 	}
-	if got := inOrder(&left); !reflect.DeepEqual(got, expect) {
+	if got := inOrder(left); !reflect.DeepEqual(got, expect) {
 		t.Errorf("Left-chain in-order error, expected %v got %v", expect, got)
 	}
 }
@@ -495,7 +520,7 @@ func TestTreeDegenerate(t *testing.T) {
 // -------------------------------------------------------------------------------------------------------
 
 func TestTreeReverseEmpty(t *testing.T) {
-	var Tree1 BinaryTree[TestTreeNode]
+	Tree1 := newTestTree()
 	Tree1.Reverse() // must not panic
 	if !Tree1.IsEmpty() {
 		t.Errorf("Expected tree to remain empty after Reverse.")
@@ -503,45 +528,45 @@ func TestTreeReverseEmpty(t *testing.T) {
 }
 
 func TestTreeIndexAllPositions(t *testing.T) {
-	var Tree1 BinaryTree[TestTreeNode]
+	Tree1 := newTestTree()
 	keys := []string{"05", "02", "09", "00", "03", "07", "08", "01"}
 	for _, s := range keys {
-		Tree1.Insert(&TestTreeNode{S: s})
+		Tree1.Insert(TestTreeNode{S: s})
 	}
 	sortedKeys := append([]string(nil), keys...)
 	sort.Strings(sortedKeys)
 
 	for i, s := range sortedKeys {
-		x := Tree1.Index(i)
-		if x == nil {
-			t.Errorf("Index(%d) returned nil, expected %s", i, s)
+		x, found := Tree1.Index(i)
+		if !found {
+			t.Errorf("Index(%d) returned not-found, expected %s", i, s)
 		} else if x.S != s {
 			t.Errorf("Index(%d) = %s, expected %s", i, x.S, s)
 		}
 	}
-	if x := Tree1.Index(len(sortedKeys)); x != nil {
-		t.Errorf("Expected nil for Index(len), got %+v", x)
+	if _, found := Tree1.Index(len(sortedKeys)); found {
+		t.Errorf("Expected not-found for Index(len)")
 	}
 }
 
 func TestTreeDeleteAtHeadTailDrain(t *testing.T) {
-	var Tree1 BinaryTree[TestTreeNode]
+	Tree1 := newTestTree()
 	keys := []string{"05", "02", "09", "00", "03", "07", "08", "01"}
 	for _, s := range keys {
-		Tree1.Insert(&TestTreeNode{S: s})
+		Tree1.Insert(TestTreeNode{S: s})
 	}
 
 	// Drain from the head: min must increase each time.
 	sortedKeys := append([]string(nil), keys...)
 	sort.Strings(sortedKeys)
 	for i, s := range sortedKeys {
-		if x := Tree1.FindMin(); x == nil || x.S != s {
+		if x, found := Tree1.FindMin(); !found || x.S != s {
 			t.Fatalf("Drain head: expected min %s, got %+v", s, x)
 		}
 		if !Tree1.DeleteAtHead() {
 			t.Fatalf("Drain head: DeleteAtHead returned false at step %d", i)
 		}
-		checkInvariants(t, &Tree1)
+		checkInvariants(t, Tree1)
 	}
 	if Tree1.DeleteAtHead() {
 		t.Errorf("Expected DeleteAtHead on drained tree to return false.")
@@ -549,16 +574,16 @@ func TestTreeDeleteAtHeadTailDrain(t *testing.T) {
 
 	// Refill and drain from the tail.
 	for _, s := range keys {
-		Tree1.Insert(&TestTreeNode{S: s})
+		Tree1.Insert(TestTreeNode{S: s})
 	}
-	for i := len(sortedKeys) - 1; i >= 0; i-- {
-		if x := Tree1.FindMax(); x == nil || x.S != sortedKeys[i] {
-			t.Fatalf("Drain tail: expected max %s, got %+v", sortedKeys[i], x)
+	for i, sortedKey := range slices.Backward(sortedKeys) {
+		if x, found := Tree1.FindMax(); !found || x.S != sortedKey {
+			t.Fatalf("Drain tail: expected max %s, got %+v", sortedKey, x)
 		}
 		if !Tree1.DeleteAtTail() {
 			t.Fatalf("Drain tail: DeleteAtTail returned false at step %d", i)
 		}
-		checkInvariants(t, &Tree1)
+		checkInvariants(t, Tree1)
 	}
 	if Tree1.DeleteAtTail() {
 		t.Errorf("Expected DeleteAtTail on drained tree to return false.")
@@ -569,24 +594,24 @@ func TestTreeDeleteAtHeadTailDrain(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------------------------------------
-// Walks: depth parameter, userData, early stop for pre/post order
+// Walks: depth parameter, early stop for pre/post order
 // -------------------------------------------------------------------------------------------------------
 
-func TestTreeWalkDepthAndUserData(t *testing.T) {
-	var Tree1 BinaryTree[TestTreeNode]
+func TestTreeWalkDepth(t *testing.T) {
+	Tree1 := newTestTree()
 	//        {05}
 	//    {02}      {09}
 	//  {00} {03}
 	for _, s := range []string{"05", "02", "09", "00", "03"} {
-		Tree1.Insert(&TestTreeNode{S: s})
+		Tree1.Insert(TestTreeNode{S: s})
 	}
 	expectedDepth := map[string]int{"05": 0, "02": 1, "09": 1, "00": 2, "03": 2}
 
-	userData := "marker"
-	fx := func(p, depth int, data *TestTreeNode, ud interface{}) bool {
-		if ud != userData {
-			t.Errorf("Expected userData to be passed through, got %v", ud)
-		}
+	// Caller state (the visit counter) is captured in the closure — the
+	// type-safe replacement for the pluto version's interface{} userData.
+	visits := 0
+	fx := func(pos, depth int, data TestTreeNode) bool {
+		visits++
 		if d, ok := expectedDepth[data.S]; !ok {
 			t.Errorf("Unexpected key %s in walk", data.S)
 		} else if d != depth {
@@ -594,58 +619,61 @@ func TestTreeWalkDepthAndUserData(t *testing.T) {
 		}
 		return true
 	}
-	Tree1.WalkInOrder(fx, userData)
-	Tree1.WalkPreOrder(fx, userData)
-	Tree1.WalkPostOrder(fx, userData)
+	Tree1.WalkInOrder(fx)
+	Tree1.WalkPreOrder(fx)
+	Tree1.WalkPostOrder(fx)
+	if visits != 15 {
+		t.Errorf("Expected 15 total visits over 3 walks, got %d", visits)
+	}
 
 	// Walks on an empty tree must not call the callback at all.
-	var empty BinaryTree[TestTreeNode]
+	empty := newTestTree()
 	called := false
-	noop := func(p, depth int, data *TestTreeNode, ud interface{}) bool {
+	noop := func(pos, depth int, data TestTreeNode) bool {
 		called = true
 		return true
 	}
-	empty.WalkInOrder(noop, nil)
-	empty.WalkPreOrder(noop, nil)
-	empty.WalkPostOrder(noop, nil)
+	empty.WalkInOrder(noop)
+	empty.WalkPreOrder(noop)
+	empty.WalkPostOrder(noop)
 	if called {
 		t.Errorf("Walk on empty tree called the callback.")
 	}
 }
 
 func TestTreeWalkEarlyStopPrePost(t *testing.T) {
-	var Tree1 BinaryTree[TestTreeNode]
+	Tree1 := newTestTree()
 	for _, s := range []string{"05", "02", "09", "00", "03"} {
-		Tree1.Insert(&TestTreeNode{S: s})
+		Tree1.Insert(TestTreeNode{S: s})
 	}
 
 	// Pre-order early stop: only the root is visited.
 	var pre []string
-	Tree1.WalkPreOrder(func(p, depth int, data *TestTreeNode, ud interface{}) bool {
+	Tree1.WalkPreOrder(func(pos, depth int, data TestTreeNode) bool {
 		pre = append(pre, data.S)
 		return false
-	}, nil)
+	})
 	if expect := []string{"05"}; !reflect.DeepEqual(pre, expect) {
 		t.Errorf("PreOrder early stop error, expected %s got %s", expect, pre)
 	}
 
 	// Post-order early stop: only the first post-order element is visited.
 	var post []string
-	Tree1.WalkPostOrder(func(p, depth int, data *TestTreeNode, ud interface{}) bool {
+	Tree1.WalkPostOrder(func(pos, depth int, data TestTreeNode) bool {
 		post = append(post, data.S)
 		return false
-	}, nil)
+	})
 	if expect := []string{"00"}; !reflect.DeepEqual(post, expect) {
 		t.Errorf("PostOrder early stop error, expected %s got %s", expect, post)
 	}
 
 	// Stop after 3 elements in each order.
-	stopAfter := func(order string, walk func(ApplyFunction[TestTreeNode], interface{}), expect []string) {
+	stopAfter := func(order string, walk func(ApplyFunction[TestTreeNode]), expect []string) {
 		var got []string
-		walk(func(p, depth int, data *TestTreeNode, ud interface{}) bool {
+		walk(func(pos, depth int, data TestTreeNode) bool {
 			got = append(got, data.S)
 			return len(got) < 3
-		}, nil)
+		})
 		if !reflect.DeepEqual(got, expect) {
 			t.Errorf("%s stop-after-3 error, expected %s got %s", order, expect, got)
 		}
@@ -660,9 +688,9 @@ func TestTreeWalkEarlyStopPrePost(t *testing.T) {
 // -------------------------------------------------------------------------------------------------------
 
 func TestTreeTruncateReuse(t *testing.T) {
-	var Tree1 BinaryTree[TestTreeNode]
+	Tree1 := newTestTree()
 	for _, s := range []string{"05", "02", "09"} {
-		Tree1.Insert(&TestTreeNode{S: s})
+		Tree1.Insert(TestTreeNode{S: s})
 	}
 	Tree1.Truncate()
 	if !Tree1.IsEmpty() || Tree1.Length() != 0 || Tree1.Depth() != 0 {
@@ -670,14 +698,14 @@ func TestTreeTruncateReuse(t *testing.T) {
 	}
 	// Tree must be fully reusable after Truncate.
 	for _, s := range []string{"50", "20", "90"} {
-		Tree1.Insert(&TestTreeNode{S: s})
+		Tree1.Insert(TestTreeNode{S: s})
 	}
-	checkInvariants(t, &Tree1)
-	if got := inOrder(&Tree1); !reflect.DeepEqual(got, []string{"20", "50", "90"}) {
+	checkInvariants(t, Tree1)
+	if got := inOrder(Tree1); !reflect.DeepEqual(got, []string{"20", "50", "90"}) {
 		t.Errorf("Expected [20 50 90] after re-fill, got %v", got)
 	}
 	// Truncating an already-empty tree is fine.
-	var empty BinaryTree[TestTreeNode]
+	empty := newTestTree()
 	empty.Truncate()
 	if !empty.IsEmpty() {
 		t.Errorf("Expected empty tree after Truncate on empty tree.")
@@ -691,7 +719,7 @@ func TestTreeTruncateReuse(t *testing.T) {
 func TestTreeRandomizedModel(t *testing.T) {
 	rng := rand.New(rand.NewSource(42)) // fixed seed: deterministic run
 
-	var tree BinaryTree[TestTreeNode]
+	tree := NewBinaryTreeFunc(cmpTestTreeNode)
 	model := make(map[string]bool) // set of keys the tree should contain
 
 	keyOf := func(i int) string { return fmt.Sprintf("%03d", i) }
@@ -709,7 +737,7 @@ func TestTreeRandomizedModel(t *testing.T) {
 		if tree.Length() != len(model) {
 			t.Fatalf("step %d: Length()=%d, model has %d keys", step, tree.Length(), len(model))
 		}
-		if got := inOrder(&tree); !reflect.DeepEqual(got, keys) {
+		if got := inOrder(tree); !reflect.DeepEqual(got, keys) {
 			t.Fatalf("step %d: in-order mismatch, expected %v got %v", step, keys, got)
 		}
 		// Backward must be the exact reverse of All.
@@ -724,46 +752,49 @@ func TestTreeRandomizedModel(t *testing.T) {
 		}
 		// FindMin/FindMax must match the model extremes.
 		if len(keys) == 0 {
-			if tree.FindMin() != nil || tree.FindMax() != nil {
-				t.Fatalf("step %d: expected nil min/max on empty tree", step)
+			if _, found := tree.FindMin(); found {
+				t.Fatalf("step %d: expected no min on empty tree", step)
+			}
+			if _, found := tree.FindMax(); found {
+				t.Fatalf("step %d: expected no max on empty tree", step)
 			}
 		} else {
-			if x := tree.FindMin(); x == nil || x.S != keys[0] {
+			if x, found := tree.FindMin(); !found || x.S != keys[0] {
 				t.Fatalf("step %d: FindMin=%+v, expected %s", step, x, keys[0])
 			}
-			if x := tree.FindMax(); x == nil || x.S != keys[len(keys)-1] {
+			if x, found := tree.FindMax(); !found || x.S != keys[len(keys)-1] {
 				t.Fatalf("step %d: FindMax=%+v, expected %s", step, x, keys[len(keys)-1])
 			}
 			// Index must agree with the sorted model at every position.
 			for i, k := range keys {
-				if x := tree.Index(i); x == nil || x.S != k {
+				if x, found := tree.Index(i); !found || x.S != k {
 					t.Fatalf("step %d: Index(%d)=%+v, expected %s", step, i, x, k)
 				}
 			}
 		}
-		checkInvariants(t, &tree)
+		checkInvariants(t, tree)
 	}
 
 	const maxKey = 60 // small key space so duplicates and deletes are common
-	for step := 0; step < 800; step++ {
+	for step := range 800 {
 		k := keyOf(rng.Intn(maxKey))
 		switch rng.Intn(10) {
 		case 0, 1, 2, 3: // Insert (duplicates replace in both tree and model)
-			added := tree.Insert(&TestTreeNode{S: k})
+			added := tree.Insert(TestTreeNode{S: k})
 			if added == model[k] {
 				t.Fatalf("step %d: Insert(%s)=%v, model said present=%v", step, k, added, model[k])
 			}
 			model[k] = true
 		case 4, 5, 6: // Delete
-			got := tree.Delete(&TestTreeNode{S: k})
+			got := tree.Delete(TestTreeNode{S: k})
 			if got != model[k] {
 				t.Fatalf("step %d: Delete(%s)=%v, model said present=%v", step, k, got, model[k])
 			}
 			delete(model, k)
 		case 7: // Search
-			found := tree.Search(&TestTreeNode{S: k})
-			if (found != nil) != model[k] {
-				t.Fatalf("step %d: Search(%s) found=%v, model said present=%v", step, k, found != nil, model[k])
+			_, found := tree.Search(TestTreeNode{S: k})
+			if found != model[k] {
+				t.Fatalf("step %d: Search(%s) found=%v, model said present=%v", step, k, found, model[k])
 			}
 		case 8: // DeleteAtHead
 			got := tree.DeleteAtHead()

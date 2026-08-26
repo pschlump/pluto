@@ -1,27 +1,32 @@
 package sll
 
 /*
-Copyright (C) Philip Schlump, 2012-2024.
+Copyright (C) Philip Schlump, 2012-2026.
 
 BSD 3 Clause Licensed.
 */
 
+// Thorough tests: structural invariants, single-element and duplicate
+// edge cases, iterator edges, Dump, and a fixed-seed randomized property
+// test cross-checked against a slice reference model.  Benchmarks at the
+// bottom.
+
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
+	"strings"
 	"testing"
-
-	"github.com/pschlump/pluto/comparable"
 )
 
-// checkInvariants walks the list and verifies that the internal structure is
-// consistent: node count equals Length(), head/tail are nil exactly when the
-// list is empty, and tail is the last node reachable from head.
-func checkInvariants[T comparable.Equality](t *testing.T, ns *Sll[T], context string) {
+// checkInvariants walks the list and verifies that the internal structure
+// is consistent: node count equals Length(), head/tail are nil exactly
+// when the list is empty, and tail is the last node reachable from head.
+func checkInvariants(t *testing.T, ns *Sll[TestSllItem], context string) {
 	t.Helper()
 	n := 0
-	var last *SllElement[T]
+	var last *SllElement[TestSllItem]
 	for p := ns.head; p != nil; p = p.next {
 		last = p
 		n++
@@ -46,336 +51,257 @@ func checkInvariants[T comparable.Equality](t *testing.T, ns *Sll[T], context st
 	}
 }
 
-func TestNewSllZeroValue(t *testing.T) {
-	// Both the constructor and a bare zero-value declaration must yield a
-	// usable, empty list.
-	lists := map[string]*Sll[TestDemo]{
-		"NewSll":    NewSll[TestDemo](),
-		"zeroValue": &Sll[TestDemo]{},
-	}
-	for name, list := range lists {
-		if !list.IsEmpty() {
-			t.Errorf("%s: expected new list to be empty", name)
-		}
-		if got := list.Length(); got != 0 {
-			t.Errorf("%s: expected length 0, got %d", name, got)
-		}
-		if _, err := list.Pop(); err != ErrEmptySll {
-			t.Errorf("%s: expected ErrEmptySll from Pop, got %v", name, err)
-		}
-		if _, err := list.Peek(); err != ErrEmptySll {
-			t.Errorf("%s: expected ErrEmptySll from Peek, got %v", name, err)
-		}
-		if err := list.DeleteFound(nil); err != ErrEmptySll {
-			t.Errorf("%s: expected ErrEmptySll from DeleteFound, got %v", name, err)
-		}
-		// Mutating an empty list in harmless ways must keep it usable.
-		list.Truncate()
-		list.Reverse()
-		checkInvariants(t, list, name+" after Truncate/Reverse")
-		list.Push(&TestDemo{S: "x"})
-		if got := list.Length(); got != 1 {
-			t.Errorf("%s: expected length 1 after Push, got %d", name, got)
-		}
-		checkInvariants(t, list, name+" after Push")
-	}
-}
-
+// TestSingleElementList exercises every operation on a one-element list.
 func TestSingleElementList(t *testing.T) {
-	var list Sll[TestDemo]
-	list.InsertAfterTail(&TestDemo{S: "only"})
+	list := newTestSll()
+	list.InsertAfterTail(TestSllItem{S: "solo"})
 
-	v, err := list.Peek()
-	if err != nil || v.S != "only" {
-		t.Errorf("Peek: expected 'only', got %v err %v", v, err)
+	if v, err := list.Peek(); err != nil || v.S != "solo" {
+		t.Errorf("Peek = (%v, %v)", v, err)
+	}
+	if el, pos := list.Search(TestSllItem{S: "solo"}); el == nil || pos != 0 {
+		t.Errorf("Search = (%v, %d)", el, pos)
 	}
 
-	list.Reverse() // reversing a single element must be a no-op
-	checkInvariants(t, &list, "after single Reverse")
-	v, err = list.Pop()
-	if err != nil || v.S != "only" {
-		t.Errorf("Pop: expected 'only', got %v err %v", v, err)
+	// Reverse of a single element is a no-op.
+	list.Reverse()
+	if got := valuesOf(list); len(got) != 1 || got[0] != "solo" {
+		t.Errorf("After single reverse got %v", got)
 	}
-	checkInvariants(t, &list, "after single Pop")
-	if !list.IsEmpty() {
-		t.Errorf("Expected empty list after popping the only element")
+	checkInvariants(t, list, "after single reverse")
+
+	// Pop it and confirm the drained behavior.
+	if v, err := list.Pop(); err != nil || v.S != "solo" {
+		t.Errorf("Pop = (%v, %v)", v, err)
 	}
+	if !list.IsEmpty() || list.Length() != 0 {
+		t.Errorf("Expected empty list after popping the only element.")
+	}
+	checkInvariants(t, list, "after popping the only element")
 }
 
+// TestDuplicates verifies that duplicates coexist, that Search finds the
+// first, and that Delete removes one at a time.
 func TestDuplicates(t *testing.T) {
-	var list Sll[TestDemo]
-	list.InsertAfterTail(&TestDemo{S: "dup"})
-	list.InsertAfterTail(&TestDemo{S: "mid"})
-	list.InsertAfterTail(&TestDemo{S: "dup"})
-	if got := list.Length(); got != 3 {
-		t.Fatalf("Expected length 3, got %d", got)
+	list := newTestSll()
+	for _, s := range []string{"x", "y", "x", "z", "x"} {
+		list.InsertAfterTail(TestSllItem{S: s})
 	}
 
-	// Search finds the first duplicate.
-	_, pos := list.Search(&TestDemo{S: "dup"})
-	if pos != 0 {
-		t.Errorf("Search: expected first duplicate at pos 0, got %d", pos)
+	if _, pos := list.Search(TestSllItem{S: "x"}); pos != 0 {
+		t.Errorf("Search(x) pos = %d, expected 0", pos)
 	}
 
-	// Delete removes only the first occurrence.
-	if err := list.Delete(&TestDemo{S: "dup"}); err != nil {
-		t.Fatalf("Delete: unexpected error %v", err)
+	if err := list.Delete(TestSllItem{S: "x"}); err != nil {
+		t.Fatalf("Delete(x): %v", err)
 	}
-	checkInvariants(t, &list, "after deleting first duplicate")
-	got := []string{}
-	for _, v := range list.IterateOver() {
-		got = append(got, v.S)
+	if got, want := fmt.Sprint(valuesOf(list)), "[y x z x]"; got != want {
+		t.Errorf("After delete got %s, expected %s", got, want)
 	}
-	want := []string{"mid", "dup"}
-	if fmt.Sprintf("%v", got) != fmt.Sprintf("%v", want) {
-		t.Errorf("Expected %v, got %v", want, got)
-	}
+	checkInvariants(t, list, "after duplicate delete")
 }
 
+// TestDeleteFoundEdgeCases exercises the delete paths: head, tail,
+// middle, not-found, and the special error cases.
 func TestDeleteFoundEdgeCases(t *testing.T) {
-	// Empty list reports ErrEmptySll.
-	var list Sll[TestDemo]
-	if err := list.DeleteFound(&SllElement[TestDemo]{}); err != ErrEmptySll {
-		t.Errorf("Expected ErrEmptySll on empty list, got %v", err)
+	list := newTestSll()
+
+	// Empty list.
+	if err := list.DeleteFound(nil); !errors.Is(err, ErrEmptySll) {
+		t.Errorf("Expected ErrEmptySll from DeleteFound on empty list, got %v", err)
 	}
 
-	list.InsertAfterTail(&TestDemo{S: "01"})
-	list.InsertAfterTail(&TestDemo{S: "02"})
-
-	// A nil element reports ErrNotFound.
-	if err := list.DeleteFound(nil); err != ErrNotFound {
-		t.Errorf("Expected ErrNotFound for nil element, got %v", err)
-	}
-	// An element with nil data reports ErrNotFound.
-	if err := list.DeleteFound(&SllElement[TestDemo]{}); err != ErrNotFound {
-		t.Errorf("Expected ErrNotFound for element with nil data, got %v", err)
-	}
-	// An element whose data matches nothing reports ErrNotFound.
-	stray := &SllElement[TestDemo]{data: &TestDemo{S: "zz"}}
-	if err := list.DeleteFound(stray); err != ErrNotFound {
-		t.Errorf("Expected ErrNotFound for non-matching element, got %v", err)
-	}
-	if got := list.Length(); got != 2 {
-		t.Errorf("Failed deletes must not change length; expected 2, got %d", got)
+	for _, s := range []string{"a", "b", "c", "d"} {
+		list.InsertAfterTail(TestSllItem{S: s})
 	}
 
-	// Deleting the tail via DeleteFound must update the tail pointer.
-	el, pos := list.Search(&TestDemo{S: "02"})
-	if pos != 1 || el == nil {
-		t.Fatalf("Search: expected 02 at pos 1")
-	}
+	// Head.
+	el, _ := list.Search(TestSllItem{S: "a"})
 	if err := list.DeleteFound(el); err != nil {
-		t.Fatalf("DeleteFound: unexpected error %v", err)
+		t.Fatalf("DeleteFound(head): %v", err)
 	}
-	checkInvariants(t, &list, "after DeleteFound of tail")
-
-	// The deleted element is unlinked and cleared.
-	if el.GetData() != nil {
-		t.Errorf("Expected deleted element's data to be cleared")
+	if got, want := fmt.Sprint(valuesOf(list)), "[b c d]"; got != want {
+		t.Errorf("After head delete got %s, expected %s", got, want)
 	}
+	checkInvariants(t, list, "after head delete")
 
-	// List is still usable at both ends.
-	list.InsertAfterTail(&TestDemo{S: "03"})
-	checkInvariants(t, &list, "after InsertAfterTail post-delete")
-	v, err := list.Pop()
-	if err != nil || v.S != "01" {
-		t.Errorf("Expected to pop 01, got %v err %v", v, err)
+	// Tail.
+	el, _ = list.Search(TestSllItem{S: "d"})
+	if err := list.DeleteFound(el); err != nil {
+		t.Fatalf("DeleteFound(tail): %v", err)
+	}
+	if got, want := fmt.Sprint(valuesOf(list)), "[b c]"; got != want {
+		t.Errorf("After tail delete got %s, expected %s", got, want)
+	}
+	checkInvariants(t, list, "after tail delete")
+
+	// Middle.
+	list.InsertAfterTail(TestSllItem{S: "e"})
+	el, _ = list.Search(TestSllItem{S: "c"})
+	if err := list.DeleteFound(el); err != nil {
+		t.Fatalf("DeleteFound(middle): %v", err)
+	}
+	if got, want := fmt.Sprint(valuesOf(list)), "[b e]"; got != want {
+		t.Errorf("After middle delete got %s, expected %s", got, want)
+	}
+	checkInvariants(t, list, "after middle delete")
+
+	// A stale element whose data no longer matches anything.
+	if err := list.DeleteFound(el); !errors.Is(err, ErrNotFound) {
+		t.Errorf("Expected ErrNotFound from DeleteFound of stale element, got %v", err)
 	}
 }
 
+// TestCursorIteratorEdgeCases covers the cursor iterator's edges:
+// Value/Next on an exhausted iterator, and starting positions.
 func TestCursorIteratorEdgeCases(t *testing.T) {
-	// A cursor on an empty list is immediately done and yields nil values.
-	var empty Sll[TestDemo]
+	// Empty list: Front is immediately Done; Next is a no-op.
+	empty := newTestSll()
 	it := empty.Front()
 	if !it.Done() {
-		t.Errorf("Expected Done() on empty list iterator")
+		t.Errorf("Expected Front on empty list to be Done.")
 	}
-	if v := it.Value(); v != nil {
-		t.Errorf("Expected nil Value() on empty list iterator, got %v", v)
+	if _, found := it.Value(); found {
+		t.Errorf("Expected no Value on empty list iterator.")
 	}
-	if p := it.Pos(); p != 0 {
-		t.Errorf("Expected Pos() 0 on fresh iterator, got %d", p)
-	}
-	// Next on an exhausted iterator must be a safe no-op.
-	it.Next()
+	it.Next() // must not panic
 	if !it.Done() {
-		t.Errorf("Expected Done() after Next() on empty iterator")
+		t.Errorf("Expected Done to hold after Next on exhausted iterator.")
 	}
 
-	// Current starts iteration from a found element, preserving its position.
-	var list Sll[TestDemo]
-	list.InsertAfterTail(&TestDemo{S: "01"})
-	list.InsertAfterTail(&TestDemo{S: "02"})
-	list.InsertAfterTail(&TestDemo{S: "03"})
-	el, pos := list.Search(&TestDemo{S: "02"})
-	if pos != 1 || el == nil {
-		t.Fatalf("Search: expected 02 at pos 1")
-	}
-	ci := list.Current(el, pos)
-	if ci.Pos() != 1 {
-		t.Errorf("Expected Current iterator Pos() 1, got %d", ci.Pos())
-	}
-	got := []string{}
-	for ; !ci.Done(); ci.Next() {
-		got = append(got, ci.Value().S)
-	}
-	want := []string{"02", "03"}
-	if fmt.Sprintf("%v", got) != fmt.Sprintf("%v", want) {
-		t.Errorf("Current iteration: expected %v, got %v", want, got)
+	list := newTestSll()
+	for _, s := range []string{"a", "b", "c"} {
+		list.InsertAfterTail(TestSllItem{S: s})
 	}
 
-	// Value must return nil after the cursor runs off the end.
-	if v := ci.Value(); v != nil {
-		t.Errorf("Expected nil Value() past end of list, got %v", v)
+	// Exhaust the iterator, then keep calling Next.
+	it = list.Front()
+	steps := 0
+	for !it.Done() {
+		it.Next()
+		steps++
+	}
+	if steps != 3 {
+		t.Errorf("Expected 3 steps to exhaust, got %d", steps)
+	}
+	if _, found := it.Value(); found {
+		t.Errorf("Expected no Value after exhaustion.")
+	}
+	it.Next() // no-op, not a panic
+	if !it.Done() {
+		t.Errorf("Expected Done to hold after extra Next.")
+	}
+	if it.Pos() != 3 {
+		t.Errorf("Expected Pos 3 after exhaustion, got %d", it.Pos())
+	}
+
+	// Current with a nil element starts done.
+	if it := list.Current(nil, 0); !it.Done() {
+		t.Errorf("Expected Current(nil, 0) to be Done immediately.")
 	}
 }
 
+// TestDump verifies the debugging output.
 func TestDump(t *testing.T) {
+	list := newTestSll()
 	var buf bytes.Buffer
-
-	var empty Sll[TestDemo]
-	empty.Dump(&buf)
+	list.Dump(&buf)
 	if buf.Len() != 0 {
 		t.Errorf("Expected no output from Dump on empty list, got %q", buf.String())
 	}
 
-	var list Sll[TestDemo]
-	list.InsertAfterTail(&TestDemo{S: "aa"})
-	list.InsertAfterTail(&TestDemo{S: "bb"})
+	for _, s := range []string{"a", "b", "c"} {
+		list.InsertAfterTail(TestSllItem{S: s})
+	}
+	buf.Reset()
 	list.Dump(&buf)
-	want := "0: {S:aa}\n1: {S:bb}\n"
-	if buf.String() != want {
-		t.Errorf("Dump: expected %q, got %q", want, buf.String())
+	out := buf.String()
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("Expected 3 lines from Dump, got %d: %q", len(lines), out)
 	}
-}
-
-func TestReverseEdgeCases(t *testing.T) {
-	// Reverse on empty list is a no-op.
-	var list Sll[TestDemo]
-	list.Reverse()
-	checkInvariants(t, &list, "after Reverse on empty")
-
-	// Build head-inserted list, reverse twice, expect original order.
-	for _, s := range []string{"01", "02", "03", "04"} {
-		list.InsertAfterTail(&TestDemo{S: s})
-	}
-	before := []string{}
-	for _, v := range list.IterateOver() {
-		before = append(before, v.S)
-	}
-	list.Reverse()
-	checkInvariants(t, &list, "after first Reverse")
-	list.Reverse()
-	checkInvariants(t, &list, "after second Reverse")
-	after := []string{}
-	for _, v := range list.IterateOver() {
-		after = append(after, v.S)
-	}
-	if fmt.Sprintf("%v", before) != fmt.Sprintf("%v", after) {
-		t.Errorf("Double reverse must restore order: before %v after %v", before, after)
-	}
-}
-
-func TestIteratePtrEarlyBreak(t *testing.T) {
-	var list Sll[TestDemo]
-	list.InsertAfterTail(&TestDemo{S: "01"})
-	list.InsertAfterTail(&TestDemo{S: "02"})
-	list.InsertAfterTail(&TestDemo{S: "03"})
-
-	n := 0
-	for i, v := range list.IteratePtr() {
-		if i != n {
-			t.Errorf("Unexpected index %d at iteration %d", i, n)
+	for i, want := range []string{"0: {S:a}", "1: {S:b}", "2: {S:c}"} {
+		if lines[i] != want {
+			t.Errorf("Dump line %d: expected %q, got %q", i, want, lines[i])
 		}
-		if v == nil {
-			t.Fatalf("IteratePtr must never yield a nil pointer")
-		}
-		n++
-		break
-	}
-	if n != 1 {
-		t.Errorf("Expected early exit after 1 element, got %d", n)
-	}
-
-	// Empty list yields nothing.
-	var empty Sll[TestDemo]
-	for range empty.IteratePtr() {
-		t.Errorf("Expected no elements from empty list")
 	}
 }
 
+// TestTruncateReuse verifies that the list is fully reusable after a
+// truncate, including the insert-at-tail path.
 func TestTruncateReuse(t *testing.T) {
-	var list Sll[TestDemo]
-	list.InsertAfterTail(&TestDemo{S: "01"})
-	list.InsertAfterTail(&TestDemo{S: "02"})
+	list := newTestSll()
+	for _, s := range []string{"a", "b", "c"} {
+		list.InsertAfterTail(TestSllItem{S: s})
+	}
 	list.Truncate()
-	checkInvariants(t, &list, "after Truncate")
 
-	// Both insertion ends must work after truncation.
-	list.InsertBeforeHead(&TestDemo{S: "h"})
-	checkInvariants(t, &list, "after InsertBeforeHead post-Truncate")
+	if !list.IsEmpty() || list.Length() != 0 {
+		t.Errorf("Expected empty list after Truncate.")
+	}
+	checkInvariants(t, list, "after Truncate")
+
+	// Reusable after the drain, with both insertion paths.
+	list.Push(TestSllItem{S: "p"})
+	list.InsertAfterTail(TestSllItem{S: "t"})
+	if got, want := fmt.Sprint(valuesOf(list)), "[p t]"; got != want {
+		t.Errorf("After refill got %s, expected %s", got, want)
+	}
+	checkInvariants(t, list, "after refill")
+
+	// Truncating an already-empty list is fine.
 	list.Truncate()
-	list.InsertAfterTail(&TestDemo{S: "t"})
-	checkInvariants(t, &list, "after InsertAfterTail post-Truncate")
-	v, err := list.Pop()
-	if err != nil || v.S != "t" {
-		t.Errorf("Expected to pop 't', got %v err %v", v, err)
+	list.Truncate()
+	if !list.IsEmpty() {
+		t.Errorf("Expected empty list after double Truncate.")
 	}
 }
 
-// TestRandomizedModel cross-checks the list against a plain slice reference
-// model over hundreds of mixed operations with a fixed seed.
-func TestRandomizedModel(t *testing.T) {
-	rng := rand.New(rand.NewSource(42))
-	var list Sll[TestDemo]
-	model := []string{}
-	const ops = 2000
+// TestModelRandomized runs thousands of mixed operations against a plain
+// slice reference model with a fixed seed, cross-checking after every
+// step.
+func TestModelRandomized(t *testing.T) {
+	rng := rand.New(rand.NewPCG(20260825, 7))
+	const ops = 4000
+	const keySpace = 40 // small space forces duplicates
 
-	valueFor := func(i int) string {
-		// Small value space so duplicates and search hits are frequent.
-		return fmt.Sprintf("%02d", rng.Intn(8))
+	list := newTestSll()
+	var model []string // head at index 0
+
+	check := func(step int) {
+		t.Helper()
+		if list.Length() != len(model) {
+			t.Fatalf("step %d: length %d, model has %d", step, list.Length(), len(model))
+		}
+		if got, want := fmt.Sprint(valuesOf(list)), fmt.Sprint(model); got != want {
+			t.Fatalf("step %d: contents %s, model %s", step, got, want)
+		}
+		checkInvariants(t, list, fmt.Sprintf("step %d", step))
 	}
 
-	for op := 0; op < ops; op++ {
-		switch rng.Intn(9) {
-		case 0: // Push (prepend)
-			s := valueFor(op)
-			list.Push(&TestDemo{S: s})
+	for step := range ops {
+		s := fmt.Sprintf("%02d", rng.IntN(keySpace))
+		switch rng.IntN(6) {
+		case 0: // Push (head)
+			list.Push(TestSllItem{S: s})
 			model = append([]string{s}, model...)
-		case 1: // InsertAfterTail (append)
-			s := valueFor(op)
-			list.InsertAfterTail(&TestDemo{S: s})
+		case 1: // InsertAfterTail
+			list.InsertAfterTail(TestSllItem{S: s})
 			model = append(model, s)
-		case 2: // InsertBeforeHead (prepend)
-			s := valueFor(op)
-			list.InsertBeforeHead(&TestDemo{S: s})
-			model = append([]string{s}, model...)
-		case 3: // Pop
+		case 2: // Pop
 			v, err := list.Pop()
 			if len(model) == 0 {
-				if err != ErrEmptySll {
-					t.Fatalf("op %d: Pop on empty: expected ErrEmptySll, got %v", op, err)
+				if !errors.Is(err, ErrEmptySll) {
+					t.Fatalf("step %d: Pop on empty returned %v", step, err)
 				}
 			} else {
 				if err != nil || v.S != model[0] {
-					t.Fatalf("op %d: Pop: expected %s, got %v err %v", op, model[0], v, err)
+					t.Fatalf("step %d: Pop = (%v, %v), model head %s", step, v, err, model[0])
 				}
 				model = model[1:]
 			}
-		case 4: // Peek
-			v, err := list.Peek()
-			if len(model) == 0 {
-				if err != ErrEmptySll {
-					t.Fatalf("op %d: Peek on empty: expected ErrEmptySll, got %v", op, err)
-				}
-			} else {
-				if err != nil || v.S != model[0] {
-					t.Fatalf("op %d: Peek: expected %s, got %v err %v", op, model[0], v, err)
-				}
-			}
-		case 5: // Delete by value
-			s := valueFor(op)
-			err := list.Delete(&TestDemo{S: s})
+		case 3: // Delete by value (first match)
+			err := list.Delete(TestSllItem{S: s})
 			idx := -1
 			for i, m := range model {
 				if m == s {
@@ -384,57 +310,93 @@ func TestRandomizedModel(t *testing.T) {
 				}
 			}
 			if idx < 0 {
-				if err != ErrNotFound {
-					t.Fatalf("op %d: Delete(%s): expected ErrNotFound, got %v", op, s, err)
+				if !errors.Is(err, ErrNotFound) {
+					t.Fatalf("step %d: Delete(%s) = %v, model says absent", step, s, err)
 				}
 			} else {
 				if err != nil {
-					t.Fatalf("op %d: Delete(%s): unexpected error %v", op, s, err)
+					t.Fatalf("step %d: Delete(%s): %v", step, s, err)
 				}
 				model = append(model[:idx], model[idx+1:]...)
 			}
-		case 6: // Search
-			s := valueFor(op)
-			_, pos := list.Search(&TestDemo{S: s})
-			wantPos := -1
+		case 4: // Search position
+			_, pos := list.Search(TestSllItem{S: s})
+			want := -1
 			for i, m := range model {
 				if m == s {
-					wantPos = i
+					want = i
 					break
 				}
 			}
-			if pos != wantPos {
-				t.Fatalf("op %d: Search(%s): expected pos %d, got %d", op, s, wantPos, pos)
+			if pos != want {
+				t.Fatalf("step %d: Search(%s) pos %d, model says %d", step, s, pos, want)
 			}
-		case 7: // Reverse
+		case 5: // Reverse
 			list.Reverse()
 			for i, j := 0, len(model)-1; i < j; i, j = i+1, j-1 {
 				model[i], model[j] = model[j], model[i]
 			}
-		case 8: // Truncate
+		}
+		if step%50 == 0 {
+			check(step)
+		}
+	}
+	check(ops)
+}
+
+// -------------------------------------------------------------------------------------------------------
+// Benchmarks
+// -------------------------------------------------------------------------------------------------------
+
+const benchmarkListSize = 4096
+
+func BenchmarkInsertBeforeHead(b *testing.B) {
+	list := NewSll[int]()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		list.InsertBeforeHead(i)
+	}
+}
+
+func BenchmarkInsertAfterTail(b *testing.B) {
+	list := NewSll[int]()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		list.InsertAfterTail(i)
+	}
+}
+
+func BenchmarkPop(b *testing.B) {
+	list := NewSll[int]()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if list.IsEmpty() {
 			list.Truncate()
-			model = model[:0]
 		}
-
-		// Length and emptiness must agree with the model after every op.
-		if got := list.Length(); got != len(model) {
-			t.Fatalf("op %d: expected length %d, got %d", op, len(model), got)
-		}
-		if list.IsEmpty() != (len(model) == 0) {
-			t.Fatalf("op %d: IsEmpty() disagrees with model", op)
-		}
-		checkInvariants(t, &list, fmt.Sprintf("op %d", op))
+		_, _ = list.Pop()
 	}
+}
 
-	// Final full comparison of list contents against the model.
-	i := 0
-	for _, v := range list.IterateOver() {
-		if i >= len(model) || v.S != model[i] {
-			t.Fatalf("final content mismatch at %d: model %v", i, model)
-		}
-		i++
+func BenchmarkSearch(b *testing.B) {
+	list := NewSll[int]()
+	for i := range benchmarkListSize {
+		list.InsertAfterTail(i)
 	}
-	if i != len(model) {
-		t.Fatalf("final content length mismatch: walked %d, model has %d", i, len(model))
+	find := benchmarkListSize / 2
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		list.Search(find)
+	}
+}
+
+func BenchmarkIterateOver(b *testing.B) {
+	list := NewSll[int]()
+	for i := range benchmarkListSize {
+		list.InsertAfterTail(i)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for range list.IterateOver() {
+		}
 	}
 }

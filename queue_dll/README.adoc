@@ -1,0 +1,156 @@
+= queue_dll
+
+A generic *FIFO (first-in, first-out) queue* built on a doubly linked
+list that is *not safe for concurrent use* — a rework of pluto's
+link:https://github.com/pschlump/pluto/tree/main/queue_dll_ts[queue_dll_ts]
+with the charon conventions.  Pluto has no plain `queue_dll` (only the
+thread-safe `queue_dll_ts`), so this is the plain package that design
+never had; charon has no `queue_dll_ts` twin either — for a shared FIFO
+on the same list structure use
+link:../dqueue_ts/[`dqueue_ts`]'s `PushBack`/`PopFront`.
+
+The element type needs *no constraints at all* and the zero value of
+`Queue` is an empty queue ready to use without a constructor.  Elements
+are stored and returned *by value* (`Dequeue` and `Peek` return
+`(T, error)`).
+
+== Why self-contained?
+
+Pluto built its `queue_dll_ts` as a thin wrapper delegating to its
+`dll_ts` list.  Charon's `dll` requires an equality function at
+construction (its `Search` needs one), but a queue never compares
+elements — so wrapping would force a dummy equality function and break
+the constraint-free contract.  Like link:../dqueue/[`dqueue`] (and
+`stack_sll_ts`) this package is self-contained, with its own plain
+doubly linked list underneath; the `prev` pointers are what make
+`Backward` O(1) per step.
+
+The practical difference from the slice-based link:../queue/[`queue`]
+is the same as link:../stack_sll_ts/[`stack_sll_ts`] vs
+link:../stack/[`stack`]: *memory behavior*.  `Pop` and `Dequeue` are
+strictly O(1) with no reallocation — pushes and dequeues allocate and
+free one small node each, so memory use is stable across arbitrary
+push/pop patterns (a slice window periodically reallocates as it
+walks).  Trade-off: one allocation per push.  Need to insert and remove
+at the head too?  That is a deque — link:../dqueue/[`dqueue`] is this
+list with both ends exposed.
+
+== Operations
+
+[options="header"]
+|===
+| Operation                    | Description                                  | Complexity
+
+| `Push` / `Enqueue`           | Insert at the tail (aliases)                 | O(1)
+| `Pop`                        | Remove the head element, discarding it       | O(1)
+| `Dequeue`                    | Remove and return the head element           | O(1)
+| `Peek`                       | Look at the head without removing it         | O(1)
+| `IsEmpty` / `Len` / `Length` | Size queries                                 | O(1)
+| `Truncate`                   | Remove all elements                          | O(1)
+| `All` / `Backward`           | Range-over-func iterators over the live list | O(n)
+|===
+
+`All` iterates from the *head* (index 0, next to be dequeued) to the
+tail; `Backward` from the tail to the head, with indexes counting down
+from `Length()-1` so they match the index `All` assigns to the same
+element.
+
+== Iterators walk the live list
+
+`All` and `Backward` do *not* copy a snapshot: `All` follows the `next`
+pointers from the head, `Backward` the `prev` pointers from the tail —
+both cost O(n) time with *O(1) extra space*.  The price is the usual
+one for a plain package:
+
+[source,go]
+----
+for _, v := range q.All() {
+    // q.Dequeue() here would be a bug: the queue must not be
+    // modified while an iterator is running.
+    _ = v
+}
+----
+
+== Errors and panics
+
+The empty queue is reported with an error (compare with `errors.Is`):
+
+[options="header"]
+|===
+| Error | Meaning
+
+| `ErrEmptyQueue` | `Pop`/`Dequeue`/`Peek` on empty
+|===
+
+The package has exactly *one* panic:
+
+[options="header"]
+|===
+| Call | Why
+
+| `Push`/`Enqueue` on a nil queue | a nil queue cannot store an element
+|===
+
+Everything else — including the zero value, which is fully usable
+because there is no comparison or equality function to configure —
+tolerates a nil queue as an empty queue.
+
+== Usage
+
+[source,go]
+----
+package main
+
+import (
+    "fmt"
+
+    "github.com/pschlump/charon/queue_dll"
+)
+
+func main() {
+    var q queue_dll.Queue[int]
+
+    for _, job := range []int{10, 20, 30} {
+        q.Push(job)
+    }
+
+    // FIFO: the head is the oldest element.
+    v, _ := q.Peek()
+    fmt.Println(v) // 10
+
+    for !q.IsEmpty() {
+        v, _ := q.Dequeue()
+        fmt.Println(v) // 10, 20, 30
+    }
+}
+----
+
+Runnable, tested copies of these examples live in
+link:example_test.go[`example_test.go`].
+
+== Differences from pluto/queue_dll_ts
+
+* *Not thread safe* — this is the plain package; pluto's only version
+was the `_ts` wrapper.  A concurrent FIFO on the same list structure is
+charon's `dqueue_ts` (`PushBack`/`PopFront`).
+* Self-contained doubly linked list instead of a wrapper delegating to
+`dll_ts` (charon's `dll` requires an equality function at construction;
+a queue never compares, so the wrapper would need a dummy equality
+function).
+* No `comparable.Equality` constraint on the element type — `T` is
+`any`, so elements are never boxed into an interface.
+* Elements are stored and returned by value (pluto stored `*T` and
+returned `*T`): `Push`/`Enqueue` take a `T`, and `Dequeue`/`Peek` return
+`(T, error)` instead of a nil-able pointer aliasing the list.
+* `ErrEmptyQueue` is this package's own error (pluto aliased
+`dll_ts.ErrEmptyDll`).
+* `All`/`Backward` are `iter.Seq2[int, T]` yielding values (not `*T`
+pointers to live nodes), and they walk the list directly — O(1) extra
+space — instead of going through the underlying list's step-at-a-time
+cursor.
+* `Len` is available as an alias for `Length`, matching the other charon
+packages.
+* No constructors; the zero value is fully usable.
+* A nil `*Queue` behaves as an empty queue for every operation except
+`Push` and `Enqueue`, which panic with named messages — the package's
+only panics.

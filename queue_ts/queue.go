@@ -1,39 +1,53 @@
-// Package queue implements a generic FIFO (first-in, first-out) queue
-// on top of a slice.
+/*
+Copyright (C) Philip Schlump, 2012-2026.
+
+BSD 3 Clause Licensed.
+*/
+
+// Package queue_ts implements a generic FIFO (first-in, first-out) queue
+// on top of a slice that is safe for concurrent use.  It is the
+// thread-safe twin of github.com/pschlump/charon/queue — the same API,
+// guarded by a sync.RWMutex.
 //
-// Queue is built with a slice so if the queue grows it will result in
-// doubling of size and re-copy of data.
+// Like every charon package it is a rework of its pluto counterpart
+// (github.com/pschlump/pluto/queue_ts) with the charon conventions:
+// elements are stored and returned by value — Dequeue and Peek return
+// (T, error) instead of a pointer — so a returned element is an
+// independent copy that cannot race with a concurrent pop zeroing the
+// slot.
 //
-// This is the thread safe implementation.  All operations are guarded by a
-// sync.RWMutex.  See github.com/pschlump/pluto/queue for a non-thread-safe
-// version with the exact same interface, or
-// github.com/pschlump/pluto/queue_dll_ts for an O(1) Pop/Dequeue
-// implementation built on a doubly linked list.
+// Concurrency model:
 //
-// Operations:
+//	Reads (Peek, Len, Length, IsEmpty) take the read lock and release it
+//	before returning, so they run in parallel with each other.
+//	Writes (Push, Enqueue, Pop, Dequeue, Truncate) take the write lock.
+//	All and Backward operate on a snapshot copied under the read lock
+//	when they are called, so they are safe to use concurrently with any
+//	queue operation — including mutating the queue from inside the loop —
+//	and never observe later modifications.
 //
-//	Push/Enqueue() — Inserts an element at the tail of the queue.			O(1) amortized
-//	Pop() — Removes the element at the head of the queue.					O(1)
-//	Dequeue() — Removes and returns the element at the head of the queue.	O(1)
-//	Peek() — Returns the element at the head of the queue without removing it. O(1)
-//	IsEmpty() — Returns true if the queue is empty.							O(1)
-//	Length() — Returns the number of elements in the queue.					O(1)
-//	Truncate() — Removes all elements from the queue.						O(1)
-//	All()/Backward() — Range-over-func iterators over a snapshot of the queue. O(n)
+// The element type needs no constraints at all: there is no ordering and
+// no equality to supply, and the zero value of Queue is an empty queue
+// ready to use — no constructor required.
 //
-// Important See: https://medium.com/@cep21/gos-append-is-not-always-thread-safe-a3034db7975 for race stuff.
-// Run the tests with the -race flag!
+// Errors, not panics, report the empty queue: ErrEmptyQueue.  Compare it
+// with errors.Is.
 //
-// Copyright (C) Philip Schlump, 2012-2023.
-// BSD 3 Clause Licensed.
-package queue
+// A nil *Queue behaves as an empty queue for every operation except
+// Push/Enqueue — a nil queue cannot store an element, and that call
+// panics with a message naming the method.  This is the package's only
+// panic.
+//
+// Run the tests with -race.
+package queue_ts
 
 import (
 	"errors"
 	"sync"
 )
 
-// Queue is a generic FIFO queue built on top of a slice.
+// Queue is a generic FIFO queue built on top of a slice, safe for
+// concurrent use.
 //
 // The zero value of Queue is an empty queue ready to use.
 type Queue[T any] struct {
@@ -45,7 +59,11 @@ type Queue[T any] struct {
 var ErrEmptyQueue = errors.New("empty queue")
 
 // IsEmpty will return true if the queue is empty.
+// Complexity is O(1).
 func (q *Queue[T]) IsEmpty() bool {
+	if q == nil {
+		return true
+	}
 	q.lock.RLock()
 	defer q.lock.RUnlock()
 	return q.noLockIsEmpty()
@@ -57,21 +75,36 @@ func (q *Queue[T]) noLockIsEmpty() bool {
 }
 
 // Push will push new data of type [T any] onto the tail of the queue.
+// It panics on a nil queue — the package's only panic.
+// Complexity is O(1) amortized.
 func (q *Queue[T]) Push(t T) {
+	if q == nil {
+		panic("queue_ts: Push called on a nil queue")
+	}
 	q.lock.Lock()
 	defer q.lock.Unlock()
 	q.data = append(q.data, t)
 }
 
 // Enqueue is the same as Push. Enqueue will push new data of type [T any] onto the tail of the queue.
+// It panics on a nil queue — the package's only panic.
+// Complexity is O(1) amortized.
 func (q *Queue[T]) Enqueue(t T) {
+	if q == nil {
+		panic("queue_ts: Enqueue called on a nil queue")
+	}
 	q.lock.Lock()
 	defer q.lock.Unlock()
 	q.data = append(q.data, t)
 }
 
-// Pop will remove the head element from the queue.  An error is returned if the queue is empty.
+// Pop will remove the head element from the queue.  ErrEmptyQueue is
+// returned if the queue is empty.
+// Complexity is O(1).
 func (q *Queue[T]) Pop() error {
+	if q == nil {
+		return ErrEmptyQueue
+	}
 	q.lock.Lock()
 	defer q.lock.Unlock()
 	if q.noLockIsEmpty() {
@@ -81,20 +114,24 @@ func (q *Queue[T]) Pop() error {
 	return nil
 }
 
-// Dequeue removes and returns the head element from the queue (if there is one),
-// else it returns an error.
+// Dequeue removes and returns the head element from the queue (if there
+// is one), else it returns ErrEmptyQueue.
 //
-// The returned pointer refers to a copy of the element; the queue no longer
-// holds any reference to it.
-func (q *Queue[T]) Dequeue() (rv *T, err error) {
+// The element is returned by value; the queue no longer holds any
+// reference to it.
+// Complexity is O(1).
+func (q *Queue[T]) Dequeue() (rv T, err error) {
+	if q == nil {
+		return rv, ErrEmptyQueue
+	}
 	q.lock.Lock()
 	defer q.lock.Unlock()
 	if q.noLockIsEmpty() {
-		return nil, ErrEmptyQueue
+		return rv, ErrEmptyQueue
 	}
-	v := q.data[0]
+	rv = q.data[0]
 	q.noLockPopHead()
-	return &v, nil
+	return rv, nil
 }
 
 // noLockPopHead removes the head element, zeroing the vacated slot so that the
@@ -109,33 +146,55 @@ func (q *Queue[T]) noLockPopHead() {
 	}
 }
 
-// Length returns the number of elements in the queue.
-func (q *Queue[T]) Length() int {
+// Len returns the number of elements in the queue.
+// Complexity is O(1).
+func (q *Queue[T]) Len() int {
+	if q == nil {
+		return 0
+	}
 	q.lock.RLock()
 	defer q.lock.RUnlock()
 	return len(q.data)
 }
 
-// Peek returns the head element of the queue or an error indicating that the queue is empty.
+// Length returns the number of elements in the queue.
+// Complexity is O(1).
+func (q *Queue[T]) Length() int {
+	if q == nil {
+		return 0
+	}
+	q.lock.RLock()
+	defer q.lock.RUnlock()
+	return len(q.data)
+}
+
+// Peek returns the head element of the queue or ErrEmptyQueue indicating
+// that the queue is empty.
 //
-// The returned pointer refers to the element inside the queue.  It is a
-// snapshot in time: the element may be removed by another goroutine as soon
-// as Peek returns.
-func (q *Queue[T]) Peek() (*T, error) {
+// The element is returned by value: it is an independent copy taken under
+// the read lock, not a live view.  The element may of course be dequeued
+// by another goroutine as soon as Peek returns.
+// Complexity is O(1).
+func (q *Queue[T]) Peek() (rv T, err error) {
+	if q == nil {
+		return rv, ErrEmptyQueue
+	}
 	q.lock.RLock()
 	defer q.lock.RUnlock()
 	if q.noLockIsEmpty() {
-		return nil, ErrEmptyQueue
+		return rv, ErrEmptyQueue
 	}
-	return &(q.data[0]), nil
+	return q.data[0], nil
 }
 
-// Truncate removes all of the data from the queue, releasing the backing array.
+// Truncate removes all of the data from the queue, releasing the backing
+// array.
 // Complexity is O(1).
 func (q *Queue[T]) Truncate() {
+	if q == nil {
+		return
+	}
 	q.lock.Lock()
 	defer q.lock.Unlock()
 	q.data = nil
 }
-
-/* vim: set noai ts=4 sw=4: */

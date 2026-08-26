@@ -1,7 +1,7 @@
 package g_lib
 
 /*
-Copyright (C) Philip Schlump, 2012-2021.
+Copyright (C) Philip Schlump, 2012-2026.
 
 BSD 3 Clause Licensed.
 */
@@ -382,6 +382,170 @@ func TestPowMore(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Ptr — copy semantics
+// ---------------------------------------------------------------------------
+
+func TestPtr(t *testing.T) {
+	v := 42
+	p := Ptr(v)
+	if p == nil {
+		t.Fatalf("Ptr returned nil")
+	}
+	if *p != 42 {
+		t.Errorf("*Ptr(42) should be 42, got %d", *p)
+	}
+	// The pointer is to a copy made at call time: mutating the original
+	// afterwards must not change it.
+	v = 7
+	if *p != 42 {
+		t.Errorf("*Ptr should be independent of later changes to v, got %d", *p)
+	}
+	// And mutating through the pointer must not write back to v.
+	*p = 99
+	if v != 7 {
+		t.Errorf("writing through Ptr(v) must not change v, got %d", v)
+	}
+}
+
+func TestPtrComposite(t *testing.T) {
+	type item struct {
+		a int
+		b string
+	}
+	it := item{1, "x"}
+	p := Ptr(it)
+	it.a = 2 // mutate the original
+	if *p != (item{1, "x"}) {
+		t.Errorf("Ptr of struct should point at a copy, got %v", *p)
+	}
+	p.b = "y"
+	if it.b != "x" {
+		t.Errorf("writing through Ptr must not change the original, got %q", it.b)
+	}
+
+	s := []int{1, 2}
+	sp := Ptr(s)
+	if len(*sp) != 2 || (*sp)[0] != 1 {
+		t.Errorf("Ptr of slice failed, got %v", *sp)
+	}
+	// Each call yields a distinct pointer.
+	p1, p2 := Ptr(s), Ptr(s)
+	if p1 == p2 {
+		t.Errorf("Two Ptr calls returned the same pointer")
+	}
+}
+
+func TestPtrZeroValue(t *testing.T) {
+	var zero int
+	p := Ptr(zero)
+	if *p != 0 {
+		t.Errorf("Ptr of zero value should be 0, got %d", *p)
+	}
+	type big struct{ a, b, c [16]byte }
+	seed := big{a: [16]byte{1}, b: [16]byte{2}, c: [16]byte{3}}
+	bp := Ptr(seed)
+	if *bp != seed {
+		t.Errorf("Ptr of struct failed, got %v want %v", *bp, seed)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Numeric constraints — instantiation across the type sets
+// ---------------------------------------------------------------------------
+
+// Named (defined) types: accepted by the ~T constraints, not by Number.
+type (
+	myInt     int
+	myInt8    int8
+	myUint    uint
+	myFloat32 float32
+)
+
+// accept* are tiny generic probes: a type is in the constraint's type
+// set if (and only if) the instantiation compiles.
+func acceptNumeric[T Numeric](T)         {}
+func acceptSigned[T SignedInteger](T)    {}
+func acceptSignedNum[T SignedNumeric](T) {}
+func acceptUnsigned[T Unsigned](T)       {}
+func acceptNumber[T Number](T)           {}
+
+// TestConstraintTypeSets exercises every member of each numeric
+// constraint's type set (and the ~T acceptance of defined types).  A
+// type outside a set fails at compile time, which is the test — note
+// that Pow's Number constraint has no ~T, so defined types are rejected
+// there (Number's doc says so).
+func TestConstraintTypeSets(t *testing.T) {
+	v := 1
+	acceptNumeric(v)
+	acceptSigned(v)
+	acceptSignedNum(v)
+	acceptNumber(v)
+	acceptNumeric(int8(v))
+	acceptSigned(int8(v))
+	acceptSignedNum(int8(v))
+	acceptNumber(int8(v))
+	acceptNumeric(int16(v))
+	acceptSigned(int16(v))
+	acceptSignedNum(int16(v))
+	acceptNumber(int16(v))
+	acceptNumeric(int32(v))
+	acceptSigned(int32(v))
+	acceptSignedNum(int32(v))
+	acceptNumber(int32(v))
+	acceptNumeric(int64(v))
+	acceptSigned(int64(v))
+	acceptSignedNum(int64(v))
+	acceptNumber(int64(v))
+	acceptNumeric(uint(v))
+	acceptUnsigned(uint(v))
+	acceptNumber(uint(v))
+	acceptNumeric(uint8(v))
+	acceptUnsigned(uint8(v))
+	acceptNumber(uint8(v))
+	acceptNumeric(uint16(v))
+	acceptUnsigned(uint16(v))
+	acceptNumber(uint16(v))
+	acceptNumeric(uint32(v))
+	acceptUnsigned(uint32(v))
+	acceptNumber(uint32(v))
+	acceptNumeric(uint64(v))
+	acceptUnsigned(uint64(v))
+	acceptNumber(uint64(v))
+	acceptNumeric(float32(v))
+	acceptSignedNum(float32(v))
+	acceptNumber(float32(v))
+	acceptNumeric(float64(v))
+	acceptSignedNum(float64(v))
+	acceptNumber(float64(v))
+
+	// uintptr is a member of Unsigned only.
+	acceptUnsigned(uintptr(v))
+
+	// Defined types pass the ~T constraints…
+	acceptNumeric(myInt(v))
+	acceptSigned(myInt(v))
+	acceptSignedNum(myInt(v))
+	acceptNumeric(myInt8(v))
+	acceptSigned(myInt8(v))
+	acceptSignedNum(myInt8(v))
+	acceptNumeric(myUint(v))
+	acceptUnsigned(myUint(v))
+	acceptNumeric(myFloat32(v))
+	acceptSignedNum(myFloat32(v))
+
+	// …and the functions parameterized with ~T constraints take them.
+	if got := Abs(myInt(-3)); got != 3 {
+		t.Errorf("Abs(myInt(-3)) should be 3, got %d", got)
+	}
+	if got := Min(myInt(2), myInt(1)); got != 1 {
+		t.Errorf("Min of myInt failed, got %d", got)
+	}
+	if got := MinArray([]myFloat32{2.5, 1.5}); got != 1.5 {
+		t.Errorf("MinArray of myFloat32 failed, got %v", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Randomized property test — fixed seed, cross-checked against reference
 // models (sorted slice, map, naive loops) over hundreds of mixed operations.
 // ---------------------------------------------------------------------------
@@ -408,7 +572,7 @@ func TestPropertyRandomizedFixedSeed(t *testing.T) {
 		return m
 	}
 
-	for iter := 0; iter < 500; iter++ {
+	for iter := range 500 {
 		n := rng.Intn(50)
 		a := make([]int, n)
 		for i := range a {
@@ -480,7 +644,7 @@ func TestPropertyRandomizedFixedSeed(t *testing.T) {
 			if orig[loc] != probe {
 				t.Fatalf("iter %d: LocationInArray(%d) = %d but a[%d] = %d", iter, probe, loc, loc, orig[loc])
 			}
-			for i := 0; i < loc; i++ {
+			for i := range loc {
 				if orig[i] == probe {
 					t.Fatalf("iter %d: LocationInArray(%d) = %d is not the first occurrence", iter, probe, loc)
 				}
@@ -560,18 +724,18 @@ func TestPropertyRandomizedFixedSeed(t *testing.T) {
 // multiplication for ints, with a fixed seed.
 func TestPowPropertyFixedSeed(t *testing.T) {
 	rng := rand.New(rand.NewSource(7))
-	for iter := 0; iter < 300; iter++ {
+	for iter := range 300 {
 		base := rng.Intn(13) - 6
 		exp := rng.Intn(10) // 0..9 keeps results small
 		want := 1
-		for i := 0; i < exp; i++ {
+		for range exp {
 			want *= base
 		}
 		if got := Pow(base, exp); got != want {
 			t.Fatalf("iter %d: Pow(%d, %d) = %d, want %d", iter, base, exp, got, want)
 		}
 	}
-	for iter := 0; iter < 300; iter++ {
+	for iter := range 300 {
 		base := rng.Float64()*8 - 4
 		exp := rng.Intn(8)
 		got := Pow(base, exp)

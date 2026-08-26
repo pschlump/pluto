@@ -1,0 +1,155 @@
+= hash_tab_ts
+
+`hash_tab_ts` is a thread-safe generic hash table for Go using separate
+chaining: each of a fixed number of buckets owns a singly linked chain of
+elements stored by value. The bucket count is fixed at construction; when
+the number of elements is not known up front use
+link:../hash_grow_ts[`hash_grow_ts`], which grows and re-hashes
+automatically. Every operation is guarded by a `sync.RWMutex`.
+
+It is the thread-safe twin of link:../hash_tab[charon/hash_tab] — the same
+API — with the addition of the `Lock`/`Unlock` pair and the `Nl*`-prefixed
+(no-lock) methods for compound operations.
+
+Pluto has no `hash_tab_ts`; the twin takes the pure-generics rework that is
+link:../hash_tab[charon/hash_tab] and guards it with one table lock,
+following the pattern of link:../hash_grow_ts[`hash_grow_ts`] and
+link:../hash_tab_bt_ts[`hash_tab_bt_ts`]. Element data is never boxed into
+an interface and never unboxed with a type assertion.
+
+* Elements are stored and returned *by value* (`T`, not `*T`).
+* Keys of types comparable with `==` (all scalars, strings, pointers,
+arrays, and structs of comparable fields) need no functions at all:
+`hash_tab_ts.NewHashTab[string](16)`.  Equality is the `==` operator and
+hashing is the stdlib `hash/maphash` with a per-table random seed.
+* Any other type — or identity by a single field — takes a plain equality
+function *and* a hash function, with no interface to implement:
++
+[source,go]
+----
+byID := hash_tab_ts.NewHashTabFunc(
+	func(a, b User) bool { return a.ID == b.ID },
+	func(u User) uint64 { /* hash of u.ID */ },
+	8,
+)
+----
++
+The two functions must agree: whenever `eq(a, b)` is true, `hash(a)` and
+`hash(b)` must be equal.
+
+The default hashing is *randomized per table* (a `hash/maphash` seed) — a
+hash-flooding mitigation.  Bucket order in `All`, `Values`, `Walk` and
+`Dump`, and the raw hash values `Dump` prints, therefore vary from process
+to process and must not appear in fixed assertions or golden files.
+
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and appear
+on pkg.go.dev.
+
+== Complexity
+
+[cols="2,1,1,4",options="header"]
+|===
+| Operation                                | Average | Worst case | Notes
+| `Insert`                                 | O(1)    | O(n)       | head push after a chain scan for an equal element
+| `Search`                                 | O(1)    | O(n)       | walks the bucket chain
+| `Delete`                                 | O(1)    | O(n)       | chain walk, then an O(1) unlink
+| `IsEmpty`, `Len`, `Length`               | O(1)    | O(1)       |
+| `Truncate`                               | O(k)    | O(k)       | k = bucket count; chains are released for GC
+| `Walk`, `Dump`                           | O(n)    | O(n)       | read lock held for the whole call
+| `All`, `Values`                          | O(n)    | O(n)       | snapshot copied under the read lock
+| `Lock` / `Unlock` + `Nl*`                | O(1)    | O(1)       | compound operations
+|===
+
+Worst case occurs when many keys collide into one chain; average behavior is
+O(1) when hashes spread elements evenly over the k buckets.  The table never
+grows — pick n for the expected element count, or use
+link:../hash_grow_ts[`hash_grow_ts`].
+
+== Usage
+
+[source,go]
+----
+ht := hash_tab_ts.NewHashTab[string](16) // 16 buckets, fixed for the life of the table
+
+ht.Insert("alpha")
+if v, found := ht.Search("alpha"); found {
+	fmt.Println("found", v)
+}
+ht.Delete("alpha")
+----
+
+== Compound operations: Lock + Nl*
+
+`Search` followed by `Delete` is two lock acquisitions — another goroutine
+can mutate the table between them.  `Lock` plus the `Nl*` methods
+(`NlIsEmpty`, `NlLen`, `NlSearch`, `NlInsert`, `NlDelete`) run the same
+steps atomically under one lock hold:
+
+[source,go]
+----
+ht.Lock()
+if v, found := ht.NlSearch(probe); found {
+	use(v)
+	ht.NlDelete(probe)
+}
+ht.Unlock()
+----
+
+Calling a locking public method while holding `Lock` deadlocks, so inside
+the critical section use only the `Nl` methods.  `Lock`/`Unlock` on a nil
+table are no-ops.
+
+== Iteration
+
+`All() iter.Seq2[int, T]` (bucket position and element — a single-variable
+range yields the *bucket position*, not the element) and `Values() iter.Seq[T]`
+iterate a **snapshot** copied under the read lock when the iterator method
+is called, so it is safe to call other table methods — including writes —
+from the loop body.  `Walk(fx)` is the callback alternative
+(`func(pos int, data T) bool`, returning *false stops the walk*); it holds
+the read lock for the whole traversal, so `fx` must not call methods on the
+same table.  Both styles visit the buckets in bucket order and — within a
+bucket — from the most recently inserted element to the oldest.
+
+== Panics
+
+The same four situations as link:../hash_tab[charon/hash_tab], each message
+naming the fix:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewHashTabFunc(nil eq, ...)` / `NewHashTabFunc(eq, nil hash, ...)` | nil function, caught at construction time
+| `NewHashTab`/`NewHashTabFunc` with n < 5 | a smaller table has no headroom
+| `Insert` on a nil `*HashTab` | a nil table cannot store an element
+| `Insert` on a zero-value table | no equality/hash functions; the message names the constructors
+|===
+
+Everything else tolerates a nil table and the zero value as an empty table:
+searches report not-found, `Delete` returns false, and the iterators visit
+nothing.  (`NlInsert` on a zero-value table panics because it *is* the
+Insert body.)
+
+== Differences from charon/hash_tab
+
+There is no pluto counterpart (pluto has no `hash_tab_ts`), so this section
+lists what the twin adds over
+link:../hash_tab[charon/hash_tab] instead of a pluto diff:
+
+* One `sync.RWMutex` on the table; the bucket chains stay the plain package's
+`bucketNode` nodes and are touched only while the lock is held.  Nil guards
+come *before* the lock acquisition (a nil-receiver `lock.RLock()` would
+itself panic).
+* The **real `Lock`/`Unlock`** (nil-table no-ops) plus
+`NlIsEmpty`/`NlLen`/`NlSearch`/`NlInsert`/`NlDelete` for compound
+operations — the same escape hatch as `hash_grow_ts` and `hash_tab_bt_ts`.
+`NlInsert` is the Insert body, so it carries the zero-value panic; calling
+a locking public method while holding `Lock` deadlocks.
+* `All`/`Values` copy a **value snapshot at call time** under the read lock
+(the plain package's iterators walk the live chains) — safe to mutate the
+table from inside the loop.  `Walk` and `Dump` hold the read lock for the
+whole traversal instead, so their callbacks must not touch the table.
+* `Delete` holds the write lock across the chain walk and the unlink, so the
+search-and-delete is atomic.

@@ -1,411 +1,713 @@
 package hash_tab_bt_ts
 
+// Thorough tests for the thread-safe tree-bucket hash table: nil and
+// zero-value behavior, the panic contract with its messages, replacement
+// semantics, in-order bucket visits, snapshot iterator semantics, compound
+// Lock+Nl operations, a randomized cross-check against a map model, and
+// concurrent access.  TestData and newTestTab are defined in
+// hash_tab_test.go and reused here.
+
 /*
-Copyright (C) Philip Schlump, 2012-2021.
+Copyright (C) Philip Schlump, 2012-2026.
 
 BSD 3 Clause Licensed.
 */
 
 import (
+	"bytes"
 	"fmt"
-	"hash/fnv"
 	"math/rand"
-	"sort"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 )
 
-// fnvHash mirrors the FNV-1a hashing used by the hash function for the
-// string and fmt.Stringer fallback paths.
-func fnvHash(s string) int {
-	h := fnv.New32a()
-	_, _ = h.Write([]byte(s))
-	return int(h.Sum32())
-}
-
-func TestHashStringBranch(t *testing.T) {
-	// A plain string takes the `string` branch of hash (no Hashable, no
-	// Stringer).
-	if got, want := hash("a plain string"), fnvHash("a plain string"); got != want {
-		t.Errorf("Expected hash of string to be FNV-1a %d, got %d", want, got)
-	}
-	if hash("a plain string") != hash("a plain string") {
-		t.Errorf("Expected hash to be deterministic for equal strings")
-	}
-}
-
-func TestHashStringerBranch(t *testing.T) {
-	// time.Duration implements fmt.Stringer but not Hashable, so it takes
-	// the fmt.Stringer branch of hash.
-	d := 90 * time.Second
-	if got, want := hash(d), fnvHash(d.String()); got != want {
-		t.Errorf("Expected hash of Stringer to be FNV-1a of String() %d, got %d", want, got)
-	}
-	if hash(d) != hash(90*time.Second) {
-		t.Errorf("Expected hash to be deterministic for equal Stringer values")
-	}
-}
-
-func TestHashPanicsOnUnhashableType(t *testing.T) {
-	// A value that is neither Hashable, a string, nor a fmt.Stringer must
-	// cause hash to panic.
+// expectPanic runs fx and fails the test unless it panics.
+func expectPanic(t *testing.T, name string, fx func()) {
+	t.Helper()
 	defer func() {
-		if recover() == nil {
-			t.Errorf("Expected hash to panic for a type with no Hashable/Stringer support")
+		if r := recover(); r == nil {
+			t.Errorf("Expected %s to panic, it did not.", name)
 		}
 	}()
-	hash(struct{ X int }{X: 1})
+	fx()
 }
 
-func TestNegativeHashKey(t *testing.T) {
-	// Items whose HashKey returns a negative value must still land in a
-	// valid bucket and support the full set of operations.
-	ht := NewHashTab[TestData](7)
-	const n = 30
-	for i := 0; i < n; i++ {
-		ht.Insert(&TestData{S: fmt.Sprintf("neg-%4d", i), Neg: true})
-	}
-	if ht.Len() != n {
-		t.Fatalf("Expected length of %d, got %d", n, ht.Len())
-	}
-	for i := 0; i < n; i++ {
-		find := TestData{S: fmt.Sprintf("neg-%4d", i), Neg: true}
-		if got := ht.Search(&find); got == nil {
-			t.Errorf("Expected to find %q", find.S)
+// expectPanicMessage additionally checks that the panic message contains
+// `want` — the contract says each message names the method and the fix.
+func expectPanicMessage(t *testing.T, name, want string, fx func()) {
+	t.Helper()
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Errorf("Expected %s to panic, it did not.", name)
+			return
 		}
-	}
-	// An item with the same key but a non-negative hash usually lands in a
-	// different bucket; if it hashes to bucket 0 it legitimately matches
-	// its negated twin, so only the negative-hash items are asserted on.
-	for i := 0; i < n; i += 2 {
-		if !ht.Delete(&TestData{S: fmt.Sprintf("neg-%4d", i), Neg: true}) {
-			t.Errorf("Expected Delete of neg-%4d to succeed", i)
+		if msg, ok := r.(string); !ok || !strings.Contains(msg, want) {
+			t.Errorf("Expected the %s panic message to contain %q, got %v", name, want, r)
 		}
-	}
-	if ht.Len() != n/2 {
-		t.Errorf("Expected length of %d, got %d", n/2, ht.Len())
-	}
-	count := 0
-	for range ht.All() {
-		count++
-	}
-	if count != n/2 {
-		t.Errorf("Expected All to yield %d elements, got %d", n/2, count)
-	}
+	}()
+	fx()
 }
 
-func TestWalkAndDumpOnEmptyTable(t *testing.T) {
-	ht := NewHashTab[TestData](5)
-
-	// Walk on an empty table must not invoke the callback at all.
-	count := 0
-	ht.Walk(func(pos, depth int, data *TestData, userData any) bool {
-		count++
+// checkInvariants verifies the structural invariants of the table: every
+// element sits in the bucket its hash reduces to, each bucket tree is
+// visited in ascending in-order, the element count matches Len, Search
+// finds every stored element, and the All iterator agrees exactly with the
+// bucket trees.  Call it after structural changes — in single-goroutine
+// tests only (it reads the internals without the lock).
+func checkInvariants[T any](t *testing.T, ht *HashTab[T]) {
+	t.Helper()
+	nodes := 0
+	var want []T
+	for i := range ht.buckets {
+		var prev *T
+		for data := range ht.buckets[i].All() {
+			if home := ht.bucketOf(ht.hashOf(data)); home != i {
+				t.Fatalf("element %v hashes to bucket %d but is stored in bucket %d", data, home, i)
+			}
+			if prev != nil && ht.cmp(*prev, data) >= 0 {
+				t.Fatalf("bucket %d not visited in ascending in-order: %v then %v", i, *prev, data)
+			}
+			p := data
+			prev = &p
+			if _, found := ht.Search(data); !found {
+				t.Fatalf("element in bucket %d (%v) not found by Search", i, data)
+			}
+			nodes++
+			want = append(want, data)
+		}
+	}
+	if nodes != ht.Len() {
+		t.Fatalf("bucket tree elements = %d, Len() = %d", nodes, ht.Len())
+	}
+	var got []T
+	for pos, item := range ht.All() {
+		if pos < 0 || pos >= ht.size {
+			t.Fatalf("All reported out-of-range position %d", pos)
+		}
+		got = append(got, item)
+	}
+	if len(got) != len(want) {
+		t.Fatalf("All visited %d elements, bucket trees hold %d", len(got), len(want))
+	}
+	for i := range want {
+		if ht.cmp(want[i], got[i]) != 0 {
+			t.Fatalf("All position %d: bucket trees hold %v, All reported %v", i, want[i], got[i])
+		}
+	}
+	nWalk := 0
+	ht.Walk(func(pos int, data T) bool {
+		nWalk++
 		return true
-	}, nil)
-	if count != 0 {
-		t.Errorf("Expected Walk on empty table to visit 0 elements, got %d", count)
-	}
-
-	// Dump on an empty table reports 0 elements and no bucket sections.
-	var sb strings.Builder
-	ht.Dump(&sb)
-	if strings.Contains(sb.String(), "bucket") {
-		t.Errorf("Expected Dump of empty table to contain no bucket sections, got %q", sb.String())
+	})
+	if nWalk != ht.Len() {
+		t.Fatalf("Walk visited %d, Len() = %d", nWalk, ht.Len())
 	}
 }
 
-func TestSingleElement(t *testing.T) {
-	ht := NewHashTab[TestData](5)
-	item := &TestData{S: "only"}
-	ht.Insert(item)
-	if ht.IsEmpty() || ht.Len() != 1 {
-		t.Fatalf("Expected a single-element table, Len=%d", ht.Len())
-	}
-	if got := ht.Search(&TestData{S: "only"}); got != item {
-		t.Errorf("Expected Search to return the inserted pointer")
-	}
-	n := 0
-	ht.WalkFunc(func(a *TestData) {
-		n++
-		if a != item {
-			t.Errorf("Expected WalkFunc to visit the inserted pointer")
+// TestHashTabNilTolerated verifies that a nil table and the zero value
+// behave as empty tables for every operation that has a sane answer.
+func TestHashTabNilTolerated(t *testing.T) {
+	var nilTable *HashTab[TestData]
+	var zeroTable HashTab[TestData]
+
+	for name, ht := range map[string]*HashTab[TestData]{
+		"nil table":  nilTable,
+		"zero value": &zeroTable,
+	} {
+		if !ht.IsEmpty() {
+			t.Errorf("%s: should be empty", name)
 		}
-	})
-	if n != 1 {
-		t.Errorf("Expected WalkFunc to visit 1 element, got %d", n)
+		if ht.Len() != 0 || ht.Length() != 0 {
+			t.Errorf("%s: length should be 0, got %d/%d", name, ht.Len(), ht.Length())
+		}
+		if _, found := ht.Search(TestData{S: "x"}); found {
+			t.Errorf("%s: Search should report not-found", name)
+		}
+		if ht.Delete(TestData{S: "x"}) {
+			t.Errorf("%s: Delete should return false", name)
+		}
+		n := 0
+		if !ht.Walk(func(pos int, data TestData) bool {
+			n++
+			return true
+		}) || n != 0 {
+			t.Errorf("%s: Walk should complete without calls, got n=%d", name, n)
+		}
+		for range ht.All() {
+			t.Errorf("%s: All should yield nothing", name)
+		}
+		for range ht.Values() {
+			t.Errorf("%s: Values should yield nothing", name)
+		}
+		buf := new(bytes.Buffer)
+		ht.Dump(buf) // must not panic
+		if !strings.HasPrefix(buf.String(), "Elements: 0") {
+			t.Errorf("%s: unexpected Dump output %q", name, buf.String())
+		}
+		ht.Truncate() // must not panic
+	}
+
+	// Lock/Unlock on a nil table are no-ops, not panics; the nil-guarded
+	// reads are safe inside the (no-op) held lock.
+	nilTable.Lock()
+	if !nilTable.IsEmpty() {
+		t.Errorf("IsEmpty on a nil table should be true")
+	}
+	nilTable.Unlock()
+
+	// The Nl reads tolerate a zero-value table (no functions set).
+	if zeroTable.NlLen() != 0 || !zeroTable.NlIsEmpty() {
+		t.Errorf("NlLen/NlIsEmpty on zero value should report empty")
+	}
+	if _, found := zeroTable.NlSearch(TestData{S: "x"}); found {
+		t.Errorf("NlSearch on zero value should report not-found")
+	}
+	if zeroTable.NlDelete(TestData{S: "x"}) {
+		t.Errorf("NlDelete on zero value should return false")
+	}
+}
+
+// TestHashTabNilPanics verifies the panic contract and that each message
+// names the method and the fix.
+func TestHashTabNilPanics(t *testing.T) {
+	var nilTable *HashTab[TestData]
+	expectPanicMessage(t, "Insert on nil table", "Insert called on a nil table",
+		func() { nilTable.Insert(TestData{S: "x"}) })
+
+	var zeroTable HashTab[TestData]
+	expectPanicMessage(t, "Insert on zero value", "NewHashTab",
+		func() { zeroTable.Insert(TestData{S: "x"}) })
+
+	validHash := func(v TestData) uint64 { return 7 }
+	validCmp := func(a, b TestData) int { return strings.Compare(a.S, b.S) }
+	expectPanicMessage(t, "NewHashTabFunc(nil cmp)", "nil comparison function",
+		func() { NewHashTabFunc(nil, validHash, 7) })
+	expectPanicMessage(t, "NewHashTabFunc(nil hash)", "nil hash function",
+		func() { NewHashTabFunc(validCmp, nil, 7) })
+
+	// NlInsert (the Insert body) carries the same zero-value panic.
+	zero := &HashTab[TestData]{}
+	expectPanicMessage(t, "NlInsert on zero value", "NewHashTab",
+		func() { zero.NlInsert(TestData{S: "x"}) })
+}
+
+// TestInsertReplacesExisting verifies that re-inserting an equal key replaces
+// the stored value (the satellite data changes) and does not change the
+// length, including when the node is deep in its bucket tree.
+func TestInsertReplacesExisting(t *testing.T) {
+	ht := newTestTab(7)
+	if added := ht.Insert(TestData{S: "dup", N: 1}); !added {
+		t.Errorf("First insert of a key should report added=true")
+	}
+	if added := ht.Insert(TestData{S: "dup", N: 2}); added {
+		t.Errorf("Duplicate insert should report added=false (replaced)")
+	}
+	if ht.Len() != 1 {
+		t.Fatalf("Duplicate insert should keep length 1, got %d", ht.Len())
+	}
+	got, found := ht.Search(TestData{S: "dup"})
+	if !found || got.N != 2 {
+		t.Errorf("Search should return the replacement value, got %v found=%v", got, found)
+	}
+
+	// Force collisions so the replacement happens deep in a bucket tree.
+	home := ht.bucketOf(ht.hashOf(TestData{S: "dup"}))
+	used := map[string]bool{"dup": true}
+	c1 := findKeyWithHome(t, ht, home, used)
+	c2 := findKeyWithHome(t, ht, home, used)
+	ht.Insert(TestData{S: c1, N: 10})
+	ht.Insert(TestData{S: c2, N: 20})
+	ht.Insert(TestData{S: c1, N: 11}) // replace inside the tree
+	if got, found := ht.Search(TestData{S: c1}); !found || got.N != 11 {
+		t.Errorf("Replacement in tree should return new value, got %v found=%v", got, found)
+	}
+	if ht.Len() != 3 {
+		t.Errorf("Expected length 3 after collision replacements, got %d", ht.Len())
+	}
+	checkInvariants(t, ht)
+}
+
+// findKeyWithHome returns a fresh key whose home bucket is `home`, recording
+// it in `used` so keys are never repeated.
+func findKeyWithHome(t *testing.T, ht *HashTab[TestData], home int, used map[string]bool) string {
+	t.Helper()
+	for i := 0; ; i++ {
+		s := fmt.Sprintf("w%06d", i)
+		if used[s] {
+			continue
+		}
+		if ht.bucketOf(ht.hashOf(TestData{S: s})) == home {
+			used[s] = true
+			return s
+		}
+	}
+}
+
+// TestTreeBucketDeletePositions builds one bucket tree with a constant hash
+// function (everything lands in bucket 7 % 5 = 2), verifies that iteration
+// runs in the tree's in-order — ascending per the comparison function, not
+// newest-first like hash_tab's chains — and then removes the two-children
+// root, the minimum and the maximum of the tree.
+func TestTreeBucketDeletePositions(t *testing.T) {
+	ht := NewHashTabFunc(
+		func(a, b string) int { return strings.Compare(a, b) },
+		func(s string) uint64 { return 7 }, // every key lands in bucket 2
+		5,
+	)
+	// Insertion order chosen so the tree root has two children: "mid" is
+	// the root, "head-old" its left child, "tail-new" its right child.
+	for _, k := range []string{"mid", "head-old", "tail-new"} {
+		if !ht.Insert(k) {
+			t.Fatalf("Expected insert of %q to be an add", k)
+		}
+	}
+	if ht.Len() != 3 {
+		t.Fatalf("Expected length 3, got %d", ht.Len())
+	}
+	if ht.buckets[2].IsEmpty() || ht.buckets[2].Len() != 3 {
+		t.Fatalf("Expected a 3-element tree in bucket 2")
+	}
+
+	// Trees visit in-order: ascending, oldest/newest irrelevant.
+	var order []string
+	for pos, item := range ht.All() {
+		if pos != 2 {
+			t.Fatalf("All reported position %d, want 2", pos)
+		}
+		order = append(order, item)
+	}
+	want := []string{"head-old", "mid", "tail-new"}
+	for i := range want {
+		if order[i] != want[i] {
+			t.Fatalf("In-order bucket visit = %v, want %v (ascending)", order, want)
+		}
+	}
+
+	// Remove the two-children root (the in-order successor is promoted).
+	if !ht.Delete("mid") {
+		t.Fatalf("Expected to delete mid")
+	}
+	if _, found := ht.Search("mid"); found {
+		t.Errorf("mid should be gone")
+	}
+	if _, found := ht.Search("head-old"); !found {
+		t.Errorf("head-old must survive the root delete")
+	}
+	if _, found := ht.Search("tail-new"); !found {
+		t.Errorf("tail-new must survive the root delete")
+	}
+	checkInvariants(t, ht)
+
+	// Remove the minimum.
+	if !ht.Delete("head-old") {
+		t.Fatalf("Expected to delete head-old")
+	}
+	if _, found := ht.Search("tail-new"); !found {
+		t.Errorf("tail-new must survive the minimum delete")
+	}
+	checkInvariants(t, ht)
+
+	// Remove the last element — the bucket tree empties but the tree
+	// itself stays (unlike hash_tab's nil-able chains).
+	if !ht.Delete("tail-new") {
+		t.Fatalf("Expected to delete tail-new")
+	}
+	if !ht.IsEmpty() || !ht.buckets[2].IsEmpty() {
+		t.Errorf("Expected empty table and empty bucket tree after draining, got length %d", ht.Len())
+	}
+	// Deleting from the drained tree returns false.
+	if ht.Delete("anything") {
+		t.Errorf("Delete on a drained bucket should return false")
+	}
+	checkInvariants(t, ht)
+}
+
+// TestHashZeroNotSpecial verifies that a hash of 0 is just another hash —
+// unlike hash_grow_ts there is no reserved zero marker to remap, because an
+// empty bucket is an empty tree.
+func TestHashZeroNotSpecial(t *testing.T) {
+	ht := NewHashTabFunc(
+		func(a, b string) int { return strings.Compare(a, b) },
+		func(s string) uint64 { return 0 }, // every key lands in bucket 0
+		5,
+	)
+	for _, k := range []string{"a", "b", "c"} {
+		if !ht.Insert(k) {
+			t.Errorf("Expected insert of %q to be an add", k)
+		}
+	}
+	if ht.Len() != 3 {
+		t.Fatalf("Expected length 3, got %d", ht.Len())
+	}
+	if ht.buckets[0].IsEmpty() {
+		t.Fatalf("Expected the zero hash to land in bucket 0")
+	}
+	for _, k := range []string{"a", "b", "c"} {
+		if _, found := ht.Search(k); !found {
+			t.Errorf("Expected to find %q, did not", k)
+		}
+	}
+	// Delete from the middle of the single tree.
+	if !ht.Delete("b") {
+		t.Fatalf("Expected to delete b")
+	}
+	if _, found := ht.Search("b"); found {
+		t.Errorf("b should be gone")
+	}
+	if _, found := ht.Search("c"); !found {
+		t.Errorf("c must survive the delete")
+	}
+	for pos := range ht.All() {
+		if pos != 0 {
+			t.Fatalf("All reported position %d, want 0", pos)
+		}
+	}
+	checkInvariants(t, ht)
+}
+
+// TestSizeNeverGrows verifies that the bucket count is fixed for the life of
+// the table — the tree-bucket table never re-hashes, no matter the load.
+func TestSizeNeverGrows(t *testing.T) {
+	ht := newTestTab(7)
+	for i := range 200 {
+		ht.Insert(TestData{S: fmt.Sprintf("g%03d", i)})
+	}
+	if ht.size != 7 {
+		t.Errorf("Expected the size to stay 7, got %d", ht.size)
+	}
+	if ht.Len() != 200 {
+		t.Errorf("Expected length 200, got %d", ht.Len())
+	}
+	for i := range 200 {
+		if _, found := ht.Search(TestData{S: fmt.Sprintf("g%03d", i)}); !found {
+			t.Errorf("Expected to find g%03d, did not", i)
+		}
+	}
+	checkInvariants(t, ht)
+}
+
+// TestIteratorSnapshotSemantics verifies that All and Values iterate a
+// snapshot copied under the read lock when they are called: mutating the
+// table afterwards — or from inside the loop body — does not affect the
+// iteration and does not race.
+func TestIteratorSnapshotSemantics(t *testing.T) {
+	ht := newTestTab(16)
+	for i := range 30 {
+		ht.Insert(TestData{S: fmt.Sprintf("s%03d", i)})
+	}
+
+	all := ht.All()     // snapshot copied now
+	vals := ht.Values() // snapshot copied now
+	ht.Truncate()       // ... and the table emptied after that
+	n := 0
+	for range all {
+		n++
+	}
+	if n != 30 {
+		t.Errorf("All should yield the 30 elements captured at call time, got %d", n)
 	}
 	n = 0
-	for a := range ht.All() {
+	for range vals {
 		n++
-		if a != item {
-			t.Errorf("Expected All to yield the inserted pointer")
+	}
+	if n != 30 {
+		t.Errorf("Values should yield the 30 elements captured at call time, got %d", n)
+	}
+
+	// Mutating the table from inside the loop body is safe.
+	ht2 := newTestTab(16)
+	for i := range 20 {
+		ht2.Insert(TestData{S: fmt.Sprintf("t%03d", i)})
+	}
+	n = 0
+	for _, v := range ht2.All() {
+		ht2.Delete(v) // delete each yielded element inside the loop
+		n++
+	}
+	if n != 20 {
+		t.Errorf("Expected to iterate 20 elements while deleting them, got %d", n)
+	}
+	if ht2.Len() != 0 {
+		t.Errorf("Expected an empty table after deleting every yielded element, got %d", ht2.Len())
+	}
+}
+
+// TestLockNlCompound verifies the Lock/Unlock + Nl* escape hatch for
+// compound operations: a search followed by a delete (or a bulk insert)
+// runs atomically under one lock hold.
+func TestLockNlCompound(t *testing.T) {
+	ht := newTestTab(16)
+	for i := range 40 {
+		ht.Insert(TestData{S: fmt.Sprintf("c%03d", i), N: i})
+	}
+
+	ht.Lock()
+	if v, found := ht.NlSearch(TestData{S: "c021"}); found {
+		if v.N != 21 {
+			t.Errorf("NlSearch returned stale satellite %d, want 21", v.N)
+		}
+		if !ht.NlDelete(TestData{S: "c021"}) {
+			t.Errorf("NlDelete inside the held lock should succeed")
+		}
+	} else {
+		t.Errorf("NlSearch should have found c021")
+	}
+	if ht.NlLen() != 39 || ht.NlIsEmpty() {
+		t.Errorf("NlLen/NlIsEmpty should report 39/false, got %d/%v", ht.NlLen(), ht.NlIsEmpty())
+	}
+	// A bulk insert under the same single lock hold.
+	for i := 100; i < 150; i++ {
+		ht.NlInsert(TestData{S: fmt.Sprintf("c%03d", i), N: i})
+	}
+	ht.Unlock()
+
+	if ht.Len() != 89 {
+		t.Fatalf("Expected length 89 after the compound section, got %d", ht.Len())
+	}
+	if _, found := ht.Search(TestData{S: "c021"}); found {
+		t.Errorf("c021 should be gone")
+	}
+	for i := 100; i < 150; i++ {
+		if v, found := ht.Search(TestData{S: fmt.Sprintf("c%03d", i)}); !found || v.N != i {
+			t.Errorf("Expected to find c%03d with satellite %d, got %v found=%v", i, i, v, found)
 		}
 	}
-	if n != 1 {
-		t.Errorf("Expected All to yield 1 element, got %d", n)
-	}
-	if !ht.Delete(&TestData{S: "only"}) {
-		t.Errorf("Expected Delete of the single element to succeed")
-	}
-	if !ht.IsEmpty() || ht.Len() != 0 {
-		t.Errorf("Expected empty table after deleting the single element, Len=%d", ht.Len())
-	}
+	checkInvariants(t, ht)
 }
 
-func TestDuplicateInsertReplacesStoredItem(t *testing.T) {
-	ht := NewHashTab[TestData](7)
-	first := &TestData{S: "dup"}
-	second := &TestData{S: "dup"}
-	ht.Insert(first)
-	ht.Insert(second)
-	if ht.Len() != 1 {
-		t.Fatalf("Expected duplicate insert to keep length 1, got %d", ht.Len())
-	}
-	if got := ht.Search(&TestData{S: "dup"}); got != second {
-		t.Errorf("Expected the duplicate insert to replace the stored item with the new pointer")
-	}
-}
+// TestRandomizedModel runs a fixed-seed pseudo-random mix of Insert, Delete
+// and Search operations, cross-checking every result (including the
+// satellite value of the latest insert) against a map model and periodically
+// validating structural invariants.
+func TestRandomizedModel(t *testing.T) {
+	rng := rand.New(rand.NewSource(12345)) // fixed seed: deterministic run
+	ht := newTestTab(7)
+	model := make(map[string]int) // key -> satellite value of the latest insert
 
-func TestTruncateThenReuse(t *testing.T) {
-	ht := NewHashTab[TestData](7)
-	for i := 0; i < 50; i++ {
-		ht.Insert(&TestData{S: fmt.Sprintf("k-%d", i)})
-	}
-	ht.Truncate()
-	if !ht.IsEmpty() || ht.Len() != 0 {
-		t.Fatalf("Expected empty table after Truncate, Len=%d", ht.Len())
-	}
-	// The table must be fully usable after a Truncate.
-	for i := 0; i < 50; i++ {
-		ht.Insert(&TestData{S: fmt.Sprintf("k-%d", i)})
-	}
-	if ht.Len() != 50 {
-		t.Errorf("Expected length of 50 after re-insert, got %d", ht.Len())
-	}
-	if got := ht.Search(&TestData{S: "k-49"}); got == nil {
-		t.Errorf("Expected to find k-49 after Truncate and re-insert")
-	}
-}
+	key := func(i int) string { return fmt.Sprintf("r%05d", i) }
 
-func TestWalkEarlyStopAndUserData(t *testing.T) {
-	ht := NewHashTab[TestData](5)
-	const total = 40
-	for i := 0; i < total; i++ {
-		ht.Insert(&TestData{S: fmt.Sprintf("w-%4d", i)})
-	}
-
-	// Returning false from the callback stops the walk immediately, across
-	// all buckets: the callback runs exactly once.
-	count := 0
-	ht.Walk(func(pos, depth int, data *TestData, userData any) bool {
-		count++
-		return false
-	}, nil)
-	if count != 1 {
-		t.Errorf("Expected Walk to stop across buckets after 1 invocation, got %d", count)
-	}
-
-	// userData is passed through to every callback.
-	type ctx struct{ n int }
-	c := &ctx{}
-	ht.Walk(func(pos, depth int, data *TestData, userData any) bool {
-		uc, ok := userData.(*ctx)
-		if !ok {
-			t.Errorf("Expected userData to be passed through to the callback")
-			return false
+	for op := range 4000 {
+		k := key(rng.Intn(300))
+		switch rng.Intn(5) {
+		case 0, 1, 2: // insert (weighted heavier)
+			_, wasPresent := model[k]
+			model[k] = op
+			if got := ht.Insert(TestData{S: k, N: op}); got == wasPresent {
+				t.Fatalf("op %d: Insert(%q) = %v, model says previously present = %v", op, k, got, wasPresent)
+			}
+		case 3: // delete
+			_, want := model[k]
+			if got := ht.Delete(TestData{S: k}); got != want {
+				t.Fatalf("op %d: Delete(%q) = %v, model says %v", op, k, got, want)
+			}
+			delete(model, k)
+		case 4: // search
+			wantN, want := model[k]
+			it, found := ht.Search(TestData{S: k})
+			if found != want {
+				t.Fatalf("op %d: Search(%q) found=%v, model says %v", op, k, found, want)
+			}
+			if found && it.N != wantN {
+				t.Fatalf("op %d: Search(%q) returned stale satellite %d, want %d", op, k, it.N, wantN)
+			}
 		}
-		uc.n++
-		return true
-	}, c)
-	if c.n != total {
-		t.Errorf("Expected Walk to visit %d elements, got %d", total, c.n)
-	}
-}
-
-// TestWalkEarlyStopAcrossBuckets is a regression test: returning false from
-// the Walk callback must stop the walk across ALL buckets, not just within
-// the current bucket's tree.  Elements are spread over multiple buckets
-// (normal string hashing), so a bug that restarts the walk on the next
-// non-empty bucket would produce more than 5 invocations.
-func TestWalkEarlyStopAcrossBuckets(t *testing.T) {
-	ht := NewHashTab[TestData](7)
-	const total = 60
-	for i := 0; i < total; i++ {
-		ht.Insert(&TestData{S: fmt.Sprintf("walk-%4d", i)})
-	}
-	count := 0
-	ht.Walk(func(pos, depth int, data *TestData, userData any) bool {
-		count++
-		return count < 5
-	}, nil)
-	if count != 5 {
-		t.Errorf("Expected Walk to stop across buckets after 5 invocations, got %d", count)
-	}
-}
-
-func TestRandomizedAgainstModel(t *testing.T) {
-	// Cross-check the table against a plain map model over a long run of
-	// mixed operations, using a fixed seed for reproducibility.
-	rng := rand.New(rand.NewSource(42))
-	ht := NewHashTab[TestData](23)
-	model := make(map[string]*TestData)
-
-	key := func() string { return fmt.Sprintf("key-%d", rng.Intn(160)) }
-
-	verify := func(op int) {
 		if ht.Len() != len(model) {
-			t.Fatalf("op %d: Expected length of %d, got %d", op, len(model), ht.Len())
+			t.Fatalf("op %d: Len() = %d, model has %d", op, ht.Len(), len(model))
 		}
-		seen := make(map[string]*TestData, len(model))
-		for item := range ht.All() {
-			if _, dup := seen[item.S]; dup {
-				t.Fatalf("op %d: All yielded %q twice", op, item.S)
-			}
-			seen[item.S] = item
-		}
-		if len(seen) != len(model) {
-			t.Fatalf("op %d: Expected All to yield %d elements, got %d", op, len(model), len(seen))
-		}
-		for k, v := range model {
-			if seen[k] != v {
-				t.Fatalf("op %d: model has %q but table does not have the same stored item", op, k)
-			}
+		if op%250 == 0 {
+			checkInvariants(t, ht)
 		}
 	}
+	checkInvariants(t, ht)
 
-	const ops = 1200
-	for i := 0; i < ops; i++ {
-		switch rng.Intn(4) {
-		case 0, 1: // insert (duplicates replace)
-			item := &TestData{S: key()}
-			ht.Insert(item)
-			model[item.S] = item
-		case 2: // delete (possibly absent)
-			find := &TestData{S: key()}
-			_, inModel := model[find.S]
-			if got := ht.Delete(find); got != inModel {
-				t.Fatalf("op %d: Expected Delete(%q) to return %v, got %v", i, find.S, inModel, got)
-			}
-			delete(model, find.S)
-		case 3: // search (possibly absent)
-			find := &TestData{S: key()}
-			want, inModel := model[find.S]
-			got := ht.Search(find)
-			if inModel {
-				if got != want {
-					t.Fatalf("op %d: Expected Search(%q) to return the model item", i, find.S)
-				}
-			} else if got != nil {
-				t.Fatalf("op %d: Expected Search(%q) to return nil", i, find.S)
-			}
-			if ht.ItemExists(find) != inModel {
-				t.Fatalf("op %d: Expected ItemExists(%q) to return %v", i, find.S, inModel)
-			}
-		}
-		if i%97 == 0 {
-			verify(i)
+	// Drain the table through the iterators and confirm it empties cleanly.
+	toDelete := make([]string, 0, len(model))
+	for item := range ht.Values() {
+		toDelete = append(toDelete, item.S)
+	}
+	for _, k := range toDelete {
+		if !ht.Delete(TestData{S: k}) {
+			t.Fatalf("Expected to delete %q during drain", k)
 		}
 	}
-	verify(ops)
-
-	// Sorted cross-check: drain the model and the table and compare keys.
-	var wantKeys []string
-	for k := range model {
-		wantKeys = append(wantKeys, k)
+	if !ht.IsEmpty() || ht.Len() != 0 {
+		t.Fatalf("Table should be empty after drain, got length %d", ht.Len())
 	}
-	sort.Strings(wantKeys)
-	var gotKeys []string
-	ht.WalkFunc(func(a *TestData) { gotKeys = append(gotKeys, a.S) })
-	sort.Strings(gotKeys)
-	if strings.Join(wantKeys, ",") != strings.Join(gotKeys, ",") {
-		t.Errorf("Expected table and model to contain identical key sets")
-	}
+	checkInvariants(t, ht)
 }
 
-func TestConcurrentWritersReadersIterators(t *testing.T) {
-	// Writers, readers and iterators run concurrently; must be clean under
-	// the race detector.
-	ht := NewHashTab[TestData](97)
-	const workers = 4
-	const perWorker = 200
+// TestConcurrentInsertSearchIterate runs writers inserting disjoint key
+// ranges against one shared table while readers search and drain the
+// snapshot iterators.  It is primarily a test for the race detector
+// (`make race`); the final state must be exactly the union of the ranges.
+func TestConcurrentInsertSearchIterate(t *testing.T) {
+	ht := newTestTab(16)
+	const writers = 8
+	const perWriter = 200
+	const total = writers * perWriter
 
 	var wg sync.WaitGroup
-
-	// Writers: each owns a disjoint key range, inserting and deleting.
-	for w := 0; w < workers; w++ {
+	for w := range writers {
 		wg.Add(1)
 		go func(w int) {
 			defer wg.Done()
-			for i := 0; i < perWorker; i++ {
-				item := TestData{S: fmt.Sprintf("cw-%d-i-%d", w, i)}
-				ht.Insert(&item)
-				if i%3 == 0 {
-					ht.Delete(&item)
+			for i := range perWriter {
+				ht.Insert(TestData{S: fmt.Sprintf("w%d-%04d", w, i), N: w*perWriter + i})
+			}
+		}(w)
+	}
+
+	// Readers run until the writers finish.  Searches may hit or miss
+	// (writers are in flight); the iterator must yield a consistent snapshot
+	// of at most the total number of elements.
+	stop := make(chan struct{})
+	var readers sync.WaitGroup
+	for range 4 {
+		readers.Go(func() {
+			for {
+				select {
+				case <-stop:
+					return
+				default:
 				}
-			}
-		}(w)
-	}
-
-	// Readers: search for keys that may or may not be present.
-	for w := 0; w < workers; w++ {
-		wg.Add(1)
-		go func(w int) {
-			defer wg.Done()
-			for i := 0; i < perWorker; i++ {
-				find := TestData{S: fmt.Sprintf("cw-%d-i-%d", w, i)}
-				_ = ht.Search(&find)
-				_ = ht.ItemExists(&find)
-			}
-			_ = ht.Len()
-			_ = ht.IsEmpty()
-		}(w)
-	}
-
-	// Iterators: walk snapshots while mutations are in flight.  All takes
-	// a snapshot, so the count may vary but must never exceed the maximum
-	// possible population.
-	for w := 0; w < 2; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := 0; i < 20; i++ {
+				ht.Search(TestData{S: "w3-0042"})
 				n := 0
-				for range ht.All() {
+				for range ht.All() { // snapshot; safe alongside the writers
 					n++
 				}
-				if n > workers*perWorker {
-					t.Errorf("All yielded %d elements, more than ever inserted", n)
+				if n > total {
+					t.Errorf("All yielded %d elements, more than the %d ever inserted", n, total)
+					return
 				}
-				m := 0
-				ht.WalkFunc(func(a *TestData) { m++ })
-				if m > workers*perWorker {
-					t.Errorf("WalkFunc visited %d elements, more than ever inserted", m)
-				}
-				var sb strings.Builder
-				ht.Dump(&sb)
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
+	close(stop)
+	readers.Wait()
 
-	// Final state: the keys with i%3 != 0 remain.
-	want := 0
-	for w := 0; w < workers; w++ {
-		for i := 0; i < perWorker; i++ {
-			if i%3 != 0 {
-				want++
-				item := TestData{S: fmt.Sprintf("cw-%d-i-%d", w, i)}
-				if !ht.ItemExists(&item) {
-					t.Errorf("Expected %q to be present after concurrent run", item.S)
-				}
+	if ht.Len() != total {
+		t.Fatalf("Expected length %d, got %d", total, ht.Len())
+	}
+	for w := range writers {
+		for i := range perWriter {
+			v, found := ht.Search(TestData{S: fmt.Sprintf("w%d-%04d", w, i)})
+			if !found {
+				t.Fatalf("Expected to find w%d-%04d after all writers finished", w, i)
+			}
+			if v.N != w*perWriter+i {
+				t.Fatalf("w%d-%04d stored satellite %d, want %d", w, i, v.N, w*perWriter+i)
 			}
 		}
 	}
-	if ht.Len() != want {
-		t.Errorf("Expected length of %d after concurrent run, got %d", want, ht.Len())
+}
+
+// TestConcurrentDelete fills a table and then deletes disjoint key ranges
+// from concurrent goroutines while readers search and iterate.  After the
+// wait the table must be empty and every key not-found.  Race-detector
+// target (`make race`).
+func TestConcurrentDelete(t *testing.T) {
+	ht := newTestTab(16)
+	const deleters = 8
+	const perDeleter = 100
+	key := func(d, i int) string { return fmt.Sprintf("d%d-%04d", d, i) }
+
+	for d := range deleters {
+		for i := range perDeleter {
+			ht.Insert(TestData{S: key(d, i)})
+		}
 	}
+
+	var wg sync.WaitGroup
+	for d := range deleters {
+		wg.Add(1)
+		go func(d int) {
+			defer wg.Done()
+			for i := range perDeleter {
+				if !ht.Delete(TestData{S: key(d, i)}) {
+					t.Errorf("Expected to delete %q", key(d, i))
+					return
+				}
+			}
+		}(d)
+	}
+
+	stop := make(chan struct{})
+	var readers sync.WaitGroup
+	for range 4 {
+		readers.Go(func() {
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				ht.Search(TestData{S: key(3, 42)}) // found or not: both legal mid-flight
+				for range ht.Values() {            // snapshot; safe alongside the deleters
+				}
+			}
+		})
+	}
+
+	wg.Wait()
+	close(stop)
+	readers.Wait()
+
+	if !ht.IsEmpty() || ht.Len() != 0 {
+		t.Fatalf("Expected an empty table after all deleters finished, got length %d", ht.Len())
+	}
+	for d := range deleters {
+		for i := range perDeleter {
+			if _, found := ht.Search(TestData{S: key(d, i)}); found {
+				t.Fatalf("%q should be gone", key(d, i))
+			}
+		}
+	}
+}
+
+// TestConcurrentCompound mixes compound Lock+Nl sections with plain locked
+// operations: writers do read-modify-write under Lock while other goroutines
+// insert and iterate.  Race-detector target (`make race`).
+func TestConcurrentCompound(t *testing.T) {
+	ht := newTestTab(16)
+
+	const writers = 4
+	const rounds = 200
+
+	var wg sync.WaitGroup
+	// Compound writers: atomically replace xNNN's satellite (an insert that
+	// reports "added" becomes the insert, one that reports "replaced" bumps).
+	for w := range writers {
+		wg.Add(1)
+		go func(w int) {
+			defer wg.Done()
+			for r := range rounds {
+				k := TestData{S: fmt.Sprintf("x%03d", r%50), N: w}
+				ht.Lock()
+				ht.NlInsert(k)
+				ht.Unlock()
+			}
+		}(w)
+	}
+	// Plain writers on a disjoint key space, plus snapshot iterators.
+	for w := range 2 {
+		wg.Add(1)
+		go func(w int) {
+			defer wg.Done()
+			for r := range rounds {
+				ht.Insert(TestData{S: fmt.Sprintf("y%d-%03d", w, r%50), N: r})
+				for range ht.Values() {
+				}
+			}
+		}(w)
+	}
+	wg.Wait()
+
+	if ht.Len() != 150 { // 50 x-keys + 2*50 y-keys
+		t.Fatalf("Expected length 150, got %d", ht.Len())
+	}
+	checkInvariants(t, ht)
 }

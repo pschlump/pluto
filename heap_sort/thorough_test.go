@@ -1,18 +1,22 @@
-// Copyright (C) 2021 Philip Schlump. All rights reserved.
-
 package heap_sort
 
+/*
+Copyright (C) Philip Schlump, 2012-2026.
+
+BSD 3 Clause Licensed.
+*/
+
 import (
-	"math/rand"
-	"sort"
+	"math/rand/v2"
+	"slices"
 	"testing"
 )
 
-// extract returns the theValue fields of a sorted result as a plain int slice.
-func extract(sorted []*SomeData) (rv []int) {
+// extract returns the Key fields of a sorted result as a plain int slice.
+func extract(sorted []HsTest) (rv []int) {
 	rv = make([]int, 0, len(sorted))
 	for _, v := range sorted {
-		rv = append(rv, v.theValue)
+		rv = append(rv, v.Key)
 	}
 	return
 }
@@ -31,8 +35,8 @@ func checkOrder(t *testing.T, name string, got []int, expect []int) {
 }
 
 func TestSingleElement(t *testing.T) {
-	h := NewHeapSort[SomeData]()
-	h.Insert(&SomeData{theValue: 42})
+	h := NewHeapSortFunc(cmpHsTest)
+	h.Insert(HsTest{Key: 42})
 	if h.Len() != 1 {
 		t.Fatalf("expected length 1, got %d", h.Len())
 	}
@@ -41,7 +45,7 @@ func TestSingleElement(t *testing.T) {
 		t.Errorf("expected empty after Sort, got length %d", h.Len())
 	}
 
-	h.Insert(&SomeData{theValue: -7})
+	h.Insert(HsTest{Key: -7})
 	checkOrder(t, "SortDown of single element", extract(h.SortDown()), []int{-7})
 	if h.Len() != 0 {
 		t.Errorf("expected empty after SortDown, got length %d", h.Len())
@@ -49,22 +53,22 @@ func TestSingleElement(t *testing.T) {
 }
 
 func TestDuplicates(t *testing.T) {
-	h := NewHeapSort[SomeData]()
+	h := NewHeapSortFunc(cmpHsTest)
 	for _, v := range []int{3, 1, 3, 2, 1, 3, 2} {
-		h.Insert(&SomeData{theValue: v})
+		h.Insert(HsTest{Key: v})
 	}
 	checkOrder(t, "Sort with duplicates", extract(h.Sort()), []int{1, 1, 2, 2, 3, 3, 3})
 
-	h.InsertArray([]*SomeData{{theValue: 5}, {theValue: 5}, {theValue: 5}})
+	h.InsertArray([]HsTest{{Key: 5}, {Key: 5}, {Key: 5}})
 	checkOrder(t, "SortDown with duplicates", extract(h.SortDown()), []int{5, 5, 5})
 }
 
 func TestRepeatedSortIsIdempotent(t *testing.T) {
-	h := NewHeapSort[SomeData]()
+	h := NewHeapSortFunc(cmpHsTest)
 	if got := h.Sort(); len(got) != 0 {
 		t.Errorf("first Sort on empty: expected 0 elements, got %d", len(got))
 	}
-	// A second Sort on an empty heap must also be empty, not panic.
+	// A second Sort on an empty sorter must also be empty, not panic.
 	if got := h.Sort(); len(got) != 0 {
 		t.Errorf("second Sort on empty: expected 0 elements, got %d", len(got))
 	}
@@ -74,12 +78,12 @@ func TestRepeatedSortIsIdempotent(t *testing.T) {
 }
 
 func TestLenLengthConsistency(t *testing.T) {
-	h := NewHeapSort[SomeData]()
-	for n := 0; n < 5; n++ {
+	h := NewHeapSortFunc(cmpHsTest)
+	for n := range 5 {
 		if h.Len() != n || h.Length() != n {
 			t.Errorf("before insert %d: Len=%d Length=%d, expected %d", n, h.Len(), h.Length(), n)
 		}
-		h.Insert(&SomeData{theValue: n})
+		h.Insert(HsTest{Key: n})
 	}
 	h.Truncate()
 	if h.Len() != 0 || h.Length() != 0 {
@@ -88,11 +92,11 @@ func TestLenLengthConsistency(t *testing.T) {
 }
 
 func TestInsertArrayMultipleBatches(t *testing.T) {
-	h := NewHeapSort[SomeData]()
-	// InsertArray on an empty heap.
-	h.InsertArray([]*SomeData{{theValue: 9}, {theValue: 4}})
-	// InsertArray on a non-empty heap must re-heapify the combined data.
-	h.InsertArray([]*SomeData{{theValue: 1}, {theValue: 7}, {theValue: 2}})
+	h := NewHeapSortFunc(cmpHsTest)
+	// InsertArray on an empty sorter.
+	h.InsertArray([]HsTest{{Key: 9}, {Key: 4}})
+	// InsertArray on a non-empty sorter must re-heapify the combined data.
+	h.InsertArray([]HsTest{{Key: 1}, {Key: 7}, {Key: 2}})
 	if h.Len() != 5 {
 		t.Fatalf("expected length 5, got %d", h.Len())
 	}
@@ -100,34 +104,47 @@ func TestInsertArrayMultipleBatches(t *testing.T) {
 }
 
 func TestInsertArrayEmpty(t *testing.T) {
-	h := NewHeapSort[SomeData]()
-	h.Insert(&SomeData{theValue: 3})
+	h := NewHeapSortFunc(cmpHsTest)
+	h.Insert(HsTest{Key: 3})
 	h.InsertArray(nil)
-	h.InsertArray([]*SomeData{})
+	h.InsertArray([]HsTest{})
 	if h.Len() != 1 {
 		t.Fatalf("expected length 1 after empty InsertArray, got %d", h.Len())
 	}
 	checkOrder(t, "Sort after empty InsertArray", extract(h.Sort()), []int{3})
 }
 
+// TestInsertArrayDoesNotAlias verifies that the batch is copied into
+// the sorter: mutating the caller's slice afterwards cannot corrupt
+// the sort.
+func TestInsertArrayDoesNotAlias(t *testing.T) {
+	h := NewHeapSortFunc(cmpHsTest)
+	batch := []HsTest{{Key: 3}, {Key: 1}, {Key: 2}}
+	h.InsertArray(batch)
+	for i := range batch {
+		batch[i] = HsTest{Key: 999}
+	}
+	checkOrder(t, "Sort after caller mutates batch", extract(h.Sort()), []int{1, 2, 3})
+}
+
 func TestSortedAndReverseSortedInput(t *testing.T) {
-	asc := []*SomeData{}
-	desc := []*SomeData{}
-	for i := 0; i < 20; i++ {
-		asc = append(asc, &SomeData{theValue: i})
-		desc = append(desc, &SomeData{theValue: 19 - i})
+	asc := []HsTest{}
+	desc := []HsTest{}
+	for i := range 20 {
+		asc = append(asc, HsTest{Key: i})
+		desc = append(desc, HsTest{Key: 19 - i})
 	}
 
-	h := NewHeapSort[SomeData]()
+	h := NewHeapSortFunc(cmpHsTest)
 	h.InsertArray(asc)
 	got := extract(h.Sort())
-	if !sort.IntsAreSorted(got) {
+	if !slices.IsSorted(got) {
 		t.Errorf("Sort of already-sorted input is not sorted: %v", got)
 	}
 
 	h.InsertArray(desc)
 	got = extract(h.Sort())
-	if !sort.IntsAreSorted(got) {
+	if !slices.IsSorted(got) {
 		t.Errorf("Sort of reverse-sorted input is not sorted: %v", got)
 	}
 	gotD := extract(h.SortDown())
@@ -136,41 +153,41 @@ func TestSortedAndReverseSortedInput(t *testing.T) {
 	}
 
 	h.InsertArray(desc)
-	got = extract(h.SortDown())
-	if !sort.IsSorted(sort.Reverse(sort.IntSlice(got))) {
-		t.Errorf("SortDown of reverse-sorted input is not descending: %v", got)
+	gotD = extract(h.SortDown())
+	if !slices.IsSortedFunc(gotD, func(a, b int) int { return b - a }) {
+		t.Errorf("SortDown of reverse-sorted input is not descending: %v", gotD)
 	}
 }
 
 // TestRandomizedProperty inserts random values (with duplicates) through a
 // random mix of Insert and InsertArray, then cross-checks Sort and SortDown
-// against a reference sorted slice.  Fixed seed for reproducibility.
+// against a reference sorted slice.  Fixed PCG seed for reproducibility.
 func TestRandomizedProperty(t *testing.T) {
-	rng := rand.New(rand.NewSource(42))
+	rng := rand.New(rand.NewPCG(42, 7))
 
-	for round := 0; round < 20; round++ {
-		h := NewHeapSort[SomeData]()
+	for round := range 20 {
+		h := NewHeapSortFunc(cmpHsTest)
 		var reference []int
 
-		ops := 50 + rng.Intn(200)
-		for i := 0; i < ops; i++ {
-			switch rng.Intn(3) {
+		ops := 50 + rng.IntN(200)
+		for i := range ops {
+			switch rng.IntN(3) {
 			case 0: // single Insert
-				v := rng.Intn(1000)
-				h.Insert(&SomeData{theValue: v})
+				v := rng.IntN(1000)
+				h.Insert(HsTest{Key: v})
 				reference = append(reference, v)
 			case 1: // small InsertArray batch
-				m := 1 + rng.Intn(10)
-				batch := make([]*SomeData, 0, m)
-				for j := 0; j < m; j++ {
-					v := rng.Intn(1000)
-					batch = append(batch, &SomeData{theValue: v})
+				m := 1 + rng.IntN(10)
+				batch := make([]HsTest, 0, m)
+				for range m {
+					v := rng.IntN(1000)
+					batch = append(batch, HsTest{Key: v})
 					reference = append(reference, v)
 				}
 				h.InsertArray(batch)
 			default: // Insert followed by a length sanity check
-				v := rng.Intn(1000)
-				h.Insert(&SomeData{theValue: v})
+				v := rng.IntN(1000)
+				h.Insert(HsTest{Key: v})
 				reference = append(reference, v)
 				if h.Len() != len(reference) {
 					t.Fatalf("round %d op %d: Len()=%d, reference has %d", round, i, h.Len(), len(reference))
@@ -182,7 +199,7 @@ func TestRandomizedProperty(t *testing.T) {
 			t.Fatalf("round %d: Len=%d Length=%d, expected %d", round, h.Len(), h.Length(), len(reference))
 		}
 
-		sort.Ints(reference)
+		slices.Sort(reference)
 
 		if round%2 == 0 {
 			got := extract(h.Sort())
@@ -190,19 +207,17 @@ func TestRandomizedProperty(t *testing.T) {
 		} else {
 			got := extract(h.SortDown())
 			// Reverse reference into descending order.
-			for i, j := 0, len(reference)-1; i < j; i, j = i+1, j-1 {
-				reference[i], reference[j] = reference[j], reference[i]
-			}
+			slices.Reverse(reference)
 			checkOrder(t, "randomized SortDown", got, reference)
 		}
 
-		// The heap must be drained and reusable after sorting.
+		// The sorter must be drained and reusable after sorting.
 		if h.Len() != 0 {
 			t.Fatalf("round %d: expected empty after sort, got %d", round, h.Len())
 		}
-		h.Insert(&SomeData{theValue: rng.Intn(1000)})
+		h.Insert(HsTest{Key: rng.IntN(1000)})
 		if h.Len() != 1 {
-			t.Fatalf("round %d: heap not reusable after sort, Len=%d", round, h.Len())
+			t.Fatalf("round %d: sorter not reusable after sort, Len=%d", round, h.Len())
 		}
 		h.Truncate()
 		if h.Len() != 0 {

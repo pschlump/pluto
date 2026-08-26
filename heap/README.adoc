@@ -1,86 +1,118 @@
-= heap — a generics based min-heap
+= heap
 
-A generic min-heap for any type implementing
-`github.com/pschlump/pluto/comparable.Comparable`, using Go generics (this
-module targets Go 1.26).  `Pop` always removes and returns the *minimum*
-element, so the heap can be used directly as a priority queue.  The
-implementation is adapted from the standard library's `container/heap` and
-stores the data as a slice in breadth-first tree order.
+A generic *min-heap* — `Pop` always removes and returns the minimum
+element — stored as a slice in breadth-first tree order.  The
+implementation is adapted from the standard library's `container/heap`.
+A reversed comparison function (`NewHeapFunc` with `-Compare(a, b)`)
+turns it into a max-heap.
 
-Use `NewHeap[T]()` to create a heap.
+It is a rework of
+link:https://github.com/pschlump/pluto/tree/main/heap[pluto/heap]
+with the charon conventions:
+
+* The `comparable.Comparable` interface constraint is gone: ordering is
+either the element type's built-in `<` / `>` operators (`NewHeap`) or a
+caller supplied function (`NewHeapFunc`).  No boxing, no dynamic
+dispatch, no type assertions.
+* Elements are stored and returned *by value* (`T`, not `*T`).
 
 == Operations
 
+[options="header"]
 |===
-| Operation                | Description                                                          | Complexity
+| Operation                    | Description                                                   | Complexity
 
-| `Push(x)`                | Insert an element                                                    | O(log n)
-| `Pop()`                  | Remove and return the minimum element (nil if empty)                 | O(log n)
-| `Peek()`                 | Return the minimum element without removing it (nil if empty)        | O(1)
-| `Delete(ii)`             | Remove and return the element at index `ii` (panics if out of range) | O(log n)
-| `Fix(ii, newValue)`      | Replace element at `ii` and re-establish heap order                  | O(log n)
-| `SetValue(ii, newValue)` | Alias for `Fix`                                                      | O(log n)
-| `GetValue(ii)`           | Return the element at index `ii` (panics if out of range)            | O(1)
-| `Search(cmpVal)`         | Linear scan; returns element and index, or nil, -1, nil              | O(n)
-| `Len()` / `Length()`     | Number of elements                                                   | O(1)
-| `Truncate()`             | Remove all elements                                                  | O(1)
-| `AppendHeap(x)`          | Append a slice of elements (heap order NOT maintained)               | O(m)
-| `Heapify(n, i)`          | Re-establish heap order in the sub-tree rooted at `i`                | O(log n)
-| `All()`                  | Range-over-func iterator (Go 1.23+) in internal heap order           | O(n)
-| `Dump(fp)`               | Write the heap contents to `fp`                                      | O(n)
+| `Push`                       | Add an element                                                | O(log n)
+| `Pop`                        | Remove and return the minimum; `Delete(0)`                    | O(log n)
+| `Peek`                       | The minimum, without removing                                 | O(1)
+| `Delete(ii)`                 | Remove and return the element at index `ii`                   | O(log n)
+| `Fix(ii, v)` / `SetValue`    | Replace the element at `ii` and re-order in place             | O(log n)
+| `GetValue(ii)`               | The element at index `ii`                                     | O(1)
+| `Search(v)`                  | Linear scan; element + internal index, or `(zero, -1, false)` | O(n)
+| `AppendHeap(xs)` + `Heapify` | Bulk append (unordered) + O(n) rebuild                        | O(m) + O(n)
+| `IsEmpty` / `Len` / `Length` | Size queries                                                  | O(1)
+| `Truncate`                   | Remove all elements                                           | O(1)
+| `All`                        | Iterate internal (breadth-first) order — *not sorted*         | O(n)
+| `Dump`                       | Indexed internal-order listing, for debugging                 | O(n)
 |===
 
-`Pop`, `Delete` and `Truncate` zero/release the removed elements so the
-garbage collector can reclaim them.
+Indexes come from `Search`, `GetValue`, or `All`; `Delete`, `Fix`,
+`SetValue` and `GetValue` all report `false` for an out-of-range index
+(pluto panicked).  Replacing an element with `Fix` is cheaper than a
+`Delete` followed by a `Push`.
 
-After one or more `AppendHeap` calls the heap must be rebuilt before use:
+`All` yields elements in internal heap order, which is *not* sorted;
+repeatedly calling `Pop` is the way to consume a heap in sorted order.
+
+== Usage
 
 [source,go]
 ----
-for i := h.Len()/2 - 1; i >= 0; i-- {
-	h.Heapify(h.Len(), i)
+hp := heap.NewHeap[int]()
+for _, v := range []int{42, 7, 13} {
+    hp.Push(v)
 }
+min, _ := hp.Peek() // 7
+// Pops drain in ascending order.
 ----
 
-== Example
+A max-heap or a priority queue — the element type implements no
+interface, and the exported `Compare` helper builds the field ordering:
 
 [source,go]
 ----
-package main
-
-import (
-	"fmt"
-
-	"github.com/pschlump/pluto/comparable"
-	"github.com/pschlump/pluto/heap"
-)
-
-type item int
-
-func (a item) Compare(x comparable.Comparable) int {
-	return int(a) - int(x.(item))
+type Task struct {
+    Priority int
+    Name     string
 }
 
-func main() {
-	h := heap.NewHeap[item]()
-	for _, v := range []item{5, 2, 8, 1} {
-		v := v
-		h.Push(&v)
-	}
-
-	fmt.Println(*h.Peek()) // 1
-
-	for h.Len() > 0 {
-		fmt.Print(*h.Pop(), " ") // 1 2 5 8 (ascending order)
-	}
-}
+pq := heap.NewHeapFunc(func(a, b Task) int {
+    return heap.Compare(a.Priority, b.Priority)
+})
+pq.Push(Task{3, "write"})
+pq.Push(Task{1, "review"})
+// Pop yields 1:review first.
 ----
 
-NOTE: `All()` iterates in internal heap (breadth-first tree) order, *not*
-sorted order.  Consume the heap with `Pop` to get sorted order.
+Search returns the internal index, which composes with `Delete`/`Fix`;
+a probe only needs the fields the comparison function reads.
 
-== Thread safety
+== Panics
 
-This implementation is *not* thread safe.  There is currently no
-mutex-guarded `_ts` variant of this package; guard it externally with a
-`sync.Mutex` if it is shared between goroutines.
+The package panics in exactly three situations — all programmer errors
+with no sane fallback:
+
+[options="header"]
+|===
+| Call | Why 
+
+| `NewHeapFunc(nil)` | nil comparison function, caught at construction time 
+| `Push`/`AppendHeap` on a nil heap | a nil heap cannot store an element 
+| `Push`/`AppendHeap` on a zero-value heap | no comparison function; the message names the constructors 
+|===
+
+Everything else — including every indexed operation with a bad index —
+tolerates a nil heap and the zero value as an empty heap and reports
+`false`.
+
+== Differences from pluto/heap
+
+* The `comparable.Comparable` interface constraint is gone (see above).
+* Elements are stored and returned by value: `Pop`, `Peek`, `Delete`,
+`GetValue` return `(T, bool)` instead of a nil-able `*T`.
+* The out-of-range index operations (`Delete`, `Fix`, `SetValue`,
+`GetValue`) report `false` instead of panicking; `Fix`/`SetValue`
+return `bool` so the caller sees the outcome.
+* `Search` returns `(T, int, bool)` — pluto returned a vestigial
+always-nil `err` "for interface compatibility".
+* `IsEmpty` added; `Len` and `Length` both kept (pluto's heap has both).
+* `Pop`/`Delete` zero the vacated slot *and release the backing array
+on a full drain* (pluto left the empty slice).
+* `Dump` prints an indexed internal-order listing; pluto used the
+external `dbgo` package (a dependency this module does not have).
+* The `Nl*` method aliases (API shims for pluto's `heap_ts` locked-mode
+API) are gone; the no-op `Lock`/`Unlock` pair is kept, as in dll.
+* A nil `*Heap` behaves as an empty heap for every operation except
+`Push`/`AppendHeap`; pluto panicked with an unguarded nil dereference
+on most methods.
+

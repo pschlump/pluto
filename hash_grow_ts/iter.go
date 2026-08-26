@@ -1,10 +1,10 @@
-package hash_grow_ts
-
 /*
-Copyright (C) Philip Schlump, 2023.
+Copyright (C) Philip Schlump, 2012-2026.
 
-BSD 3 Clause Licensed. See ../LICENSE
+BSD 3 Clause Licensed.
 */
+
+package hash_grow_ts
 
 import "iter"
 
@@ -13,24 +13,29 @@ import "iter"
 //
 //	for pos, item := range ht.All() { ... }
 //
-// The iterator operates on a snapshot of the table taken under the read lock
-// when iteration starts, so it is safe to call other table methods from the
-// loop body.
+// As with dll/sll, a single-variable range yields the bucket position, not
+// the element.  The iterator operates on a snapshot of the table copied
+// under the read lock when All is called, so it is safe to call other table
+// methods from the loop body.  Bucket order depends on the per-table hash
+// seed, so it varies from process to process — never assert a fixed order.
 // Complexity is O(n).
-func (tt *HashTab[T]) All() iter.Seq2[int, *T] {
-	return func(yield func(int, *T) bool) {
-		type pair struct {
-			pos  int
-			item *T
+func (tt *HashTab[T]) All() iter.Seq2[int, T] {
+	if tt == nil {
+		return func(func(int, T) bool) {} // a nil table iterates as an empty one
+	}
+	type pair struct {
+		pos  int
+		item T
+	}
+	var snap []pair
+	tt.lock.RLock()
+	for i := range tt.buckets {
+		if tt.originalHash[i] != 0 {
+			snap = append(snap, pair{pos: i, item: tt.buckets[i]})
 		}
-		var snap []pair
-		tt.lock.RLock()
-		for i, v := range tt.buckets {
-			if v != nil {
-				snap = append(snap, pair{pos: i, item: v})
-			}
-		}
-		tt.lock.RUnlock()
+	}
+	tt.lock.RUnlock()
+	return func(yield func(int, T) bool) {
 		for _, p := range snap {
 			if !yield(p.pos, p.item) {
 				return
@@ -44,20 +49,24 @@ func (tt *HashTab[T]) All() iter.Seq2[int, *T] {
 //
 //	for item := range ht.Values() { ... }
 //
-// The iterator operates on a snapshot of the table taken under the read lock
-// when iteration starts, so it is safe to call other table methods from the
-// loop body.
+// The iterator operates on a snapshot of the table copied under the read
+// lock when Values is called, so it is safe to call other table methods from
+// the loop body.  Bucket order depends on the per-table hash seed, so it
+// varies from process to process — never assert a fixed order.
 // Complexity is O(n).
-func (tt *HashTab[T]) Values() iter.Seq[*T] {
-	return func(yield func(*T) bool) {
-		var snap []*T
-		tt.lock.RLock()
-		for _, v := range tt.buckets {
-			if v != nil {
-				snap = append(snap, v)
-			}
+func (tt *HashTab[T]) Values() iter.Seq[T] {
+	if tt == nil {
+		return func(func(T) bool) {} // a nil table iterates as an empty one
+	}
+	var snap []T
+	tt.lock.RLock()
+	for i := range tt.buckets {
+		if tt.originalHash[i] != 0 {
+			snap = append(snap, tt.buckets[i])
 		}
-		tt.lock.RUnlock()
+	}
+	tt.lock.RUnlock()
+	return func(yield func(T) bool) {
 		for _, v := range snap {
 			if !yield(v) {
 				return
@@ -65,5 +74,3 @@ func (tt *HashTab[T]) Values() iter.Seq[*T] {
 		}
 	}
 }
-
-/* vim: set noai ts=4 sw=4: */

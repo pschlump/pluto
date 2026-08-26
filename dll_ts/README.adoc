@@ -1,120 +1,163 @@
-= dll_ts — A generics based Go Doubly Linked List that is Thread (goroutine) safe
-:toc:
+= dll_ts
 
-A generic doubly linked list (DLL) with head-and-tail pointers.  Element data
-is stored as a `*T` where `T` satisfies `comparable.Equality` (an
-`IsEqual(b Equality) bool` method).  The zero value of `Dll[T]` is an empty
-list ready to use; `NewDll[T]()` is also provided.
+A generic doubly linked list with head and tail pointers that is *safe
+for concurrent use* — the thread-safe twin of
+link:../dll/[charon/dll].  Every operation is guarded by a `sync.RWMutex`:
+readers run in parallel with each other, writers are exclusive.  Like
+`dll`, it works as a stack (`Push`/`Pop`/`Peak` at the head), a queue
+(`Enqueue` at the tail, `Pop` from the head), and a positional list with
+O(1) removal of previously found elements.
 
-The list can be used directly, as a stack (`Push`/`Pop`/`Peek`), or as a
-queue (`Enqueue`/`Pop`/`PeekTail`).
+Like every charon package it is a rework of
+link:https://github.com/pschlump/pluto/tree/main/dll_ts[pluto/dll_ts]
+that replaces the `comparable.Equality` interface constraint with pure
+Go type parameters, so element data is never boxed into an interface and
+never unboxed with a type assertion.
 
-This is the thread-safe version of `../dll`: every operation is guarded by a
-`sync.RWMutex`.  It has the exact same exported API as the `dll` package.
+* Elements are stored and returned *by value* (`T`, not `*T`).
+* Lists of types comparable with `==` need no equality function:
+`dll_ts.NewDll[int]()`.
+* Any other type — or equality by a single field — takes a plain equality
+function, with no interface to implement:
+`dll_ts.NewDllFunc(func(a, b Item) bool { return a.ID == b.ID })`.
 
-== Complexity
+The public API is identical to `dll` (plus the locking behavior below),
+so switching between the two is a package-name change.
 
-[cols="2,1,4",options="header"]
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and appear
+on pkg.go.dev.  The link:../dll/[dll README] documents the full API usage;
+it applies unchanged.
+
+== Locking behavior
+
+* *Reads* (`Search`, `ReverseSearch`, `Index`, `IndexFromTail`, `Peek`,
+`PeekTail`, `Len`, `Length`, `IsEmpty`) take the read lock and release
+it before returning — they can run in parallel with each other.
+* *Writes* (`InsertBeforeHead`, `Push`, `AppendAtTail`, `Enqueue`,
+`Pop`, `PopTail`, `Delete`, `DeleteSearch`, `DeleteFound`,
+`DeleteAtHead`, `DeleteAtTail`, `Reverse`, `Truncate`, `Trim`,
+`TrimTail`) take the write lock.  *`Delete` holds the write lock
+across its search*, so search-and-delete is atomic.
+* *`Walk`/`ReverseWalk` hold the read lock while the callback runs.*
+The callback must *not* call methods on the same list — a write from
+a callback deadlocks on the lock, and even a read can deadlock if a
+writer is waiting.  To visit elements while mutating, iterate a
+snapshot with `All()` instead.
+* *`All`/`Backward`/`IterateOver` operate on a snapshot* taken when
+they are called (one O(n) copy, under the read lock).  It is safe to
+mutate the list while iterating — including from inside the loop — and
+an iterator never observes modifications made after it was created.
+* *The legacy `DllIter` (Front/Rear/Current) walks the live list*: each
+iterator method takes the list's read lock for the duration of that
+call only (plus the iterator's own mutex, so one iterator may be shared
+between goroutines).  This is race-free, but the iterator observes
+concurrent modifications as they happen and terminates early if its
+current element is deleted.  Prefer `All`/`Backward` for a stable view.
+* *`Concat` snapshots the source under the source's own read lock*
+before taking the destination's write lock — no two locks are ever held
+at once, so the source may safely alias the destination.
+* *`Lock`/`Unlock` expose the write lock* for compound operations that
+must be atomic (unlike the no-op pair in the plain `dll` package).  No
+other list operation may run while the lock is held; inside the locked
+region use the operation results you already hold, not the public
+methods.
+* *`Dump` holds the read lock for the whole dump*, so the writer must
+not call methods on the same list.
+
+[source,go]
+----
+for _, v := range list.All() {
+    list.Delete(v) // safe: All iterates a snapshot
+}
+----
+
+== Errors and panics
+
+Identical to `dll`.  Empty-list, not-found and out-of-range conditions
+are errors (`ErrEmptyDll`, `ErrNotFound`, `ErrOutOfRange`,
+`ErrInternalDll`; compare with `errors.Is`), and the package panics in
+exactly three situations, all programmer errors:
+
+[options="header"]
 |===
-| Operation                                      | Cost | Notes
+| Call                               | Why
 
-| `InsertBeforeHead`, `Push`                     | O(1) | insert at head
-| `AppendAtTail`, `Enqueue`                      | O(1) | append at tail
-| `Pop`, `DeleteAtHead`                          | O(1) | remove from head
-| `PopTail`, `DeleteAtTail`                      | O(1) | remove from tail
-| `Peek`, `PeekTail`                             | O(1) | inspect head/tail
-| `IsEmpty`, `Length`                            | O(1) |
-| `Index`, `IndexFromTail`                       | O(n) | n/2 on average (walks from nearest end)
-| `Search`, `ReverseSearch`                      | O(n) | linear, uses `IsEqual`
-| `Delete`, `DeleteSearch`                       | O(n) | search + delete
-| `DeleteFound`                                  | O(1) | delete element from `Search`/`Index`
-| `Walk`, `ReverseWalk`                          | O(n) | callback iteration
-| `All`, `Backward`, `IterateOver`, `IteratePtr` | O(n) | Go 1.23+ range-over-func iterators
-| `Reverse`, `ReverseList`                       | O(n) | O(1) extra storage
-| `Trim`, `TrimTail`                             | O(n) | cut list to length n
-| `Concat`                                       | O(n) | append a copy of another list
-| `Truncate`                                     | O(1) | drop all elements
+| `NewDllFunc(nil)`                  | nil equality function, caught at construction time
+| Insert-family on a nil `*Dll`      | a nil list cannot store an element
+| Insert-family on a zero-value list | no equality function; the message names the constructors
 |===
 
-== Example
+The insert family is `InsertBeforeHead`, `Push`, `AppendAtTail`,
+`Enqueue`, and `Concat` (only when the source has elements).  Everything
+else tolerates a nil list and the zero value as an empty list.
+
+== Usage
 
 [source,go]
 ----
 package main
 
 import (
-	"fmt"
+    "fmt"
+    "sync"
 
-	"github.com/pschlump/pluto/comparable"
-	"github.com/pschlump/pluto/dll_ts"
+    "github.com/pschlump/charon/dll_ts"
 )
 
-type Item struct {
-	Name string
-}
-
-func (aa Item) IsEqual(x comparable.Equality) bool {
-	if bb, ok := x.(Item); ok {
-		return aa.Name == bb.Name
-	}
-	return false
-}
-
 func main() {
-	l := dll_ts.NewDll[Item]()
+    queue := dll_ts.NewDll[int]()
 
-	l.Push(&Item{Name: "head"})        // insert at head
-	l.Enqueue(&Item{Name: "tail"})     // append at tail
+    // Writers from many goroutines share one queue.
+    var wg sync.WaitGroup
+    for w := 0; w < 8; w++ {
+        wg.Add(1)
+        go func(w int) {
+            defer wg.Done()
+            for i := 0; i < 100; i++ {
+                queue.Enqueue(w*1000 + i)
+            }
+        }(w)
+    }
+    wg.Wait()
+    fmt.Println(queue.Len()) // 800
 
-	// Go 1.23+ range-over-func iteration (operates on a snapshot)
-	for i, v := range l.All() {
-		fmt.Println(i, v.Name)
-	}
-
-	v, err := l.Pop()                  // remove from head
-	if err != nil {
-		// empty list
-	}
-	_ = v
-
-	l.Truncate()                       // drop all elements
+    // Deleting from inside an All loop is safe: it iterates a snapshot.
+    for _, v := range queue.All() {
+        queue.Delete(v)
+    }
+    fmt.Println(queue.IsEmpty()) // true
 }
 ----
 
-== Iteration
+== Differences from pluto/dll_ts
 
-Four styles are supported, all kept for compatibility:
+* The `comparable.Equality` interface constraint is gone: equality is
+either the type's `==` operator (`NewDll`, using the builtin
+`comparable` constraint — no interface, no boxing) or a caller supplied
+function (`NewDllFunc`).  No dynamic dispatch, no type assertions
+inside `IsEqual` methods.
+* The data is stored by value in each node (pluto stored a `*T` pointing
+at the inserted item).  `Pop`, `PopTail`, `Peek`, `PeekTail` and the
+iterators return `T` (with the existing error or bool signal) instead
+of a nil-able `*T`; snapshots are `[]T`, not `[]*T`.
+* Search probes are passed by value; a probe only needs the fields the
+equality function reads.
+* The `Walk`/`ReverseWalk` callbacks capture state in closures instead of
+receiving an `interface{}` `userData` parameter.
+* `Len` is available as an alias for `Length`, matching the other charon
+packages.
+* `DllElement.Data` is an unexported `T`; use `GetData()`/`SetData()`.
+`SetData` on an element inside a concurrently-used list is a race.
+* `IteratePtr` (which yielded `*T`) is gone — with value storage there
+are no element pointers to yield; use `All`.
+* A nil `*Dll` behaves as an empty list for every operation except the
+insert family; pluto panics with an unguarded nil dereference on most
+methods.
+* The only panics are the three listed above, each with a message naming
+the fix.  `Concat` with a nil or empty source is a no-op rather than a
+panic.
+* The snapshot for `All`/`Backward` is taken when they are called, not
+when the range loop starts, so an iterator never observes modifications
+made after its creation.
 
-1. `Front()`/`Rear()` + `Done()`/`Next()`/`Prev()`/`Value()` — the legacy
-   `DllIter` type (each method takes the appropriate locks).
-2. `Walk`/`ReverseWalk` callbacks.
-3. `All()`/`Backward()` — Go 1.23+ range-over-func iterators returning
-   `iter.Seq2[int, T]`.
-4. `IterateOver()` (legacy name for `All`) and `IteratePtr()` — range-over-func
-   iterators yielding values or `*T` pointers.
-
-The range-over-func iterators operate on a consistent snapshot of the list
-taken under a read lock, so the lock is not held while the loop body runs and
-the loop body may safely call other list methods.
-
-== Thread Safety
-
-All operations on `Dll` are safe for concurrent use by multiple goroutines;
-each method takes a read or write lock as appropriate.  `Lock`/`Unlock` expose
-the list's write lock for callers that need to group operations — while the
-lock is held, no other goroutine can use the list, so prefer the built-in
-operations where possible.
-
-Two caveats:
-
-* `Walk` and `ReverseWalk` hold a read lock while the user callback runs, so
-  the callback must not call back into the list (that would deadlock).
-* Elements returned by `Search`/`Index`/`Peek` etc. are pointers into the
-  list; another goroutine may remove them before you use them.
-
-== Errors
-
-* `ErrEmptyDll` — operation requires a non-empty list.
-* `ErrNotFound` — search/delete failed to find the element.
-* `ErrOutOfRange` — subscript out of range for `Index`/`IndexFromTail`.
-* `ErrInternalDll` — internal inconsistency (should never happen).

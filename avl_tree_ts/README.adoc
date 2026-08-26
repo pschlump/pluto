@@ -1,40 +1,106 @@
-= avl_tree_ts — AVL Tree, Thread-Safe
-:toc:
+= avl_tree_ts
 
-`avl_tree_ts` is a generic, self-balancing AVL binary search tree for Go
-1.23+ that is *safe for concurrent use*: every operation is guarded by an
-internal `sync.RWMutex`.  If your application is single-threaded, use the
-link:../avl_tree[`../avl_tree`] package instead — it has the identical API
-without the locking overhead.
+A generic, self-balancing AVL binary search tree that is *safe for
+concurrent use* — the thread-safe twin of
+link:../avl_tree/[charon/avl_tree].  Every operation is guarded by a
+`sync.RWMutex`: readers run in parallel with each other, writers are
+exclusive.
 
-The heights of the two child subtrees of every node are kept within one of
-each other, so searches stay fast regardless of insertion order.  See
-https://en.wikipedia.org/wiki/AVL_tree
-for the theory.
+Like `avl_tree`, it keeps the heights of the two child subtrees of every
+node within one of each other, so `Insert`, `Delete` and `Search` are
+*O(log₂ n) in the worst case* regardless of insertion order, and `Depth`
+is O(1).  And like every charon package it is a rework of
+link:https://github.com/pschlump/pluto/tree/main/avl_tree_ts[pluto/avl_tree_ts]
+that replaces the `comparable.Comparable` interface constraint with pure
+Go type parameters, so element data is never boxed into an interface and
+never unboxed with a type assertion.
 
-The element type `T` must implement `comparable.Comparable` (a
-`Compare(T) int` method); elements are stored as `*T`.
+* Elements are stored and returned *by value* (`T`, not `*T`); find-style
+operations return `(T, bool)`.
+* Trees of ordered key types (integers, floats, strings) are ordered by the
+built-in `<` / `>` operators: `avl_tree_ts.NewAvlTree[int]()`.
+* Trees of any other type — including structs ordered by a single field —
+take a plain comparison function, with no interface to implement.
 
-== Operations
+The public API is identical to `avl_tree` (plus the locking behavior
+below), so switching between the two is a package-name change.
 
-[cols="3,5,1",options="header"]
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and appear
+on pkg.go.dev.  The link:../avl_tree/[avl_tree README] documents the full API
+usage and recipes; they all apply unchanged.
+
+== Complexity
+
+Same as `avl_tree`:
+
+[options="header"]
 |===
-| Operation | Description | Complexity
+| Operation                                       | Complexity
 
-| `Insert` | Add an element; duplicates replace the old data | O(log n)
-| `Delete` | Remove an element; reports whether it was found | O(log n)
-| `Search` | Return the stored element equal to the probe, or nil | O(log n)
-| `FindMin` / `FindMax` | Return the smallest / largest element | O(log n)
-| `DeleteAtHead` / `DeleteAtTail` | Remove the smallest / largest element | O(log n)
-| `Index` | Return the Nth element in in-order sequence | O(n)
-| `IsEmpty` / `Length` / `Depth` | Tree size and height queries | O(1)
-| `Truncate` | Remove all elements | O(1)
-| `Reverse` | Mirror the tree (mainly useful for testing) | O(n)
-| `WalkInOrder` / `WalkPreOrder` / `WalkPostOrder` | Apply a function to every node | O(n)
-| `Copy` / `Union` / `Minus` / `Intersect` | Whole-tree set operations | O(n log n)
-| `Front` + `Next`/`Value`/`Done` | Old-style in-order iterator (snapshot) | O(n) total
-| `All` / `Backward` | Go 1.23 range-over-func iterators (snapshot) | O(n)
+| Insert / Delete / Search                        | O(log₂ n) worst case
+| FindMin / FindMax / DeleteAtHead / DeleteAtTail | O(log₂ n) worst case
+| Index                                           | O(n)
+| Depth / IsEmpty / Len / Length / Truncate       | O(1)
+| Walk* / WalkFunc / Dump                         | O(n)
+| All / Backward (full iteration)                 | O(n) — plus an O(n) snapshot
+| Copy / Union / Minus / Intersect                | O(n log₂ n)
 |===
+
+`Insert` returns `true` when a new node was added and `false` when a
+duplicate replaced the stored value.
+
+== Locking behavior
+
+* *Reads* (`Search`, `FindMin`, `FindMax`, `Index`, `Depth`, `Len`,
+`Length`, `IsEmpty`) take the read lock and release it before returning —
+they can run in parallel with each other.
+* *Writes* (`Insert`, `Delete`, `DeleteAtHead`, `DeleteAtTail`,
+`Reverse`, `Truncate`) take the write lock.
+* *`Front`, `All` and `Backward` operate on a snapshot* of the tree taken
+when they are called (under the read lock, released immediately after).
+It is safe to mutate the tree while iterating — including from inside the
+loop — and an iterator never observes modifications made after it was
+created.  The snapshot costs one O(n) copy.
+* *`WalkInOrder` / `WalkPreOrder` / `WalkPostOrder` and `Dump` hold the
+read lock for the whole traversal.*  Their callbacks must *not* call
+any method on the same tree — a write from a callback deadlocks on the
+lock, and even a read can deadlock if a writer is waiting.  If you need
+to mutate while visiting elements, iterate a snapshot with `All()`
+instead.
+
+[source,go]
+----
+for v := range tree.All() {
+    tree.Delete(v) // safe: All iterates a snapshot
+}
+----
+
+* *Set operations* (`Copy`, `Union`, `Minus`, `Intersect`) snapshot their
+operands under each operand's own read lock before taking the
+destination's write lock.  No two locks are ever held at once, so an
+operand may safely alias the destination or the other operand, and
+concurrent set operations cannot deadlock against each other.  The
+result is ordered by the destination's comparison function; a zero-value
+destination adopts an operand's.
+
+== Panics
+
+Identical to `avl_tree` — the package panics in exactly three situations,
+all programmer errors with no sane fallback:
+
+[options="header"]
+|===
+| Call | Why 
+
+| `NewAvlTreeFunc(nil)` | nil comparison function, caught at construction time 
+| `Insert` on a nil `*AvlTree` | a nil tree cannot store an element 
+| `Insert` on a zero-value tree | no comparison function; the message names the constructors 
+|===
+
+Everything else tolerates a nil tree and the zero value as an empty tree
+(the zero value of `sync.RWMutex` is a working lock), including nil
+operands to the set operations, which act as the empty set.
 
 == Usage
 
@@ -43,65 +109,59 @@ The element type `T` must implement `comparable.Comparable` (a
 package main
 
 import (
-	"fmt"
+    "fmt"
+    "sync"
 
-	"github.com/pschlump/pluto/avl_tree_ts"
-	"github.com/pschlump/pluto/comparable"
+    "github.com/pschlump/charon/avl_tree_ts"
 )
 
-type Key struct {
-	S string
-}
-
-// Compare implements comparable.Comparable.
-func (a Key) Compare(x comparable.Comparable) int {
-	b := x.(Key)
-	if a.S < b.S {
-		return -1
-	} else if a.S > b.S {
-		return 1
-	}
-	return 0
-}
-
 func main() {
-	var tree avl_tree_ts.AvlTree[Key]
+    tree := avl_tree_ts.NewAvlTree[int]()
 
-	tree.Insert(&Key{S: "05"})
-	tree.Insert(&Key{S: "02"})
-	tree.Insert(&Key{S: "09"})
+    // Writers from many goroutines share one tree.
+    var wg sync.WaitGroup
+    for w := 0; w < 8; w++ {
+        wg.Add(1)
+        go func(w int) {
+            defer wg.Done()
+            for i := 0; i < 100; i++ {
+                tree.Insert(w*1000 + i)
+            }
+        }(w)
+    }
+    wg.Wait()
+    fmt.Println(tree.Len()) // 800
 
-	if found := tree.Search(&Key{S: "02"}); found != nil {
-		fmt.Println("found:", found.S)
-	}
-
-	// In-order (sorted) iteration over a consistent snapshot.
-	for item := range tree.All() {
-		fmt.Println(item.S)
-	}
-
-	tree.Delete(&Key{S: "05"})
+    // Deleting from inside an All loop is safe: it iterates a snapshot.
+    for v := range tree.All() {
+        tree.Delete(v)
+    }
+    fmt.Println(tree.IsEmpty()) // true
 }
 ----
 
-== Thread Safety
+== Differences from pluto/avl_tree_ts
 
-All public operations take the appropriate read or write lock, so the tree
-may be shared freely between goroutines.  Two caveats:
+* The `comparable.Comparable` interface constraint is gone: ordering is
+either the key type's built-in operators (`NewAvlTree`) or a caller
+supplied function (`NewAvlTreeFunc`).  No boxing of elements, no dynamic
+dispatch, no type assertions inside `Compare` methods.
+* Elements are stored and returned by value.  Find-style operations return
+`(T, bool)` instead of a nil-able `*T`; snapshots are `[]T`, not `[]*T`.
+* `Insert` reports whether a new node was added (`true`) or a duplicate
+replaced the old value (`false`); the pluto version returns nothing.
+* `Len` is available as an alias for `Length`, matching the other charon
+tree packages.
+* A nil `*AvlTree` behaves as an empty tree for every operation except
+`Insert`; pluto panics with a generic message on most methods called on
+a nil tree.
+* The only panics are the three listed above, each with a message naming
+the fix.
+* The `Walk*` callbacks capture state in closures instead of receiving an
+`interface{}` `userData` parameter.
+* The set operations adopt an operand's comparison function into a
+zero-value destination, and snapshot the operands' comparison functions
+under the operand's own read lock so concurrent adoption is race-free.
+* No dependency on `pluto/g_lib` or `pluto/stack`: the rotations use the
+builtin `max` and the iterators walk plain slices.
 
-- *Iteration is snapshot-based.*  `Front()`, `All()` and `Backward()` take
-  a consistent snapshot of the tree data under the read lock, then iterate
-  over the snapshot without holding the lock.  Concurrent modifications made
-  after the snapshot is taken are not reflected in the iteration, and the
-  loop body never runs under the lock.
-- *Walk callbacks run under a read lock.*  The `fx` callback passed to
-  `WalkInOrder`/`WalkPreOrder`/`WalkPostOrder` is invoked while the tree's
-  read lock is held.  The callback must not call back into the same tree, or
-  it will deadlock.
-- `Copy`/`Union`/`Minus`/`Intersect` snapshot their sources under the source
-  trees' read locks before modifying the destination, so the destination may
-  safely alias a source (`t.Union(t, other)` is fine).
-
-== License
-
-Copyright (C) Philip Schlump, 2012-2021.  BSD 3 Clause Licensed.

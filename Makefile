@@ -1,44 +1,39 @@
-# Pluto - generic data structures for Go.
-#
-# Each subdirectory is a package in the github.com/pschlump/pluto module.
+# charon - data structures with pure type-parameter constraints (no interface boxing).
 
-.PHONY: build test race cover bench lint tidy vet clean
+.DEFAULT_GOAL := build
 
-## build: compile all packages
+.PHONY: build
 build:
 	go build ./...
 
-## vet: run go vet across all packages
+.PHONY: vet
 vet:
 	go vet ./...
 
-## test: run all unit tests
+.PHONY: test
 test:
 	go test ./... -count=1
 
-## race: run all tests with the race detector
+.PHONY: race
 race:
 	go test -race -count=1 ./...
 
-## cover: run tests and report per-package coverage
+.PHONY: cover
 cover:
-	go test -cover -count=1 ./...
+	go test -coverprofile=coverage.out ./...
 
-## bench: run all benchmarks
+.PHONY: bench
 bench:
 	go test -run='^$$' -bench=. -benchmem ./...
 
-## lint: run golangci-lint
+.PHONY: lint
 lint:
 	golangci-lint run ./...
 
-## tidy: tidy and verify module dependencies
+.PHONY: tidy
 tidy:
 	go mod tidy
 
-## clean: remove build and coverage artefacts
+.PHONY: clean
 clean:
 	rm -f coverage.out
-	find . -name '*.test' -delete
-
-.DEFAULT_GOAL := build

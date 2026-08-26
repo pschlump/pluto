@@ -1,77 +1,176 @@
-// Package avl_tree_ts implements a generic AVL self-balancing binary search
-// tree that is safe for concurrent use.  All operations are guarded by an
-// internal sync.RWMutex.
+/*
+Copyright (C) Philip Schlump, 2012-2026.
+
+BSD 3 Clause Licensed.
+*/
+
+// Package avl_tree_ts implements a generic AVL self-balancing binary
+// search tree that is safe for concurrent use.  It is the thread-safe
+// twin of github.com/pschlump/charon/avl_tree — the same API, guarded by
+// a sync.RWMutex.
 //
 // An AVL tree keeps the heights of the two child subtrees of every node
-// within one of each other, so Insert, Delete and Search are all O(log n).
+// within one of each other, so Insert, Delete and Search are O(log₂ n)
+// even in the worst case — regardless of insertion order.  Every node
+// caches its subtree height, so Depth is O(1).
 //
-// Basic operations:
+// Concurrency model:
 //
-//	Insert - add a new element to the tree (duplicates replace the old data).	O(log2(n))
-//	Delete - remove an element from the tree.					O(log2(n))
-//	Search - return the stored element equal to the probe, or nil.			O(log2(n))
-//	FindMin - return the smallest element in the tree.				O(log2(n))
-//	FindMax - return the largest element in the tree.				O(log2(n))
-//	DeleteAtHead - remove the smallest element (Delete(FindMin())).			O(log2(n))
-//	DeleteAtTail - remove the largest element (Delete(FindMax())).			O(log2(n))
-//	Index - return the Nth element in in-order sequence.				O(n)
-//	IsEmpty - report whether the tree is empty.					O(1)
-//	Length - return the number of elements in the tree.				O(1)
-//	Depth - return the height of the tree (longest root-to-leaf path).		O(1)
-//	Truncate - remove all elements from the tree.					O(1)
-//	Reverse - mirror the tree (swaps ordering; mainly useful for testing).		O(n)
-//	WalkInOrder/WalkPreOrder/WalkPostOrder - apply a function to every node.	O(n)
-//	Copy/Union/Minus/Intersect - whole-tree set operations.				O(n log2(n))
-//	All/Backward - Go 1.23 range-over-func iterators over a snapshot of the tree.	O(n)
+//	Reads (Search, FindMin, FindMax, Index, Depth, Len, Length, IsEmpty)
+//	take the read lock and release it before returning, so they run in
+//	parallel with each other.
+//	Writes (Insert, Delete, DeleteAtHead, DeleteAtTail, Reverse, Truncate)
+//	take the write lock.
+//	Front, All and Backward operate on a snapshot taken when they are
+//	called (one O(n) copy, under the read lock), so they are safe to use
+//	concurrently with any tree operation — including mutating the tree
+//	from inside the loop — and never observe later modifications.
+//	The Walk* functions and Dump hold the read lock for the whole
+//	traversal; their callbacks must not call methods on the same tree, or
+//	the call can deadlock.  To visit elements while mutating, iterate a
+//	snapshot with All instead.
+//	The set operations (Copy, Union, Minus, Intersect) snapshot their
+//	operands under each operand's own read lock before taking the
+//	destination's write lock, so no two locks are ever held at once and an
+//	operand may safely alias the destination or the other operand.
 //
-// This is the thread-safe version of github.com/pschlump/pluto/avl_tree; both
-// packages expose the identical API.  Note that the Walk* callbacks are invoked
-// while holding a read lock, so they must not call back into the same tree.
-// The iterators (Front/All/Backward) operate on a consistent snapshot taken
-// under the read lock.
+// Like every charon package it is a rework of its pluto counterpart
+// (github.com/pschlump/pluto/avl_tree_ts) in which the
+// comparable.Comparable interface constraint has been replaced with plain
+// Go type parameters.  Elements are stored and returned by value and
+// ordering is a direct function call, so element data is never boxed into
+// an interface and never unboxed with a type assertion.  Trees of
+// naturally ordered key types (all integers, floats and strings) are
+// created with NewAvlTree, which orders elements with the built-in < and
+// > operators of the key type; trees of any other type — including
+// structs ordered by a single field — are created with NewAvlTreeFunc,
+// which takes a caller supplied comparison function; the element type
+// does not have to implement any interface.
 //
-// Copyright (C) Philip Schlump, 2012-2021.
-// BSD 3 Clause Licensed.
+// Basic operations on an Avl Tree:
+//
+//	Insert — create a new element in the tree; a duplicate replaces the existing element.
+//	Delete — delete a specified element from the tree (elements can be found via Search).
+//	Search — return the given element from the tree.
+//	Index — return the Nth element of the tree in in-order order.
+//	IsEmpty — report whether the tree is empty.
+//	Len / Length — number of elements in the tree; 0 is an empty tree.
+//	Reverse — swap the left and right children of every node in the tree.
+//	Truncate — delete all the nodes in the tree.
+//	FindMin / FindMax — return the smallest / largest element in the tree.
+//	DeleteAtHead — delete the smallest element of the tree.
+//	DeleteAtTail — delete the largest element of the tree.
+//	Depth — number of levels in the deepest part of the tree.
+//	WalkInOrder / WalkPreOrder / WalkPostOrder — callback-based traversals.
+//	Copy / Union / Minus / Intersect — whole-tree set operations.
+//	Front — old-style in-order iterator (operates on a snapshot).
+//	All / Backward — range-over-func iterators (operate on a snapshot).
+//
+// A nil *AvlTree and the zero value both behave as an empty tree for
+// every operation except Insert: Search finds nothing, Delete,
+// DeleteAtHead and DeleteAtTail return false, FindMin, FindMax and Index
+// report not-found, Len and Depth are 0, and the walks and iterators
+// visit nothing.
+//
+// The package panics in exactly three situations, all programmer errors
+// that cannot be handled where they occur:
+//
+//	NewAvlTreeFunc(nil)          — nil comparison function, caught at construction.
+//	Insert on a nil tree         — a nil tree cannot store an element.
+//	Insert on a zero-value tree  — no comparison function; the message names the constructors.
 package avl_tree_ts
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"strings"
 	"sync"
-
-	"github.com/pschlump/pluto/comparable"
-	"github.com/pschlump/pluto/g_lib"
 )
 
 // AvlTreeElement is a node of an AvlTree.
-type AvlTreeElement[T comparable.Comparable] struct {
-	data        *T
+type AvlTreeElement[T any] struct {
+	data        T
 	height      int
 	left, right *AvlTreeElement[T]
 }
 
-// AvlTree is a generic AVL balanced binary tree that is balanced using the
-// AVL rotation system.  It is safe for concurrent use.
-type AvlTree[T comparable.Comparable] struct {
+// AvlTree is a generic AVL balanced binary tree that is safe for
+// concurrent use.  Use NewAvlTree for naturally ordered key types
+// (numbers, strings) or NewAvlTreeFunc for a caller supplied comparison
+// function.  The zero value is an empty tree.
+type AvlTree[T any] struct {
 	root   *AvlTreeElement[T]
 	length int
 	lock   sync.RWMutex
+
+	// cmp orders two elements: negative if a sorts before b, 0 if the two
+	// are duplicates, positive if a sorts after b.  It is set by the
+	// constructors and is the only thing that knows how to order T — T
+	// itself never has to implement an interface.
+	cmp func(a, b T) int
 }
 
 // -------------------------------------------------------------------------------------------------------
 
+// Compare returns -1 if a < b, +1 if a > b and 0 if a == b, using the
+// built-in ordering of any cmp.Ordered type (all integers, floats and
+// strings).  It is the comparison function installed by NewAvlTree and
+// is handy for building custom comparison functions.
+func Compare[T cmp.Ordered](a, b T) int {
+	switch {
+	case a < b:
+		return -1
+	case b < a:
+		return 1
+	default:
+		return 0
+	}
+}
+
+// NewAvlTree creates a new AvlTree for any naturally ordered key type
+// (all integers, floats and strings — cmp.Ordered).  Ordering uses the
+// built-in < and > operators of T; no interface and no boxing is
+// involved.
+// Complexity is O(1).
+func NewAvlTree[T cmp.Ordered]() *AvlTree[T] {
+	return &AvlTree[T]{cmp: Compare[T]}
+}
+
+// NewAvlTreeFunc creates a new AvlTree that orders elements with the
+// caller supplied comparison function fx.  fx must return a negative
+// value if a sorts before b, 0 if the two are duplicates and a positive
+// value if a sorts after b, and must order elements consistently.  This
+// lets any type — for example a struct ordered by one of its fields — be
+// stored without implementing any interface.
+// Complexity is O(1).
+func NewAvlTreeFunc[T any](fx func(a, b T) int) *AvlTree[T] {
+	if fx == nil {
+		panic("avl_tree_ts: NewAvlTreeFunc called with a nil comparison function")
+	}
+	return &AvlTree[T]{cmp: fx}
+}
+
+// compare orders a and b, guarding against a zero-value tree that was not
+// created by one of the constructors.  The caller must hold the lock.
+func (tt *AvlTree[T]) compare(a, b T) int {
+	if tt.cmp == nil {
+		panic("avl_tree_ts: no comparison function (create the tree with NewAvlTree or NewAvlTreeFunc)")
+	}
+	return tt.cmp(a, b)
+}
+
 // NewAvlTreeElement creates a new tree node holding `x`.
 // Complexity is O(1).
-func NewAvlTreeElement[T comparable.Comparable](x *T) *AvlTreeElement[T] {
+func NewAvlTreeElement[T any](x T) *AvlTreeElement[T] {
 	return &AvlTreeElement[T]{
 		data:   x,
 		height: 1,
 	}
 }
 
-// Height returns the saved height of the node `e` (0 for a nil node).  The
-// height is re-calculated as the tree is modified.
+// Height returns the saved height of the node `e` (0 for a nil node).
+// The height is re-calculated as the tree is modified.
 // Complexity is O(1).
 func (tt *AvlTree[T]) Height(e *AvlTreeElement[T]) int {
 	if e == nil {
@@ -80,9 +179,9 @@ func (tt *AvlTree[T]) Height(e *AvlTreeElement[T]) int {
 	return e.height
 }
 
-// calcAvlBalance returns the difference in height between the left and right
-// subtrees of `e`.  When the absolute value exceeds 1 the subtree is rotated
-// to restore balance.
+// calcAvlBalance returns the difference in height between the left and
+// right subtrees of `e`.  When the absolute value exceeds 1 the subtree is
+// rotated to restore balance.
 // Complexity is O(1).
 func (tt *AvlTree[T]) calcAvlBalance(e *AvlTreeElement[T]) int {
 	if e == nil {
@@ -91,15 +190,9 @@ func (tt *AvlTree[T]) calcAvlBalance(e *AvlTreeElement[T]) int {
 	return tt.Height(e.left) - tt.Height(e.right)
 }
 
-// NewAvlTree creates a new empty AvlTree and returns it.
-// Complexity is O(1).
-func NewAvlTree[T comparable.Comparable]() *AvlTree[T] {
-	return &AvlTree[T]{}
-}
-
 // GetData returns the user data from the AVL tree node.
 // Complexity is O(1).
-func (ee *AvlTreeElement[T]) GetData() *T {
+func (ee *AvlTreeElement[T]) GetData() T {
 	return ee.data
 }
 
@@ -108,25 +201,33 @@ func (ee *AvlTreeElement[T]) GetData() *T {
 // IsEmpty returns true if the tree is empty.
 // Complexity is O(1).
 func (tt *AvlTree[T]) IsEmpty() bool {
+	if tt == nil {
+		return true
+	}
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 	return tt.nlIsEmpty()
 }
 
-// nlIsEmpty is the no-lock internal version of IsEmpty.
+// nlIsEmpty is IsEmpty without locking; the caller must hold the lock.
 func (tt *AvlTree[T]) nlIsEmpty() bool {
 	return tt.root == nil
 }
 
-// Truncate removes all data from the tree.
+// Truncate removes all data from the tree.  The comparison function is
+// kept, so the tree remains usable and can simply be refilled.
 // Complexity is O(1).
 func (tt *AvlTree[T]) Truncate() {
+	if tt == nil {
+		return
+	}
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
 	tt.nlTruncate()
 }
 
-// nlTruncate is the no-lock internal version of Truncate.
+// nlTruncate is Truncate without locking; the caller must hold the write
+// lock.
 func (tt *AvlTree[T]) nlTruncate() {
 	tt.root = nil
 	tt.length = 0
@@ -139,8 +240,8 @@ Rotations used to rebalance the tree after Insert and Delete.
 Let the newly inserted (or deleted) node be w.
 1) Perform the standard BST insert/delete for w.
 2) Starting from w, travel up and find the first unbalanced node.  Let z be
-   the first unbalanced node, y the child of z on the path from w to z, and x
-   the grandchild of z on the path from w to z.
+   the first unbalanced node, y the child of z on the path from w to z, and
+   x the grandchild of z on the path from w to z.
 3) Re-balance the tree by performing the appropriate rotation on the subtree
    rooted with z.  There are 4 possible cases:
 
@@ -173,7 +274,7 @@ b) Left Right Case
 
 c) Right Right Case
 
-	z                                y
+		z                                y
 	 /  \                            /   \
 	T1   y     Left Rotate(z)       z      x
 	    /  \   - - - - - - - ->    / \    / \
@@ -193,36 +294,37 @@ d) Right Left Case
 */
 
 // rotateRight performs a right rotation about z and returns the new subtree
-// root (the old left child of z).
+// root (the old left child of z).  The caller must hold the lock.
 func (tt *AvlTree[T]) rotateRight(z *AvlTreeElement[T]) *AvlTreeElement[T] {
 	y := z.left
 	z.left = y.right
 	y.right = z
-	z.height = g_lib.Max(tt.Height(z.left), tt.Height(z.right)) + 1
-	y.height = g_lib.Max(tt.Height(y.left), tt.Height(y.right)) + 1
+	z.height = max(tt.Height(z.left), tt.Height(z.right)) + 1
+	y.height = max(tt.Height(y.left), tt.Height(y.right)) + 1
 	return y
 }
 
 // rotateLeft performs a left rotation about z and returns the new subtree
-// root (the old right child of z).
+// root (the old right child of z).  The caller must hold the lock.
 func (tt *AvlTree[T]) rotateLeft(z *AvlTreeElement[T]) *AvlTreeElement[T] {
 	y := z.right
 	z.right = y.left
 	y.left = z
-	z.height = g_lib.Max(tt.Height(z.left), tt.Height(z.right)) + 1
-	y.height = g_lib.Max(tt.Height(y.left), tt.Height(y.right)) + 1
+	z.height = max(tt.Height(z.left), tt.Height(z.right)) + 1
+	y.height = max(tt.Height(y.left), tt.Height(y.right)) + 1
 	return y
 }
 
 // rebalanceNode recomputes the height of *root and, if the subtree rooted
-// there is out of balance, performs the rotation (single or double) required
-// to restore the AVL height invariant.
+// there is out of balance, performs the rotation (single or double)
+// required to restore the AVL height invariant.  The caller must hold the
+// lock.
 func (tt *AvlTree[T]) rebalanceNode(root **AvlTreeElement[T]) {
 	z := *root
 	if z == nil {
 		return
 	}
-	z.height = g_lib.Max(tt.Height(z.left), tt.Height(z.right)) + 1
+	z.height = max(tt.Height(z.left), tt.Height(z.right)) + 1
 	switch b := tt.calcAvlBalance(z); {
 	case b > 1:
 		// Left heavy: Left Right case if the left child is right heavy.
@@ -239,70 +341,93 @@ func (tt *AvlTree[T]) rebalanceNode(root **AvlTreeElement[T]) {
 	}
 }
 
-// Insert will add a new item to the tree.  If it is a duplicate of an existing
-// item the new item will replace the existing one.
-// Complexity is O(log2(n)).
-func (tt *AvlTree[T]) Insert(item *T) {
+// Insert will add a new item to the tree.  If it is a duplicate of an
+// existing item the new item will replace the existing one in place and
+// false is returned; true is returned when a new node was added.
+// Insert panics on a nil tree or on a zero-value tree (no comparison
+// function); these are the only panics on non-constructor calls in the
+// package — every other operation treats both as an empty tree.
+// Complexity is O(log₂ n).
+func (tt *AvlTree[T]) Insert(item T) (vv bool) {
 	if tt == nil {
-		panic("operation on a nil tree")
+		panic("avl_tree_ts: Insert called on a nil tree")
 	}
 
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
 
-	tt.nlInsert(item)
+	if tt.cmp == nil {
+		panic("avl_tree_ts: Insert called on a tree with no comparison function (create the tree with NewAvlTree or NewAvlTreeFunc)")
+	}
+	return tt.nlInsert(item)
 }
 
-// nlInsert is the no-lock internal version of Insert.
-func (tt *AvlTree[T]) nlInsert(item *T) {
-
-	node := NewAvlTreeElement[T](item)
+// nlInsert is Insert without locking; the caller must hold the write lock
+// and tt.cmp must be non-nil.
+func (tt *AvlTree[T]) nlInsert(item T) (vv bool) {
+	node := NewAvlTreeElement(item)
 	if tt.nlIsEmpty() {
 		tt.root = node
 		tt.length = 1
-		return
+		return true
 	}
 
 	// Recursive insert with AVL rebalancing on the way back up.
-	var insert func(root **AvlTreeElement[T])
-	insert = func(root **AvlTreeElement[T]) {
+	var insert func(root **AvlTreeElement[T]) bool
+	insert = func(root **AvlTreeElement[T]) bool {
 		if *root == nil {
 			*root = node
 			tt.length++
-			return
+			return true
 		}
-		if c := (*item).Compare(*((*root).data)); c == 0 {
-			// Replace duplicate node with new node, keeping children/height.
-			node.left = (*root).left
-			node.right = (*root).right
-			node.height = (*root).height
-			*root = node
-			return
+		if c := tt.cmp(item, (*root).data); c == 0 {
+			// Duplicate: replace the stored value in place, keeping the
+			// children and the height so the tree shape does not change.
+			(*root).data = item
+			return false
 		} else if c < 0 {
-			insert(&((*root).left))
+			vv = insert(&(*root).left)
 		} else {
-			insert(&((*root).right))
+			vv = insert(&(*root).right)
 		}
 		tt.rebalanceNode(root)
+		return vv
 	}
 
-	insert(&(tt.root))
+	return insert(&tt.root)
 }
 
-// Length returns the number of elements in the tree.
+// Len returns the number of elements in the tree.
 // Complexity is O(1).
-func (tt *AvlTree[T]) Length() int {
+func (tt *AvlTree[T]) Len() int {
+	if tt == nil {
+		return 0
+	}
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 	return tt.length
 }
 
-// Search walks the tree looking for `find` and returns the found item if it
-// is in the tree.  If it is not found then nil is returned.
-// Complexity is O(log2(n)).
-func (tt *AvlTree[T]) Search(find *T) (item *T) {
+// Length is an alias for Len; it returns the number of elements in the
+// tree.
+// Complexity is O(1).
+func (tt *AvlTree[T]) Length() int {
 	if tt == nil {
-		panic("operation on a nil tree")
+		return 0
+	}
+	tt.lock.RLock()
+	defer tt.lock.RUnlock()
+	return tt.length
+}
+
+// Search walks the tree looking for `find` and returns the found item from
+// the tree.  If it is not found then false is returned.  `find` only needs
+// the fields that the tree's comparison function reads: a probe with just
+// the key fields set finds the element with the full data.
+// Complexity is O(log₂ n).
+func (tt *AvlTree[T]) Search(find T) (item T, found bool) {
+	if tt == nil {
+		return
 	}
 
 	tt.lock.RLock()
@@ -311,13 +436,13 @@ func (tt *AvlTree[T]) Search(find *T) (item *T) {
 	return tt.nlSearch(find)
 }
 
-// nlSearch is the no-lock internal version of Search.
-func (tt *AvlTree[T]) nlSearch(find *T) (item *T) {
+// nlSearch is Search without locking; the caller must hold the lock.
+func (tt *AvlTree[T]) nlSearch(find T) (item T, found bool) {
 	cur := tt.root
 	for cur != nil {
-		c := (*find).Compare(*cur.data)
+		c := tt.compare(find, cur.data)
 		if c == 0 {
-			return cur.data
+			return cur.data, true
 		}
 		if c < 0 {
 			cur = cur.left
@@ -325,12 +450,20 @@ func (tt *AvlTree[T]) nlSearch(find *T) (item *T) {
 			cur = cur.right
 		}
 	}
-	return nil
+	return
 }
 
-// Dump prints the tree to the writer `fo`.
+// Dump writes one line per element to `fo`: an in-order traversal indented
+// by depth, including the left/right child pointers.  It is a debugging
+// aid; use All, Backward or the Walk* functions to process the data.  The
+// read lock is held for the whole dump, so `fo` must not call methods on
+// the same tree.
 // Complexity is O(n).
 func (tt *AvlTree[T]) Dump(fo io.Writer) {
+	if tt == nil {
+		return
+	}
+
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 
@@ -344,7 +477,7 @@ func (tt *AvlTree[T]) Dump(fo io.Writer) {
 			inorderTraversal(cur.left, n+1)
 		}
 		if _, err := fmt.Fprintf(fo, "%s%v%s (left=%p/%p, right=%p/%p) self=%p\n",
-			strings.Repeat(" ", 4*n), *(cur.data), strings.Repeat(" ", k-(4*n)),
+			strings.Repeat(" ", 4*n), cur.data, strings.Repeat(" ", k-(4*n)),
 			cur.left, &(cur.left), cur.right, &(cur.right), cur); err != nil {
 			return // stop the dump on write error
 		}
@@ -355,26 +488,27 @@ func (tt *AvlTree[T]) Dump(fo io.Writer) {
 	inorderTraversal(tt.root, 0)
 }
 
-// Delete removes the node matching `find` from the tree.  True is returned if
-// a node was removed, false otherwise.
-// Complexity is O(log2(n)).
-func (tt *AvlTree[T]) Delete(find *T) (found bool) {
+// Delete removes the node matching `find` from the tree.  True is returned
+// if a node was removed, false otherwise.  As with Search, `find` only
+// needs the fields that the comparison function reads.
+// Complexity is O(log₂ n).
+func (tt *AvlTree[T]) Delete(find T) (found bool) {
 	if tt == nil {
-		panic("operation on a nil tree")
+		return false
 	}
 
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
 
-	return tt.nlDelete(find)
-}
-
-// nlDelete is the no-lock internal version of Delete.
-func (tt *AvlTree[T]) nlDelete(find *T) (found bool) {
-
 	if tt.nlIsEmpty() {
 		return false
 	}
+	return tt.nlDelete(find)
+}
+
+// nlDelete is Delete without locking; the caller must hold the write lock
+// and the tree must be non-empty.
+func (tt *AvlTree[T]) nlDelete(find T) (found bool) {
 
 	// Recursive delete with AVL rebalancing on the way back up.
 	var delete func(root **AvlTreeElement[T])
@@ -382,11 +516,11 @@ func (tt *AvlTree[T]) nlDelete(find *T) (found bool) {
 		if *root == nil {
 			return // not found
 		}
-		c := (*find).Compare(*((*root).data))
+		c := tt.compare(find, (*root).data)
 		if c < 0 {
-			delete(&((*root).left))
+			delete(&(*root).left)
 		} else if c > 0 {
-			delete(&((*root).right))
+			delete(&(*root).right)
 		} else {
 			found = true
 			tt.length--
@@ -407,28 +541,28 @@ func (tt *AvlTree[T]) nlDelete(find *T) (found bool) {
 						m.right = nil
 						return m
 					}
-					rv := removeMin(&((*r).left))
+					rv := removeMin(&(*r).left)
 					tt.rebalanceNode(r)
 					return rv
 				}
 				succ := removeMin(&(n.right))
 				succ.left, succ.right, succ.height = n.left, n.right, n.height
 				*root = succ
-				n.left, n.right, n.data = nil, nil, nil // release the old node
 			}
 		}
 		tt.rebalanceNode(root)
 	}
 
-	delete(&(tt.root))
+	delete(&tt.root)
 	return
 }
 
-// FindMin returns the smallest value in the tree, or nil if the tree is empty.
-// Complexity is O(log2(n)).
-func (tt *AvlTree[T]) FindMin() (item *T) {
+// FindMin returns the smallest value in the tree, or false if the tree is
+// empty.
+// Complexity is O(log₂ n).
+func (tt *AvlTree[T]) FindMin() (item T, found bool) {
 	if tt == nil {
-		panic("operation on a nil tree")
+		return
 	}
 
 	tt.lock.RLock()
@@ -437,23 +571,24 @@ func (tt *AvlTree[T]) FindMin() (item *T) {
 	return tt.nlFindMin()
 }
 
-// nlFindMin is the no-lock internal version of FindMin.
-func (tt *AvlTree[T]) nlFindMin() (item *T) {
+// nlFindMin is FindMin without locking; the caller must hold the lock.
+func (tt *AvlTree[T]) nlFindMin() (item T, found bool) {
 	cur := tt.root
 	if cur == nil {
-		return nil
+		return
 	}
 	for cur.left != nil {
 		cur = cur.left
 	}
-	return cur.data
+	return cur.data, true
 }
 
-// FindMax returns the largest value in the tree, or nil if the tree is empty.
-// Complexity is O(log2(n)).
-func (tt *AvlTree[T]) FindMax() (item *T) {
+// FindMax returns the largest value in the tree, or false if the tree is
+// empty.
+// Complexity is O(log₂ n).
+func (tt *AvlTree[T]) FindMax() (item T, found bool) {
 	if tt == nil {
-		panic("operation on a nil tree")
+		return
 	}
 
 	tt.lock.RLock()
@@ -462,24 +597,24 @@ func (tt *AvlTree[T]) FindMax() (item *T) {
 	return tt.nlFindMax()
 }
 
-// nlFindMax is the no-lock internal version of FindMax.
-func (tt *AvlTree[T]) nlFindMax() (item *T) {
+// nlFindMax is FindMax without locking; the caller must hold the lock.
+func (tt *AvlTree[T]) nlFindMax() (item T, found bool) {
 	cur := tt.root
 	if cur == nil {
-		return nil
+		return
 	}
 	for cur.right != nil {
 		cur = cur.right
 	}
-	return cur.data
+	return cur.data, true
 }
 
-// DeleteAtHead removes the smallest element of the tree, returning false if
-// the tree is empty.
-// Complexity is O(log2(n)).
+// DeleteAtHead removes the smallest element of the tree, returning false
+// if the tree is empty.
+// Complexity is O(log₂ n).
 func (tt *AvlTree[T]) DeleteAtHead() (found bool) {
 	if tt == nil {
-		panic("operation on a nil tree")
+		return false
 	}
 
 	tt.lock.Lock()
@@ -489,17 +624,17 @@ func (tt *AvlTree[T]) DeleteAtHead() (found bool) {
 		return false
 	}
 
-	x := tt.nlFindMin()
+	x, _ := tt.nlFindMin()
 	tt.nlDelete(x)
 	return true
 }
 
 // DeleteAtTail removes the largest element of the tree, returning false if
 // the tree is empty.
-// Complexity is O(log2(n)).
+// Complexity is O(log₂ n).
 func (tt *AvlTree[T]) DeleteAtTail() (found bool) {
 	if tt == nil {
-		panic("operation on a nil tree")
+		return false
 	}
 
 	tt.lock.Lock()
@@ -509,22 +644,26 @@ func (tt *AvlTree[T]) DeleteAtTail() (found bool) {
 		return false
 	}
 
-	x := tt.nlFindMax()
+	x, _ := tt.nlFindMax()
 	tt.nlDelete(x)
 	return true
 }
 
 // Reverse swaps the left and right children of every node, mirroring the
-// tree.  This is a strange but useful operation since it renders the tree
-// unusable for future inserts/searches unless it is reversed again.
+// tree.  After a Reverse the tree is no longer ordered by its comparison
+// function until it is reversed again.
 // Complexity is O(n).
 func (tt *AvlTree[T]) Reverse() {
 	if tt == nil {
-		panic("operation on a nil tree")
+		return
 	}
 
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
+
+	if tt.nlIsEmpty() {
+		return
+	}
 
 	var postTraversal func(cur *AvlTreeElement[T])
 	postTraversal = func(cur *AvlTreeElement[T]) {
@@ -538,35 +677,37 @@ func (tt *AvlTree[T]) Reverse() {
 	postTraversal(tt.root)
 }
 
-// Index returns the Nth item of the tree in in-order sequence, or nil if pos
-// is out of range.
+// Index returns the `pos`-th element of the tree in in-order order, or
+// false if `pos` is out of range.
 // Complexity is O(n).
-func (tt *AvlTree[T]) Index(pos int) (item *T) {
+func (tt *AvlTree[T]) Index(pos int) (item T, found bool) {
 	if tt == nil {
-		panic("operation on a nil tree")
+		return
 	}
 
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 
+	if tt.nlIsEmpty() {
+		return
+	}
 	if pos < 0 || pos >= tt.length {
-		return nil
+		return
 	}
 
 	var n = 0
-	var done = false
 	var inorderTraversal func(cur *AvlTreeElement[T])
 	inorderTraversal = func(cur *AvlTreeElement[T]) {
-		if cur == nil || done {
+		if cur == nil || found {
 			return
 		}
 		inorderTraversal(cur.left)
 		if n == pos {
 			item = cur.data
-			done = true
+			found = true
 		}
 		n++
-		if !done {
+		if !found {
 			inorderTraversal(cur.right)
 		}
 	}
@@ -576,10 +717,10 @@ func (tt *AvlTree[T]) Index(pos int) (item *T) {
 
 // Depth returns the height of the tree: the number of nodes on the longest
 // root-to-leaf path.  An empty tree has depth 0, a single node depth 1.
-// Complexity is O(1).
-func (tt *AvlTree[T]) Depth() (d int) {
+// Complexity is O(1) — every node caches its subtree height.
+func (tt *AvlTree[T]) Depth() int {
 	if tt == nil {
-		panic("operation on a nil tree")
+		return 0
 	}
 
 	tt.lock.RLock()
@@ -588,33 +729,31 @@ func (tt *AvlTree[T]) Depth() (d int) {
 	return tt.nlDepth()
 }
 
-// nlDepth is the no-lock internal version of Depth.
+// nlDepth is Depth without locking; the caller must hold the lock.
 func (tt *AvlTree[T]) nlDepth() (d int) {
 	return tt.Height(tt.root)
 }
 
-// ApplyFunction is the callback type used by the Walk* functions.  It is
-// called with the in-walk position, the depth of the node, the node data and
-// the userData passed to the walk.  Returning false stops the walk.
-type ApplyFunction[T comparable.Comparable] func(pos, depth int, data *T, userData interface{}) bool
+// ApplyFunction is the callback type used by the Walk* functions.  `pos` is
+// the ordinal position of the element in the walk order and `depth` is the
+// depth of the node in the tree (root is 0).  Returning false stops the
+// walk.  Caller state is captured in a closure, so it keeps its static
+// type and is never boxed.
+type ApplyFunction[T any] func(pos, depth int, data T) bool
 
-// WalkInOrder walks the tree in-order applying `fx` to each node.  If `fx`
-// returns false the walk stops.  `fx` is called while holding a read lock and
-// must not call back into the same tree.
+// WalkInOrder visits every element in in-order (ascending) order.
+// Returning false from fx stops the walk.  The read lock is held for the
+// whole walk: fx must not call methods on the same tree, or the call can
+// deadlock.
 // Complexity is O(n).
-func (tt *AvlTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) {
+func (tt *AvlTree[T]) WalkInOrder(fx ApplyFunction[T]) {
 	if tt == nil {
-		panic("operation on a nil tree")
+		return
 	}
 
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 
-	tt.nlWalkInOrder(fx, userData)
-}
-
-// nlWalkInOrder is the no-lock internal version of WalkInOrder.
-func (tt *AvlTree[T]) nlWalkInOrder(fx ApplyFunction[T], userData interface{}) {
 	p := 0
 	b := true
 	var inorderTraversal func(cur *AvlTreeElement[T], n int)
@@ -625,10 +764,12 @@ func (tt *AvlTree[T]) nlWalkInOrder(fx ApplyFunction[T], userData interface{}) {
 		if b {
 			inorderTraversal(cur.left, n+1)
 		}
+		// ----------------------------------------------------------------------
 		if b {
-			b = fx(p, n, cur.data, userData)
+			b = fx(p, n, cur.data)
 			p++
 		}
+		// ----------------------------------------------------------------------
 		if b {
 			inorderTraversal(cur.right, n+1)
 		}
@@ -636,13 +777,14 @@ func (tt *AvlTree[T]) nlWalkInOrder(fx ApplyFunction[T], userData interface{}) {
 	inorderTraversal(tt.root, 0)
 }
 
-// WalkPreOrder walks the tree pre-order applying `fx` to each node.  If `fx`
-// returns false the walk stops.  `fx` is called while holding a read lock and
-// must not call back into the same tree.
+// WalkPreOrder visits every element in pre-order (node, left, right)
+// order.  Returning false from fx stops the walk.  The read lock is held
+// for the whole walk: fx must not call methods on the same tree, or the
+// call can deadlock.
 // Complexity is O(n).
-func (tt *AvlTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
+func (tt *AvlTree[T]) WalkPreOrder(fx ApplyFunction[T]) {
 	if tt == nil {
-		panic("operation on a nil tree")
+		return
 	}
 
 	tt.lock.RLock()
@@ -655,8 +797,12 @@ func (tt *AvlTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
 		if cur == nil {
 			return
 		}
-		b = fx(p, n, cur.data, userData)
-		p++
+		// ----------------------------------------------------------------------
+		if b {
+			b = fx(p, n, cur.data)
+			p++
+		}
+		// ----------------------------------------------------------------------
 		if b {
 			preOrderTraversal(cur.left, n+1)
 		}
@@ -667,13 +813,14 @@ func (tt *AvlTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
 	preOrderTraversal(tt.root, 0)
 }
 
-// WalkPostOrder walks the tree post-order applying `fx` to each node.  If `fx`
-// returns false the walk stops.  `fx` is called while holding a read lock and
-// must not call back into the same tree.
+// WalkPostOrder visits every element in post-order (left, right, node)
+// order.  Returning false from fx stops the walk.  The read lock is held
+// for the whole walk: fx must not call methods on the same tree, or the
+// call can deadlock.
 // Complexity is O(n).
-func (tt *AvlTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
+func (tt *AvlTree[T]) WalkPostOrder(fx ApplyFunction[T]) {
 	if tt == nil {
-		panic("operation on a nil tree")
+		return
 	}
 
 	tt.lock.RLock()
@@ -692,57 +839,99 @@ func (tt *AvlTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
 		if b {
 			postOrderTraversal(cur.right, n+1)
 		}
+		// ----------------------------------------------------------------------
 		if b {
-			b = fx(p, n, cur.data, userData)
+			b = fx(p, n, cur.data)
 			p++
 		}
+		// ----------------------------------------------------------------------
 	}
 	postOrderTraversal(tt.root, 0)
 }
 
-// toSlice returns a snapshot of the data of the tree in in-order (sorted)
-// sequence, taken under the read lock.
+// snapshot returns the data of the tree in in-order (sorted) sequence
+// together with the tree's comparison function, all read under the read
+// lock.  A nil tree yields no data and no comparison function.  The caller
+// must NOT hold any lock.
 // Complexity is O(n).
-func (tt *AvlTree[T]) toSlice() (rv []*T) {
+func (tt *AvlTree[T]) snapshot() (items []T, cmp func(a, b T) int) {
+	if tt == nil {
+		return nil, nil
+	}
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
-	tt.nlWalkInOrder(func(_, _ int, data *T, _ interface{}) bool {
-		rv = append(rv, data)
-		return true
-	}, nil)
-	return
+
+	items = make([]T, 0, tt.length)
+	var stk []*AvlTreeElement[T]
+	n := tt.root
+	for n != nil || len(stk) > 0 {
+		for n != nil {
+			stk = append(stk, n)
+			n = n.left
+		}
+		n = stk[len(stk)-1]
+		stk = stk[:len(stk)-1]
+		items = append(items, n.data)
+		n = n.right
+	}
+	return items, tt.cmp
 }
 
-// Copy replaces the contents of tt with a copy of yy.  The data items are
-// shared, not deep-copied.  The source is snapshotted under its read lock
-// before tt is modified, so tt.Copy(tt) is a safe no-op.
-// Complexity is O(n log2(n)).
+// adoptCmp makes sure tt has a comparison function while holding the write
+// lock, adopting one of the operand comparison functions if tt is a
+// zero-value tree.  The functions must have been read under the operand's
+// own read lock (see snapshot); reading another tree's cmp field directly
+// here would race with a concurrent set operation adopting into it.
+func (tt *AvlTree[T]) adoptCmp(yCmp, zCmp func(a, b T) int) {
+	if tt.cmp == nil {
+		tt.cmp = yCmp
+	}
+	if tt.cmp == nil {
+		tt.cmp = zCmp
+	}
+}
+
+// Copy replaces the contents of tt with a copy of yy.  The source is
+// snapshotted under its own read lock before tt's write lock is taken, so
+// yy may alias tt.  The result is ordered by tt's comparison function; a
+// zero-value tt adopts yy's.
+// Complexity is O(n log₂ n).
 func (tt *AvlTree[T]) Copy(yy *AvlTree[T]) {
 	if tt == nil {
-		panic("operation on a nil tree")
+		return
 	}
-	data := yy.toSlice()
+	data, yCmp := yy.snapshot()
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
 	tt.nlTruncate()
+	tt.adoptCmp(yCmp, nil)
+	if tt.cmp == nil {
+		return // no ordering available: yy cannot have had any data
+	}
 	for _, d := range data {
 		tt.nlInsert(d)
 	}
 }
 
 // Union is a set union, tt = yy union zz.  If an item is in both yy and zz
-// the one from zz is kept.  Sources are snapshotted under their read locks
-// before tt is modified, so tt may alias yy or zz.
-// Complexity is O(n log2(n)).
+// the one from zz is kept.  The sources are snapshotted under their own
+// read locks before tt's write lock is taken, so yy and zz may alias tt or
+// each other.  The result is ordered by tt's comparison function; a
+// zero-value tt adopts yy's (then zz's).
+// Complexity is O(n log₂ n).
 func (tt *AvlTree[T]) Union(yy, zz *AvlTree[T]) {
 	if tt == nil {
-		panic("operation on a nil tree")
+		return
 	}
-	a := yy.toSlice()
-	b := zz.toSlice()
+	a, aCmp := yy.snapshot()
+	b, bCmp := zz.snapshot()
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
 	tt.nlTruncate()
+	tt.adoptCmp(aCmp, bCmp)
+	if tt.cmp == nil {
+		return // no source had a comparison function, so no source had data
+	}
 	for _, d := range a {
 		tt.nlInsert(d)
 	}
@@ -751,51 +940,62 @@ func (tt *AvlTree[T]) Union(yy, zz *AvlTree[T]) {
 	}
 }
 
-// Minus is a set minus, tt = yy - zz.  Sources are snapshotted under their
-// read locks before tt is modified, so tt may alias yy or zz.
-// Complexity is O(n log2(n)).
+// Minus is a set minus, tt = yy - zz.  The sources are snapshotted under
+// their own read locks before tt's write lock is taken, so yy and zz may
+// alias tt or each other.  The result is ordered by tt's comparison
+// function; a zero-value tt adopts yy's (then zz's).
+// Complexity is O(n log₂ n).
 func (tt *AvlTree[T]) Minus(yy, zz *AvlTree[T]) {
 	if tt == nil {
-		panic("operation on a nil tree")
+		return
 	}
-	a := yy.toSlice()
-	b := zz.toSlice()
-	var zzTree AvlTree[T]
-	for _, d := range b {
-		zzTree.nlInsert(d)
-	}
+	a, aCmp := yy.snapshot()
+	b, bCmp := zz.snapshot()
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
 	tt.nlTruncate()
+	tt.adoptCmp(aCmp, bCmp)
+	if tt.cmp == nil {
+		return
+	}
+	var zzTree AvlTree[T]
+	zzTree.cmp = tt.cmp
+	for _, d := range b {
+		zzTree.nlInsert(d)
+	}
 	for _, d := range a {
-		if zzTree.nlSearch(d) == nil {
+		if _, found := zzTree.nlSearch(d); !found {
 			tt.nlInsert(d)
 		}
 	}
 }
 
-// Intersect is a set intersection, tt = yy intersect zz.  Sources are
-// snapshotted under their read locks before tt is modified, so tt may alias
-// yy or zz.
-// Complexity is O(n log2(n)).
+// Intersect is a set intersection, tt = yy intersect zz.  The sources are
+// snapshotted under their own read locks before tt's write lock is taken,
+// so yy and zz may alias tt or each other.  The result is ordered by tt's
+// comparison function; a zero-value tt adopts yy's (then zz's).
+// Complexity is O(n log₂ n).
 func (tt *AvlTree[T]) Intersect(yy, zz *AvlTree[T]) {
 	if tt == nil {
-		panic("operation on a nil tree")
+		return
 	}
-	a := yy.toSlice()
-	b := zz.toSlice()
-	var zzTree AvlTree[T]
-	for _, d := range b {
-		zzTree.nlInsert(d)
-	}
+	a, aCmp := yy.snapshot()
+	b, bCmp := zz.snapshot()
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
 	tt.nlTruncate()
+	tt.adoptCmp(aCmp, bCmp)
+	if tt.cmp == nil {
+		return
+	}
+	var zzTree AvlTree[T]
+	zzTree.cmp = tt.cmp
+	for _, d := range b {
+		zzTree.nlInsert(d)
+	}
 	for _, d := range a {
-		if zzTree.nlSearch(d) != nil {
+		if _, found := zzTree.nlSearch(d); found {
 			tt.nlInsert(d)
 		}
 	}
 }
-
-/* vim: set noai ts=4 sw=4: */

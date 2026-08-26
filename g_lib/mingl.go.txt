@@ -1,0 +1,21 @@
+package main
+
+import (
+	"fmt"
+	"constraints"
+)
+
+
+func min[T constraints.Ordered](a, b T) T{
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func main(){
+	fmt.Printf ( "min of 2, 3 = %v\n", min(2,3) )
+	fmt.Printf ( "min of 2, 3 = %v\n", min(2.4,3.4) )
+}
+
+

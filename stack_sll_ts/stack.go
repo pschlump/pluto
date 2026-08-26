@@ -1,67 +1,195 @@
 /*
-Copyright (C) Philip Schlump, 2023.
+Copyright (C) Philip Schlump, 2012-2026.
 
 BSD 3 Clause Licensed.
 */
 
-// Package stack implements a generic, thread-safe LIFO stack on top of the
-// thread-safe singly linked list github.com/pschlump/pluto/sll_ts.
+// Package stack_sll_ts implements a generic, thread-safe LIFO stack on
+// top of a singly linked list.  It is the charon counterpart of
+// github.com/pschlump/pluto/stack_sll_ts.
+//
+// Pluto built its version as a thin wrapper that delegated every
+// operation to the sll_ts package.  Charon's sll_ts requires an equality
+// function at insert (its Search needs one), but a stack never compares
+// elements — so wrapping would force a dummy comparator and break the
+// constraint-free contract.  Like every charon _ts package this one is
+// self-contained, with its own sync.RWMutex and a plain singly linked
+// list underneath.
 //
 // Basic operations on a stack:
 //
-//	Push — Inserts an element at the top
-//	Pop — Removes the top element from the stack.  An error is returned if the stack is empty.
-//	IsEmpty — Returns true if the stack is empty
-//	Peek — Returns the top element without removing it from the stack
+//	Push — Inserts an element at the top.  								O(1)
+//	Pop — Removes and returns the top element.  ErrEmptyStack is		O(1)
+//	      returned if the stack is empty.
+//	IsEmpty — Returns true if the stack is empty.						O(1)
+//	Len / Length — Returns the number of elements on the stack.			O(1)
+//	Peek — Returns the top element without removing it.					O(1)
+//	Truncate — Removes all elements.										O(1)
+//	All / Backward — Range-over-func iterators over a snapshot.			O(n)
 //
-// All operations are guarded by a mutex (inherited from sll_ts.Sll) and are
-// safe for concurrent use.
+// Because the stack is built on a linked list (not a slice window like
+// the stack package), pushes and pops never reallocate: memory use is
+// stable across arbitrary push/pop patterns, at the cost of one small
+// node allocation per push.
 //
-// Note: This is a subset of the operations that happen on the `sll_ts` so you
-// can just use the singly linked list (thread safe) instead.
-package stack
+// Concurrency model:
+//
+//	Reads (Peek, Len, Length, IsEmpty) take the read lock and release it
+//	before returning, so they run in parallel with each other.
+//	Writes (Push, Pop, Truncate) take the write lock.
+//	All and Backward operate on a snapshot taken when they are called
+//	(one O(n) copy, under the read lock), so they are safe to use
+//	concurrently with any stack operation — including mutating the stack
+//	from inside the loop — and never observe later modifications.
+//
+// The element type needs no constraints at all: there is no ordering and
+// no equality to supply, and the zero value of Stack is an empty stack
+// ready to use — no constructor required.
+//
+// Errors, not panics, report the empty stack: ErrEmptyStack.  Compare it
+// with errors.Is.
+//
+// A nil *Stack behaves as an empty stack for every operation except
+// Push — a nil stack cannot store an element, and that call panics with
+// a message naming the method.  This is the package's only panic.
+//
+// Run the tests with -race.
+package stack_sll_ts
 
 import (
-	"github.com/pschlump/pluto/comparable"
-	"github.com/pschlump/pluto/sll_ts"
+	"errors"
+	"sync"
 )
 
-// Stack is a generic, thread-safe LIFO stack built on top of a singly
-// linked list.  Elements are stored and returned by pointer.
-// The zero value is an empty stack, ready to use.
-type Stack[T comparable.Equality] struct {
-	data sll_ts.Sll[T]
+// stackElement is a node in the singly linked list.
+type stackElement[T any] struct {
+	data T
+	next *stackElement[T]
 }
+
+// Stack is a generic, thread-safe LIFO stack built on top of a singly
+// linked list.
+//
+// The zero value of Stack is an empty stack, ready to use.
+type Stack[T any] struct {
+	head   *stackElement[T]
+	length int
+	lock   sync.RWMutex
+}
+
+// ErrEmptyStack is returned by Pop and Peek when the stack is empty.
+var ErrEmptyStack = errors.New("empty stack")
 
 // IsEmpty will return true if the stack is empty.
+// Complexity is O(1).
 func (ns *Stack[T]) IsEmpty() bool {
-	return ns.data.IsEmpty()
+	if ns == nil {
+		return true
+	}
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
+	return ns.length == 0
 }
 
-// Push will push new data of type [T comparable.Equality] onto the stack.
-func (ns *Stack[T]) Push(t *T) {
-	ns.data.Push(t)
+// Push will push new data of type [T any] onto the stack.
+// It panics on a nil stack — the package's only panic.
+// Complexity is O(1).
+func (ns *Stack[T]) Push(t T) {
+	if ns == nil {
+		panic("stack_sll_ts: Push called on a nil stack")
+	}
+	ns.lock.Lock()
+	defer ns.lock.Unlock()
+	ns.head = &stackElement[T]{data: t, next: ns.head}
+	ns.length++
 }
 
-// Pop will remove the top element from the stack.  An error is returned if the stack is empty.
-func (ns *Stack[T]) Pop() (rv *T, err error) {
-	return ns.data.Pop()
+// Pop will remove the top element from the stack.  ErrEmptyStack is
+// returned if the stack is empty.
+//
+// The element is returned by value; the stack no longer holds any
+// reference to it.
+// Complexity is O(1).
+func (ns *Stack[T]) Pop() (rv T, err error) {
+	if ns == nil {
+		return rv, ErrEmptyStack
+	}
+	ns.lock.Lock()
+	defer ns.lock.Unlock()
+	if ns.length == 0 {
+		return rv, ErrEmptyStack
+	}
+	rv = ns.head.data
+	ns.head = ns.head.next
+	ns.length--
+	return
 }
 
-// Length returns the number of elements in the stack.
+// Len returns the number of elements on the stack.
+// Complexity is O(1).
+func (ns *Stack[T]) Len() int {
+	if ns == nil {
+		return 0
+	}
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
+	return ns.length
+}
+
+// Length returns the number of elements on the stack.
+// Complexity is O(1).
 func (ns *Stack[T]) Length() int {
-	return ns.data.Length()
+	if ns == nil {
+		return 0
+	}
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
+	return ns.length
 }
 
-// Peek returns the top element of the stack or an error indicating that the stack is empty.
-// Sometimes this is referred to as 'Top'.
-func (ns *Stack[T]) Peek() (*T, error) {
-	return ns.data.Peek()
+// Peek returns the top element of the stack or ErrEmptyStack indicating
+// that the stack is empty.  Sometimes this is referred to as 'Top'.
+//
+// The element is returned by value; it does not alias the stack's
+// internals and cannot be invalidated by a later Push or Pop.
+// Complexity is O(1).
+func (ns *Stack[T]) Peek() (rv T, err error) {
+	if ns == nil {
+		return rv, ErrEmptyStack
+	}
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
+	if ns.length == 0 {
+		return rv, ErrEmptyStack
+	}
+	return ns.head.data, nil
 }
 
 // Truncate removes all data from the stack.
+// Complexity is O(1).
 func (ns *Stack[T]) Truncate() {
-	ns.data.Truncate()
+	if ns == nil {
+		return
+	}
+	ns.lock.Lock()
+	defer ns.lock.Unlock()
+	ns.head = nil
+	ns.length = 0
 }
 
-/* vim: set noai ts=4 sw=4: */
+// snapshot returns the data of the stack from top to bottom, taken under
+// the read lock.  A nil stack yields nil.  The caller must NOT hold the
+// lock.
+// Complexity is O(n).
+func (ns *Stack[T]) snapshot() []T {
+	if ns == nil {
+		return nil
+	}
+	ns.lock.RLock()
+	defer ns.lock.RUnlock()
+	items := make([]T, 0, ns.length)
+	for p := ns.head; p != nil; p = p.next {
+		items = append(items, p.data)
+	}
+	return items
+}

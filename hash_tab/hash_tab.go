@@ -1,182 +1,302 @@
-package hash_tab
-
 /*
-Copyright (C) Philip Schlump, 2012-2021.
+Copyright (C) Philip Schlump, 2012-2026.
 
 BSD 3 Clause Licensed.
 */
 
-/*
-
-Package hash_tab implements a generic hash table with separate chaining.
-Each bucket is a singly linked list (github.com/pschlump/pluto/sll).
-
-Basic operations on a Hash Table.
-
-* 	Insert — Inserts a new value into the table.											O(1)
-* 	Delete — Deletes a specified element from the table (element can be found via Search).	O(n/k), k = # of buckets
-* 	IsEmpty — Returns true if the table is empty.											O(1)
-* 	Length — Returns number of elements in the table.  0 length is an empty table.			O(1)
-* 	Search — Returns the given element from the table.										O(n/k), k = # of buckets
-* 	Truncate — Deletes all the elements in the table.										O(k), k = # of buckets
-* 	All — Range-over-func iterator over all elements (see iter.go).							O(n)
-
-Keys are hashed with FNV-32a over the element's String() method, or with the
-element's own HashKey method if it implements the Hashable interface.
-
-*/
+// Package hash_tab implements a generic hash table using separate chaining:
+// each of a fixed number of buckets owns a singly linked chain of elements
+// stored by value.  The bucket count is fixed at construction — when the
+// number of elements is not known up front, use the auto-growing hash_grow
+// package instead.
+//
+// It is a rework of github.com/pschlump/pluto/hash_tab in which the
+// comparable.Equality interface constraint (and the Hashable/Stringer
+// hashing on top of it) has been replaced with plain Go type parameters, so
+// element data is never boxed into an interface and never unboxed with a
+// type assertion.  Tables of types that can be compared with == (the builtin
+// comparable constraint) are created with NewHashTab, which hashes with the
+// stdlib hash/maphash — every table gets its own random seed, equal values
+// always hash equal, and no method has to be implemented.  Tables of any
+// other type — or with field-based equality — are created with NewHashTabFunc,
+// which takes a caller supplied equality function and hash function; the
+// element type does not have to implement any interface.  The two functions
+// must agree: whenever eq(a, b) is true, hash(a) and hash(b) must be equal.
+//
+// Elements are stored and returned by value (T, not *T).
+//
+// Operations:
+//
+//	Insert — add a new element to the table, replacing any existing equal element.	O(1) average, O(n) worst
+//	Delete — delete the element equal to `find`, if present.					O(1) average, O(n) worst
+//	Search — return the stored element equal to `find`.						O(1) average, O(n) worst
+//	IsEmpty — Returns true if the table is empty.								O(1)
+//	Len / Length — Returns number of elements in the table.  0 length is empty.	O(1)
+//	Truncate — Delete all the elements in the table.							O(k)
+//	Walk — Call a callback for each element in bucket order.					O(n)
+//	Dump — Write a per-bucket listing of the table for debugging.				O(n)
+//	All / Values — Range-over-func iterators in bucket order.					O(n)
+//
+// A nil *HashTab and the zero value both behave as an empty table for every
+// read: searches report not-found, Delete returns false, and the iterators
+// visit nothing.
+//
+// The package panics in exactly four situations, all programmer errors that
+// cannot be handled where they occur — each message names the fix:
+//
+//	NewHashTabFunc with a nil equality or hash function — caught at construction.
+//	NewHashTab/NewHashTabFunc with n < 5 — a smaller table has no headroom.
+//	Insert on a nil table — a nil table cannot store an element.
+//	Insert on a zero-value table — no equality/hash functions; the message names the constructors.
+//
+// This version of the table is not suitable for concurrent use; the
+// hash_tab_ts package is the thread-safe twin with the same API (pluto has
+// no hash_tab_ts) — use it when the table is shared between goroutines.
+package hash_tab
 
 import (
 	"fmt"
-	"hash/fnv"
+	"hash/maphash"
 	"io"
-
-	"github.com/pschlump/pluto/comparable"
-	"github.com/pschlump/pluto/g_lib"
-	"github.com/pschlump/pluto/sll"
 )
 
-// HashTab is a generic hash table using separate chaining; each bucket is a
-// singly linked list of elements.
-type HashTab[T comparable.Equality] struct {
-	buckets []*sll.Sll[T] // the table
-	length  int           // # of elements in table
-	size    int           // Modulo size for table
+// HashTab is a generic hash table with a fixed number of separately chained
+// buckets.  Use NewHashTab for element types that support ==, or
+// NewHashTabFunc for a caller supplied equality and hash function.  The
+// zero value is an empty read-only table.
+type HashTab[T any] struct {
+	buckets []*bucketNode[T] // one chain per bucket; a nil chain is an empty bucket
+	size    int              // number of buckets; fixed at construction
+	length  int              // number of elements in the table
+
+	// eq reports whether two elements are considered the same, and hash
+	// returns a hash for an element.  Both are set by the constructors and
+	// are the only things that know how to compare and hash T — T itself
+	// never has to implement an interface.  They must agree: equal elements
+	// must have equal hashes.
+	eq   func(a, b T) bool
+	hash func(a T) uint64
 }
 
-// Hashable may be implemented by an element type to supply its own hash key,
-// overriding the default FNV-32a hash of the element's String() value.
-type Hashable interface {
-	HashKey(x interface{}) int
+// bucketNode is one link of a bucket chain.  Chains are singly linked and
+// hold the elements by value; Insert pushes at the chain head, so a chain
+// runs from the most recently inserted element to the oldest.
+type bucketNode[T any] struct {
+	data T
+	hash uint64 // the raw (un-reduced) hash, kept for Dump
+	next *bucketNode[T]
 }
 
-// NewHashTab creates a hash table with `n` buckets.  n must be at least 5.
-// Complexity is O(n).
-func NewHashTab[T comparable.Equality](n int) *HashTab[T] {
+// -------------------------------------------------------------------------------------------------------
+
+// NewHashTab creates a hash table with n buckets (n must be at least 5).
+// Elements are compared with the == operator and hashed with the stdlib
+// hash/maphash using a per-table random seed — no method has to be
+// implemented on T, and no element is ever boxed into an interface.
+// Complexity is O(n) for the bucket allocation.
+func NewHashTab[T comparable](n int) *HashTab[T] {
+	var seed = maphash.MakeSeed()
+	return newHashTab(
+		n,
+		func(a, b T) bool { return a == b },
+		func(a T) uint64 { return maphash.Comparable(seed, a) },
+		"NewHashTab",
+	)
+}
+
+// NewHashTabFunc creates a hash table with n buckets (n must be at least
+// 5), a caller supplied equality function and a caller supplied hash
+// function.  The two functions must agree: whenever eq(a, b) is true,
+// hash(a) and hash(b) must be equal, otherwise Search and Delete can miss
+// elements.
+// Complexity is O(n) for the bucket allocation.
+func NewHashTabFunc[T any](eq func(a, b T) bool, hash func(a T) uint64, n int) *HashTab[T] {
+	return newHashTab(n, eq, hash, "NewHashTabFunc")
+}
+
+// newHashTab is the shared constructor body; `caller` names the public
+// constructor in panic messages.
+func newHashTab[T any](n int, eq func(a, b T) bool, hash func(a T) uint64, caller string) *HashTab[T] {
+	if eq == nil {
+		panic(fmt.Sprintf("hash_tab: %s called with a nil equality function", caller))
+	}
+	if hash == nil {
+		panic(fmt.Sprintf("hash_tab: %s called with a nil hash function", caller))
+	}
 	if n < 5 {
-		panic("n too small")
+		panic(fmt.Sprintf("hash_tab: %s called with n = %d, the initial size must be at least 5", caller, n))
 	}
-	r := HashTab[T]{
-		length: 0,
-		size:   n,
+	return &HashTab[T]{
+		buckets: make([]*bucketNode[T], n),
+		size:    n,
+		length:  0,
+		eq:      eq,
+		hash:    hash,
 	}
-	r.buckets = make([]*sll.Sll[T], n)
-	for i := 0; i < n; i++ {
-		r.buckets[i] = sll.NewSll[T]()
-	}
-	return &r
 }
 
-// IsEmpty will return true if the table is empty.
+// IsEmpty will return true if the hash table is empty.
 // Complexity is O(1).
 func (tt *HashTab[T]) IsEmpty() bool {
-	return tt.length == 0
+	return tt == nil || tt.length == 0
 }
 
-// Truncate removes all data from the table.
-// Complexity is O(k), where k is the number of buckets.
+// Truncate removes all data from the table.  Every bucket is set to nil so
+// each whole chain becomes garbage and the collector can reclaim the stored
+// elements.  The size and the equality/hash functions are kept, so the
+// table remains usable and can simply be refilled.
+// Complexity is O(k), k = number of buckets.
 func (tt *HashTab[T]) Truncate() {
-	for i := 0; i < tt.size; i++ {
-		tt.buckets[i].Truncate()
+	if tt == nil {
+		return
 	}
+	clear(tt.buckets) // nil chains, releasing the elements for GC
 	tt.length = 0
 }
 
-// Insert will add a new item to the table.  If it is a duplicate of an
-// existing item the new item is inserted before the old one, hiding it
-// (the bucket acts like a stack).
-// Complexity is O(1).
-func (tt *HashTab[T]) Insert(item *T) {
-	h := g_lib.Abs(tt.hash(item) % tt.size)
-	tt.buckets[h].InsertBeforeHead(item)
+// hashOf returns the raw hash of `a`.  Unlike hash_grow there is no reserved
+// zero value to remap: an empty bucket is a nil chain, not a hash marker,
+// so a hash of 0 is just another hash.
+func (tt *HashTab[T]) hashOf(a T) uint64 {
+	return tt.hash(a)
+}
+
+// bucketOf returns the bucket index for the raw hash `h`.
+func (tt *HashTab[T]) bucketOf(h uint64) int {
+	return int(h % uint64(tt.size))
+}
+
+// Insert will add a new item to the table.  If an equal item is already in
+// the bucket chain it is replaced by the new one and false is returned;
+// true is returned when a new element was added.
+// Complexity is O(1) average, O(n) worst case.
+func (tt *HashTab[T]) Insert(item T) bool {
+	if tt == nil {
+		panic("hash_tab: Insert called on a nil table")
+	}
+	if tt.eq == nil || tt.hash == nil {
+		panic("hash_tab: Insert called on a table with no equality/hash functions (create the table with NewHashTab or NewHashTabFunc)")
+	}
+	h := tt.hashOf(item)
+	b := tt.bucketOf(h)
+	for node := tt.buckets[b]; node != nil; node = node.next {
+		if tt.eq(node.data, item) { // equal element present: replace it
+			node.data = item
+			node.hash = h
+			return false
+		}
+	}
+	tt.buckets[b] = &bucketNode[T]{data: item, hash: h, next: tt.buckets[b]} // push at the chain head
 	tt.length++
+	return true
+}
+
+// Search will walk the bucket chain for `find` and return the stored
+// element equal to it.  If it is not found the zero value of T and false
+// are returned.
+// Complexity is O(1) average, O(n) worst case.
+func (tt *HashTab[T]) Search(find T) (rv T, found bool) {
+	if tt == nil || tt.eq == nil || tt.length == 0 {
+		return // nil table, zero value or empty table: not found
+	}
+	for node := tt.buckets[tt.bucketOf(tt.hashOf(find))]; node != nil; node = node.next {
+		if tt.eq(node.data, find) {
+			return node.data, true
+		}
+	}
+	return
+}
+
+// Delete an element from the table.  The element equal to `find` is located
+// with the same chain walk Search uses, then unlinked from its chain in a
+// single pass (pluto rebuilt the whole bucket into a fresh list, which also
+// reversed the chain).  Returns true if the element was found and removed.
+// Complexity is O(1) average, O(n) worst case.
+func (tt *HashTab[T]) Delete(find T) (found bool) {
+	if tt == nil || tt.eq == nil || tt.length == 0 {
+		return false
+	}
+	b := tt.bucketOf(tt.hashOf(find))
+	var prev *bucketNode[T]
+	for node := tt.buckets[b]; node != nil; node = node.next {
+		if tt.eq(node.data, find) {
+			if prev == nil {
+				tt.buckets[b] = node.next // unlink the chain head
+			} else {
+				prev.next = node.next
+			}
+			tt.length--
+			return true
+		}
+		prev = node
+	}
+	return false
 }
 
 // Len returns the number of elements in the table.
 // Complexity is O(1).
 func (tt *HashTab[T]) Len() int {
+	if tt == nil {
+		return 0
+	}
 	return tt.length
 }
 
 // Length returns the number of elements in the table.
 // Complexity is O(1).
 func (tt *HashTab[T]) Length() int {
+	if tt == nil {
+		return 0
+	}
 	return tt.length
 }
 
-// Search will look for `find` and return the found item
-// if it is in the table. If it is not found then `nil` will be returned.
-// Complexity is O(n/k), where k is the number of buckets.
-func (tt *HashTab[T]) Search(find *T) (item *T) {
-	if tt.IsEmpty() {
-		return nil
+// ApplyFunction is the callback type for Walk.  It is called with the
+// bucket position and the element stored there.  Returning false stops the
+// walk (the same convention as the tree packages; note dll/sll are the
+// opposite).
+type ApplyFunction[T any] func(pos int, data T) bool
+
+// Walk calls `fx` for each element in the table, in bucket order and —
+// within a bucket — from the most recently inserted element to the oldest,
+// until all elements have been visited or `fx` returns false.  It returns
+// true if the walk ran to completion.
+// Complexity is O(n).
+func (tt *HashTab[T]) Walk(fx ApplyFunction[T]) (b bool) {
+	b = true
+	if tt == nil || tt.length == 0 {
+		return
 	}
-	h := g_lib.Abs(tt.hash(find) % tt.size)
-	x, pos := tt.buckets[h].Search(find)
-	if pos < 0 {
-		return nil
+	for ii := range tt.buckets {
+		for node := tt.buckets[ii]; node != nil; node = node.next {
+			if !fx(ii, node.data) {
+				return false
+			}
+		}
 	}
-	return x.GetData()
+	return
 }
 
-// Dump will print out the hash table to the writer `fo`.
+// Dump will print out the hash table, including empty buckets, to `fo` —
+// the element count and modulo size on the first line, then one line per
+// element (a bucket with a chain of several elements prints one line per
+// element).  The hash values shown are the per-table random-seeded raw
+// hashes, so the output varies from process to process; use it for
+// debugging, not for golden files.
 // Complexity is O(n).
 func (tt *HashTab[T]) Dump(fo io.Writer) {
+	if tt == nil {
+		_, _ = fmt.Fprintf(fo, "Elements: 0, mod size:0\n")
+		return
+	}
 	_, _ = fmt.Fprintf(fo, "Elements: %d, mod size:%d\n", tt.length, tt.size)
-	for i, v := range tt.buckets {
-		if v.Length() > 0 {
-			_, _ = fmt.Fprintf(fo, "bucket [%04d] = \n", i)
-			v.Dump(fo)
-		}
-	}
-}
-
-// Delete removes the first element equal to `find` from the table,
-// returning true if an element was found and removed.
-// Complexity is O(n/k), where k is the number of buckets.
-func (tt *HashTab[T]) Delete(find *T) (found bool) {
-	if tt.IsEmpty() {
-		return false
-	}
-	h := g_lib.Abs(tt.hash(find) % tt.size)
-	b := tt.buckets[h]
-	if _, pos := b.Search(find); pos < 0 {
-		return false
-	}
-	// Rebuild the bucket without the first matching element.  Bucket order
-	// is not significant, and this relies only on the bucket list's
-	// insert/iterate primitives rather than on node-level deletion.
-	nb := sll.NewSll[T]()
-	removed := false
-	for _, p := range b.IteratePtr() {
-		if !removed && (*p).IsEqual(*find) {
-			removed = true
+	for i := range tt.buckets {
+		if tt.buckets[i] == nil {
+			_, _ = fmt.Fprintf(fo, "bucket [%04d] empty\n", i)
 			continue
 		}
-		nb.InsertBeforeHead(p)
+		for node := tt.buckets[i]; node != nil; node = node.next {
+			_, _ = fmt.Fprintf(fo, "bucket [%04d] h=%d h%%size=%d = %v\n", i, node.hash, node.hash%uint64(tt.size), node.data)
+		}
 	}
-	tt.buckets[h] = nb
-	tt.length--
-	return true
-}
-
-func (tt *HashTab[T]) hash(x interface{}) (rv int) {
-	hashstr := func(s string) int {
-		h := fnv.New32a()
-		_, _ = h.Write([]byte(s)) // hash.Hash Write never fails
-		return int(h.Sum32())
-	}
-	if v, ok := x.(Hashable); ok {
-		h := v.HashKey(x)
-		return h
-	}
-	if v, ok := x.(string); ok {
-		h := hashstr(v)
-		return h
-	}
-	if v, ok := x.(fmt.Stringer); ok {
-		h := hashstr(v.String())
-		return h
-	}
-	panic(fmt.Sprintf("Invalid type, %T needs to be Stringer or Hashable interface\n", x))
 }

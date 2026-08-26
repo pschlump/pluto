@@ -1,24 +1,41 @@
 = hash_grow_ts
-:toc:
 
-`hash_grow_ts` is a generic, *thread-safe* hash table for Go using open
+`hash_grow_ts` is a thread-safe generic hash table for Go using open
 addressing with linear probing. When the load factor exceeds a configurable
 saturation threshold (default 0.5) the table automatically doubles in size
 and re-hashes all entries. Every operation is guarded by a `sync.RWMutex`.
 
-It provides an API identical to link:../hash_grow[`hash_grow`]; see that package
-for the non-locking variant.
+It is the thread-safe twin of link:../hash_grow[charon/hash_grow] — the
+same API — with the addition of the `Lock`/`Unlock` pair and the
+`Nl*`-prefixed (no-lock) methods for compound operations.
 
-Elements must implement `comparable.Comparable` (a `Compare` method). Hash
-keys come from, in priority order:
+It is a rework of
+link:https://github.com/pschlump/pluto/tree/main/hash_grow_ts[pluto/hash_grow_ts]
+that replaces the `comparable.Comparable` interface constraint (and the
+`Hashable`/`fmt.Stringer` hashing built on it) with pure Go type
+parameters, so element data is never boxed into an interface and never
+unboxed with a type assertion.
 
-. the `Hashable` interface (`HashKey(x any) int`), if the element implements it,
-. the element itself if it is a `string`,
-. `fmt.Stringer`, hashed with FNV-1a.
+* Elements are stored and returned *by value* (`T`, not `*T`).
+* Keys of types comparable with `==` need no functions at all:
+`hash_grow_ts.NewHashTab[string](16, 0)`.  Equality is the `==` operator and
+hashing is the stdlib `hash/maphash` with a per-table random seed.
+* Any other type — or identity by a single field — takes a plain equality
+function *and* a hash function, with no interface to implement.  The two
+functions must agree: equal elements must have equal hashes.
+
+The default hashing is *randomized per table* (a `hash/maphash` seed) — a
+hash-flooding mitigation.  Bucket order in `All`, `Values`, `Walk` and
+`Dump`, and the raw hash values `Dump` prints, therefore vary from process
+to process and must not appear in fixed assertions or golden files.
+
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and appear
+on pkg.go.dev.
 
 == Complexity
 
-[cols="3,1,1,4",options="header"]
+[cols="2,1,1,4",options="header"]
 |===
 | Operation                                | Average | Worst case | Notes
 
@@ -27,48 +44,99 @@ keys come from, in priority order:
 | `Delete`                                 | O(1)    | O(n)       | backward-shift keeps probe chains intact
 | `IsEmpty`, `Len`, `Length`               | O(1)    | O(1)       |
 | `Truncate`                               | O(n)    | O(n)       | clears all buckets for GC
-| `Walk`, `Print`, `Dump`, `All`, `Values` | O(n)    | O(n)       |
+| `Walk`, `Dump`                           | O(n)    | O(n)       | read lock held for the whole call
+| `All`, `Values`                          | O(n)    | O(n)       | snapshot copied under the read lock
+| `Lock` / `Unlock` + `Nl*`                | O(1)    | O(1)       | compound operations
 |===
 
 Worst case occurs when many keys collide; the load factor is kept below the
 saturation threshold (default 0.5) so average behavior is O(1).
 
+A saturation of 1.0 or more defers growth until the table is actually full;
+growth is then forced, so a completely full table can neither silently drop
+an insert nor wedge a probe (pluto did both).
+
 == Usage
 
 [source,go]
 ----
-ht := hash_grow_ts.NewHashTab[Item](16, 0) // initial size 16, default saturation 0.5
+ht := hash_grow_ts.NewHashTab[string](16, 0) // initial size 16, default saturation 0.5
 
-ht.Insert(&Item{Key: "alpha"})
-
-if it := ht.Search(&Item{Key: "alpha"}); it != nil {
-	fmt.Println("found", it.Key)
+ht.Insert("alpha")
+if v, found := ht.Search("alpha"); found {
+	fmt.Println("found", v)
 }
-
-ht.Delete(&Item{Key: "alpha"})
-
-// Range-over-func iteration (Go 1.23+), safe to call table methods in the body:
-for pos, item := range ht.All() {
-	fmt.Printf("bucket %d: %s\n", pos, item.Key)
-}
+ht.Delete("alpha")
 ----
+
+== Compound operations: Lock + Nl*
+
+`Search` followed by `Delete` is two lock acquisitions — another goroutine
+can mutate the table between them.  `Lock` plus the `Nl*` methods
+(`NlIsEmpty`, `NlLen`, `NlSearch`, `NlInsert`, `NlDelete`) run the same
+steps atomically under one lock hold:
+
+[source,go]
+----
+ht.Lock()
+if v, found := ht.NlSearch(probe); found {
+	use(v)
+	ht.NlDelete(probe)
+}
+ht.Unlock()
+----
+
+Calling a locking public method while holding `Lock` deadlocks, so inside
+the critical section use only the `Nl` methods.  `Lock`/`Unlock` on a nil
+table are no-ops.
 
 == Iteration
 
-Two styles are supported:
+`All() iter.Seq2[int, T]` (bucket position and element — a single-variable
+range yields the *bucket position*, not the element) and `Values() iter.Seq[T]`
+iterate a **snapshot** copied under the read lock when the iterator method
+is called, so it is safe to call other table methods — including writes —
+from the loop body.  `Walk(fx)` is the callback alternative
+(`func(pos int, data T) bool`, returning *false stops the walk*); it holds
+the read lock for the whole traversal, so `fx` must not call methods on the
+same table.
 
-- Go 1.23+ range-over-func: `All() iter.Seq2[int, *T]` (bucket position and
-  element) and `Values() iter.Seq[*T]`. Both iterate over a *snapshot* of
-  the table taken under the read lock when iteration begins, so it is safe
-  (and deadlock-free) to call other table methods from the loop body.
-- The legacy `Walk(ApplyFunction[T], userData)` callback API. `Walk` holds
-  the read lock for its entire duration, so the callback must *not* call
-  other methods of the table.
+== Panics
 
-== Thread safety
+The same four situations as link:../hash_grow[charon/hash_grow], each
+message naming the fix:
 
-All exported methods are safe for concurrent use. `Search` and other read
-operations take the read lock; `Insert`, `Delete` and `Truncate` take the
-write lock. Note that a `*T` returned by `Search` (or yielded by an
-iterator) is shared with the table — treat it as read-only unless you
-synchronize access to the element yourself.
+[options="header"]
+|===
+| Call | Why
+
+| `NewHashTabFunc(nil eq, ...)` / `NewHashTabFunc(eq, nil hash, ...)` | nil function, caught at construction time
+| `NewHashTab`/`NewHashTabFunc` with n < 5 | a smaller table has no headroom
+| `Insert`/`NlInsert` on a nil table | a nil table cannot store an element (`NlInsert` on a zero-value table)
+| `Insert` on a zero-value table | no equality/hash functions; the message names the constructors
+|===
+
+Everything else tolerates a nil table and the zero value as an empty table:
+searches report not-found, `Delete` returns false, and the iterators visit
+nothing.  (`NlInsert` on a zero-value table panics because it *is* the
+Insert body.)
+
+== Differences from pluto/hash_grow_ts
+
+* Everything in the link:../hash_grow[charon/hash_grow] differences list —
+pure generics instead of `comparable.Comparable`, `maphash`/caller-supplied
+hashing instead of the `Hashable`/`Stringer` type switch, value semantics
+(`Search` returns `(T, bool)`), `Insert` returning bool, no `depth`/`userData`
+in the Walk callback, probes bounded to one full cycle, forced growth on a
+full table instead of a silent drop, saturation ≤ 0/NaN → 0.5 default.
+* pluto exposed `NlSearch`/`NlDelete` but no way to acquire the lock, so
+they were unusable outside the package.  charon exposes the **real**
+`Lock`/`Unlock` (nil-table no-ops) plus `NlIsEmpty`/`NlLen`/`NlSearch`/
+`NlInsert`/`NlDelete` as the documented compound-operation escape hatch.
+* pluto's `All`/`Values` copied `*T` pointers out of the table and yielded
+them after releasing the read lock — a pointer that can race with a
+concurrent delete clearing the slot.  The value-copy snapshots fix that the
+same way `queue_ts`'s `Peek` and `heap_ts`'s accessors do.
+* `Print` is gone (one line with `Values` replaces it); nil tables are
+tolerated instead of panicking with an unguarded nil dereference on most
+reads.

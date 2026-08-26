@@ -5,4 +5,3 @@ all:
 .PHONY: test
 test: all
 	go test
-

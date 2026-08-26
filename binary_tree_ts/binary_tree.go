@@ -1,18 +1,48 @@
 /*
-Copyright (C) Philip Schlump, 2012-2021.
+Copyright (C) Philip Schlump, 2012-2026.
 
 BSD 3 Clause Licensed.
 */
 
-// Package binary_tree_ts implements a generic, unbalanced binary search tree
-// that is safe for concurrent use.  Every operation is guarded by a
-// sync.RWMutex.  It exposes the same API as
-// github.com/pschlump/pluto/binary_tree.
+// Package binary_tree_ts implements a generic, unbalanced binary search
+// tree that is safe for concurrent use.  It is the thread-safe twin of
+// github.com/pschlump/charon/binary_tree — the same API, guarded by a
+// sync.RWMutex.
+//
+// Concurrency model:
+//
+//	Reads (Search, FindMin, FindMax, Index, Depth, Len, Length, IsEmpty)
+//	take the read lock and release it before returning, so they run in
+//	parallel with each other.
+//	Writes (Insert, Delete, DeleteMatch, DeleteAtHead, DeleteAtTail,
+//	Reverse, Truncate) take the write lock.
+//	Front, All and Backward operate on a snapshot taken when they are
+//	called (one O(n) copy, under the read lock), so they are safe to use
+//	concurrently with any tree operation — including mutating the tree
+//	from inside the loop — and never observe later modifications.
+//	The Walk* functions and Dump hold the read lock for the whole
+//	traversal; their callbacks must not call methods on the same tree, or
+//	the call can deadlock.  To visit elements while mutating, iterate a
+//	snapshot with All instead.
+//
+// Like every charon package it is a rework of its pluto counterpart
+// (github.com/pschlump/pluto/binary_tree_ts) in which the
+// comparable.Comparable interface constraint has been replaced with plain
+// Go type parameters.  Elements are stored and returned by value and
+// ordering is a direct function call, so element data is never boxed into
+// an interface and never unboxed with a type assertion.  Trees of
+// naturally ordered key types (all integers, floats and strings) are
+// created with NewBinaryTree, which orders elements with the built-in <
+// and > operators of the key type; trees of any other type — including
+// structs ordered by a single field — are created with NewBinaryTreeFunc,
+// which takes a caller supplied comparison function; the element type
+// does not have to implement any interface.
 //
 // Basic operations on a Binary Tree:
 //
 //	Insert — create a new element in the tree; a duplicate replaces the existing element.
 //	Delete — delete a specified element from the tree (elements can be found via Search).
+//	DeleteMatch — delete using a caller supplied comparison function.
 //	Search — return the given element from the tree.
 //	Index — return the Nth element of the tree in in-order order.
 //	IsEmpty — report whether the tree is empty.
@@ -20,67 +50,136 @@ BSD 3 Clause Licensed.
 //	Reverse — swap the left and right children of every node in the tree.
 //	Truncate — delete all the nodes in the tree.
 //	FindMin / FindMax — return the smallest / largest element in the tree.
-//	DeleteAtHead — delete the smallest element (Delete(FindMin())).
-//	DeleteAtTail — delete the largest element (Delete(FindMax())).
+//	DeleteAtHead — delete the smallest element of the tree.
+//	DeleteAtTail — delete the largest element of the tree.
 //	Depth — number of levels in the deepest part of the tree.
 //	WalkInOrder / WalkPreOrder / WalkPostOrder — callback-based traversals.
+//	WalkFunc — apply a function to every element in pre-order.
 //	Front — old-style in-order iterator (operates on a snapshot).
-//	All / Backward — Go 1.23 range-over-func iterators (operate on a snapshot).
+//	All / Backward — range-over-func iterators (operate on a snapshot).
 //
 // Insert, Delete and Search are O(log₂ n) on average for randomly ordered
 // input and O(n) in the worst case (the tree is NOT self-balancing).
+//
+// A BinaryTree is created with NewBinaryTree or NewBinaryTreeFunc.  A nil
+// *BinaryTree and the zero value both behave as an empty tree for every
+// operation except Insert: Search finds nothing, Delete, DeleteMatch,
+// DeleteAtHead and DeleteAtTail return false, FindMin, FindMax and Index
+// report not-found, Len and Depth are 0, and the walks and iterators
+// visit nothing.
+//
+// The package panics in exactly three situations, all programmer errors
+// that cannot be handled where they occur:
+//
+//	NewBinaryTreeFunc(nil)         — nil comparison function, caught at construction.
+//	Insert on a nil tree           — a nil tree cannot store an element.
+//	Insert on a zero-value tree    — no comparison function; the message names the constructors.
 package binary_tree_ts
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"strings"
 	"sync"
-
-	"github.com/pschlump/pluto/comparable"
 )
 
 // BinaryTreeElement is a single node of a BinaryTree.
-type BinaryTreeElement[T comparable.Comparable] struct {
-	data        *T
+type BinaryTreeElement[T any] struct {
+	data        T
 	left, right *BinaryTreeElement[T]
 }
 
-// BinaryTree is a generic binary tree
-type BinaryTree[T comparable.Comparable] struct {
+// BinaryTree is a generic binary tree that is safe for concurrent use.
+// Use NewBinaryTree for naturally ordered key types (numbers, strings) or
+// NewBinaryTreeFunc for a caller supplied comparison function.  The zero
+// value is an empty tree.
+type BinaryTree[T any] struct {
 	root   *BinaryTreeElement[T]
 	length int
 	lock   sync.RWMutex
+
+	// cmp orders two elements: negative if a sorts before b, 0 if the two
+	// are duplicates, positive if a sorts after b.  It is set by the
+	// constructors and is the only thing that knows how to order T — T
+	// itself never has to implement an interface.
+	cmp func(a, b T) int
 }
 
 // -------------------------------------------------------------------------------------------------------
 
-// NewBinaryTree creates a new BinaryTree and returns it.
-// Complexity is O(1).
-func NewBinaryTree[T comparable.Comparable]() *BinaryTree[T] {
-	return &BinaryTree[T]{
-		root:   nil,
-		length: 0,
+// Compare returns -1 if a < b, +1 if a > b and 0 if a == b, using the
+// built-in ordering of any cmp.Ordered type (all integers, floats and
+// strings).  It is the comparison function installed by NewBinaryTree and
+// is handy for building custom comparison functions.
+func Compare[T cmp.Ordered](a, b T) int {
+	switch {
+	case a < b:
+		return -1
+	case b < a:
+		return 1
+	default:
+		return 0
 	}
 }
 
+// NewBinaryTree creates a new BinaryTree for any naturally ordered key
+// type (all integers, floats and strings — cmp.Ordered).  Ordering uses
+// the built-in < and > operators of T; no interface and no boxing is
+// involved.
+// Complexity is O(1).
+func NewBinaryTree[T cmp.Ordered]() *BinaryTree[T] {
+	return &BinaryTree[T]{cmp: Compare[T]}
+}
+
+// NewBinaryTreeFunc creates a new BinaryTree that orders elements with the
+// caller supplied comparison function fx.  fx must return a negative value
+// if a sorts before b, 0 if the two are duplicates and a positive value if
+// a sorts after b, and must order elements consistently.  This lets any
+// type — for example a struct ordered by one of its fields — be stored
+// without implementing any interface.
+// Complexity is O(1).
+func NewBinaryTreeFunc[T any](fx func(a, b T) int) *BinaryTree[T] {
+	if fx == nil {
+		panic("binary_tree_ts: NewBinaryTreeFunc called with a nil comparison function")
+	}
+	return &BinaryTree[T]{cmp: fx}
+}
+
+// compare orders a and b, guarding against a zero-value tree that was not
+// created by one of the constructors.  The caller must hold the lock (read
+// or write).
+func (tt *BinaryTree[T]) compare(a, b T) int {
+	if tt.cmp == nil {
+		panic("binary_tree_ts: no comparison function (create the tree with NewBinaryTree or NewBinaryTreeFunc)")
+	}
+	return tt.cmp(a, b)
+}
+
+// -------------------------------------------------------------------------------------------------------
+
 // GetData returns the data stored in this element.
 // Complexity is O(1).
-func (ee *BinaryTreeElement[T]) GetData() *T {
+func (ee *BinaryTreeElement[T]) GetData() T {
 	return ee.data
 }
 
-// SetData replaces the data stored in this element.
+// SetData replaces the data stored in this element.  Calling it on a node
+// that is inside a tree can break the tree's ordering invariant; it is
+// intended for standalone elements.
 // Complexity is O(1).
-func (ee *BinaryTreeElement[T]) SetData(x *T) {
+func (ee *BinaryTreeElement[T]) SetData(x T) {
 	ee.data = x
 }
 
 // -------------------------------------------------------------------------------------------------------
 
-// IsEmpty will return true if the binary-tree is empty.
+// IsEmpty returns true if the tree is empty.
 // Complexity is O(1).
 func (tt *BinaryTree[T]) IsEmpty() bool {
+	if tt == nil {
+		return true
+	}
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 	return tt.nlIsEmpty()
@@ -91,22 +190,32 @@ func (tt *BinaryTree[T]) nlIsEmpty() bool {
 	return tt.root == nil
 }
 
-// Truncate removes all data from the tree.
+// Truncate removes all data from the tree.  The comparison function is
+// kept, so the tree remains usable and can simply be refilled.
 // Complexity is O(1).
 func (tt *BinaryTree[T]) Truncate() {
+	if tt == nil {
+		return
+	}
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
 	tt.root = nil
 	tt.length = 0
 }
 
-// Insert will add a new item to the tree.  If it is a duplicate of an existing
-// item the new item will replace the existing one and false is returned;
-// true is returned when a new node was added.
+// Insert will add a new item to the tree.  If it is a duplicate of an
+// existing item the new item will replace the existing one and false is
+// returned; true is returned when a new node was added.
+// Insert panics on a nil tree or on a zero-value tree (no comparison
+// function); these are the only panics on non-constructor calls in the
+// package — every other operation treats both as an empty tree.
 // Complexity is O(log₂ n) on average, O(n) in the worst case.
-func (tt *BinaryTree[T]) Insert(item *T) (vv bool) {
+func (tt *BinaryTree[T]) Insert(item T) (vv bool) {
 	if tt == nil {
 		panic("binary_tree_ts: Insert called on a nil tree")
+	}
+	if tt.cmp == nil {
+		panic("binary_tree_ts: Insert called on a tree with no comparison function (create the tree with NewBinaryTree or NewBinaryTreeFunc)")
 	}
 
 	tt.lock.Lock()
@@ -126,10 +235,10 @@ func (tt *BinaryTree[T]) Insert(item *T) (vv bool) {
 			*root = node
 			tt.length++
 			return true
-		} else if c := (*item).Compare(*(*root).data); c == 0 {
-			node.left = (*root).left
-			node.right = (*root).right
-			*root = node
+		} else if c := tt.cmp(item, (*root).data); c == 0 {
+			// Duplicate: replace the stored value in place, keeping the node
+			// (and its children) so the tree shape does not change.
+			(*root).data = item
 			return false
 		} else if c < 0 {
 			return insert(&(*root).left)
@@ -145,25 +254,33 @@ func (tt *BinaryTree[T]) Insert(item *T) (vv bool) {
 // Len returns the number of elements in the tree.
 // Complexity is O(1).
 func (tt *BinaryTree[T]) Len() int {
+	if tt == nil {
+		return 0
+	}
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 	return tt.length
 }
 
-// Length returns the number of elements in the tree.
+// Length is an alias for Len; it returns the number of elements in the tree.
 // Complexity is O(1).
 func (tt *BinaryTree[T]) Length() int {
+	if tt == nil {
+		return 0
+	}
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 	return tt.length
 }
 
 // Search will walk the tree looking for `find` and return the found item
-// if it is in the tree. If it is not found then `nil` will be returned.
+// from the tree.  If it is not found then false is returned.  `find` only
+// needs the fields that the tree's comparison function reads: a probe with
+// just the key fields set finds the element with the full data.
 // Complexity is O(log₂ n) on average, O(n) in the worst case.
-func (tt *BinaryTree[T]) Search(find *T) (item *T) {
+func (tt *BinaryTree[T]) Search(find T) (item T, found bool) {
 	if tt == nil {
-		panic("binary_tree_ts: Search called on a nil tree")
+		return
 	}
 
 	tt.lock.RLock()
@@ -171,9 +288,9 @@ func (tt *BinaryTree[T]) Search(find *T) (item *T) {
 
 	cur := tt.root
 	for cur != nil {
-		c := (*find).Compare(*cur.data)
+		c := tt.compare(find, cur.data)
 		if c == 0 {
-			return cur.data
+			return cur.data, true
 		}
 		if c < 0 {
 			cur = cur.left
@@ -181,12 +298,19 @@ func (tt *BinaryTree[T]) Search(find *T) (item *T) {
 			cur = cur.right
 		}
 	}
-	return nil
+	return
 }
 
-// Dump will print out the tree to the writer `fo`.
+// Dump writes one line per element to `fo`: an in-order traversal indented
+// by depth, including the left/right child pointers.  It is a debugging
+// aid; use All, Backward or the Walk* functions to process the data.  The
+// read lock is held for the whole dump, so `fo` must not call methods on
+// the same tree.
 // Complexity is O(n).
 func (tt *BinaryTree[T]) Dump(fo io.Writer) {
+	if tt == nil {
+		return
+	}
 
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
@@ -203,7 +327,7 @@ func (tt *BinaryTree[T]) Dump(fo io.Writer) {
 			}
 		}
 		_, err := fmt.Fprintf(fo, "%s%v%s (left=%p/%p, right=%p/%p) self=%p\n",
-			strings.Repeat(" ", 4*n), *cur.data, strings.Repeat(" ", k-(4*n)),
+			strings.Repeat(" ", 4*n), cur.data, strings.Repeat(" ", k-(4*n)),
 			cur.left, &cur.left, cur.right, &cur.right, cur)
 		if err != nil {
 			return false
@@ -219,40 +343,41 @@ func (tt *BinaryTree[T]) Dump(fo io.Writer) {
 }
 
 // Delete removes the element matching `find` from the tree, returning true
-// if an element was found and removed.
+// if an element was found and removed.  As with Search, `find` only needs
+// the fields that the comparison function reads.
 // Complexity is O(log₂ n) on average, O(n) in the worst case.
-func (tt *BinaryTree[T]) Delete(find *T) (found bool) {
+func (tt *BinaryTree[T]) Delete(find T) (found bool) {
 	if tt == nil {
-		panic("binary_tree_ts: Delete called on a nil tree")
+		return false
 	}
 
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
 
-	return tt.deleteBy(func(data *T) int {
-		return (*find).Compare(*data)
+	return tt.deleteBy(func(data T) int {
+		return tt.compare(find, data)
 	})
 }
 
 // DeleteMatch is like Delete but uses the caller supplied comparison
-// function `fx` (with the same contract as Compare) instead of the
-// Compare method of T.
-func (tt *BinaryTree[T]) DeleteMatch(find *T, fx func(a, b *T) int) (found bool) {
+// function `fx` (with the same contract as the tree's comparison function)
+// to find the element to remove.
+func (tt *BinaryTree[T]) DeleteMatch(find T, fx func(a, b T) int) (found bool) {
 	if tt == nil {
-		panic("binary_tree_ts: DeleteMatch called on a nil tree")
+		return false
 	}
 
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
 
-	return tt.deleteBy(func(data *T) int {
+	return tt.deleteBy(func(data T) int {
 		return fx(find, data)
 	})
 }
 
 // deleteBy removes the node for which cmp(data) == 0, using cmp to steer the
 // descent through the tree.  The caller must hold the write lock.
-func (tt *BinaryTree[T]) deleteBy(cmp func(data *T) int) (found bool) {
+func (tt *BinaryTree[T]) deleteBy(cmp func(data T) int) (found bool) {
 	cur := &tt.root
 	for *cur != nil {
 		c := cmp((*cur).data)
@@ -296,11 +421,11 @@ func (tt *BinaryTree[T]) deleteBy(cmp func(data *T) int) (found bool) {
     {09}
 */
 
-// FindMin returns the smallest element in the tree, or nil if the tree is empty.
+// FindMin returns the smallest element in the tree, or false if the tree is empty.
 // Complexity is O(log₂ n) on average, O(n) in the worst case.
-func (tt *BinaryTree[T]) FindMin() (item *T) {
+func (tt *BinaryTree[T]) FindMin() (item T, found bool) {
 	if tt == nil {
-		panic("binary_tree_ts: FindMin called on a nil tree")
+		return
 	}
 
 	tt.lock.RLock()
@@ -310,23 +435,23 @@ func (tt *BinaryTree[T]) FindMin() (item *T) {
 }
 
 // nlFindMin is FindMin without locking; the caller must hold the lock.
-func (tt *BinaryTree[T]) nlFindMin() (item *T) {
+func (tt *BinaryTree[T]) nlFindMin() (item T, found bool) {
 	if tt.nlIsEmpty() {
-		return nil
+		return
 	}
 
 	cur := tt.root
 	for cur.left != nil {
 		cur = cur.left
 	}
-	return cur.data
+	return cur.data, true
 }
 
-// FindMax returns the largest element in the tree, or nil if the tree is empty.
+// FindMax returns the largest element in the tree, or false if the tree is empty.
 // Complexity is O(log₂ n) on average, O(n) in the worst case.
-func (tt *BinaryTree[T]) FindMax() (item *T) {
+func (tt *BinaryTree[T]) FindMax() (item T, found bool) {
 	if tt == nil {
-		panic("binary_tree_ts: FindMax called on a nil tree")
+		return
 	}
 
 	tt.lock.RLock()
@@ -336,16 +461,16 @@ func (tt *BinaryTree[T]) FindMax() (item *T) {
 }
 
 // nlFindMax is FindMax without locking; the caller must hold the lock.
-func (tt *BinaryTree[T]) nlFindMax() (item *T) {
+func (tt *BinaryTree[T]) nlFindMax() (item T, found bool) {
 	if tt.nlIsEmpty() {
-		return nil
+		return
 	}
 
 	cur := tt.root
 	for cur.right != nil {
 		cur = cur.right
 	}
-	return cur.data
+	return cur.data, true
 }
 
 // DeleteAtHead removes the smallest element of the tree, returning true if
@@ -353,7 +478,7 @@ func (tt *BinaryTree[T]) nlFindMax() (item *T) {
 // Complexity is O(log₂ n) on average, O(n) in the worst case.
 func (tt *BinaryTree[T]) DeleteAtHead() (found bool) {
 	if tt == nil {
-		panic("binary_tree_ts: DeleteAtHead called on a nil tree")
+		return false
 	}
 
 	tt.lock.Lock()
@@ -362,11 +487,13 @@ func (tt *BinaryTree[T]) DeleteAtHead() (found bool) {
 	if tt.nlIsEmpty() {
 		return false
 	}
-
-	x := tt.nlFindMin()
-	tt.deleteBy(func(data *T) int {
-		return (*x).Compare(*data)
-	})
+	tt.length--
+	// Splice out the left-most node; by construction it has no left child.
+	cur := &tt.root
+	for (*cur).left != nil {
+		cur = &(*cur).left
+	}
+	*cur = (*cur).right
 	return true
 }
 
@@ -375,7 +502,7 @@ func (tt *BinaryTree[T]) DeleteAtHead() (found bool) {
 // Complexity is O(log₂ n) on average, O(n) in the worst case.
 func (tt *BinaryTree[T]) DeleteAtTail() (found bool) {
 	if tt == nil {
-		panic("binary_tree_ts: DeleteAtTail called on a nil tree")
+		return false
 	}
 
 	tt.lock.Lock()
@@ -384,19 +511,23 @@ func (tt *BinaryTree[T]) DeleteAtTail() (found bool) {
 	if tt.nlIsEmpty() {
 		return false
 	}
-
-	x := tt.nlFindMax()
-	tt.deleteBy(func(data *T) int {
-		return (*x).Compare(*data)
-	})
+	tt.length--
+	// Splice out the right-most node; by construction it has no right child.
+	cur := &tt.root
+	for (*cur).right != nil {
+		cur = &(*cur).right
+	}
+	*cur = (*cur).left
 	return true
 }
 
 // Reverse swaps the left and right children of every node in the tree.
+// The result is no longer ordered by the tree's comparison function until
+// it is reversed back.
 // Complexity is O(n).
 func (tt *BinaryTree[T]) Reverse() {
 	if tt == nil {
-		panic("binary_tree_ts: Reverse called on a nil tree")
+		return
 	}
 
 	tt.lock.Lock()
@@ -422,43 +553,42 @@ func (tt *BinaryTree[T]) Reverse() {
 	postTraversal(tt.root)
 }
 
-// Index returns the `pos`-th element of the tree in in-order order,
-// or nil if `pos` is out of range.
+// Index returns the `pos`-th element of the tree in in-order order, or
+// false if `pos` is out of range.
 // Complexity is O(n).
-func (tt *BinaryTree[T]) Index(pos int) (item *T) {
+func (tt *BinaryTree[T]) Index(pos int) (item T, found bool) {
 	if tt == nil {
-		panic("binary_tree_ts: Index called on a nil tree")
+		return
 	}
 
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 
 	if tt.nlIsEmpty() {
-		return nil
+		return
 	}
 
 	if pos < 0 || pos >= tt.length {
-		return nil
+		return
 	}
 
 	var n = 0
-	var done = false
 	var inorderTraversal func(cur *BinaryTreeElement[T])
 	inorderTraversal = func(cur *BinaryTreeElement[T]) {
 		if cur == nil {
 			return
 		}
-		if !done {
+		if !found {
 			if cur.left != nil {
 				inorderTraversal(cur.left)
 			}
 		}
 		if n == pos {
 			item = cur.data
-			done = true
+			found = true
 		}
 		n++
-		if !done {
+		if !found {
 			if cur.right != nil {
 				inorderTraversal(cur.right)
 			}
@@ -473,7 +603,7 @@ func (tt *BinaryTree[T]) Index(pos int) (item *T) {
 // Complexity is O(n).
 func (tt *BinaryTree[T]) Depth() int {
 	if tt == nil {
-		panic("binary_tree_ts: Depth called on a nil tree")
+		return 0
 	}
 
 	tt.lock.RLock()
@@ -495,14 +625,21 @@ func (tt *BinaryTree[T]) nlDepth() int {
 }
 
 // ApplyFunction is the callback type used by the Walk* functions.  `pos` is
-// the ordinal position of the element in the walk order, `depth` is the
-// depth of the node in the tree (root is 0) and `userData` is the value
-// passed to the walk.  Returning false stops the walk.
-type ApplyFunction[T comparable.Comparable] func(pos, depth int, data *T, userData interface{}) bool
+// the ordinal position of the element in the walk order and `depth` is the
+// depth of the node in the tree (root is 0).  Returning false stops the
+// walk.  Caller state is captured in a closure, so it keeps its static
+// type and is never boxed.
+type ApplyFunction[T any] func(pos, depth int, data T) bool
 
 // WalkInOrder visits every element in in-order (ascending) order.
+// Returning false from fx stops the walk.  The read lock is held for the
+// whole walk: fx must not call methods on the same tree, or the call can
+// deadlock.
 // Complexity is O(n).
-func (tt *BinaryTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) {
+func (tt *BinaryTree[T]) WalkInOrder(fx ApplyFunction[T]) {
+	if tt == nil {
+		return
+	}
 
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
@@ -520,7 +657,7 @@ func (tt *BinaryTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) 
 			}
 		}
 		// ----------------------------------------------------------------------
-		b = b && fx(p, n, cur.data, userData)
+		b = b && fx(p, n, cur.data)
 		p++
 		// ----------------------------------------------------------------------
 		if b {
@@ -533,8 +670,14 @@ func (tt *BinaryTree[T]) WalkInOrder(fx ApplyFunction[T], userData interface{}) 
 }
 
 // WalkPreOrder visits every element in pre-order (node, left, right) order.
+// Returning false from fx stops the walk.  The read lock is held for the
+// whole walk: fx must not call methods on the same tree, or the call can
+// deadlock.
 // Complexity is O(n).
-func (tt *BinaryTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{}) {
+func (tt *BinaryTree[T]) WalkPreOrder(fx ApplyFunction[T]) {
+	if tt == nil {
+		return
+	}
 
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
@@ -547,7 +690,7 @@ func (tt *BinaryTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{})
 			return
 		}
 		// ----------------------------------------------------------------------
-		b = b && fx(p, n, cur.data, userData)
+		b = b && fx(p, n, cur.data)
 		p++
 		// ----------------------------------------------------------------------
 		if b {
@@ -565,8 +708,14 @@ func (tt *BinaryTree[T]) WalkPreOrder(fx ApplyFunction[T], userData interface{})
 }
 
 // WalkPostOrder visits every element in post-order (left, right, node) order.
+// Returning false from fx stops the walk.  The read lock is held for the
+// whole walk: fx must not call methods on the same tree, or the call can
+// deadlock.
 // Complexity is O(n).
-func (tt *BinaryTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}) {
+func (tt *BinaryTree[T]) WalkPostOrder(fx ApplyFunction[T]) {
+	if tt == nil {
+		return
+	}
 
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
@@ -589,11 +738,9 @@ func (tt *BinaryTree[T]) WalkPostOrder(fx ApplyFunction[T], userData interface{}
 			}
 		}
 		// ----------------------------------------------------------------------
-		b = b && fx(p, n, cur.data, userData)
+		b = b && fx(p, n, cur.data)
 		p++
 		// ----------------------------------------------------------------------
 	}
 	postOrderTraversal(tt.root, 0)
 }
-
-/* vim: set noai ts=4 sw=4: */

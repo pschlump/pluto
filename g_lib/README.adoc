@@ -4,10 +4,15 @@
 == Overview
 
 `g_lib` is a small library of generic utility functions built on Go type
-parameters: min/max, slice searching and manipulation, set conversion, and
-map key extraction.  Constraints use the standard library `cmp.Ordered`
-plus a small set of numeric constraints defined in this package
-(`Numeric`, `SignedInteger`, `SignedNumeric`, `Unsigned`, `Number`).
+parameters: min/max, absolute value and exponentiation, slice searching
+and manipulation, set conversion, map key extraction, and a pointer
+helper.  There are no data structures here — just pure functions on
+slices and maps — which makes it the one non-structure package in
+charon.
+
+Everything is stdlib-only; ordering comes from the standard library's
+`cmp.Ordered`, and arithmetic comes from the numeric constraints defined
+in this package (see below).
 
 == Functions
 
@@ -22,6 +27,7 @@ plus a small set of numeric constraints defined in this package
 | `IfTrue`                 | Ternary-style selector: `a` if `on`, else `b`                  | O(1)
 | `InArray`                | Linear membership test in a slice                              | O(n)
 | `LocationInArray`        | Index of first occurrence, or -1                               | O(n)
+| `Ptr`                    | Pointer to a copy of a value (the Go 1.26 `new(expr)` form)    | O(1)
 | `RemoveAt`               | Copy of slice with item at `pos` removed; input never modified | O(n)
 | `Remove`                 | New slice without items `reflect.DeepEqual` to `needle`        | O(n)
 | `RemoveComparable`       | New slice without items equal to `element`                     | O(n)
@@ -34,21 +40,83 @@ plus a small set of numeric constraints defined in this package
 | `GetMapKeys`             | Keys of any map, unspecified order                             | O(n)
 |===
 
-== Example
+`Pow` ignores numeric overflow (use a wide enough T), and a negative
+exponent returns `T(1)` — the loop runs zero times.  `Abs` of the most
+negative value of a signed integer type overflows and stays negative.
+
+== Numeric constraints
+
+The arithmetic functions are parameterized with these constraint
+interfaces; they are exported for callers building their own generic
+helpers on top.
+
+[cols="1,3,1,1",options="header"]
+|===
+| Constraint | Type set | Accepts defined types (`~T`) | `uintptr`
+
+| `Numeric` | all integer and floating-point types | yes | no
+| `SignedInteger` | all signed integer types | yes | —
+| `SignedNumeric` | all signed integer and floating-point types | yes | —
+| `Unsigned` | all unsigned integer types + `uintptr` | yes | yes
+| `Number` | all integer and floating-point types | *no* | no
+|===
+
+`Number` (used by `Pow`) is the odd one out: its type set lists the
+predeclared types exactly, so a type *defined* from one of them
+(`type celsius float64`) does not satisfy it.  `Numeric` covers the
+same types with `~` and accepts defined types.
+
+== Edge-case semantics
+
+* Empty and nil slices: `MinArray`/`MaxArray` return the zero value of
+`T`; `InArray` returns false and `LocationInArray` returns -1;
+`Remove`/`RemoveComparable`/`Unique` return an empty (nil) slice;
+`ToBoolMap` returns an empty non-nil map.
+* Empty and nil maps: `KeysForStringMap` returns nil, `GetMapKeys`
+returns an empty non-nil slice, `SortedKeysForStringMap` returns nil.
+* `RemoveAt` with an out-of-range `pos` returns the input slice
+unchanged (not a copy); with a valid `pos` it returns a fresh slice and
+never modifies its input.
+* `Remove` compares with `reflect.DeepEqual`, so it also works for
+element types that are not comparable (slices, maps, functions);
+`RemoveComparable` uses `==` and is the faster choice for comparable
+elements.
+
+== Usage
 
 [source,go]
 ----
-import "github.com/pschlump/pluto/g_lib"
+import "github.com/pschlump/charon/g_lib"
 
-m := g_lib.Min(3, 4)                     // 3
+m := g_lib.Min(3, 4)                              // 3
 pos := g_lib.LocationInArray(42, []int{1, 42, 7}) // 1
 s := g_lib.Unique([]string{"a", "b", "a"})        // ["a", "b"]
 set := g_lib.ToBoolMap([]string{"x", "y"})        // map[string]bool{"x":true, "y":true}
+p := g_lib.Ptr(42)                                // *int pointing at 42
 ----
+
+Runnable, tested examples for every function live in
+link:example_test.go[`example_test.go`].
 
 == Thread Safety
 
 All functions are safe for concurrent use.  They operate only on their
-arguments and keep no shared state.  Functions that return slices
-(`RemoveAt`, `Remove`, `RemoveComparable`, `Unique`) allocate a new
-backing array and never modify their input.
+arguments and keep no shared state.  Functions that return a slice
+(`RemoveAt`, `Remove`, `RemoveComparable`, `Unique`) never modify their
+input.
+
+== Differences from pluto/g_lib
+
+Same function set — this is a rework, not a redesign:
+
+* `ptr` is exported as `Ptr` and implemented with the Go 1.26
+`new(expr)` form (pluto's took the address of the parameter with
+`&v`); both return a pointer to a copy of the value.
+* `InArray` delegates to `slices.Contains` instead of a hand-rolled
+loop.
+* `SortSlice` uses `slices.Sort` (pattern-defeating quicksort, no
+closure) instead of `sort.Slice` with a comparison closure;
+`SortedKeysForStringMap` keeps `sort.Strings`.
+* `Pow` uses a `for range` loop instead of the three-clause form.
+* The numeric constraint docs state their type sets precisely,
+including the `~T` distinction above.

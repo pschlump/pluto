@@ -1,0 +1,109 @@
+= stack_ts
+
+A generic slice-backed *LIFO stack* that is *safe for concurrent use*
+— the thread-safe twin of link:../stack/[charon/stack].  Every operation
+is guarded by a `sync.RWMutex`: readers run in parallel with each other,
+writers are exclusive.
+
+Pluto has no `stack_ts` package (its only thread-safe stack is the
+linked-list `stack_sll_ts`), so unlike most charon `_ts` packages this
+one has no pluto counterpart to rework — it is charon/stack with the
+lock added.  For a thread-safe stack with stable O(1) memory per
+push/pop (no slice window, no reallocation) see
+link:../stack_sll_ts/[charon/stack_sll_ts].
+
+Like `stack`, the element type needs *no constraints at all* and the
+zero value is an empty stack ready to use without a constructor.
+
+== Locking behavior
+
+* *Reads* (`Peek`, `Len`, `Length`, `IsEmpty`) take the read lock and
+release it before returning — they can run in parallel with each other.
+* *Writes* (`Push`, `Pop`, `Truncate`) take the write lock.
+* *`All` and `Backward` operate on a snapshot* copied under the read
+lock when they are called (one O(n) copy).  It is safe to mutate the
+stack while iterating — including from inside the loop — and an
+iterator never observes modifications made after it was created.
+
+[source,go]
+----
+for _, v := range stk.All() {
+    stk.Pop() // safe: All walks a snapshot
+    _ = v
+}
+----
+
+== Errors and panics
+
+Identical to `stack`: `ErrEmptyStack` (compare with `errors.Is`) reports
+the empty stack, and the package has exactly *one* panic:
+
+[options="header"]
+|===
+| Call                    | Why
+
+| `Push` on a nil stack   | a nil stack cannot store an element
+|===
+
+Everything else — including the zero value, which is fully usable because
+there is no comparison or equality function to configure — tolerates a
+nil stack as an empty stack.
+
+== Usage
+
+[source,go]
+----
+package main
+
+import (
+    "fmt"
+    "sync"
+
+    "github.com/pschlump/charon/stack_ts"
+)
+
+func main() {
+    var stk stack_ts.Stack[int]
+
+    // Producers from many goroutines share one stack.
+    var wg sync.WaitGroup
+    for p := 0; p < 8; p++ {
+        wg.Add(1)
+        go func(p int) {
+            defer wg.Done()
+            for i := 0; i < 100; i++ {
+                stk.Push(p*1000 + i)
+            }
+        }(p)
+    }
+    wg.Wait()
+    fmt.Println(stk.Len()) // 800
+
+    // A single goroutine drains it in LIFO order.
+    for !stk.IsEmpty() {
+        if _, err := stk.Pop(); err != nil {
+            break
+        }
+    }
+    fmt.Println(stk.IsEmpty()) // true
+}
+----
+
+Runnable, tested copies of these examples live in
+link:example_test.go[`example_test.go`].  The link:../stack/[stack
+README] documents the full API usage and the slice-window memory
+behavior; they apply unchanged.
+
+== Differences from charon/stack
+
+* Same public API with a `sync.RWMutex` added: reads (`Peek`, `Len`,
+`Length`, `IsEmpty`) take the read lock, writes (`Push`, `Pop`,
+`Truncate`) the write lock.
+* `All`/`Backward` walk a *snapshot copied when they are called* — the
+plain package's iterators reflect the live stack, which is not safe
+under concurrency.  The index conventions are unchanged: `All` numbers
+from 0 at the top, `Backward` from 0 at the bottom.
+* `Pop` keeps the memory behavior of the plain package (zeroes the
+vacated slot, releases the backing array on a full drain); long
+grow/drain cycles still reallocate the window — point callers needing
+stable O(1) memory at `stack_sll_ts`.

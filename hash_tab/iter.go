@@ -1,34 +1,57 @@
-package hash_tab
-
 /*
-Copyright (C) Philip Schlump, 2012-2024.
+Copyright (C) Philip Schlump, 2012-2026.
 
 BSD 3 Clause Licensed.
 */
 
-import (
-	"iter"
-)
+package hash_tab
 
-// All returns a range-over-func iterator (Go 1.23+) over every element in
-// the table.  The index is the position in iteration order (bucket order,
-// head to tail within each bucket), which is not significant.  Iteration
-// stops early if the loop body breaks.
+import "iter"
+
+// All returns an iterator (Go 1.23 range-over-func) over the elements of the
+// table as (bucket-position, element) pairs, in bucket order and — within a
+// bucket — from the most recently inserted element to the oldest.  Typical
+// use:
 //
-//	for i, v := range ht.All() {
-//		...
-//	}
+//	for pos, item := range ht.All() { ... }
 //
+// As with dll/sll, a single-variable range yields the bucket position, not
+// the element.  Bucket order depends on the per-table hash seed, so it
+// varies from process to process — never assert a fixed order.
 // Complexity is O(n).
-func (tt *HashTab[T]) All() iter.Seq2[int, *T] {
-	return func(yield func(int, *T) bool) {
-		i := 0
-		for _, b := range tt.buckets {
-			for _, v := range b.IteratePtr() {
-				if !yield(i, v) {
+func (tt *HashTab[T]) All() iter.Seq2[int, T] {
+	return func(yield func(int, T) bool) {
+		if tt == nil {
+			return
+		}
+		for i := range tt.buckets {
+			for node := tt.buckets[i]; node != nil; node = node.next {
+				if !yield(i, node.data) {
 					return
 				}
-				i++
+			}
+		}
+	}
+}
+
+// Values returns an iterator (Go 1.23 range-over-func) over the elements of
+// the table, in the same order All yields them.  Typical use:
+//
+//	for item := range ht.Values() { ... }
+//
+// The order depends on the per-table hash seed, so it varies from process to
+// process — never assert a fixed order.
+// Complexity is O(n).
+func (tt *HashTab[T]) Values() iter.Seq[T] {
+	return func(yield func(T) bool) {
+		if tt == nil {
+			return
+		}
+		for i := range tt.buckets {
+			for node := tt.buckets[i]; node != nil; node = node.next {
+				if !yield(node.data) {
+					return
+				}
 			}
 		}
 	}

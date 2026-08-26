@@ -1,46 +1,79 @@
 = hash_tab_bt
-:toc:
 
-Package `hash_tab` — a generic hash table for Go where each bucket is a
-binary search tree (`github.com/pschlump/pluto/binary_tree`).  Because
-collisions are resolved by a tree rather than a linked list, lookups stay
-logarithmic even under heavy collisions.
+`hash_tab_bt` is a generic hash table for Go with a fixed number of
+buckets in which *every bucket is a binary search tree*
+(link:../binary_tree[`binary_tree`]).  Because collisions are resolved by
+a tree rather than a chain, lookups stay logarithmic in the elements per
+bucket even under heavy collisions — where the chained
+link:../hash_tab[`hash_tab`] degrades to O(n/k) on the same load, this
+table holds O(log(n/k)).  The bucket count is fixed at construction.
 
-This is the *non-thread-safe* variant.  See
-link:../hash_tab_bt_ts[`hash_tab_bt_ts`] for a thread-safe version with an
-identical API.
+It is a rework of
+link:https://github.com/pschlump/pluto/tree/main/hash_tab_bt[pluto/hash_tab_bt]
+that replaces the `comparable.Comparable` interface constraint (and the
+`Hashable`/`string`/`fmt.Stringer` hashing built on it) with pure Go type
+parameters, so element data is never boxed into an interface and never
+unboxed with a type assertion.  It is the third intra-charon composition
+after `priority_queue` and `heap_sort`: a bucket that is a search tree is
+exactly what `binary_tree` is, so the table stores one
+`*binary_tree.BinaryTree[T]` per bucket instead of reimplementing a tree.
 
-== Overview
+* Elements are stored and returned *by value* (`T`, not `*T`).
+* A bucket tree needs an *ordering*, not just an equality.  Tables of
+naturally ordered types (all integers, floats and strings) need no
+functions at all: `hash_tab_bt.NewHashTab[string](16)` orders with the
+builtin `<` and `>` operators and hashes with the stdlib `hash/maphash`
+using a per-table random seed.
+* Any other type — or identity by a single field — takes a plain
+comparison function *and* a hash function, with no interface to implement:
++
+[source,go]
+----
+byID := hash_tab_bt.NewHashTabFunc(
+	func(a, b User) int { return a.ID - b.ID },
+	func(u User) uint64 { /* hash of u.ID */ },
+	8,
+)
+----
++
+The two functions must agree: whenever `cmp(a, b) == 0`, `hash(a)` and
+`hash(b)` must be equal, otherwise `Search` and `Delete` look in a
+different bucket than the element is stored in.
 
-- Generic over any `T` implementing `comparable.Comparable`.
-- Items are stored as `*T`; inserting an item equal to an existing one
-  replaces it.
-- The hash key is derived from the item itself: if `T` (or `*T`) implements
-  `Hashable` (`HashKey(x any) int`) that is used, otherwise
-  `fmt.Stringer`.  Items implementing neither cause a panic.
-- The number of buckets is fixed at construction (`NewHashTab(n)`, `n >= 5`).
+The default hashing is *randomized per table* (a `hash/maphash` seed) — a
+hash-flooding mitigation.  Bucket order in `All`, `Values`, `Walk` and
+`Dump` therefore varies from process to process and must not appear in
+fixed assertions or golden files.  *Within* a bucket the order is not
+random at all: the tree's in-order walk visits the elements ascending per
+the comparison function (unlike `hash_tab`'s newest-first chains).
+
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and appear
+on pkg.go.dev.
 
 == Complexity
 
-[cols="3,2,3",options="header"]
+[cols="2,1,1,4",options="header"]
 |===
-| Operation                   | Average     | Notes
+| Operation                                | Average      | Worst case | Notes
 
-| `Insert`                    | O(log(n/k)) | k = number of buckets
-| `Search`                    | O(log(n/k)) |
-| `ItemExists`                | O(log(n/k)) |
-| `Delete`                    | O(log(n/k)) |
-| `IsEmpty`                   | O(1)        |
-| `Len` / `Length`            | O(1)        |
-| `Truncate`                  | O(k)        | resets every bucket
-| `Walk` / `WalkFunc` / `All` | O(n)        | visit every element
-| `Dump`                      | O(n)        |
+| `Insert`                                 | O(log(n/k))  | O(n)       | tree insert/replace in the hashed bucket
+| `Search`                                 | O(log(n/k))  | O(n)       | tree descent in the hashed bucket
+| `Delete`                                 | O(log(n/k))  | O(n)       | tree delete in the hashed bucket
+| `IsEmpty`, `Len`, `Length`               | O(1)         | O(1)       |
+| `Truncate`                               | O(k)         | O(k)       | k = bucket count; bucket trees are emptied
+| `Walk`, `Dump`, `All`, `Values`          | O(n)         | O(n)       |
 |===
 
-Worst case (all keys in one bucket) degenerates to the binary tree's
-O(n) per operation.
+k = number of buckets.  Average behavior assumes the hashes spread
+elements evenly over the buckets; the worst case is every element in one
+bucket *and* inserted in sorted order (the unbalanced `binary_tree`
+degenerates to a path — the same worst case as that package).  Use
+`avl_tree`/`rb_tree`-style buckets or `hash_grow` if that matters.  The
+table never grows — pick n for the expected element count, or use
+`hash_grow`.
 
-== Example
+== Usage
 
 [source,go]
 ----
@@ -49,55 +82,112 @@ package main
 import (
 	"fmt"
 
-	hash_tab "github.com/pschlump/pluto/hash_tab_bt"
+	"github.com/pschlump/charon/hash_tab_bt"
 )
 
-type Item struct{ Key string }
-
-func (a Item) Compare(x comparable.Comparable) int {
-	b := x.(Item)
-	switch {
-	case a.Key < b.Key:
-		return -1
-	case a.Key > b.Key:
-		return 1
-	}
-	return 0
-}
-
-func (a Item) HashKey(x any) int { /* ... hash of a.Key ... */ }
-
 func main() {
-	ht := hash_tab.NewHashTab[Item](97)
-	ht.Insert(&Item{Key: "alpha"})
+	ht := hash_tab_bt.NewHashTab[string](16) // 16 buckets, fixed for the life of the table
 
-	if it := ht.Search(&Item{Key: "alpha"}); it != nil {
-		fmt.Println("found", it.Key)
+	ht.Insert("alpha")
+	ht.Insert("beta")
+	fmt.Println(ht.Insert("alpha")) // false — duplicate replaces the element
+
+	if v, found := ht.Search("alpha"); found {
+		fmt.Println("found", v)
 	}
 
-	// Go 1.23+ range-over-func iteration:
-	for item := range ht.All() {
-		fmt.Println(item.Key)
+	ht.Delete("alpha")
+
+	// Range-over-func iteration (Go 1.23+), in bucket order:
+	for pos, item := range ht.All() { // (bucket position, element)
+		fmt.Println(pos, item)
+	}
+	for item := range ht.Values() {
+		fmt.Println(item)
 	}
 
-	ht.Delete(&Item{Key: "alpha"})
+	ht.Truncate() // remove everything
 }
 ----
 
 == Iteration
 
-Three styles are supported, all in bucket order (not sorted order):
+Two styles are supported, both in bucket order (hash-dependent, see the
+randomization note above) and — within a bucket — ascending per the
+comparison function:
 
-- `All()` — modern Go 1.23+ range-over-func iterator (`iter.Seq[*T]`).
-- `WalkFunc(fx func(*T))` — simple callback per element.
-- `Walk(fx binary_tree.ApplyFunction[T], userData any)` — callback with
-  position/depth, walking each bucket's tree in-order.
+- Go 1.23+ range-over-func: `All() iter.Seq2[int, T]` (bucket position and
+  element — as with dll/sll/hash_tab, a single-variable range yields the
+  *bucket position*, not the element) and `Values() iter.Seq[T]`.
+- The `Walk(ApplyFunction[T])` callback: `fx(pos int, data T) bool`, where
+  returning *false stops the walk* (the tree-packages convention — dll and
+  sll are the opposite) and the closure captures caller state; Walk returns
+  true when the walk ran to completion.
+
+== Panics
+
+The package panics in exactly four situations — all programmer errors with
+no sane fallback, each message naming the fix:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewHashTabFunc(nil cmp, ...)` / `NewHashTabFunc(cmp, nil hash, ...)` | nil function, caught at construction time
+| `NewHashTab`/`NewHashTabFunc` with n < 5 | a smaller table has no headroom
+| `Insert` on a nil `*HashTab` | a nil table cannot store an element
+| `Insert` on a zero-value table | no comparison/hash functions; the message names the constructors
+|===
+
+Everything else tolerates a nil table and the zero value as an empty table:
+searches report not-found, `Delete` returns false, and the iterators visit
+nothing.
+
+== Differences from pluto/hash_tab_bt
+
+* The `comparable.Comparable` constraint and the
+  `Hashable`/`string`/`fmt.Stringer` hash-key priority are gone — pluto
+  hashed through `hash(x interface{})` with type assertions (and panicked
+  on types implementing none of the three).  The bucket tree's ordering is
+  either the type's builtin `<`/`>` operators (`NewHashTab`, no interface,
+  no boxing) or a caller supplied comparison function paired with a caller
+  supplied `func(T) uint64` hash (`NewHashTabFunc`).  `NewHashTab` hashes
+  with a per-table random `hash/maphash` seed; pluto's FNV-1a hashes were
+  deterministic per process.
+* The buckets are `charon/binary_tree` trees (as pluto's were pluto
+  `binary_tree` trees) with value semantics throughout: `Search` returns
+  `(T, bool)` instead of a nil-able `*T`, and `Insert`/`Delete` take the
+  probe by value — a probe only needs the fields the comparison and hash
+  functions read.
+* `Insert` returns bool — true when a new element was added, false when it
+  replaced one.  Pluto's `Insert` returned nothing.
+* `Walk` is `func(pos int, data T) bool` with the *bucket index* as `pos`
+  and no `interface{}` userData (state is captured in a closure); returning
+  false stops the walk across all buckets.  Pluto passed through
+  `binary_tree`'s `ApplyFunction` with a per-bucket position, a depth and a
+  userData `interface{}`.
+* `WalkFunc` was dropped (`Values` is the simple callback form) and so were
+  the no-op `WriteLock`/`WriteUnlock`/`ReadLock`/`ReadUnlock` and the
+  `NlSearch`/`NlDelete` aliases that existed only to mirror the pluto `_ts`
+  package's API — the charon `hash_tab_bt_ts` twin has the real
+  `Lock`/`Unlock` plus `Nl*` methods like `hash_grow_ts` instead.
+* `Values` was added and `All` now yields the bucket position with the
+  element (pluto's `All` yielded `*T` only).
+* `Dump` prints an `empty` marker for vacant buckets and one line per
+  element in ascending bucket order; no hash values are shown (the tree
+  nodes keep none), unlike charon `hash_tab`'s `h=`-annotated dump.
+* A nil table and the zero value behave as an empty table for every read;
+  pluto's zero-value table died on a division by zero (`hash % tt.size`).
+  The n < 5 constructor guard keeps the same rule as every charon hash
+  table but with a message that names the constructor and the minimum
+  (pluto panicked with a bare "n too small").
+* A hash of exactly 0 needs no remapping here (an empty bucket is an empty
+  tree, not a hash marker, unlike `hash_grow`'s open addressing).
 
 == Thread safety
 
-This package is *not* safe for concurrent use.  The `WriteLock`,
-`WriteUnlock`, `ReadLock`, `ReadUnlock` methods and the `Nl`-prefixed
-methods (`NlSearch`, `NlDelete`) are no-ops/aliases that exist only so code
-written against the thread-safe `hash_tab_bt_ts` package compiles unchanged
-against this one.  Use `hash_tab_bt_ts` when the table is shared between
+`hash_tab_bt` is *not* safe for concurrent use. Use the
+link:../hash_tab_bt_ts[`hash_tab_bt_ts`] package, which guards every
+operation with a `sync.RWMutex` and adds `Lock`/`Unlock` plus the `Nl*`
+methods for compound operations, when the table is shared between
 goroutines.
