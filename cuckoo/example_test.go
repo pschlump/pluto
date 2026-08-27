@@ -25,7 +25,7 @@ import (
 // A basic set-membership table of strings: no methods to implement, the
 // builtin == decides equality.
 func Example() {
-	ht := cuckoo.NewHashTab[string](16, 0, 0) // size 16, default thresholds 0.85/0.10
+	ht := cuckoo.NewHashTab[string](16, 0, 0) // size 16, default thresholds 0.85/0.20
 
 	ht.Insert("alpha")
 	ht.Insert("beta")
@@ -59,7 +59,7 @@ func ExampleNewHashTabFunc() {
 			_, _ = fmt.Fprint(h, u.ID)
 			return h.Sum64()
 		},
-		8, 0, 0, // rounds up to the 256 minimum; default thresholds 0.85/0.10
+		8, 0, 0, // rounds up to the 256 minimum; default thresholds 0.85/0.20
 	)
 
 	byID.Insert(User{ID: 1, Name: "write"})

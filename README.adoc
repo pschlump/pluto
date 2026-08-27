@@ -55,6 +55,7 @@ with an identical public API.
 | link:hash_grow_ts/[hash_grow_ts]           | Thread-safe auto-growing hash table (RWMutex, snapshot iterators, Lock+Nl* compound ops).
 | link:cuckoo/[cuckoo]                       | Generic auto-growing cuckoo hash table (4 derived hashes per key, powers of 2, == or eq+hash funcs).
 | link:cuckoo_ts/[cuckoo_ts]                 | Thread-safe cuckoo hash table (RWMutex, background resizes, snapshot iterators, Lock+Nl* compound ops).
+| link:cuckoo_grow15_ts/[cuckoo_grow15_ts]   | EXPERIMENTAL cuckoo_ts variant (×1.5 growth via multiply-shift addressing; benchmarks showed no clear win — kept for reference).
 | link:g_lib/[g_lib]                         | Generic utility functions (min/max, slice ops, set/map conversion, numeric constraints).
 |===
 

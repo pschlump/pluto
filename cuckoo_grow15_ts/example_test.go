@@ -11,7 +11,7 @@ BSD 3 Clause Licensed.
 // The default NewHashTab hashing uses a per-process random seed, so examples
 // that iterate a table sort their output first — slot order is never
 // asserted.
-package cuckoo_ts_test
+package cuckoo_grow15_ts_test
 
 import (
 	"fmt"
@@ -19,14 +19,14 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pschlump/charon/cuckoo_ts"
+	"github.com/pschlump/charon/cuckoo_grow15_ts"
 )
 
 // A basic set-membership table of strings shared between goroutines: no
 // methods to implement, the builtin == decides equality, every operation is
 // guarded by the table's lock.
 func Example() {
-	ht := cuckoo_ts.NewHashTab[string](16, 0, 0) // size 16, default thresholds 0.85/0.20
+	ht := cuckoo_grow15_ts.NewHashTab[string](16, 0, 0) // size 16, default thresholds 0.85/0.20
 
 	ht.Insert("alpha")
 	ht.Insert("beta")
@@ -53,7 +53,7 @@ func ExampleNewHashTabFunc() {
 		Name string
 	}
 
-	byID := cuckoo_ts.NewHashTabFunc(
+	byID := cuckoo_grow15_ts.NewHashTabFunc(
 		func(a, b User) bool { return a.ID == b.ID },
 		func(u User) uint64 {
 			h := fnv.New64a()
@@ -89,7 +89,7 @@ func ExampleNewHashTabFunc() {
 // here a search-then-delete that must run as one step against other
 // goroutines.
 func ExampleHashTab_Lock() {
-	ht := cuckoo_ts.NewHashTab[string](8, 0, 0)
+	ht := cuckoo_grow15_ts.NewHashTab[string](8, 0, 0)
 	ht.Insert("job-42")
 
 	ht.Lock()

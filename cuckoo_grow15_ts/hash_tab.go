@@ -4,24 +4,42 @@ Copyright (C) Philip Schlump, 2012-2026.
 BSD 3 Clause Licensed.
 */
 
-// Package cuckoo_ts implements a thread-safe generic cuckoo hash table.
+// Package cuckoo_grow15_ts implements a thread-safe generic cuckoo hash
+// table.
+//
+// EXPERIMENTAL: this is the ×1.5-growth variant of cuckoo_ts — the table
+// grows by half again instead of doubling.  Benchmarks against cuckoo_ts
+// (BenchmarkProfileMix: 100k inserts / 10k deletes / 1M searches) showed
+// no clear winner — roughly 10–12% slower per operation and ~45% more
+// allocation churn (1.7× more resize events), with a memory advantage that
+// depends on where the final length lands between thresholds and was a
+// wash in the measured workload.  See the README's "Experimental results"
+// section for the numbers.  Kept for reference and further measurement;
+// cuckoo_ts remains the production default.
+//
 // Every element is hashed once into a full 64-bit base hash (the stdlib
 // hash/maphash with a per-table random seed, or a caller supplied hash
 // function), and from that one base hash four candidate slot positions are
-// derived: the table size is a power of two, and with mask = size-1 the
-// candidates are
+// derived with a multiply-shift reduction (Lemire's fast range reduction:
+// the high 64 bits of the 128-bit product with the table size):
 //
-//	pos1 =  h         & mask
-//	pos2 = (h >> 4)   & mask
-//	pos3 = (h >> 8)   & mask
-//	pos4 = (h >> 12)  & mask
+//	pos1 = hi64( h         * size)
+//	pos2 = hi64(rotl4 (h)  * size)
+//	pos3 = hi64(rotl8 (h)  * size)
+//	pos4 = hi64(rotl12(h)  * size)
 //
-// ( h >> 4 ) is effectivly remove 1 nibble, add 1 nibble so a new
-// byte ( 1 in 256 probably ) of new random distribution values.
+// rotl4 is a left rotation by one nibble, so each further hash reads a
+// fresh nibble-window of the base hash's bits — a rotation, not a shift,
+// because the multiply-shift reduction reads the top bits and a right
+// shift would starve them (at size 256 a shifted candidate could take
+// only a handful of distinct values).
 //
-// — the first hash is the base hash itself masked to the table, and each
-// further hash is the base hash arithmetic-shifted right one more bit and
-// masked again.  An element may live in any one of its four candidate slots.
+// — the first hash is the base hash itself reduced to the table, and each
+// further hash is the base hash rotated one more nibble and reduced again.
+// Because the multiply-shift works for any table size — unlike a
+// power-of-two mask — the table grows by half again (×1.5) instead of
+// doubling, wasting less memory right after a resize.  An element may live
+// in any one of its four candidate slots.
 // Search and delete look at exactly those four slots — O(1), no probing.  An
 // insert that finds all four candidates occupied displaces the element in one
 // of them (the "cuckoo" step) and re-places the displaced element in one of
@@ -29,7 +47,10 @@ BSD 3 Clause Licensed.
 //
 // The full 64-bit base hash is stored beside each element, so a resize
 // re-derives every position from the stored hash without calling the hash
-// function again, and searches can compare hashes before comparing elements.
+// function again, and searches can compare hashes before comparing
+// elements.  Because the multiply-shift reduction reads the high bits of
+// the hash, NewHashTabFunc avalanches the caller supplied hash with mix64
+// (the maphash used by NewHashTab already disperses all 64 bits well).
 //
 // It is the thread-safe twin of github.com/pschlump/charon/cuckoo — the same
 // API, guarded by a sync.RWMutex — with the addition of the Lock and Unlock
@@ -40,8 +61,8 @@ BSD 3 Clause Licensed.
 // its element is placed) or by the saturation — Len divided by the table
 // size — passing a threshold.  A saturation above the grow threshold
 // (default 0.85) or below the shrink threshold (default 0.20, only checked
-// after a deletion; the table halves down to the minimum size of 256) starts a
-// goroutine that takes the table's write lock and rebuilds the table on its
+// after a deletion; the table shrinks by a third, down to the minimum size
+// of 256) starts a goroutine that takes the table's write lock and rebuilds the table on its
 // own thread, re-checking the conditions after each rebuild and exiting when
 // neither is due.  At most one background resizer runs per table; inserts
 // and deletes that cross a threshold while one is in flight simply wake it.
@@ -50,10 +71,10 @@ BSD 3 Clause Licensed.
 //
 // Both thresholds are set at construction; a value <= 0 or NaN selects its
 // default, and a shrink threshold >= the grow threshold selects both
-// defaults.  The shrink threshold is clamped to at most half the grow
-// threshold — growing halves the saturation, so a higher shrink threshold
-// would make the background resizer oscillate (grow, shrink, grow, ...)
-// forever.
+// defaults.  The shrink threshold is clamped to at most two thirds of the
+// grow threshold — growing multiplies the saturation by 2/3, so a higher
+// shrink threshold would make the background resizer oscillate (grow,
+// shrink, grow, ...) forever.
 //
 // Tables of types that can be compared with == are created with NewHashTab,
 // which hashes with a per-table random hash/maphash seed; tables of any other
@@ -96,12 +117,13 @@ BSD 3 Clause Licensed.
 // the same slots no matter how large the table grows.  It cannot be reached
 // through NewHashTab for practical purposes: with the per-table random
 // maphash seed, distinct elements essentially never share all 64 bits.
-package cuckoo_ts
+package cuckoo_grow15_ts
 
 import (
 	"fmt"
 	"hash/maphash"
 	"io"
+	"math/bits"
 	"sync"
 )
 
@@ -116,8 +138,10 @@ const (
 	maxResizeAttempts = 8    // resize escalations before the pathological panic
 )
 
-// slot is one table position: the element by value, its full 64-bit base
-// hash, and the occupied flag (so a base hash of exactly 0 is a legal hash).
+// slot is one table position: the element by value, its 64-bit base hash
+// (avalanched with mix64 for caller supplied hash functions — see
+// NewHashTabFunc), and the occupied flag (so a hash of exactly 0 is a legal
+// hash).
 type slot[T any] struct {
 	data T
 	hash uint64
@@ -130,8 +154,7 @@ type slot[T any] struct {
 // zero value is an empty read-only table.
 type HashTab[T any] struct {
 	slots  []slot[T] // element storage by value; slot i is empty iff !slots[i].used
-	size   int       // len(slots); always a power of two
-	mask   uint64    // size - 1, used to derive the four positions from a hash
+	size   int       // len(slots); at least minTableSize for a constructed table
 	lock   sync.RWMutex
 	length int // number of elements in the table
 
@@ -143,8 +166,8 @@ type HashTab[T any] struct {
 	// equivalent to the float ones (length/size > growAt iff
 	// length > floor(growAt*size)), so the per-insert and per-delete
 	// checks are integer compares with no float division.
-	growAt    float64 // saturation above which the table doubles (default 0.85)
-	shrinkAt  float64 // saturation below which the table halves (default 0.20)
+	growAt    float64 // saturation above which the table grows by half again (default 0.85)
+	shrinkAt  float64 // saturation below which the table shrinks by a third (default 0.20)
 	growLen   int     // grow when length exceeds this count: floor(growAt * size)
 	shrinkLen int     // shrink when length falls below this count: floor(shrinkAt * size)
 	// resizing records that the background resize goroutine is in flight so
@@ -164,11 +187,12 @@ type HashTab[T any] struct {
 
 // -------------------------------------------------------------------------------------------------------
 
-// NewHashTab creates a cuckoo hash table sized to the next power of two at or
-// above n (n must be at least 5; the minimum table size is 256) with the given
+// NewHashTab creates a cuckoo hash table sized to at least n (n must be at
+// least 5; the minimum table size is 256) with the given
 // grow and shrink saturation thresholds (<= 0 or NaN selects 0.85 and 0.20; a
 // shrink threshold >= the grow threshold selects both defaults;
-// the shrink threshold is clamped to at most half the grow threshold).  Elements
+// the shrink threshold is clamped to at most two thirds of the grow
+// threshold).  Elements
 // are compared with the == operator and hashed with the stdlib hash/maphash
 // using a per-table random seed — no method has to be implemented on T, and
 // no element is ever boxed into an interface.
@@ -183,16 +207,25 @@ func NewHashTab[T comparable](n int, growAt, shrinkAt float64) *HashTab[T] {
 	)
 }
 
-// NewHashTabFunc creates a cuckoo hash table sized to the next power of two
-// at or above n (n must be at least 5; the minimum table size is 256), with the
+// NewHashTabFunc creates a cuckoo hash table sized to at least n (n must be
+// at least 5; the minimum table size is 256), with the
 // given grow and shrink saturation thresholds (<= 0 or NaN selects 0.85 and
 // 0.20; a shrink threshold >= the grow threshold selects both defaults; the
-// shrink threshold is clamped to at most half the grow threshold), a
+// shrink threshold is clamped to at most two thirds of the grow threshold), a
 // caller supplied equality function and a caller supplied hash function.  The
 // two functions must agree: whenever eq(a, b) is true, hash(a) and hash(b)
 // must be equal, otherwise Search and Delete can miss elements.
 // Complexity is O(n) for the slot allocation.
 func NewHashTabFunc[T any](eq func(a, b T) bool, hash func(a T) uint64, n int, growAt, shrinkAt float64) *HashTab[T] {
+	if hash != nil {
+		// Avalanche the caller supplied hash once per call: the multiply-
+		// shift reduction (see posOf) reads the high bits, which a caller
+		// supplied hash may disperse poorly (FNV-style hashes disperse the
+		// low bits best).  maphash needs no such help, so NewHashTab stores
+		// its hash unwrapped.
+		inner := hash
+		hash = func(a T) uint64 { return mix64(inner(a)) }
+	}
 	return newHashTab(n, growAt, shrinkAt, eq, hash, "NewHashTabFunc")
 }
 
@@ -200,13 +233,13 @@ func NewHashTabFunc[T any](eq func(a, b T) bool, hash func(a T) uint64, n int, g
 // constructor in panic messages.
 func newHashTab[T any](n int, growAt, shrinkAt float64, eq func(a, b T) bool, hash func(a T) uint64, caller string) *HashTab[T] {
 	if eq == nil {
-		panic(fmt.Sprintf("cuckoo_ts: %s called with a nil equality function", caller))
+		panic(fmt.Sprintf("cuckoo_grow15_ts: %s called with a nil equality function", caller))
 	}
 	if hash == nil {
-		panic(fmt.Sprintf("cuckoo_ts: %s called with a nil hash function", caller))
+		panic(fmt.Sprintf("cuckoo_grow15_ts: %s called with a nil hash function", caller))
 	}
 	if n < 5 {
-		panic(fmt.Sprintf("cuckoo_ts: %s called with n = %d, the initial size must be at least 5", caller, n))
+		panic(fmt.Sprintf("cuckoo_grow15_ts: %s called with n = %d, the initial size must be at least 5", caller, n))
 	}
 	if !(growAt > 0) { // also catches NaN
 		growAt = defaultGrowAt
@@ -217,17 +250,16 @@ func newHashTab[T any](n int, growAt, shrinkAt float64, eq func(a, b T) bool, ha
 	if shrinkAt >= growAt { // an inverted band has no sane meaning: both defaults
 		growAt, shrinkAt = defaultGrowAt, defaultShrinkAt
 	}
-	if shrinkAt > growAt/2 {
-		// Hysteresis: growing halves the saturation, so a shrink threshold
-		// above half the grow threshold would make a resize oscillate
-		// (grow, shrink, grow, ...) forever.
-		shrinkAt = growAt / 2
+	if shrinkAt > growAt/1.5 {
+		// Hysteresis: growing multiplies the saturation by 2/3, so a shrink
+		// threshold above two thirds of the grow threshold would make a
+		// resize oscillate (grow, shrink, grow, ...) forever.
+		shrinkAt = growAt / 1.5
 	}
-	size := nextPowerOfTwo(n)
+	size := initialSize(n)
 	ht := &HashTab[T]{
 		slots:    make([]slot[T], size),
 		size:     size,
-		mask:     uint64(size - 1),
 		length:   0,
 		growAt:   growAt,
 		shrinkAt: shrinkAt,
@@ -247,21 +279,66 @@ func (tt *HashTab[T]) computeThresholdLens() {
 	tt.shrinkLen = int(tt.shrinkAt * float64(tt.size))
 }
 
-// nextPowerOfTwo returns the smallest power of two that is at least n, but
-// never smaller than minTableSize.
-func nextPowerOfTwo(n int) int {
-	p := minTableSize
-	for p < n {
-		p <<= 1
+// initialSize returns the starting table size: n itself, but never smaller
+// than minTableSize.  The multiply-shift addressing (see posOf) works for
+// any size, so no rounding up to a power of two is needed.
+func initialSize(n int) int {
+	if n < minTableSize {
+		return minTableSize
 	}
-	return p
+	return n
 }
 
-// posOf returns the candidate position derived by shifting `h` right `i` bits
-// and masking to the table — i = 0 is the first hash (the base hash itself),
-// i = 1..3 the second through fourth hashes, each shifted one bit further.
-func posOf(h uint64, i int, mask uint64) int {
-	return int((h >> uint((i << 2))) & mask) // i<<2 is the same as i*4
+// growSize returns the next table size on growth: half again as large
+// (×1.5).  Growth does not need to double — any size is addressable — and a
+// smaller factor wastes less memory right after a resize, at the price of
+// re-placing the elements more often as the table grows.
+func growSize(size int) int {
+	return size + size/2
+}
+
+// shrinkSize returns the next table size on shrinkage: two thirds of the
+// current size (the inverse of growSize), but never below minTableSize.
+func shrinkSize(size int) int {
+	if s := size * 2 / 3; s > minTableSize {
+		return s
+	}
+	return minTableSize
+}
+
+// posOf returns the candidate position derived by rotating `h` left 4*i
+// bits and reducing to the table size with a multiply-shift (Lemire's fast
+// range reduction: the high 64 bits of the 128-bit product of the rotated
+// hash and the size) — i = 0 is the first hash (the base hash itself),
+// i = 1..3 the second through fourth hashes, each rotated one nibble
+// further so it reads a fresh window of bits.  A rotation, not a shift:
+// the reduction consumes the top bits of the word and a right shift would
+// leave those bits zero for the later candidates.  Unlike a power-of-two
+// mask this reduction works for any table size, which is what allows
+// growth by ×1.5 instead of doubling.
+func posOf(h uint64, i int, size int) int {
+	hi, _ := bits.Mul64(bits.RotateLeft64(h, 4*i), uint64(size))
+	return int(hi)
+}
+
+// mix64 avalanches a hash with the murmur3 64-bit finalizer.  The
+// multiply-shift reduction in posOf reads the high bits of the hash, and
+// while hash/maphash disperses all 64 bits well, a caller supplied hash
+// function may not — FNV-style hashes, for example, disperse the low bits
+// best and leave keys that differ in one byte with nearly identical high
+// bits, which would collapse their candidate positions onto the same slots.
+// NewHashTabFunc therefore wraps the caller supplied hash with mix64 (once
+// per operation, not per candidate); mix64 is a bijection, so equal
+// elements still compare equal on the stored value, and a resize still
+// re-derives every position from it without calling the hash function
+// again.
+func mix64(h uint64) uint64 {
+	h ^= h >> 33
+	h *= 0xff51afd7ed558ccd
+	h ^= h >> 33
+	h *= 0xc4ceb9fe1a85ec53
+	h ^= h >> 33
+	return h
 }
 
 // savedSlot records the original content of a position a displacement chain
@@ -288,14 +365,14 @@ type savedSlot[T any] struct {
 // its original content (a failed chain must not leave the item half-placed
 // or drop a displaced element).  The array's element count is not tracked
 // here; the caller adjusts it.
-func placeInto[T any](slots []slot[T], mask uint64, h uint64, item T) bool {
+func placeInto[T any](slots []slot[T], size int, h uint64, item T) bool {
 	cur, curH := item, h
 
 	// Fast path first: any empty candidate takes the element.  Most
 	// inserts place here and never pay for the walk state below (its
 	// zero-initialization alone costs more than a placement).
 	for i := 0; i < numPositions; i++ {
-		p := posOf(curH, i, mask)
+		p := posOf(curH, i, size)
 		if !slots[p].used {
 			slots[p] = slot[T]{data: cur, hash: curH, used: true}
 			return true
@@ -332,13 +409,13 @@ func placeInto[T any](slots []slot[T], mask uint64, h uint64, item T) bool {
 		st ^= st << 13 // xorshift64: the next pseudo-random displacement index
 		st ^= st >> 7
 		st ^= st << 17
-		p := posOf(curH, int(st)&(numPositions-1), mask) // displace and carry the evicted element on
+		p := posOf(curH, int(st)&(numPositions-1), size) // displace and carry the evicted element on
 		save(p)
 		displaced := slots[p]
 		slots[p] = slot[T]{data: cur, hash: curH, used: true}
 		cur, curH = displaced.data, displaced.hash
 		for i := 0; i < numPositions; i++ { // any empty candidate takes the element
-			p := posOf(curH, i, mask)
+			p := posOf(curH, i, size)
 			if !slots[p].used {
 				slots[p] = slot[T]{data: cur, hash: curH, used: true}
 				return true
@@ -432,7 +509,7 @@ func (tt *HashTab[T]) Truncate() {
 // Complexity is O(1) average, O(n) worst case.
 func (tt *HashTab[T]) Insert(item T) bool {
 	if tt == nil {
-		panic("cuckoo_ts: Insert called on a nil table")
+		panic("cuckoo_grow15_ts: Insert called on a nil table")
 	}
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
@@ -444,7 +521,7 @@ func (tt *HashTab[T]) Insert(item T) bool {
 // naming the constructors.
 func (tt *HashTab[T]) NlInsert(item T) bool {
 	if tt.eq == nil || tt.hash == nil {
-		panic("cuckoo_ts: Insert called on a table with no equality/hash functions (create the table with NewHashTab or NewHashTabFunc)")
+		panic("cuckoo_grow15_ts: Insert called on a table with no equality/hash functions (create the table with NewHashTab or NewHashTabFunc)")
 	}
 	return tt.insertItem(tt.hash(item), item)
 }
@@ -458,14 +535,16 @@ func (tt *HashTab[T]) insertItem(h uint64, item T) bool {
 		// An equal element may already occupy one of the four candidate
 		// slots — replace it in place; the element count does not change.
 		for i := 0; i < numPositions; i++ {
-			p := posOf(h, i, tt.mask)
+			p := posOf(h, i, tt.size)
 			if s := &tt.slots[p]; s.used && tt.eq(s.data, item) {
 				s.data = item
 				s.hash = h
 				return false
 			}
 		}
-		if placeInto(tt.slots, tt.mask, h, item) {
+		// The pseudo-random displacement walk is seeded by the element's own
+		// hash, so successive inserts decorrelate on their own.
+		if placeInto(tt.slots, tt.size, h, item) {
 			tt.length++
 			// Unlike the plain package, the threshold-triggered resize runs
 			// on the background goroutine — this insert returns against the
@@ -481,70 +560,69 @@ func (tt *HashTab[T]) insertItem(h uint64, item T) bool {
 		// synchronous even in the thread-safe twin.
 		if attempt >= maxResizeAttempts {
 			panic(fmt.Sprintf(
-				"cuckoo_ts: Insert could not place an element after %d resizes — the hash function produces elements whose candidate positions coincide at every table size (for example more than %d elements sharing one hash value); use a hash function with fewer collisions",
+				"cuckoo_grow15_ts: Insert could not place an element after %d resizes — the hash function produces elements whose candidate positions coincide at every table size (for example more than %d elements sharing one hash value); use a hash function with fewer collisions",
 				maxResizeAttempts, numPositions))
 		}
-		tt.resizeTo(tt.size * 2)
+		tt.resizeTo(growSize(tt.size))
 	}
 }
 
-// tryRebuild rebuilds the table into a fresh slot array of newSize (a power
-// of two), re-deriving every position from the stored base hashes — the hash
+// tryRebuild rebuilds the table into a fresh slot array of newSize,
+// re-deriving every position from the stored base hashes — the hash
 // function is not called again.  It returns false without touching the
 // current table when some element cannot be placed (only possible when the
 // stored hashes collide pathologically).  The caller must hold the write
 // lock.
 func (tt *HashTab[T]) tryRebuild(newSize int) bool {
 	newSlots := make([]slot[T], newSize)
-	newMask := uint64(newSize - 1)
 	for i := range tt.slots {
 		if !tt.slots[i].used {
 			continue
 		}
 		s := tt.slots[i]
-		if !placeInto(newSlots, newMask, s.hash, s.data) {
+		if !placeInto(newSlots, newSize, s.hash, s.data) {
 			return false // the partial rebuild is discarded; the old table stands
 		}
 	}
 	tt.slots = newSlots
 	tt.size = newSize
-	tt.mask = newMask
 	tt.computeThresholdLens()
 	return true
 }
 
-// resizeTo rebuilds the table at newSize, doubling on each failed rebuild —
-// the synchronous resize path (a collision loop inside an insert, or a
-// background growth).  Panics when even the escalated rebuilds cannot
-// separate the elements (see the pathological panic in the package comment).
-// The caller must hold the write lock.
+// resizeTo rebuilds the table at newSize, growing by another half on each
+// failed rebuild — the synchronous resize path (a collision loop inside an
+// insert, or a background growth).  Panics when even the escalated rebuilds
+// cannot separate the elements (see the pathological panic in the package
+// comment).  The caller must hold the write lock.
 func (tt *HashTab[T]) resizeTo(newSize int) {
 	for attempt := 0; ; attempt++ {
-		if tt.tryRebuild(newSize << uint(attempt)) {
+		if tt.tryRebuild(newSize) {
 			return
 		}
 		if attempt+1 >= maxResizeAttempts {
 			panic(fmt.Sprintf(
-				"cuckoo_ts: resize to %d failed after %d attempts — the hash function produces elements whose candidate positions coincide at every table size; use a hash function with fewer collisions",
+				"cuckoo_grow15_ts: resize to %d failed after %d attempts — the hash function produces elements whose candidate positions coincide at every table size; use a hash function with fewer collisions",
 				newSize, maxResizeAttempts))
 		}
+		newSize = growSize(newSize)
 	}
 }
 
 // desiredSize reports whether a threshold-triggered resize is currently due
-// and the size to rebuild at: double when the element count is above the
-// grow count, half when it is below the shrink count and the table is
-// above the minimum size.  An empty table needs nothing (Truncate does not
-// shrink).  The caller must hold the write lock.
+// and the size to rebuild at: half again as large when the element count is
+// above the grow count, two thirds when it is below the shrink count and
+// the table is above the minimum size.  An empty table needs nothing
+// (Truncate does not shrink).  The caller must hold the write lock.
 func (tt *HashTab[T]) desiredSize() (newSize int, needed bool) {
 	if tt.length == 0 || tt.eq == nil || tt.hash == nil {
 		return 0, false
 	}
 	if tt.length > tt.growLen {
-		return tt.size * 2, true
+		return growSize(tt.size), true
 	}
 	if tt.length < tt.shrinkLen && tt.size > minTableSize {
-		return tt.size / 2, true
+		return shrinkSize(tt.size), true
 	}
 	return 0, false
 }
@@ -565,8 +643,7 @@ func (tt *HashTab[T]) spawnResize() {
 // the write lock, re-evaluate the thresholds against the current table, and
 // rebuild at the indicated size — growth escalates (see resizeTo), a shrink
 // is best effort (a rebuild that cannot place every element keeps the
-// current size and ends this run; a later delete starts a fresh attempt —
-// retrying the same failed shrink in a hot loop would never make progress).
+// current size and ends this run; a later delete starts a fresh attempt).
 // It exits once neither threshold is due, clearing the resizing flag so a
 // later trigger can start a fresh goroutine.
 func (tt *HashTab[T]) backgroundResize() {
@@ -611,10 +688,10 @@ func (tt *HashTab[T]) Length() int {
 	return tt.length
 }
 
-// Capacity returns the current table size — always a power of two, at least
-// minTableSize for a constructed table.  A nil table and the zero value
-// report 0.  Right after a threshold is crossed the reported capacity may
-// still be the old one — the background resizer has not rebuilt yet.
+// Capacity returns the current table size — at least minTableSize for a
+// constructed table.  A nil table and the zero value report 0.  Right after
+// a threshold is crossed the reported capacity may still be the old one —
+// the background resizer has not rebuilt yet.
 // Complexity is O(1).
 func (tt *HashTab[T]) Capacity() int {
 	if tt == nil {
@@ -627,8 +704,9 @@ func (tt *HashTab[T]) Capacity() int {
 
 // Saturation returns the load factor: Len divided by Capacity.  It crosses
 // the grow threshold (default 0.85) just before the background resizer
-// doubles the table and the shrink threshold (default 0.20) just before it
-// halves the table.  A nil table and the zero value report 0.
+// grows the table by half again and the shrink threshold (default 0.20)
+// just before it shrinks the table by a third.  A nil table and the zero
+// value report 0.
 // Complexity is O(1).
 func (tt *HashTab[T]) Saturation() float64 {
 	if tt == nil {
@@ -661,7 +739,7 @@ func (tt *HashTab[T]) NlSearch(find T) (rv T, found bool) {
 	}
 	h := tt.hash(find)
 	for i := 0; i < numPositions; i++ {
-		p := posOf(h, i, tt.mask)
+		p := posOf(h, i, tt.size)
 		if s := tt.slots[p]; s.used && s.hash == h && tt.eq(s.data, find) {
 			return s.data, true // equal elements hash equal, so the pre-check is safe
 		}
@@ -672,9 +750,9 @@ func (tt *HashTab[T]) NlSearch(find T) (rv T, found bool) {
 // Delete an element from the table.  The element equal to `find` is located
 // in one of its four candidate slots and the slot is cleared — unlike linear
 // probing there are no probe chains to repair.  When the deletion takes the
-// saturation below the shrink threshold the background resizer halves the
-// table (down to the minimum table size).  Returns true if the element was
-// found and removed.
+// saturation below the shrink threshold the background resizer shrinks the
+// table by a third (down to the minimum table size).  Returns true if the
+// element was found and removed.
 // Complexity is O(1) average; the triggered shrink is O(n) on the background
 // goroutine.
 func (tt *HashTab[T]) Delete(find T) (found bool) {
@@ -695,7 +773,7 @@ func (tt *HashTab[T]) NlDelete(find T) (found bool) {
 	}
 	h := tt.hash(find)
 	for i := 0; i < numPositions; i++ {
-		p := posOf(h, i, tt.mask)
+		p := posOf(h, i, tt.size)
 		if s := &tt.slots[p]; s.used && s.hash == h && tt.eq(s.data, find) {
 			var zero T
 			s.data = zero // release the reference for GC

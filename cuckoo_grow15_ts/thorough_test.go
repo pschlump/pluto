@@ -1,4 +1,4 @@
-package cuckoo_ts
+package cuckoo_grow15_ts
 
 // Thorough tests for the thread-safe cuckoo table: nil and zero-value
 // behavior, the panic contract with its messages, replacement semantics, the
@@ -102,14 +102,14 @@ func checkInvariants(t *testing.T, ht *HashTab[TestData]) {
 		}
 		ok := false
 		for j := 0; j < numPositions; j++ {
-			if i == posOf(s.hash, j, ht.mask) {
+			if i == posOf(s.hash, j, ht.size) {
 				ok = true
 				break
 			}
 		}
 		if !ok {
 			ht.Unlock()
-			t.Fatalf("slot %d is not one of the four candidates of its hash %d (mask %d)", i, s.hash, ht.mask)
+			t.Fatalf("slot %d is not one of the four candidates of its hash %d (size %d)", i, s.hash, ht.size)
 		}
 		if _, found := ht.NlSearch(s.data); !found {
 			ht.Unlock()
@@ -228,13 +228,13 @@ func TestHashTabNilTolerated(t *testing.T) {
 // names the method and the fix.
 func TestHashTabNilPanics(t *testing.T) {
 	var nilTable *HashTab[TestData]
-	expectPanicMessage(t, "Insert on nil table", "cuckoo_ts: Insert called on a nil table",
+	expectPanicMessage(t, "Insert on nil table", "cuckoo_grow15_ts: Insert called on a nil table",
 		func() { nilTable.Insert(TestData{S: "x"}) })
 	expectPanicMessage(t, "Insert on zero-value table", "no equality/hash functions",
 		func() { (&HashTab[TestData]{}).Insert(TestData{S: "x"}) })
-	expectPanicMessage(t, "NewHashTabFunc nil eq", "cuckoo_ts: NewHashTabFunc called with a nil equality function",
+	expectPanicMessage(t, "NewHashTabFunc nil eq", "cuckoo_grow15_ts: NewHashTabFunc called with a nil equality function",
 		func() { NewHashTabFunc(nil, func(TestData) uint64 { return 1 }, 16, 0, 0) })
-	expectPanicMessage(t, "NewHashTabFunc nil hash", "cuckoo_ts: NewHashTabFunc called with a nil hash function",
+	expectPanicMessage(t, "NewHashTabFunc nil hash", "cuckoo_grow15_ts: NewHashTabFunc called with a nil hash function",
 		func() { NewHashTabFunc(func(a, b TestData) bool { return a.S == b.S }, nil, 16, 0, 0) })
 	expectPanicMessage(t, "n < 5", "initial size must be at least 5",
 		func() { NewHashTab[string](4, 0, 0) })
@@ -245,9 +245,9 @@ func TestHashTabNilPanics(t *testing.T) {
 
 // TestThresholdDefaults verifies the constructor's threshold handling: <= 0
 // or NaN selects a default, a shrink threshold >= the grow threshold selects
-// both defaults, and a shrink threshold above half the grow threshold is
-// clamped (the hysteresis that keeps the background resizer from
-// oscillating).
+// both defaults, and a shrink threshold above two thirds of the grow
+// threshold is clamped (the hysteresis that keeps the background resizer
+// from oscillating).
 func TestThresholdDefaults(t *testing.T) {
 	cases := []struct {
 		grow, shrink         float64
@@ -260,8 +260,8 @@ func TestThresholdDefaults(t *testing.T) {
 		{0.5, 0.05, 0.5, 0.05},
 		{2.0, 0.1, 2.0, 0.1},                        // a grow threshold above 1 defers threshold growth
 		{0.05, 0.5, defaultGrowAt, defaultShrinkAt}, // inverted band: both defaults
-		{0.5, 0.4, 0.5, 0.25},                       // narrow band: shrink clamped to grow/2
-		{0.3, 0.2, 0.3, 0.15},                       // ditto
+		{0.5, 0.4, 0.5, 0.5 / 1.5},                       // narrow band: shrink clamped to grow/1.5
+		{0.3, 0.2, 0.3, 0.19999999999999998},             // ditto (runtime 0.3/1.5, not the exact constant)
 	}
 	for i, c := range cases {
 		ht := newTestTab(16, c.grow, c.shrink)
@@ -275,16 +275,17 @@ func TestThresholdDefaults(t *testing.T) {
 }
 
 // TestNarrowBandNoOscillation pins the hysteresis clamp: with the requested
-// shrink threshold above half the grow threshold, a threshold resize would
-// otherwise oscillate (grow, shrink, grow, ...) on the background goroutine
-// forever.  waitQuiescent fatals after 5s if the resizer never exits.
+// shrink threshold above two thirds of the grow threshold, a threshold
+// resize would otherwise oscillate (grow, shrink, grow, ...) on the
+// background goroutine forever.  waitQuiescent fatals after 5s if the
+// resizer never exits.
 func TestNarrowBandNoOscillation(t *testing.T) {
-	ht := newTestTab(16, 0.5, 0.4) // starts at the 256 minimum; shrink clamped to 0.25
+	ht := newTestTab(16, 0.5, 0.4) // starts at the 256 minimum; shrink clamped to 0.5/1.5
 	ht.Lock()
 	clamped := ht.shrinkAt
 	ht.Unlock()
-	if clamped != 0.25 {
-		t.Fatalf("shrink threshold %.4f, want the clamped 0.25", clamped)
+	if clamped != 0.5/1.5 {
+		t.Fatalf("shrink threshold %.4f, want the clamped %v", clamped, 0.5/1.5)
 	}
 	for i := range 140 { // crosses 0.5 at 130/256 = 0.508
 		ht.Insert(TestData{S: fmt.Sprintf("n%03d", i)})
@@ -335,7 +336,7 @@ func TestInsertReplacesExisting(t *testing.T) {
 }
 
 // TestAsyncGrowPastThreshold fills a 256-slot table past the 0.85 grow
-// threshold and verifies the background resizer doubles the table and that
+// threshold and verifies the background resizer grows the table and that
 // every element survives.
 func TestAsyncGrowPastThreshold(t *testing.T) {
 	ht := newTestTab(16, 0.85, 0.10) // starts at the 256 minimum
@@ -343,8 +344,8 @@ func TestAsyncGrowPastThreshold(t *testing.T) {
 		ht.Insert(TestData{S: fmt.Sprintf("a%03d", i), N: i})
 	}
 	waitQuiescent(t, ht)
-	if c := ht.Capacity(); c < 512 {
-		t.Errorf("capacity %d after crossing 0.85 on 256 slots, the resizer should have at least doubled it", c)
+	if c := ht.Capacity(); c <= 256 {
+		t.Errorf("capacity %d after crossing 0.85 on 256 slots, the resizer should have grown it", c)
 	}
 	if s := ht.Saturation(); s > 0.85 {
 		t.Errorf("saturation %.4f above 0.85 after the resizer finished", s)
@@ -358,7 +359,7 @@ func TestAsyncGrowPastThreshold(t *testing.T) {
 }
 
 // TestAsyncShrinkBelowThreshold fills a table, deletes down to a handful,
-// and verifies the background resizer halves the table back into the 10%
+// and verifies the background resizer shrinks the table back into the 10%
 // band and keeps the survivors.
 func TestAsyncShrinkBelowThreshold(t *testing.T) {
 	ht := newTestTab(1024, 0.85, 0.10)
@@ -367,8 +368,8 @@ func TestAsyncShrinkBelowThreshold(t *testing.T) {
 	}
 	waitQuiescent(t, ht)
 	capAfterInserts := ht.Capacity()
-	if capAfterInserts < 1024 || capAfterInserts&(capAfterInserts-1) != 0 {
-		t.Fatalf("capacity = %d after the inserts, want a power of two >= 1024", capAfterInserts)
+	if capAfterInserts < 1024 {
+		t.Fatalf("capacity = %d after the inserts, want at least 1024", capAfterInserts)
 	}
 	for i := range 595 {
 		if !ht.Delete(TestData{S: fmt.Sprintf("%d", i)}) {
@@ -396,7 +397,7 @@ func TestAsyncShrinkBelowThreshold(t *testing.T) {
 	checkInvariants(t, ht)
 }
 
-// TestShrinkFloor verifies the table never halves below the minimum size.
+// TestShrinkFloor verifies the table never shrinks below the minimum size.
 func TestShrinkFloor(t *testing.T) {
 	ht := newTestTab(16, 0.85, 0.10)
 	for i := range 10 {
@@ -446,8 +447,8 @@ func TestDeferredGrowthAtHighThreshold(t *testing.T) {
 	if ht.Len() != 300 {
 		t.Fatalf("Len = %d, want 300", ht.Len())
 	}
-	if ht.Capacity() < 512 || ht.Capacity()&(ht.Capacity()-1) != 0 {
-		t.Fatalf("capacity %d cannot hold 300 elements as a power of two past the 256 minimum", ht.Capacity())
+	if ht.Capacity() < 384 { // 256 grown by half again, the first ×1.5 step
+		t.Fatalf("capacity %d cannot hold 300 elements past the 256 minimum", ht.Capacity())
 	}
 	for i := range 300 {
 		if _, found := ht.Search(TestData{S: fmt.Sprintf("%d", 1000+i)}); !found {

@@ -8,18 +8,20 @@ and with `mask = size-1` the candidates are
 [indent=0]
 ....
 pos1 =  h        & mask        (the 1st hash: the base hash itself)
-pos2 = (h >> 1)  & mask        (the 2nd hash: 1-bit shift right, then mask)
-pos3 = (h >> 2)  & mask        (the 3rd hash: 2-bit shift right, then mask)
-pos4 = (h >> 3)  & mask        (the 4th hash: 3-bit shift right, then mask)
+pos2 = (h >> 4)  & mask        (the 2nd hash: 1-nibble shift right, then mask)
+pos3 = (h >> 8)  & mask        (the 3rd hash: 2-nibble shift right, then mask)
+pos4 = (h >> 12) & mask        (the 4th hash: 3-nibble shift right, then mask)
 ....
 
 An element may live in any one of its four candidate slots. Search and
 delete look at exactly those four slots — O(1), no probing, no cluster
 repair on delete. An insert that finds all four candidates occupied
-displaces the element in one of them (the "cuckoo" step) and re-places the
-displaced element in one of its own candidates, repeating until every
-element has a slot; a chain that runs past the kick limit is a collision
-loop that forces a resize.
+displaces the element in a pseudo-randomly chosen one (the "cuckoo" step —
+an xorshift walk seeded by the element's own hash; a deterministic rotation
+cycles and fails at much lower loads) and re-places the displaced element
+in one of its own candidates, repeating until every element has a slot; a
+chain that runs past the kick limit is a collision loop that forces a
+resize.
 
 The full 64-bit base hash is stored beside each element, so a resize
 re-derives every position from the stored hash without calling the hash
@@ -73,7 +75,7 @@ reported by `Saturation()`:
   (default 0.85) doubles the table — synchronously in this package, on a
   background goroutine in `cuckoo_ts`;
 * a deletion that takes the saturation *below the shrink threshold*
-  (default 0.10) halves the table, down to the minimum size of 256 (best
+  (default 0.20) halves the table, down to the minimum size of 256 (best
   effort — a failed rebuild keeps the current size).
 
 Both thresholds are configured at construction. A value <= 0 or NaN
@@ -86,10 +88,33 @@ forever. A grow threshold above 1.0 defers threshold growth entirely
 resize on the next insert).
 
 Because the four candidates of a hash overlap in bits (candidate `i` uses
-bits `i` through `i+k-1` of the base hash for a table of `2^k`), doubling
+bits `4i` through `4i+k-1` of the base hash for a table of `2^k`), doubling
 the table gives every candidate one more distinguishing bit — that is why
 a resize breaks collision loops unless the hashes themselves collide
 outright.
+
+== Load factor and insert cost — the memory/speed tradeoff
+
+The grow threshold trades memory against insert speed. Searches are
+immune — they always examine exactly four slots — but an insert that
+finds all four candidates occupied starts a displacement chain, and the
+probability of that climbs steeply with the load factor α: roughly α⁴ for
+well-distributed hashes (~2% at α=0.37, ~28% at α=0.73, ~52% at α=0.85),
+and chains lengthen near the threshold.
+
+So a table that runs fuller inserts slower. The `cuckoo_ts` profiling
+benchmark (100k inserts, 10k deletes, 1M searches) shows the two ends of
+the trade: with growth effectively firing at ~0.45 average load the
+workload ended at capacity 262,144 for 96,018 live elements; with growth
+firing at the 0.85 threshold it ends at 131,072 — half the memory — at
+the same total time, because searches dominate and do not care about the
+load. A mostly-insert workload running near 0.85 is where the
+displacement work actually costs. If that is your workload and memory is
+cheap, lower the grow threshold (`NewHashTab[T](n, 0.70, 0)` buys insert
+speed at ~2.9× peak capacity per live element instead of ~2.4×); if
+memory matters more, keep 0.85 — the measured kick-failure ceiling of
+this scheme is ~0.90 at large sizes, so pushing past ~0.87 invites
+synchronous collision-loop resizes.
 
 == Complexity
 
@@ -121,7 +146,7 @@ import (
 )
 
 func main() {
-	ht := cuckoo.NewHashTab[string](16, 0, 0) // size 16, default thresholds 0.85/0.10
+	ht := cuckoo.NewHashTab[string](16, 0, 0) // size 16, default thresholds 0.85/0.20
 
 	ht.Insert("alpha")
 	ht.Insert("beta")
@@ -207,7 +232,7 @@ link:../hash_grow[charon/hash_grow]:
   remaps a hash of exactly 0 to 1 (it doubles as the empty marker), while
   cuckoo's explicit occupied flag makes 0 a legal hash.
 * *Two saturation thresholds instead of one*: grow above 0.85 (default) and
-  shrink below 0.10 (default), both configurable — `hash_grow` has a single
+  shrink below 0.20 (default), both configurable — `hash_grow` has a single
   saturation threshold (default 0.5) and never shrinks.
 * *A shrink path*: deletions that take the saturation below the shrink
   threshold halve the table (down to 8 slots) — `hash_grow` keeps every

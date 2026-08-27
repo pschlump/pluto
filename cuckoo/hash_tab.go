@@ -11,13 +11,17 @@ BSD 3 Clause Licensed.
 // a power of two, and with mask = size-1 the candidates are
 //
 //	pos1 =  h        & mask
-//	pos2 = (h >> 1)  & mask
-//	pos3 = (h >> 2)  & mask
-//	pos4 = (h >> 3)  & mask
+//	pos2 = (h >> 4)  & mask
+//	pos3 = (h >> 8)  & mask
+//	pos4 = (h >> 12) & mask
 //
 // — the first hash is the base hash itself masked to the table, and each
-// further hash is the base hash arithmetic-shifted right one more bit and
-// masked again.  An element may live in any one of its four candidate slots.
+// further hash is the base hash arithmetic-shifted right one more nibble
+// and masked again.  The nibble spacing matters: with 1-bit spacing the
+// four candidates share almost all their bits, and the table hits the
+// displacement kick limit at average loads of ~0.6 for large sizes
+// (measured); nibble-spaced windows sustain 0.9+.  An element may live in
+// any one of its four candidate slots.
 // Search and delete look at exactly those four slots — O(1), no probing.  An
 // insert that finds all four candidates occupied displaces the element in one
 // of them (the "cuckoo" step) and re-places the displaced element in one of
@@ -34,7 +38,7 @@ BSD 3 Clause Licensed.
 // insert's displacement chain runs past the kick limit (a collision loop that
 // more slots must break) or when the saturation — Len divided by the table
 // size — passes the grow threshold (default 0.85).  After a delete takes the
-// saturation below the shrink threshold (default 0.10) the table halves, down
+// saturation below the shrink threshold (default 0.20) the table halves, down
 // to the minimum size of 256.  Both thresholds are set at construction; a value
 // <= 0 or NaN selects its default, and a shrink threshold >= the grow
 // threshold selects both defaults.  The shrink threshold is clamped to
@@ -100,10 +104,10 @@ import (
 const (
 	numPositions = 4   // candidate slots per element (one per derived hash)
 	minTableSize = 256 // smallest table size; also the floor for shrinking
-	maxKicks     = 64  // displacement limit before a resize is forced
+	maxKicks     = 128 // displacement limit before a resize is forced
 
 	defaultGrowAt     = 0.85 // saturation above which the table grows
-	defaultShrinkAt   = 0.10 // saturation below which the table shrinks
+	defaultShrinkAt   = 0.20 // saturation below which the table shrinks
 	maxResizeAttempts = 8    // resize escalations before the pathological panic
 )
 
@@ -124,10 +128,19 @@ type HashTab[T any] struct {
 	size   int       // len(slots); always a power of two
 	mask   uint64    // size - 1, used to derive the four positions from a hash
 	length int       // number of elements in the table
-	evict  uint32    // rotating displacement start index, decorrelating inserts
 
-	growAt   float64 // saturation above which the table doubles (default 0.85)
-	shrinkAt float64 // saturation below which the table halves (default 0.10)
+	// growAt and shrinkAt are the configured saturation thresholds (kept
+	// for Saturation documentation and for recomputing the counts on a
+	// resize); growLen and shrinkLen are the thresholds as element counts
+	// for the current size — grow when length > growLen, shrink when
+	// length < shrinkLen.  Flooring keeps the integer comparisons exactly
+	// equivalent to the float ones (length/size > growAt iff
+	// length > floor(growAt*size)), so the per-insert and per-delete
+	// checks are integer compares with no float division.
+	growAt    float64 // saturation above which the table doubles (default 0.85)
+	shrinkAt  float64 // saturation below which the table halves (default 0.20)
+	growLen   int     // grow when length exceeds this count: floor(growAt * size)
+	shrinkLen int     // shrink when length falls below this count: floor(shrinkAt * size)
 
 	// eq reports whether two elements are considered the same, and hash
 	// returns the 64-bit base hash for an element.  Both are set by the
@@ -142,7 +155,7 @@ type HashTab[T any] struct {
 
 // NewHashTab creates a cuckoo hash table sized to the next power of two at or
 // above n (n must be at least 5; the minimum table size is 256) with the given
-// grow and shrink saturation thresholds (<= 0 or NaN selects 0.85 and 0.10; a
+// grow and shrink saturation thresholds (<= 0 or NaN selects 0.85 and 0.20; a
 // shrink threshold >= the grow threshold selects both defaults;
 // the shrink threshold is clamped to at most half the grow threshold).  Elements
 // are compared with the == operator and hashed with the stdlib hash/maphash
@@ -162,7 +175,7 @@ func NewHashTab[T comparable](n int, growAt, shrinkAt float64) *HashTab[T] {
 // NewHashTabFunc creates a cuckoo hash table sized to the next power of two
 // at or above n (n must be at least 5; the minimum table size is 256), with the
 // given grow and shrink saturation thresholds (<= 0 or NaN selects 0.85 and
-// 0.10; a shrink threshold >= the grow threshold selects both defaults; the
+// 0.20; a shrink threshold >= the grow threshold selects both defaults; the
 // shrink threshold is clamped to at most half the grow threshold), a
 // caller supplied equality function and a caller supplied hash function.  The
 // two functions must agree: whenever eq(a, b) is true, hash(a) and hash(b)
@@ -200,17 +213,27 @@ func newHashTab[T any](n int, growAt, shrinkAt float64, eq func(a, b T) bool, ha
 		shrinkAt = growAt / 2
 	}
 	size := nextPowerOfTwo(n)
-	return &HashTab[T]{
+	ht := &HashTab[T]{
 		slots:    make([]slot[T], size),
 		size:     size,
 		mask:     uint64(size - 1),
 		length:   0,
-		evict:    0,
 		growAt:   growAt,
 		shrinkAt: shrinkAt,
 		eq:       eq,
 		hash:     hash,
 	}
+	ht.computeThresholdLens()
+	return ht
+}
+
+// computeThresholdLens derives the integer element-count thresholds from
+// the configured saturation thresholds and the current size.  It runs at
+// construction and after every successful rebuild — the only places the
+// size changes.
+func (tt *HashTab[T]) computeThresholdLens() {
+	tt.growLen = int(tt.growAt * float64(tt.size))
+	tt.shrinkLen = int(tt.shrinkAt * float64(tt.size))
 }
 
 // nextPowerOfTwo returns the smallest power of two that is at least n, but
@@ -223,11 +246,12 @@ func nextPowerOfTwo(n int) int {
 	return p
 }
 
-// posOf returns the candidate position derived by shifting `h` right `i` bits
-// and masking to the table — i = 0 is the first hash (the base hash itself),
-// i = 1..3 the second through fourth hashes, each shifted one bit further.
+// posOf returns the candidate position derived by shifting `h` right 4*i
+// bits and masking to the table — i = 0 is the first hash (the base hash
+// itself), i = 1..3 the second through fourth hashes, each shifted one
+// nibble further.
 func posOf(h uint64, i int, mask uint64) int {
-	return int((h >> uint(i)) & mask)
+	return int((h >> uint(i<<2)) & mask) // i<<2 is the same as i*4
 }
 
 // savedSlot records the original content of a position a displacement chain
@@ -238,22 +262,41 @@ type savedSlot[T any] struct {
 	old slot[T]
 }
 
-// placeInto places (item, h) into the given slot array using the standard
-// cuckoo displacement: if any of the four candidate positions is empty the
-// item lands there; otherwise the element in position startIdx is displaced
-// and the process repeats for it, for at most maxKicks displacements.  It
-// returns false when the kick limit is exceeded without finding a slot — the
-// collision loop that forces a resize — with the array rolled back to its
-// original content (a failed chain must not leave the item half-placed or
-// drop a displaced element).  The array's element count is not tracked here;
-// the caller adjusts it.
-func placeInto[T any](slots []slot[T], mask uint64, h uint64, item T, startIdx int) bool {
+// placeInto places (item, h) into the given slot array using cuckoo
+// displacement: if any of the four candidate positions is empty the item
+// lands there; otherwise the element in a pseudo-randomly chosen candidate
+// is displaced and the process repeats for it, for at most maxKicks
+// displacements.  The walk's randomness is an xorshift generator seeded
+// from the element's own hash, so each placement follows a different
+// pseudo-random path.  That choice matters: a deterministic rotation of
+// the displacement index makes the walk cycle and hit the kick limit at
+// average loads of 0.4–0.7 (worse as the table grows), while the
+// pseudo-random walk sustains loads of 0.88+ up to a million slots
+// (measured; the theoretical 4-ary cuckoo threshold is ~0.977).  It
+// returns false when the kick limit is exceeded without finding a slot —
+// the collision loop that forces a resize — with the array rolled back to
+// its original content (a failed chain must not leave the item half-placed
+// or drop a displaced element).  The array's element count is not tracked
+// here; the caller adjusts it.
+func placeInto[T any](slots []slot[T], mask uint64, h uint64, item T) bool {
 	cur, curH := item, h
-	idx := startIdx & (numPositions - 1)
 
-	// The buffer of first-writes; the chain touches at most one new position
-	// per displacement, so maxKicks entries suffice.  Most inserts never
-	// displace and never touch it.
+	// Fast path first: any empty candidate takes the element.  Most
+	// inserts place here and never pay for the walk state below (its
+	// zero-initialization alone costs more than a placement).
+	for i := 0; i < numPositions; i++ {
+		p := posOf(curH, i, mask)
+		if !slots[p].used {
+			slots[p] = slot[T]{data: cur, hash: curH, used: true}
+			return true
+		}
+	}
+
+	st := h | 1 // xorshift state; any seed works, just never zero
+
+	// The buffer of first-writes — declared past the fast path so only
+	// displacing inserts pay for it; the chain touches at most one new
+	// position per displacement, so maxKicks entries suffice.
 	var saved [maxKicks]savedSlot[T]
 	nSaved := 0
 	save := func(p int) {
@@ -271,7 +314,19 @@ func placeInto[T any](slots []slot[T], mask uint64, h uint64, item T, startIdx i
 		}
 	}
 
-	for kicks := 0; kicks <= maxKicks; kicks++ {
+	for kicks := 0; ; kicks++ {
+		if kicks == maxKicks {
+			rollback() // collision loop: undo the chain, report the failure
+			return false
+		}
+		st ^= st << 13 // xorshift64: the next pseudo-random displacement index
+		st ^= st >> 7
+		st ^= st << 17
+		p := posOf(curH, int(st)&(numPositions-1), mask) // displace and carry the evicted element on
+		save(p)
+		displaced := slots[p]
+		slots[p] = slot[T]{data: cur, hash: curH, used: true}
+		cur, curH = displaced.data, displaced.hash
 		for i := 0; i < numPositions; i++ { // any empty candidate takes the element
 			p := posOf(curH, i, mask)
 			if !slots[p].used {
@@ -279,19 +334,7 @@ func placeInto[T any](slots []slot[T], mask uint64, h uint64, item T, startIdx i
 				return true
 			}
 		}
-		if kicks == maxKicks {
-			rollback() // collision loop: undo the chain, report the failure
-			return false
-		}
-		p := posOf(curH, idx, mask) // displace and carry the evicted element on
-		save(p)
-		displaced := slots[p]
-		slots[p] = slot[T]{data: cur, hash: curH, used: true}
-		cur, curH = displaced.data, displaced.hash
-		idx = (idx + 1) & (numPositions - 1)
 	}
-	rollback()
-	return false
 }
 
 // saturation returns the load factor: length divided by table size.  It is 0
@@ -362,15 +405,14 @@ func (tt *HashTab[T]) insertItem(h uint64, item T) bool {
 				return false
 			}
 		}
-		// The rotating start index decorrelates the displacement chains of
-		// successive inserts.
-		if placeInto(tt.slots, tt.mask, h, item, int(tt.evict)) {
-			tt.evict++
+		// The pseudo-random displacement walk is seeded by the element's own
+		// hash, so successive inserts decorrelate on their own.
+		if placeInto(tt.slots, tt.mask, h, item) {
 			tt.length++
-			// Grow (double) the table when the load factor passes the
-			// threshold — synchronously here, on a background goroutine in
+			// Grow (double) the table when the element count passes the
+			// grow count — synchronously here, on a background goroutine in
 			// the cuckoo_ts twin.
-			if tt.saturation() > tt.growAt {
+			if tt.length > tt.growLen {
 				tt.resizeTo(tt.size * 2)
 			}
 			return true
@@ -400,15 +442,14 @@ func (tt *HashTab[T]) tryRebuild(newSize int) bool {
 			continue
 		}
 		s := tt.slots[i]
-		// The top hash bits pick the first displacement position; the low
-		// bits are already spoken for by the candidate positions themselves.
-		if !placeInto(newSlots, newMask, s.hash, s.data, int(s.hash>>60)) {
+		if !placeInto(newSlots, newMask, s.hash, s.data) {
 			return false // the partial rebuild is discarded; the old table stands
 		}
 	}
 	tt.slots = newSlots
 	tt.size = newSize
 	tt.mask = newMask
+	tt.computeThresholdLens()
 	return true
 }
 
@@ -460,7 +501,7 @@ func (tt *HashTab[T]) Capacity() int {
 
 // Saturation returns the load factor: Len divided by Capacity.  It crosses
 // the grow threshold (default 0.85) just before the table doubles and the
-// shrink threshold (default 0.10) just before it halves.  A nil table and the
+// shrink threshold (default 0.20) just before it halves.  A nil table and the
 // zero value report 0.
 // Complexity is O(1).
 func (tt *HashTab[T]) Saturation() float64 {
@@ -509,10 +550,10 @@ func (tt *HashTab[T]) Delete(find T) (found bool) {
 			s.hash = 0
 			s.used = false
 			tt.length--
-			// Shrink (halve) the table when the load factor drops below the
-			// threshold; best effort — keep the current size if the rebuild
-			// cannot place every element.
-			if tt.length > 0 && tt.size > minTableSize && tt.saturation() < tt.shrinkAt {
+			// Shrink (halve) the table when the element count drops below
+			// the shrink count; best effort — keep the current size if the
+			// rebuild cannot place every element.
+			if tt.length > 0 && tt.size > minTableSize && tt.length < tt.shrinkLen {
 				tt.tryRebuild(tt.size / 2)
 			}
 			return true

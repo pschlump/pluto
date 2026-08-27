@@ -1,33 +1,54 @@
-= cuckoo_ts
+= cuckoo_grow15_ts
 
-`cuckoo_ts` is a thread-safe generic cuckoo hash table for Go. Every
+*EXPERIMENTAL* — a variant of link:../cuckoo_ts[charon/cuckoo_ts] that
+grows the table *by half again (×1.5)* instead of doubling. The experiment
+did *not* produce a clear winner (see <<Results>> below); it is kept for
+reference and further measurement, not as a drop-in replacement.
+
+`cuckoo_grow15_ts` is a thread-safe generic cuckoo hash table for Go. Every
 element is hashed once into a full 64-bit base hash, and from that one base
-hash four candidate slot positions are derived — the table size is a power
-of two, and with `mask = size-1` the candidates are
+hash four candidate slot positions are derived with a *multiply-shift
+reduction* (Lemire's fast range reduction — the high 64 bits of the 128-bit
+product with the table size):
 
 [indent=0]
 ....
-pos1 =  h        & mask        (the 1st hash: the base hash itself)
-pos2 = (h >> 4)  & mask        (the 2nd hash: 1-nibble shift right, then mask)
-pos3 = (h >> 8)  & mask        (the 3rd hash: 2-nibble shift right, then mask)
-pos4 = (h >> 12) & mask        (the 4th hash: 3-nibble shift right, then mask)
+pos1 = hi64( h         * size)   (the 1st hash: the base hash itself)
+pos2 = hi64(rotl4 (h)  * size)   (the 2nd hash: rotate left 1 nibble, reduce)
+pos3 = hi64(rotl8 (h)  * size)   (the 3rd hash: rotate left 2 nibbles, reduce)
+pos4 = hi64(rotl12(h)  * size)   (the 4th hash: rotate left 3 nibbles, reduce)
 ....
+
+Unlike `cuckoo_ts`'s `& mask`, the multiply-shift works for *any* table
+size, which is what allows growth by ×1.5 instead of doubling. Two details
+make it sound:
+
+* The derived hashes use a *rotation*, not a shift: the reduction reads the
+  top bits of the word, and a right shift would starve them (at size 256
+  the fourth shifted candidate could take only two distinct values).
+* `NewHashTabFunc` avalanches the caller-supplied hash with a murmur3
+  finalizer (`mix64`), because the reduction reads the *high* bits and a
+  caller-supplied hash (FNV-style) may disperse only the low bits well.
+  `NewHashTab`'s `maphash` needs no such help and is stored unwrapped.
+
+Everything else — the stored 64-bit hash (so a resize never re-calls the
+hash function), the four-candidate cuckoo scheme, the API, the locking, the
+background resizer — is identical to `cuckoo_ts`.
 
 An element may live in any one of its four candidate slots; Search and
 Delete look at exactly those four slots, and an insert that finds all four
-occupied displaces a pseudo-randomly chosen existing element (the "cuckoo"
-step — an xorshift walk seeded by the element's own hash; a deterministic
-rotation cycles and fails at much lower loads) until everything has a
-slot.
+occupied displaces existing elements (the "cuckoo" step) until everything
+has a slot.
 
-It is the thread-safe twin of link:../cuckoo[charon/cuckoo] — the same
-cuckoo scheme, the same API, guarded by a `sync.RWMutex` — with three
-additions: the `Lock`/`Unlock` pair, the `Nl*`-prefixed (no-lock) methods
-for compound operations, and *background resizes* (see below).
+It is based on link:../cuckoo_ts[charon/cuckoo_ts] (itself the thread-safe
+twin of link:../cuckoo[charon/cuckoo]) — the same cuckoo scheme, the same
+API, guarded by a `sync.RWMutex` — with the `Lock`/`Unlock` pair, the
+`Nl*`-prefixed (no-lock) methods for compound operations, and *background
+resizes* (see below).
 
 * Elements are stored and returned *by value* (`T`, not `*T`).
 * Keys of types comparable with `==` need no functions at all:
-  `cuckoo_ts.NewHashTab[string](16, 0, 0)`. Equality is the `==` operator
+  `cuckoo_grow15_ts.NewHashTab[string](16, 0, 0)`. Equality is the `==` operator
   and hashing is the stdlib `hash/maphash` (the Go hash) with a per-table
   random seed.
 * Any other type — or identity by a single field — takes a plain equality
@@ -68,54 +89,56 @@ an insert).
 
 Both thresholds are configured at construction. A value <= 0 or NaN
 selects its default, a shrink threshold >= the grow threshold selects
-both defaults, and the shrink threshold is clamped to at most half the
-grow threshold — growing halves the saturation, so a higher shrink
-threshold would make a resize oscillate (grow, shrink, grow, ...)
-forever. A grow threshold above 1.0 defers threshold growth entirely
-(the collision-loop path still grows the table).
+both defaults, and the shrink threshold is clamped to at most two thirds
+of the grow threshold — growing multiplies the saturation by 2/3, so a
+higher shrink threshold would make a resize oscillate (grow, shrink,
+grow, ...) forever. A grow threshold above 1.0 defers threshold growth
+entirely (the collision-loop path still grows the table).
 
 A background resizer needs the write lock, so a compound `Lock` section
 must not be held indefinitely — the resizer waits behind it.
 
-== Load factor and insert cost — the memory/speed tradeoff
+[[Results]]
+== Experimental results — why this is not the default
 
-The grow threshold is a real knob, and it trades memory against insert
-speed. Searches are immune — they always examine exactly four slots — but
-an insert that finds all four candidates occupied starts a displacement
-chain, and the probability of that climbs steeply with the load factor α:
-roughly α⁴ for well-distributed hashes.
+Benchmark: `go test -run xxx -bench ProfileMix -benchmem -benchtime 1x -v`
+(100,000 inserts, 10,000 deletes, 1,000,000 searches; Apple M4 Max,
+Go 1.27, single-sample runs, median of 3–4).  *These numbers predate the
+pseudo-random displacement walk and integer thresholds now in all three
+packages* — they were taken when both sides used the deterministic
+rotating displacement and float thresholds, so they compare the addressing
+schemes, not the current code.
 
-[cols="2,2,3",options="header"]
+[cols="3,2,2",options="header"]
 |===
-| Load factor α | P(insert displaces) ≈ α⁴ | What a chain looks like
+| Metric | cuckoo_ts (×2, mask) | cuckoo_grow15_ts (×1.5, mul-shift)
 
-| 0.37 | ~2%  | rare, 1–2 kicks
-| 0.73 | ~28%  | common, a few kicks
-| 0.85 | ~52%  | every other insert, chains lengthen near the threshold
+| ns/op          | ~65 ms     | ~73 ms (+10–12%)
+| B/op           | 12.58 MB   | 18.19 MB (+45%)
+| allocs/op      | 16–17      | 23
+| table-grows    | 10–11      | 16–18
+| final-capacity | 262,144    | 252,193
+| final-len      | 96,018     | 96,018
 |===
 
-So a table that runs fuller inserts slower. A concrete example, the
-`BenchmarkProfileMix` workload (100k inserts, 10k deletes, 1M searches)
-on an Apple M4 Max:
+Reading of the numbers:
 
-* *Before the displacement fix* growth was kick-failure-driven and fired
-  at ~0.45 average load, so the table doubled while half empty: it ended
-  at capacity 262,144 for 96,018 live elements (saturation 0.37, ~6.6 MB
-  live). Inserts were cheap — the table was mostly empty.
-* *Now* growth fires at the 0.85 threshold: the same workload ends at
-  capacity 131,072 (saturation 0.73, ~3.5 MB live) — *half the memory* —
-  with total workload time unchanged (~62–64 ms either way), because the
-  workload is search-dominated and searches do not care about the load.
+* *Slower per operation* — four rotate+multiply pairs per probe instead of
+  four shift+mask pairs.
+* *More allocation churn* — growth by ×1.5 means ~1.7× as many resize
+  events, and growing to N re-places ≈3N elements in total vs ≈2N for
+  doubling (the stored-hash rebuild keeps each re-placement cheap, but not
+  free).
+* *Memory advantage is workload-dependent, and a wash here.* The ×1.5 win
+  (up to ~25% less capacity) appears when the final length lands just
+  *above* a doubling threshold (e.g. 112,000 elements: doubling needs
+  262,144 slots, ×1.5 needs 168,129). This workload's final length lands
+  just under a doubling threshold, so the two schemes end up within ~4% of
+  each other.
 
-The insert-heavy extreme is where you pay: a workload that is mostly
-inserts running near 0.85 does measurably more displacement work than one
-running near 0.40. If that is your workload and memory is cheap, lower
-the grow threshold — `NewHashTab[T](n, 0.70, 0)` grows earlier, keeps the
-table emptier, and buys insert speed back at roughly `2/0.70 ≈ 2.9×` peak
-capacity per live element instead of `2/0.85 ≈ 2.4×`. If memory matters
-more, leave 0.85 (or push higher — the kick-failure ceiling measured on
-this scheme is ~0.90 at large sizes, so 0.85 already sits close to it;
-going past ~0.87 invites collision-loop resizes, which are synchronous).
+Conclusion: no clear winner — the average memory saving does not obviously
+pay for the ~10% time cost and the extra churn. Kept as an experiment; the
+production default remains `cuckoo_ts` with doubling.
 
 == Complexity
 
@@ -142,11 +165,11 @@ package main
 import (
 	"fmt"
 
-	"github.com/pschlump/charon/cuckoo_ts"
+	"github.com/pschlump/charon/cuckoo_grow15_ts"
 )
 
 func main() {
-	ht := cuckoo_ts.NewHashTab[string](16, 0, 0) // size 16, default thresholds 0.85/0.20
+	ht := cuckoo_grow15_ts.NewHashTab[string](16, 0, 0) // size 16, default thresholds 0.85/0.20
 
 	ht.Insert("alpha")
 	ht.Insert("beta")
@@ -222,10 +245,15 @@ Everything else tolerates a nil table and the zero value as an empty table:
 searches report not-found, `Delete` returns false, and the iterators visit
 nothing.
 
-== Differences from charon/cuckoo
+== Differences from charon/cuckoo and charon/cuckoo_ts
 
-The cuckoo scheme, the API surface, the panic contract, and the threshold
-defaulting rules are identical to link:../cuckoo[charon/cuckoo]; the
+Relative to link:../cuckoo_ts[charon/cuckoo_ts] the only differences are
+the multiply-shift addressing, the ×1.5/×2/3 growth and shrink factors
+(with the `growAt/1.5` hysteresis clamp), and the `mix64` avalanche wrapper
+around caller-supplied hashes.
+
+Relative to link:../cuckoo[charon/cuckoo] the scheme, the API surface, the
+panic contract, and the threshold defaulting rules are identical; the
 differences are the twin mechanics:
 
 * *Every operation is guarded* by a `sync.RWMutex`; nil guards come before
