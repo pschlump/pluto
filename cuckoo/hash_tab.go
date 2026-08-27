@@ -64,6 +64,7 @@ BSD 3 Clause Licensed.
 //	IsEmpty — Returns true if the table is empty.								O(1)
 //	Len / Length — Returns number of elements in the table.  0 length is empty.	O(1)
 //	Capacity / Saturation — Returns the table size and its load factor.			O(1)
+//	Info — Returns length, capacity, saturation and the resize counters.		O(1)
 //	Truncate — Delete all the elements in the table.							O(n)
 //	Walk — Call a callback for each element in slot order.					O(n)
 //	Dump — Write a per-slot listing of the table for debugging.				O(n)
@@ -141,6 +142,15 @@ type HashTab[T any] struct {
 	shrinkAt  float64 // saturation below which the table halves (default 0.20)
 	growLen   int     // grow when length exceeds this count: floor(growAt * size)
 	shrinkLen int     // shrink when length falls below this count: floor(shrinkAt * size)
+
+	// grows, shrinks and forced count successful rebuilds since
+	// construction: those that grew the table, those that shrank it, and
+	// the subset of the grows that were forced by a collision loop (an
+	// insert whose displacement chain ran past the kick limit).  They are
+	// written by tryRebuild and insertItem and read by Info.
+	grows   uint64
+	shrinks uint64
+	forced  uint64
 
 	// eq reports whether two elements are considered the same, and hash
 	// returns the 64-bit base hash for an element.  Both are set by the
@@ -426,6 +436,7 @@ func (tt *HashTab[T]) insertItem(h uint64, item T) bool {
 				maxResizeAttempts, numPositions))
 		}
 		tt.resizeTo(tt.size * 2)
+		tt.forced++ // a collision-loop resize is the forced kind
 	}
 }
 
@@ -447,9 +458,15 @@ func (tt *HashTab[T]) tryRebuild(newSize int) bool {
 		}
 	}
 	tt.slots = newSlots
+	oldSize := tt.size
 	tt.size = newSize
 	tt.mask = newMask
 	tt.computeThresholdLens()
+	if newSize > oldSize {
+		tt.grows++
+	} else {
+		tt.shrinks++
+	}
 	return true
 }
 
@@ -509,6 +526,40 @@ func (tt *HashTab[T]) Saturation() float64 {
 		return 0
 	}
 	return tt.saturation()
+}
+
+// Info is a snapshot of the table's size and resize statistics — see Info
+// (the method) for the field semantics.
+type Info struct {
+	Len        int     // number of elements in the table
+	Capacity   int     // current table size in slots (a power of two)
+	Saturation float64 // load factor: Len divided by Capacity
+	Grows      uint64  // successful rebuilds that grew the table
+	Shrinks    uint64  // successful rebuilds that shrank the table
+	Forced     uint64  // subset of Grows forced by a collision loop (kick limit)
+}
+
+// Info returns the table's element count, capacity, saturation and
+// cumulative resize counters.  The counters are exact — unlike polling
+// Capacity, a grow immediately followed by a shrink is still counted as one
+// of each — and Forced counts the collision-loop resizes inside Insert, so
+// a nonzero Forced is a signal that the table ran at extreme saturation or
+// the hash function collides badly.  Failed best-effort shrinks (the
+// rebuild that keeps the current size) are not counted.  A nil table and
+// the zero value report a zero Info.
+// Complexity is O(1).
+func (tt *HashTab[T]) Info() Info {
+	if tt == nil {
+		return Info{}
+	}
+	return Info{
+		Len:        tt.length,
+		Capacity:   tt.size,
+		Saturation: tt.saturation(),
+		Grows:      tt.grows,
+		Shrinks:    tt.shrinks,
+		Forced:     tt.forced,
+	}
 }
 
 // Search looks for `find` in its four candidate slots and returns the stored

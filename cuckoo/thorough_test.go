@@ -425,3 +425,90 @@ func keyIn(model map[string]int, k string) bool {
 	_, ok := model[k]
 	return ok
 }
+
+// TestInfoCounters checks that Info reports the table's size consistently
+// with Len/Capacity/Saturation and that the resize counters track the
+// synchronous grow and shrink resizes exactly.
+func TestInfoCounters(t *testing.T) {
+	var nilTab *HashTab[int]
+	if got := nilTab.Info(); got != (Info{}) {
+		t.Errorf("nil table Info = %+v, want the zero Info", got)
+	}
+
+	ht := NewHashTab[int](5, 0, 0) // size 256, thresholds 0.85/0.20
+	if got := ht.Info(); got != (Info{Capacity: minTableSize}) {
+		t.Errorf("fresh table Info = %+v, want {Capacity:%d}", got, minTableSize)
+	}
+
+	// Grow: 1000 inserts cross the grow threshold several times.  Every
+	// growth doubles, every shrink halves, so the capacity is exactly the
+	// minimum size shifted by the net counter difference.
+	for i := range 1000 {
+		ht.Insert(i)
+	}
+	info := ht.Info()
+	if info.Len != 1000 || info.Capacity != ht.Capacity() {
+		t.Errorf("Info = %+v, but Len = %d and Capacity = %d", info, ht.Len(), ht.Capacity())
+	}
+	if info.Saturation != ht.Saturation() {
+		t.Errorf("Info.Saturation = %v, Saturation() = %v", info.Saturation, ht.Saturation())
+	}
+	if info.Grows == 0 {
+		t.Errorf("Grows = 0 after 1000 inserts into a %d-slot table", minTableSize)
+	}
+	if info.Forced != 0 {
+		t.Errorf("Forced = %d, want 0 — threshold growth should preempt collision loops", info.Forced)
+	}
+	if want := minTableSize << (info.Grows - info.Shrinks); info.Capacity != want {
+		t.Errorf("Capacity = %d, want %d = %d << (%d grows - %d shrinks)",
+			info.Capacity, want, minTableSize, info.Grows, info.Shrinks)
+	}
+
+	// Shrink: delete down to a single element; the table halves back to
+	// the minimum size.
+	for i := 0; i < 999; i++ {
+		ht.Delete(i)
+	}
+	info = ht.Info()
+	if info.Shrinks == 0 {
+		t.Errorf("Shrinks = 0 after deleting 999 of 1000 elements")
+	}
+	if info.Capacity != minTableSize {
+		t.Errorf("Capacity = %d, want %d (the shrink floor)", info.Capacity, minTableSize)
+	}
+	if want := minTableSize << (info.Grows - info.Shrinks); info.Capacity != want {
+		t.Errorf("Capacity = %d, want %d = %d << (%d grows - %d shrinks)",
+			info.Capacity, want, minTableSize, info.Grows, info.Shrinks)
+	}
+}
+
+// TestInfoForcedCountsCollisionLoops checks that the resizes a pathological
+// hash forces inside Insert are counted as Forced (and as Grows) — one per
+// escalation, maxResizeAttempts of them before the panic.
+func TestInfoForcedCountsCollisionLoops(t *testing.T) {
+	ht := NewHashTabFunc(
+		func(a, b int) bool { return a == b },
+		func(int) uint64 { return 12345 }, // four distinct slots, the same for every element
+		16, 0, 0,
+	)
+	for i := range numPositions {
+		if !ht.Insert(i) {
+			t.Fatalf("insert %d should place (the family has four candidates)", i)
+		}
+	}
+	expectPanicMessage(t, "fifth same-hash insert", "candidate positions coincide", func() {
+		ht.Insert(numPositions)
+	})
+	// The fifth insert escalates through maxResizeAttempts forced resizes
+	// before panicking; at size 256 the constant hash yields only three
+	// distinct slots, so placing the fourth element forced one more.  The
+	// exact split is hash-dependent — assert the totals, not the split.
+	info := ht.Info()
+	if info.Forced < maxResizeAttempts {
+		t.Errorf("Forced = %d, want at least %d (one per escalation)", info.Forced, maxResizeAttempts)
+	}
+	if info.Grows != info.Forced {
+		t.Errorf("Grows = %d, want %d = Forced (every grow was forced; the thresholds never engaged at length %d)",
+			info.Grows, info.Forced, numPositions)
+	}
+}

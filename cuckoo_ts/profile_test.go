@@ -95,8 +95,6 @@ func BenchmarkProfileMix(b *testing.B) {
 		}
 
 		var searchHit, searchMiss, deleteHit, deleteMiss int
-		var grows, shrinks int
-		lastCap := ht.Capacity()
 
 		b.ResetTimer()
 		for i := 0; i < profileInserts; i++ {
@@ -130,47 +128,29 @@ func BenchmarkProfileMix(b *testing.B) {
 					deleteMiss++
 				}
 			}
-
-			if c := ht.Capacity(); c != lastCap {
-				if c > lastCap {
-					grows++
-				} else {
-					shrinks++
-				}
-				lastCap = c
-			}
 		}
 		b.StopTimer()
 
 		settle(ht) // let a pending background resize land before measuring
+
+		// The resize counters are exact — every successful rebuild is
+		// counted under the write lock, so nothing is missed between polls.
+		info := ht.Info()
 
 		totalAlloc1, mallocs1 := readMem()
 		runtime.GC()
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)
 
-		// Re-poll once more after the GC: a resizer woken by the GC pause
-		// is harmless, but keep the reported capacity the settled one.
-		finalCap := ht.Capacity()
-		for lastCap != finalCap {
-			if finalCap > lastCap {
-				grows++
-			} else {
-				shrinks++
-			}
-			lastCap = finalCap
-			settle(ht)
-			finalCap = ht.Capacity()
-		}
-
 		b.ReportMetric(float64(searchHit), "search-hits")
 		b.ReportMetric(float64(searchMiss), "search-misses")
 		b.ReportMetric(float64(deleteHit), "delete-hits")
 		b.ReportMetric(float64(deleteMiss), "delete-misses")
-		b.ReportMetric(float64(grows), "table-grows")
-		b.ReportMetric(float64(shrinks), "table-shrinks")
-		b.ReportMetric(float64(finalCap), "final-capacity")
-		b.ReportMetric(float64(ht.Len()), "final-len")
+		b.ReportMetric(float64(info.Grows), "table-grows")
+		b.ReportMetric(float64(info.Shrinks), "table-shrinks")
+		b.ReportMetric(float64(info.Forced), "forced-resizes")
+		b.ReportMetric(float64(info.Capacity), "final-capacity")
+		b.ReportMetric(float64(info.Len), "final-len")
 		b.ReportMetric(float64(mallocs1-mallocs0), "allocs")
 		b.ReportMetric(float64(totalAlloc1-totalAlloc0), "alloc-bytes")
 		b.ReportMetric(float64(m.Alloc), "live-bytes")

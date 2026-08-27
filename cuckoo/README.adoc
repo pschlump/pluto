@@ -126,6 +126,7 @@ synchronous collision-loop resizes.
 | `Search`                                 | O(1)    | O(1)       | exactly four slots are examined
 | `Delete`                                 | O(1)    | O(1)       | clearing a slot repairs nothing
 | `IsEmpty`, `Len`, `Length`, `Capacity`, `Saturation` | O(1) | O(1) |
+| `Info`                                   | O(1)    | O(1)       | size plus exact grow/shrink/forced resize counters
 | `Truncate`                               | O(n)    | O(n)       | clears all slots for GC
 | `Walk`, `Dump`, `All`, `Values`          | O(n)    | O(n)       |
 |===
