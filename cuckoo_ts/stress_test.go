@@ -295,7 +295,7 @@ func TestConcurrentStress(t *testing.T) {
 	settle(ht)
 
 	pprof.StopCPUProfile()
-	cpuFile.Close()
+	cpuFile.Close() //nolint:errcheck // best-effort close of profiling output
 	elapsed := time.Since(start)
 
 	// Heap profile of the settled, loaded table.
@@ -307,7 +307,7 @@ func TestConcurrentStress(t *testing.T) {
 	if err := pprof.WriteHeapProfile(memFile); err != nil {
 		t.Fatalf("cannot write the heap profile: %v", err)
 	}
-	memFile.Close()
+	memFile.Close() //nolint:errcheck // best-effort close of profiling output
 
 	// Criterion 2: nothing observed mid-flight contradicted a model.
 	if n := errCount.Load(); n > 0 {
