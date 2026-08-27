@@ -13,7 +13,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/pschlump/charon/dqueue"
+	"github.com/pschlump/pluto/dqueue"
 )
 
 // A double ended queue used both ways: PushBack+PopFront is a FIFO,

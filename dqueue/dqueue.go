@@ -8,7 +8,7 @@ BSD 3 Clause Licensed.
 // of a doubly linked list.
 //
 // Like dqueue_ts (and stack_sll_ts) the package is self-contained rather
-// than a wrapper over dll: charon's dll requires an equality function
+// than a wrapper over dll: pluto's dll requires an equality function
 // at construction (its Search needs one), but a deque never compares
 // elements — so wrapping would force a dummy equality function and
 // break the constraint-free contract.  The prev pointers are what make

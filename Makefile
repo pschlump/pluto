@@ -1,4 +1,4 @@
-# charon - data structures with pure type-parameter constraints (no interface boxing).
+# pluto - data structures with pure type-parameter constraints (no interface boxing).
 
 .DEFAULT_GOAL := build
 

@@ -2,7 +2,7 @@
 
 A generic doubly linked list with head and tail pointers that is *safe
 for concurrent use* — the thread-safe twin of
-link:../dll/[charon/dll].  Every operation is guarded by a `sync.RWMutex`:
+link:../dll/[pluto/dll].  Every operation is guarded by a `sync.RWMutex`:
 readers run in parallel with each other, writers are exclusive.  Like
 `dll`, it works as a stack (`Push`/`Pop`/`Peak` at the head), a queue
 (`Enqueue` at the tail, `Pop` from the head), and a positional list with
@@ -100,7 +100,7 @@ import (
     "fmt"
     "sync"
 
-    "github.com/pschlump/charon/dll_ts"
+    "github.com/pschlump/pluto/dll_ts"
 )
 
 func main() {

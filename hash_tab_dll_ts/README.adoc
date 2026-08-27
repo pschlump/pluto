@@ -3,7 +3,7 @@
 `hash_tab_dll_ts` is a generic, *thread-safe* hash table for Go with a
 fixed number of buckets in which *every bucket is a doubly linked list*
 (link:../dll[`dll`]) — the thread-safe twin of
-link:../hash_tab_dll[charon/hash_tab_dll].  Collisions chain in the
+link:../hash_tab_dll[pluto/hash_tab_dll].  Collisions chain in the
 bucket's list exactly like the singly chained
 link:../hash_tab_ts[`hash_tab_ts`] — what the dll buckets add is *O(1)
 deletion of a previously located element*: `Search` returns a live element
@@ -23,7 +23,7 @@ touched only while the lock is held.
 
 * Elements are stored *by value* (`T`, not `*T`) inside the dll nodes.
   The handles `Search` returns are the one pointer-bearing find in the
-  charon hash-table family, inherited from `dll`'s own `Search` because
+  pluto hash-table family, inherited from `dll`'s own `Search` because
   the handle is what makes `DeleteFound` O(1); `DllElement.GetData`
   returns the element by value, and a handle stays valid across an
   `Insert` replacement (the replacement is `SetData` on the same node).
@@ -127,7 +127,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/pschlump/charon/hash_tab_dll_ts"
+	"github.com/pschlump/pluto/hash_tab_dll_ts"
 )
 
 func main() {
@@ -199,7 +199,7 @@ searches report not-found, `Delete` and `DeleteFound` return false, and the
 iterators visit nothing.  `NlInsert` (the `Insert` body) carries the same
 zero-value panic.  `Lock`/`Unlock` on a nil table are no-ops.
 
-== Differences from charon/hash_tab_dll
+== Differences from pluto/hash_tab_dll
 
 * Same public API with a `sync.RWMutex` added: reads (`Search`, `Len`,
   `Length`, `IsEmpty`) take the read lock, writes (`Insert`, `Delete`,

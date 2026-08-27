@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/pschlump/charon/sll_ts"
+	"github.com/pschlump/pluto/sll_ts"
 )
 
 // Writers from many goroutines share one stack; readers see a consistent

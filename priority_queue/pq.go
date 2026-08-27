@@ -5,7 +5,7 @@ BSD 3 Clause Licensed.
 */
 
 // Package priority_queue implements a generic priority queue backed by a
-// binary min-heap (charon/heap).  The lowest-priority (minimum) element
+// binary min-heap (pluto/heap).  The lowest-priority (minimum) element
 // is always the next to come out.
 //
 // Elements are stored and returned by value, and the not-found and
@@ -47,7 +47,7 @@ import (
 	"cmp"
 	"iter"
 
-	"github.com/pschlump/charon/heap"
+	"github.com/pschlump/pluto/heap"
 )
 
 // PriorityQueue is a priority queue of T values ordered by its comparison

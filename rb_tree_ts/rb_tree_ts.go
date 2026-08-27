@@ -7,7 +7,7 @@ BSD 3 Clause Licensed.
 /*
 Package rb_tree_ts implements a generic red-black self-balancing binary
 search tree that is safe for concurrent use.  It is the thread-safe twin
-of github.com/pschlump/charon/rb_tree — the same API, guarded by a
+of github.com/pschlump/pluto/rb_tree — the same API, guarded by a
 sync.RWMutex.
 
 A red-black tree keeps every root-to-leaf path within a factor of two of

@@ -22,7 +22,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/pschlump/charon/dll"
+	"github.com/pschlump/pluto/dll"
 )
 
 // expectPanic runs fx and fails the test unless it panics.

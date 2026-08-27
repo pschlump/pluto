@@ -12,7 +12,7 @@ and `PeekBack` return `(T, error)`).
 
 == Why self-contained?
 
-Not a wrapper over link:../dll/[`dll`]: charon's `dll` requires an
+Not a wrapper over link:../dll/[`dll`]: pluto's `dll` requires an
 equality function at construction (its `Search` needs one), but a deque
 never compares elements — so wrapping would force a dummy equality
 function and break the constraint-free contract.  The package carries
@@ -99,7 +99,7 @@ package main
 import (
     "fmt"
 
-    "github.com/pschlump/charon/dqueue"
+    "github.com/pschlump/pluto/dqueue"
 )
 
 func main() {
@@ -121,7 +121,7 @@ func main() {
 Runnable, tested copies of these examples live in
 link:example_test.go[`example_test.go`].
 
-== Differences from charon/dqueue_ts
+== Differences from pluto/dqueue_ts
 
 This package is `dqueue_ts` with the lock removed; the API, value
 semantics, `ErrEmptyDeque`, and the two panics are identical by

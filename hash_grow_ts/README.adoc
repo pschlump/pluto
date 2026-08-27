@@ -5,7 +5,7 @@ addressing with linear probing. When the load factor exceeds a configurable
 saturation threshold (default 0.5) the table automatically doubles in size
 and re-hashes all entries. Every operation is guarded by a `sync.RWMutex`.
 
-It is the thread-safe twin of link:../hash_grow[charon/hash_grow] — the
+It is the thread-safe twin of link:../hash_grow[pluto/hash_grow] — the
 same API — with the addition of the `Lock`/`Unlock` pair and the
 `Nl*`-prefixed (no-lock) methods for compound operations.
 
@@ -103,7 +103,7 @@ same table.
 
 == Panics
 
-The same four situations as link:../hash_grow[charon/hash_grow], each
+The same four situations as link:../hash_grow[pluto/hash_grow], each
 message naming the fix:
 
 [options="header"]

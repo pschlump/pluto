@@ -11,10 +11,10 @@ are stored and returned *by value* (`Pop` and `Peek` return
 
 == Why not the slice-backed `stack` + a mutex?
 
-Charon's `sll_ts` requires an equality function at insert (its
+Pluto's `sll_ts` requires an equality function at insert (its
 `Search` needs one), but a stack never compares elements — so wrapping
 would force a dummy comparator and break the constraint-free contract.
-Like every charon `_ts` package this one is self-contained, with its own
+Like every pluto `_ts` package this one is self-contained, with its own
 lock and a plain singly linked list underneath.
 
 The practical difference from the slice-based link:../stack/[`stack`] is
@@ -39,7 +39,7 @@ its window walks).  Trade-off: one allocation per push.
 
 `All` iterates from the *top* (most recently pushed, index 0) to the
 bottom; `Backward` from the bottom to the top.  `Len` is an alias for
-`Length`, matching the other charon packages.
+`Length`, matching the other pluto packages.
 
 == Locking behavior
 
@@ -93,7 +93,7 @@ import (
     "fmt"
     "sync"
 
-    "github.com/pschlump/charon/stack_sll_ts"
+    "github.com/pschlump/pluto/stack_sll_ts"
 )
 
 func main() {

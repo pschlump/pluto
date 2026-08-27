@@ -7,7 +7,7 @@ BSD 3 Clause Licensed.
 /*
 Package skip_list_ts implements a generic skip list that is safe for
 concurrent use.  It is the thread-safe twin of
-github.com/pschlump/charon/skip_list — the same API, guarded by a
+github.com/pschlump/pluto/skip_list — the same API, guarded by a
 sync.RWMutex.
 
 A skip list is a probabilistic data structure with multiple levels of

@@ -14,7 +14,7 @@ package skip_list_test
 import (
 	"fmt"
 
-	"github.com/pschlump/charon/skip_list"
+	"github.com/pschlump/pluto/skip_list"
 )
 
 // Sorted input into a skip list is no problem: the express lanes keep

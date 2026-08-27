@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/pschlump/charon/rb_tree_ts"
+	"github.com/pschlump/pluto/rb_tree_ts"
 )
 
 // Writers from many goroutines share one tree; readers see a consistent

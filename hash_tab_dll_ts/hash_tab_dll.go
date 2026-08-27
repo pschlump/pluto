@@ -6,7 +6,7 @@ BSD 3 Clause Licensed.
 
 // Package hash_tab_dll_ts implements a thread-safe generic hash table with
 // a fixed number of buckets in which every bucket is a doubly linked list
-// (charon/dll).  Collisions chain in the bucket's list, exactly like the
+// (pluto/dll).  Collisions chain in the bucket's list, exactly like the
 // singly chained hash_tab_ts — what the dll buckets add is O(1) deletion of
 // a previously located element: Search returns a live element handle and
 // DeleteFound splices that element out through its prev/next pointers
@@ -15,7 +15,7 @@ BSD 3 Clause Licensed.
 // hash_grow_ts package instead.  Every operation is guarded by a
 // sync.RWMutex.
 //
-// It is the thread-safe twin of github.com/pschlump/charon/hash_tab_dll —
+// It is the thread-safe twin of github.com/pschlump/pluto/hash_tab_dll —
 // the same API, guarded by one table lock, following the pattern of
 // hash_tab_ts and hash_tab_bt_ts — with the addition of the Lock/Unlock
 // pair and the Nl-prefixed (no-lock) methods for compound operations.
@@ -35,7 +35,7 @@ BSD 3 Clause Licensed.
 //
 // Elements are stored by value (T, not *T) inside the dll nodes, and the
 // iterators return them by value.  The element handles Search returns are
-// the one pointer-bearing find in the charon hash-table family, inherited
+// the one pointer-bearing find in the pluto hash-table family, inherited
 // from dll's own Search (see that package) because the handle is what
 // makes DeleteFound O(1); DllElement.GetData returns the element by value,
 // and a handle stays valid across an Insert replacement (the replacement
@@ -94,7 +94,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/pschlump/charon/dll"
+	"github.com/pschlump/pluto/dll"
 )
 
 // HashTab is a generic, thread-safe hash table with a fixed number of

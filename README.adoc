@@ -1,6 +1,6 @@
-= charon — Go Generics Data Structures
+= pluto — Go Generics Data Structures
 
-charon is a library of classic data structures written with pure Go
+pluto is a library of classic data structures written with pure Go
 generics (Go 1.27+; iterators use range-over-func). Element data is
 never boxed into an interface and never unboxed with a type assertion —
 ordering and equality are either the type's built-in operators or a
@@ -41,10 +41,10 @@ with an identical public API.
 | link:dqueue_ts/[dqueue_ts]                 | Thread-safe double-ended queue on a doubly linked list (RWMutex, snapshot iterators).
 | link:heap/[heap]                           | Generic min-heap (max-heap via reversed comparator).
 | link:heap_ts/[heap_ts]                     | Thread-safe min-heap (RWMutex, snapshot All, Lock+Nl* compound ops).
-| link:priority_queue/[priority_queue]       | Generic priority queue on charon/heap (min-first, or max via reversed).
-| link:priority_queue_ts/[priority_queue_ts] | Thread-safe priority queue on charon/heap_ts (RWMutex, Lock+Nl* compound ops).
-| link:heap_sort/[heap_sort]                 | Generic heap sort on charon/heap (ascending Sort, descending SortDown).
-| link:heap_sort_ts/[heap_sort_ts]           | Thread-safe heap sort on charon/heap_ts (atomic drain, Lock+Nl* compound ops).
+| link:priority_queue/[priority_queue]       | Generic priority queue on pluto/heap (min-first, or max via reversed).
+| link:priority_queue_ts/[priority_queue_ts] | Thread-safe priority queue on pluto/heap_ts (RWMutex, Lock+Nl* compound ops).
+| link:heap_sort/[heap_sort]                 | Generic heap sort on pluto/heap (ascending Sort, descending SortDown).
+| link:heap_sort_ts/[heap_sort_ts]           | Thread-safe heap sort on pluto/heap_ts (atomic drain, Lock+Nl* compound ops).
 | link:hash_tab/[hash_tab]                   | Generic fixed-size hash table (separate chaining, == or eq+hash funcs).
 | link:hash_tab_ts/[hash_tab_ts]             | Thread-safe fixed-size hash table (RWMutex, snapshot iterators, Lock+Nl* compound ops).
 | link:hash_tab_bt/[hash_tab_bt]             | Generic fixed-size hash table, binary-tree buckets (log-time collisions, cmp+hash funcs).
@@ -135,7 +135,7 @@ the queue's internals that could race with a concurrent pop.
 === Queue on a list — `queue_dll/`
 
 A FIFO queue on a doubly linked list.
-*Self-contained*, not a wrapper over `dll` (charon's `dll` requires an
+*Self-contained*, not a wrapper over `dll` (pluto's `dll` requires an
 equality function; a queue never compares — the same rationale as
 `dqueue` and `stack_sll_ts`). Same API as `queue` — `Push`/`Enqueue`
 at the tail, `Pop`/`Dequeue`/`Peek` at the head returning
@@ -169,7 +169,7 @@ plus the lock.
 === Stack on a list — `stack_sll_ts/`
 
 A thread-safe LIFO stack on a singly linked list — *self-contained*,
-not a wrapper over `sll_ts` (charon's `sll_ts` requires an equality
+not a wrapper over `sll_ts` (pluto's `sll_ts` requires an equality
 function at insert, which a stack never uses; wrapping would break the
 constraint-free contract — the same rationale as `dqueue_ts` and
 `hash_tab`'s own chains). `Push`/`Pop`/`Peek` strict O(1), one node
@@ -185,7 +185,7 @@ short-lived stacks; `_ts`-only (no plain twin — use `stack`).
 === Double-Ended Queue — `dqueue/`, `dqueue_ts/`
 
 A deque on a doubly linked list — self-contained, not a wrapper over
-`dll`/`dll_ts` (charon's `dll` requires an equality function; a deque
+`dll`/`dll_ts` (pluto's `dll` requires an equality function; a deque
 never compares, and the `prev` pointers make `PopBack`/`Backward` O(1)
 per step). The plain package is `dqueue_ts` with the lock left out.
 `PushFront`/`PushBack`/
@@ -374,8 +374,8 @@ under the lock, never pointers aliasing heap elements.
 
 === Priority Queue — `priority_queue/`, `priority_queue_ts/`
 
-Generic min-first priority queue *composed on `charon/heap`* (the
-heap is exactly the building block — an intra-charon composition).
+Generic min-first priority queue *composed on `pluto/heap`* (the
+heap is exactly the building block — an intra-pluto composition).
 `Peek` O(1); `Insert`/`Pop` O(log n); `Search` O(n) returning
 `(T, pos, bool)`; `UpdatePriority(pos, v)` replaces in place and
 re-heapifies in O(log n); positional `Delete` O(log n). `All` yields
@@ -396,7 +396,7 @@ the heap's *write* lock then drained privately.
 
 === Heap Sort — `heap_sort/`, `heap_sort_ts/`
 
-A convenience sorter layered on `charon/heap`: insert items (`Insert`
+A convenience sorter layered on `pluto/heap`: insert items (`Insert`
 O(log n), or `InsertArray` — bulk append plus one bottom-up rebuild,
 O(m+n)) then `Sort()` (ascending) or `SortDown()` (descending), each
 O(n log n). Sorting *drains* the sorter; it is reusable afterwards
@@ -455,7 +455,7 @@ surface (`Lock`/`Unlock` + `Nl*`).
 
 === Tree buckets — `hash_tab_bt/`, `hash_tab_bt_ts/`
 
-The buckets are each a `*binary_tree.BinaryTree[T]` — an intra-charon
+The buckets are each a `*binary_tree.BinaryTree[T]` — an intra-pluto
 composition (a bucket that is a search tree is exactly what
 `binary_tree` is). Because the bucket is a tree, the element type needs
 an *ordering*, not just equality: `NewHashTab[T interface{ cmp.Ordered; comparable }](n)`
@@ -482,12 +482,12 @@ lock.
 
 === dll buckets, O(1) delete-by-handle — `hash_tab_dll/`, `hash_tab_dll_ts/`
 
-The buckets are each a `*dll.Dll[T]` — the fourth intra-charon
+The buckets are each a `*dll.Dll[T]` — the fourth intra-pluto
 composition, and the counterpoint to `hash_tab`'s self-contained
 chains: here the bucket _does_ use dll's `prev` pointers. The
 differentiator in the family: `Search` returns a live
 `(*dll.DllElement[T], bool)` *handle* — the one pointer-handle find
-in the charon hash tables — because the handle is what makes
+in the pluto hash tables — because the handle is what makes
 `DeleteFound(el)` *O(1)* (hash `el.GetData()`, then the bucket
 splice — no chain walk). Handles stay valid across an `Insert`
 replacement (the replacement is `SetData` on the same node). Within a

@@ -52,7 +52,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pschlump/charon/cuckoo_ts"
+	"github.com/pschlump/pluto/cuckoo_ts"
 )
 
 const (

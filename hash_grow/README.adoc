@@ -75,7 +75,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/pschlump/charon/hash_grow"
+	"github.com/pschlump/pluto/hash_grow"
 )
 
 func main() {

@@ -1,6 +1,6 @@
 = cuckoo_grow15_ts
 
-*EXPERIMENTAL* — a variant of link:../cuckoo_ts[charon/cuckoo_ts] that
+*EXPERIMENTAL* — a variant of link:../cuckoo_ts[pluto/cuckoo_ts] that
 grows the table *by half again (×1.5)* instead of doubling. The experiment
 did *not* produce a clear winner (see <<Results>> below); it is kept for
 reference and further measurement, not as a drop-in replacement.
@@ -40,8 +40,8 @@ Delete look at exactly those four slots, and an insert that finds all four
 occupied displaces existing elements (the "cuckoo" step) until everything
 has a slot.
 
-It is based on link:../cuckoo_ts[charon/cuckoo_ts] (itself the thread-safe
-twin of link:../cuckoo[charon/cuckoo]) — the same cuckoo scheme, the same
+It is based on link:../cuckoo_ts[pluto/cuckoo_ts] (itself the thread-safe
+twin of link:../cuckoo[pluto/cuckoo]) — the same cuckoo scheme, the same
 API, guarded by a `sync.RWMutex` — with the `Lock`/`Unlock` pair, the
 `Nl*`-prefixed (no-lock) methods for compound operations, and *background
 resizes* (see below).
@@ -165,7 +165,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/pschlump/charon/cuckoo_grow15_ts"
+	"github.com/pschlump/pluto/cuckoo_grow15_ts"
 )
 
 func main() {
@@ -245,14 +245,14 @@ Everything else tolerates a nil table and the zero value as an empty table:
 searches report not-found, `Delete` returns false, and the iterators visit
 nothing.
 
-== Differences from charon/cuckoo and charon/cuckoo_ts
+== Differences from pluto/cuckoo and pluto/cuckoo_ts
 
-Relative to link:../cuckoo_ts[charon/cuckoo_ts] the only differences are
+Relative to link:../cuckoo_ts[pluto/cuckoo_ts] the only differences are
 the multiply-shift addressing, the ×1.5/×2/3 growth and shrink factors
 (with the `growAt/1.5` hysteresis clamp), and the `mix64` avalanche wrapper
 around caller-supplied hashes.
 
-Relative to link:../cuckoo[charon/cuckoo] the scheme, the API surface, the
+Relative to link:../cuckoo[pluto/cuckoo] the scheme, the API surface, the
 panic contract, and the threshold defaulting rules are identical; the
 differences are the twin mechanics:
 

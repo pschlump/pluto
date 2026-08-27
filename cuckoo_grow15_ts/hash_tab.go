@@ -52,7 +52,7 @@ BSD 3 Clause Licensed.
 // the hash, NewHashTabFunc avalanches the caller supplied hash with mix64
 // (the maphash used by NewHashTab already disperses all 64 bits well).
 //
-// It is the thread-safe twin of github.com/pschlump/charon/cuckoo — the same
+// It is the thread-safe twin of github.com/pschlump/pluto/cuckoo — the same
 // API, guarded by a sync.RWMutex — with the addition of the Lock and Unlock
 // pair, the Nl-prefixed (no-lock) methods for compound operations, and
 // background resizes: in this package a resize is triggered either by a

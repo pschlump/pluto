@@ -1,7 +1,7 @@
 = heap_sort_ts
 
 A generic *heap sort* that is *safe for concurrent use* — the
-thread-safe twin of link:../heap_sort/[charon/heap_sort], composing the
+thread-safe twin of link:../heap_sort/[pluto/heap_sort], composing the
 thread-safe heap in link:../heap_ts/[`heap_ts`].  Elements are added
 with `Insert` or `InsertArray`, then drained in ascending order with
 `Sort` or descending order with `SortDown`.  The two Sort calls empty
@@ -10,7 +10,7 @@ the sorter atomically; it is reusable afterwards.
 The public API is identical to `heap_sort` (plus the locking behavior
 below), so switching between the two is a package-name change.  The
 differences section below is written against
-link:../heap_sort/[charon/heap_sort].
+link:../heap_sort/[pluto/heap_sort].
 
 == Locking behavior
 
@@ -86,7 +86,7 @@ import (
     "fmt"
     "sync"
 
-    "github.com/pschlump/charon/heap_sort_ts"
+    "github.com/pschlump/pluto/heap_sort_ts"
 )
 
 func main() {
@@ -116,7 +116,7 @@ link:example_test.go[`example_test.go`].  The
 link:../heap_sort/[heap_sort README] documents the full API usage; it
 applies unchanged.
 
-== Differences from charon/heap_sort
+== Differences from pluto/heap_sort
 
 * The backing heap is `heap_ts.Heap` instead of `heap.Heap`; there is no
 separate sorter-level lock — all locking delegates to the heap's

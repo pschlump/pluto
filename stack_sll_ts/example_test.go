@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/pschlump/charon/stack_sll_ts"
+	"github.com/pschlump/pluto/stack_sll_ts"
 )
 
 // Writers from many goroutines share one stack; the accounting balances

@@ -13,7 +13,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/pschlump/charon/queue_dll"
+	"github.com/pschlump/pluto/queue_dll"
 )
 
 // A FIFO queue on a doubly linked list: elements come out in exactly

@@ -1,7 +1,7 @@
 = priority_queue_ts
 
 A generic *priority queue* that is *safe for concurrent use* — the
-thread-safe twin of link:../priority_queue/[charon/priority_queue],
+thread-safe twin of link:../priority_queue/[pluto/priority_queue],
 composing the thread-safe heap in link:../heap_ts/[`heap_ts`].  The
 lowest-priority (minimum) element is always the next to come out; a
 reversed comparison function (`NewPriorityQueueFunc`) makes the highest
@@ -83,7 +83,7 @@ import (
     "fmt"
     "sync"
 
-    "github.com/pschlump/charon/priority_queue_ts"
+    "github.com/pschlump/pluto/priority_queue_ts"
 )
 
 func main() {

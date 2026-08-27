@@ -5,8 +5,8 @@ BSD 3 Clause Licensed.
 */
 
 // Package heap_sort_ts implements a heap sort that is safe for
-// concurrent use, backed by the thread-safe min-heap in charon/heap_ts.
-// It is the thread-safe twin of github.com/pschlump/charon/heap_sort —
+// concurrent use, backed by the thread-safe min-heap in pluto/heap_ts.
+// It is the thread-safe twin of github.com/pschlump/pluto/heap_sort —
 // the same API — with the addition of the Lock/Unlock pair and the
 // Nl-prefixed (no-lock) methods for compound operations.
 //
@@ -52,7 +52,7 @@ package heap_sort_ts
 import (
 	"cmp"
 
-	"github.com/pschlump/charon/heap_ts"
+	"github.com/pschlump/pluto/heap_ts"
 )
 
 // HeapSort collects the elements to sort in a thread-safe

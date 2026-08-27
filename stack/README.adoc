@@ -1,12 +1,12 @@
 = stack
 
-A generic slice-backed *LIFO stack* — the simplest container in charon
+A generic slice-backed *LIFO stack* — the simplest container in pluto
 alongside `queue`.  The element type needs *no constraints at all*:
 there is no ordering and no equality to supply, and the zero value of
 `Stack` is an empty stack ready to use without a constructor.
 
 The stack is a *struct wrapping the slice*, matching the shape of every
-other charon container.  Elements are stored and returned *by value* —
+other pluto container.  Elements are stored and returned *by value* —
 `Pop` and `Peek` return `(T, error)` — so a peeked element is an
 independent copy, never a pointer aliasing the top of the stack.
 
@@ -29,7 +29,7 @@ Not safe for concurrent use.
 `All` iterates from the *top* (most recently pushed, index 0) to the
 bottom; `Backward` iterates from the bottom to the top.  Both reflect the
 live stack — pushing or popping between iterations changes what they see.
-`Len` is an alias for `Length`, matching the other charon packages.
+`Len` is an alias for `Length`, matching the other pluto packages.
 
 == Errors
 

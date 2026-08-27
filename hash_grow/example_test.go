@@ -19,7 +19,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pschlump/charon/hash_grow"
+	"github.com/pschlump/pluto/hash_grow"
 )
 
 // A basic set-membership table of strings: no methods to implement, the

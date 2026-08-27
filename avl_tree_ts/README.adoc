@@ -2,7 +2,7 @@
 
 A generic, self-balancing AVL binary search tree that is *safe for
 concurrent use* — the thread-safe twin of
-link:../avl_tree/[charon/avl_tree].  Every operation is guarded by a
+link:../avl_tree/[pluto/avl_tree].  Every operation is guarded by a
 `sync.RWMutex`: readers run in parallel with each other, writers are
 exclusive.
 
@@ -47,7 +47,7 @@ Same as `avl_tree`:
 
 `Insert` returns `true` when a new node was added and `false` when a
 duplicate replaced the stored value.  `Len` is an alias for `Length`,
-matching the other charon tree packages.
+matching the other pluto tree packages.
 
 == Locking behavior
 
@@ -111,7 +111,7 @@ import (
     "fmt"
     "sync"
 
-    "github.com/pschlump/charon/avl_tree_ts"
+    "github.com/pschlump/pluto/avl_tree_ts"
 )
 
 func main() {

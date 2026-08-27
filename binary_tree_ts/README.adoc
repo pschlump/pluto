@@ -2,7 +2,7 @@
 
 A generic, unbalanced binary search tree that is *safe for concurrent
 use* — the thread-safe twin of
-link:../binary_tree/[charon/binary_tree].  Every operation is guarded by a
+link:../binary_tree/[pluto/binary_tree].  Every operation is guarded by a
 `sync.RWMutex`: readers run in parallel with each other, writers are
 exclusive.
 
@@ -107,7 +107,7 @@ import (
     "fmt"
     "sync"
 
-    "github.com/pschlump/charon/binary_tree_ts"
+    "github.com/pschlump/pluto/binary_tree_ts"
 )
 
 func main() {

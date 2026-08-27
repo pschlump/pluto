@@ -13,7 +13,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/pschlump/charon/stack"
+	"github.com/pschlump/pluto/stack"
 )
 
 // A LIFO stack: last in, first out.  The zero value is ready to use —

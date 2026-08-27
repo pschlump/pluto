@@ -20,7 +20,7 @@ step — an xorshift walk seeded by the element's own hash; a deterministic
 rotation cycles and fails at much lower loads) until everything has a
 slot.
 
-It is the thread-safe twin of link:../cuckoo[charon/cuckoo] — the same
+It is the thread-safe twin of link:../cuckoo[pluto/cuckoo] — the same
 cuckoo scheme, the same API, guarded by a `sync.RWMutex` — with three
 additions: the `Lock`/`Unlock` pair, the `Nl*`-prefixed (no-lock) methods
 for compound operations, and *background resizes* (see below).
@@ -143,7 +143,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/pschlump/charon/cuckoo_ts"
+	"github.com/pschlump/pluto/cuckoo_ts"
 )
 
 func main() {
@@ -223,10 +223,10 @@ Everything else tolerates a nil table and the zero value as an empty table:
 searches report not-found, `Delete` returns false, and the iterators visit
 nothing.
 
-== Differences from charon/cuckoo
+== Differences from pluto/cuckoo
 
 The cuckoo scheme, the API surface, the panic contract, and the threshold
-defaulting rules are identical to link:../cuckoo[charon/cuckoo]; the
+defaulting rules are identical to link:../cuckoo[pluto/cuckoo]; the
 differences are the twin mechanics:
 
 * *Every operation is guarded* by a `sync.RWMutex`; nil guards come before

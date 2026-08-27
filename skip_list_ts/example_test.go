@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/pschlump/charon/skip_list_ts"
+	"github.com/pschlump/pluto/skip_list_ts"
 )
 
 // Writers from many goroutines share one list; readers see a consistent

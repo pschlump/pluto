@@ -19,7 +19,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pschlump/charon/cuckoo_ts"
+	"github.com/pschlump/pluto/cuckoo_ts"
 )
 
 // A basic set-membership table of strings shared between goroutines: no

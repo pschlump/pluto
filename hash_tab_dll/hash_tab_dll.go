@@ -5,7 +5,7 @@ BSD 3 Clause Licensed.
 */
 
 // Package hash_tab_dll implements a generic hash table with a fixed number
-// of buckets in which every bucket is a doubly linked list (charon/dll).
+// of buckets in which every bucket is a doubly linked list (pluto/dll).
 // Collisions chain in the bucket's list, exactly like the singly chained
 // hash_tab — what the dll buckets add is O(1) deletion of a previously
 // located element: Search returns a live element handle and DeleteFound
@@ -15,9 +15,9 @@ BSD 3 Clause Licensed.
 // hash_grow package instead.
 //
 // Element data is never boxed into an interface and never unboxed with
-// a type assertion.  The buckets are charon/dll lists because a bucket
+// a type assertion.  The buckets are pluto/dll lists because a bucket
 // that is a doubly linked list with O(1) splice-out is exactly what dll
-// is — the fourth intra-charon composition after priority_queue/heap,
+// is — the fourth intra-pluto composition after priority_queue/heap,
 // heap_sort/heap and hash_tab_bt/binary_tree.  Tables of types that can
 // be compared with == (the builtin comparable constraint) are created
 // with NewHashTab, which hashes with the stdlib hash/maphash — every
@@ -30,7 +30,7 @@ BSD 3 Clause Licensed.
 //
 // Elements are stored by value (T, not *T) inside the dll nodes.  The
 // element handles Search returns are the one pointer-bearing find in the
-// charon hash-table family, inherited from dll's own Search (see that
+// pluto hash-table family, inherited from dll's own Search (see that
 // package) because the handle is what makes DeleteFound O(1);
 // DllElement.GetData returns the element by value, and a handle stays
 // valid across an Insert replacement (the replacement is SetData on the
@@ -72,7 +72,7 @@ import (
 	"hash/maphash"
 	"io"
 
-	"github.com/pschlump/charon/dll"
+	"github.com/pschlump/pluto/dll"
 )
 
 // HashTab is a generic hash table with a fixed number of buckets, each of

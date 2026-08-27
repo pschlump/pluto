@@ -19,7 +19,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pschlump/charon/hash_grow_ts"
+	"github.com/pschlump/pluto/hash_grow_ts"
 )
 
 // A thread-safe set-membership table of strings, safe to share between

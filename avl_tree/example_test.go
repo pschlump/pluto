@@ -12,7 +12,7 @@ package avl_tree_test
 import (
 	"fmt"
 
-	"github.com/pschlump/charon/avl_tree"
+	"github.com/pschlump/pluto/avl_tree"
 )
 
 // Sorted input into a plain BST builds a degenerate chain; the AVL tree

@@ -15,7 +15,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/pschlump/charon/stack_ts"
+	"github.com/pschlump/pluto/stack_ts"
 )
 
 // Producers share one stack; every pushed element is popped exactly once.

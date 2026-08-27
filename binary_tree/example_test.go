@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pschlump/charon/binary_tree"
+	"github.com/pschlump/pluto/binary_tree"
 )
 
 // A small task list kept in priority order (highest first, ties by name),

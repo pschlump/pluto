@@ -16,7 +16,7 @@ package hash_tab_bt_ts_test
 import (
 	"fmt"
 
-	"github.com/pschlump/charon/hash_tab_bt_ts"
+	"github.com/pschlump/pluto/hash_tab_bt_ts"
 )
 
 // A basic set-membership table of strings shared between goroutines: no

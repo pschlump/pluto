@@ -6,7 +6,7 @@ BSD 3 Clause Licensed.
 
 // Package binary_tree_ts implements a generic, unbalanced binary search
 // tree that is safe for concurrent use.  It is the thread-safe twin of
-// github.com/pschlump/charon/binary_tree — the same API, guarded by a
+// github.com/pschlump/pluto/binary_tree — the same API, guarded by a
 // sync.RWMutex.
 //
 // Concurrency model:

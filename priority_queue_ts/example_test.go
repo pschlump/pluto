@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/pschlump/charon/priority_queue_ts"
+	"github.com/pschlump/pluto/priority_queue_ts"
 )
 
 // Writers from many goroutines share one queue; the total drain is

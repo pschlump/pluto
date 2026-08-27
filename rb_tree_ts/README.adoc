@@ -2,7 +2,7 @@
 
 A generic, self-balancing *red-black* binary search tree that is *safe
 for concurrent use* — the thread-safe twin of
-link:../rb_tree/[charon/rb_tree].  Every operation is guarded by a
+link:../rb_tree/[pluto/rb_tree].  Every operation is guarded by a
 `sync.RWMutex`: readers run in parallel with each other, writers are
 exclusive.
 
@@ -44,7 +44,7 @@ usage; it applies unchanged.
 
 `Insert` returns `true` when a new node was added and `false` when a
 duplicate replaced the stored value.  `Len` is an alias for `Length`,
-matching the other charon tree packages.  `DeleteAtHead` / `DeleteAtTail`
+matching the other pluto tree packages.  `DeleteAtHead` / `DeleteAtTail`
 splice the extreme node out directly (a single descent) instead of
 re-searching for the min/max item through `Delete`.
 
@@ -97,7 +97,7 @@ import (
     "fmt"
     "sync"
 
-    "github.com/pschlump/charon/rb_tree_ts"
+    "github.com/pschlump/pluto/rb_tree_ts"
 )
 
 func main() {

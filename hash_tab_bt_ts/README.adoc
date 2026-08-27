@@ -9,7 +9,7 @@ single table-level `sync.RWMutex`; the buckets stay plain (non-thread-safe)
 `binary_tree` trees — unexported and touched only while the table lock is
 held — so there are no per-bucket locks.
 
-It is the thread-safe twin of link:../hash_tab_bt[charon/hash_tab_bt] — the
+It is the thread-safe twin of link:../hash_tab_bt[pluto/hash_tab_bt] — the
 same API — with the addition of the `Lock`/`Unlock` pair and the
 `Nl*`-prefixed (no-lock) methods for compound operations.  Element data is
 never boxed into an interface and never unboxed with a type assertion.
@@ -107,7 +107,7 @@ traversal, so `fx` must not call methods on the same table.
 
 == Panics
 
-The same four situations as link:../hash_tab_bt[charon/hash_tab_bt], each
+The same four situations as link:../hash_tab_bt[pluto/hash_tab_bt], each
 message naming the fix:
 
 [options="header"]

@@ -6,7 +6,7 @@ BSD 3 Clause Licensed.
 
 // Package sll_ts implements a generic singly linked list (SLL) that is
 // safe for concurrent use.  It is the thread-safe twin of
-// github.com/pschlump/charon/sll — the same API, guarded by a
+// github.com/pschlump/pluto/sll — the same API, guarded by a
 // sync.RWMutex.
 //
 // The list supports stack-like operations (Push/Pop/Peek at the head),

@@ -8,10 +8,10 @@ BSD 3 Clause Licensed.
 // (deque) on top of a doubly linked list.
 //
 // The package is self-contained rather than a wrapper over the dll_ts
-// package: charon's dll_ts requires an equality function at
+// package: pluto's dll_ts requires an equality function at
 // construction (its Search needs one), but a deque never compares
 // elements — so wrapping would force a dummy equality function and break
-// the constraint-free contract.  Like every charon _ts package this one
+// the constraint-free contract.  Like every pluto _ts package this one
 // has its own sync.RWMutex and a plain doubly linked list underneath
 // (the prev pointers are what make PopBack and Backward O(1) per step).
 //

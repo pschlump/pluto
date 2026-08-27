@@ -118,7 +118,7 @@ for i, v := range list.Backward() {
 
 The `Walk`/`ReverseWalk` callbacks capture caller state in a closure
 (statically typed, never boxed).  Note the dll convention: returning
-*true stops the walk* — the opposite of the charon tree packages — and
+*true stops the walk* — the opposite of the pluto tree packages — and
 the walk returns the element and position where it stopped.
 
 == Panics

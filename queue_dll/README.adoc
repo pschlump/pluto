@@ -13,7 +13,7 @@ are stored and returned *by value* (`Dequeue` and `Peek` return
 
 == Why self-contained?
 
-Charon's `dll` requires an equality function at
+Pluto's `dll` requires an equality function at
 construction (its `Search` needs one), but a queue never compares
 elements — so wrapping would force a dummy equality function and break
 the constraint-free contract.  Like link:../dqueue/[`dqueue`] (and
@@ -49,7 +49,7 @@ list with both ends exposed.
 `All` iterates from the *head* (index 0, next to be dequeued) to the
 tail; `Backward` from the tail to the head, with indexes counting down
 from `Length()-1` so they match the index `All` assigns to the same
-element.  `Len` is an alias for `Length`, matching the other charon
+element.  `Len` is an alias for `Length`, matching the other pluto
 packages.
 
 == Iterators walk the live list
@@ -101,7 +101,7 @@ package main
 import (
     "fmt"
 
-    "github.com/pschlump/charon/queue_dll"
+    "github.com/pschlump/pluto/queue_dll"
 )
 
 func main() {

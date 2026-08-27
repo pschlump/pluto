@@ -13,7 +13,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/pschlump/charon/queue"
+	"github.com/pschlump/pluto/queue"
 )
 
 // A FIFO queue: first in, first out.

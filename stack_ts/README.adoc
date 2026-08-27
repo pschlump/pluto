@@ -1,13 +1,13 @@
 = stack_ts
 
 A generic slice-backed *LIFO stack* that is *safe for concurrent use*
-— the thread-safe twin of link:../stack/[charon/stack].  Every operation
+— the thread-safe twin of link:../stack/[pluto/stack].  Every operation
 is guarded by a `sync.RWMutex`: readers run in parallel with each other,
 writers are exclusive.
 
 For a thread-safe stack with stable O(1) memory per push/pop (no slice
 window, no reallocation) see
-link:../stack_sll_ts/[charon/stack_sll_ts].
+link:../stack_sll_ts/[pluto/stack_sll_ts].
 
 Like `stack`, the element type needs *no constraints at all* and the
 zero value is an empty stack ready to use without a constructor.
@@ -56,7 +56,7 @@ import (
     "fmt"
     "sync"
 
-    "github.com/pschlump/charon/stack_ts"
+    "github.com/pschlump/pluto/stack_ts"
 )
 
 func main() {
@@ -91,7 +91,7 @@ link:example_test.go[`example_test.go`].  The link:../stack/[stack
 README] documents the full API usage and the slice-window memory
 behavior; they apply unchanged.
 
-== Differences from charon/stack
+== Differences from pluto/stack
 
 * Same public API with a `sync.RWMutex` added: reads (`Peek`, `Len`,
 `Length`, `IsEmpty`) take the read lock, writes (`Push`, `Pop`,

@@ -6,7 +6,7 @@ BSD 3 Clause Licensed.
 
 // Package avl_tree_ts implements a generic AVL self-balancing binary
 // search tree that is safe for concurrent use.  It is the thread-safe
-// twin of github.com/pschlump/charon/avl_tree — the same API, guarded by
+// twin of github.com/pschlump/pluto/avl_tree — the same API, guarded by
 // a sync.RWMutex.
 //
 // An AVL tree keeps the heights of the two child subtrees of every node

@@ -11,7 +11,7 @@ BSD 3 Clause Licensed.
 // auto-growing hash_grow_ts package instead.  Every operation is guarded by
 // a sync.RWMutex.
 //
-// It is the thread-safe twin of github.com/pschlump/charon/hash_tab — the
+// It is the thread-safe twin of github.com/pschlump/pluto/hash_tab — the
 // same API — with the addition of the Lock/Unlock pair and the Nl-prefixed
 // (no-lock) methods for compound operations.  The twin guards hash_tab's
 // buckets with one table lock, following the pattern of hash_grow_ts and

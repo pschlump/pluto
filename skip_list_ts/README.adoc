@@ -1,7 +1,7 @@
 = skip_list_ts
 
 A generic *skip list* that is *safe for concurrent use* — the
-thread-safe twin of link:../skip_list/[charon/skip_list].  Every operation is
+thread-safe twin of link:../skip_list/[pluto/skip_list].  Every operation is
 guarded by a `sync.RWMutex`: readers run in parallel with each other,
 writers are exclusive.
 
@@ -74,7 +74,7 @@ import (
     "fmt"
     "sync"
 
-    "github.com/pschlump/charon/skip_list_ts"
+    "github.com/pschlump/pluto/skip_list_ts"
 )
 
 func main() {

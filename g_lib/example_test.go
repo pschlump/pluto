@@ -14,7 +14,7 @@ package g_lib_test
 import (
 	"fmt"
 
-	"github.com/pschlump/charon/g_lib"
+	"github.com/pschlump/pluto/g_lib"
 )
 
 func ExampleMin() {
@@ -55,8 +55,8 @@ func ExamplePow() {
 
 // IfTrue is a ternary-style selector: the Go analog of cond ? a : b.
 func ExampleIfTrue() {
-	name := "charon"
-	fmt.Println(g_lib.IfTrue(name == "charon", "right repo", "wrong repo"))
+	name := "pluto"
+	fmt.Println(g_lib.IfTrue(name == "pluto", "right repo", "wrong repo"))
 	// Output:
 	// right repo
 }

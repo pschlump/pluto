@@ -12,7 +12,7 @@ package heap_sort_test
 import (
 	"fmt"
 
-	"github.com/pschlump/charon/heap_sort"
+	"github.com/pschlump/pluto/heap_sort"
 )
 
 // A sorter of structs ordered by one field — the element type

@@ -504,7 +504,7 @@ func (ns *Dll[T]) ReverseSearch(t T) (rv *DllElement[T], pos int) {
 
 // ApplyFunction is the type of the callback used by Walk and ReverseWalk.
 // Returning true STOPS the walk (note: the opposite convention from the
-// charon tree packages) and the current element and its position are
+// pluto tree packages) and the current element and its position are
 // returned by the walk.  Caller state is captured in a closure, so it
 // keeps its static type and is never boxed.
 type ApplyFunction[T any] func(pos int, data T) bool

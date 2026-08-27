@@ -5,7 +5,7 @@ BSD 3 Clause Licensed.
 */
 
 // Package heap_sort implements heap sort on top of the generic min-heap
-// in charon/heap.  Elements are added with Insert or InsertArray and
+// in pluto/heap.  Elements are added with Insert or InsertArray and
 // extracted in ascending order with Sort or descending order with
 // SortDown.  The two Sort calls drain the sorter; it is reusable
 // afterwards.
@@ -31,16 +31,16 @@ BSD 3 Clause Licensed.
 //	Insert/InsertArray on zero    — no underlying heap; the message names the constructors.
 //
 // The sorter is NOT safe for concurrent use; its thread-safe twin is
-// github.com/pschlump/charon/heap_sort_ts.
+// github.com/pschlump/pluto/heap_sort_ts.
 package heap_sort
 
 import (
 	"cmp"
 
-	"github.com/pschlump/charon/heap"
+	"github.com/pschlump/pluto/heap"
 )
 
-// HeapSort collects the elements to sort in a charon/heap min-heap and
+// HeapSort collects the elements to sort in a pluto/heap min-heap and
 // drains them in order.  Use NewHeapSort for naturally ordered element
 // types (numbers, strings) or NewHeapSortFunc for a caller supplied
 // comparison function.  The zero value is an empty sorter for reads,

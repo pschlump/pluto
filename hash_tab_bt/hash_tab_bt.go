@@ -6,7 +6,7 @@ BSD 3 Clause Licensed.
 
 // Package hash_tab_bt implements a generic hash table with a fixed number
 // of buckets in which every bucket is a binary search tree
-// (charon/binary_tree).  Collisions are resolved by the tree instead of a
+// (pluto/binary_tree).  Collisions are resolved by the tree instead of a
 // chain — the hash_grow/hash_tab sibling of this package — so Search,
 // Insert and Delete stay logarithmic in the number of elements per bucket
 // even when many keys collide: O(log(n/k)) on average with k buckets,
@@ -68,7 +68,7 @@ import (
 	"hash/maphash"
 	"io"
 
-	"github.com/pschlump/charon/binary_tree"
+	"github.com/pschlump/pluto/binary_tree"
 )
 
 // HashTab is a generic hash table with a fixed number of buckets, each of

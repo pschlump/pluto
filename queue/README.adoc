@@ -1,7 +1,7 @@
 = queue
 
 A generic *FIFO queue* built on a slice — the simplest container in
-charon.  The element type needs *no constraints at all*: there is no
+pluto.  The element type needs *no constraints at all*: there is no
 ordering and no equality to supply, and the zero value of `Queue` is an
 empty queue ready to use without a constructor.
 
@@ -27,7 +27,7 @@ interface).
 | `All` / `Backward`           | Range-over-func iterators with index | O(n)
 |===
 
-`Len` is an alias for `Length`, matching the other charon packages.
+`Len` is an alias for `Length`, matching the other pluto packages.
 
 == Errors
 

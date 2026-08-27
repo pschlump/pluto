@@ -13,7 +13,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/pschlump/charon/sll"
+	"github.com/pschlump/pluto/sll"
 )
 
 // A stack: Push at the head, Peek and Pop from the head.

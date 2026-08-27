@@ -19,7 +19,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pschlump/charon/hash_tab_dll"
+	"github.com/pschlump/pluto/hash_tab_dll"
 )
 
 // A basic set-membership table of strings: no methods to implement, the

@@ -1,7 +1,7 @@
 // Package heap_ts provides a thread-safe generic min-heap.  Pop always
 // removes and returns the minimum element.  The heap is stored as a
 // slice in breadth-first tree order.  It is the thread-safe twin of
-// github.com/pschlump/charon/heap — the same API, guarded by a
+// github.com/pschlump/pluto/heap — the same API, guarded by a
 // sync.RWMutex — with the addition of the Lock/Unlock pair and the
 // Nl-prefixed (no-lock) methods for compound operations.
 //

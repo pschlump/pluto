@@ -1,7 +1,7 @@
 = heap_ts
 
 A generic, *thread-safe min-heap* — the twin of
-link:../heap/[charon/heap].  Every operation is guarded by a `sync.RWMutex`:
+link:../heap/[pluto/heap].  Every operation is guarded by a `sync.RWMutex`:
 readers run in parallel with each other, writers are exclusive.  Like
 `heap`, `Pop` always removes the minimum, a reversed comparison function
 turns it into a max-heap, the element type implements no interface,
@@ -69,7 +69,7 @@ import (
     "fmt"
     "sync"
 
-    "github.com/pschlump/charon/heap_ts"
+    "github.com/pschlump/pluto/heap_ts"
 )
 
 func main() {

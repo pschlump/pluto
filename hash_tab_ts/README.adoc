@@ -7,11 +7,11 @@ the number of elements is not known up front use
 link:../hash_grow_ts[`hash_grow_ts`], which grows and re-hashes
 automatically. Every operation is guarded by a `sync.RWMutex`.
 
-It is the thread-safe twin of link:../hash_tab[charon/hash_tab] — the same
+It is the thread-safe twin of link:../hash_tab[pluto/hash_tab] — the same
 API — with the addition of the `Lock`/`Unlock` pair and the `Nl*`-prefixed
 (no-lock) methods for compound operations.
 
-The twin guards the buckets of link:../hash_tab[charon/hash_tab] with one
+The twin guards the buckets of link:../hash_tab[pluto/hash_tab] with one
 table lock, following the pattern of link:../hash_grow_ts[`hash_grow_ts`]
 and link:../hash_tab_bt_ts[`hash_tab_bt_ts`]. Element data is never boxed
 into an interface and never unboxed with a type assertion.
@@ -113,7 +113,7 @@ bucket — from the most recently inserted element to the oldest.
 
 == Panics
 
-The same four situations as link:../hash_tab[charon/hash_tab], each message
+The same four situations as link:../hash_tab[pluto/hash_tab], each message
 naming the fix:
 
 [options="header"]
@@ -131,10 +131,10 @@ searches report not-found, `Delete` returns false, and the iterators visit
 nothing.  (`NlInsert` on a zero-value table panics because it *is* the
 Insert body.)
 
-== Differences from charon/hash_tab
+== Differences from pluto/hash_tab
 
 This section lists what the twin adds over
-link:../hash_tab[charon/hash_tab]:
+link:../hash_tab[pluto/hash_tab]:
 
 * One `sync.RWMutex` on the table; the bucket chains stay the plain package's
 `bucketNode` nodes and are touched only while the lock is held.  Nil guards

@@ -9,7 +9,7 @@ BSD 3 Clause Licensed.
 // size when the load factor exceeds a configurable saturation threshold
 // (default 0.5) and re-hashes every entry into the larger table.
 //
-// It is the thread-safe twin of github.com/pschlump/charon/hash_grow — the
+// It is the thread-safe twin of github.com/pschlump/pluto/hash_grow — the
 // same API, guarded by a sync.RWMutex — with the addition of the Lock and
 // Unlock pair and the Nl-prefixed (no-lock) methods for compound
 // operations.

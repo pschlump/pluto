@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/pschlump/charon/dll_ts"
+	"github.com/pschlump/pluto/dll_ts"
 )
 
 // Writers from many goroutines share one queue; readers see a consistent

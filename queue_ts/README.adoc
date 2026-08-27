@@ -1,7 +1,7 @@
 = queue_ts
 
 A generic slice-backed *FIFO queue* that is *safe for concurrent use*
-— the thread-safe twin of link:../queue/[charon/queue].  Every operation is
+— the thread-safe twin of link:../queue/[pluto/queue].  Every operation is
 guarded by a `sync.RWMutex`: readers run in parallel with each other,
 writers are exclusive.
 
@@ -55,7 +55,7 @@ import (
     "fmt"
     "sync"
 
-    "github.com/pschlump/charon/queue_ts"
+    "github.com/pschlump/pluto/queue_ts"
 )
 
 func main() {
@@ -87,6 +87,6 @@ func main() {
 
 Runnable, tested copies of these examples live in
 link:example_test.go[`example_test.go`].  `Len` is an alias for `Length`,
-matching the other charon packages.  The link:../queue/[queue README]
+matching the other pluto packages.  The link:../queue/[queue README]
 documents the full API usage and the slice-window memory behavior; they
 apply unchanged.

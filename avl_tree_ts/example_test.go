@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/pschlump/charon/avl_tree_ts"
+	"github.com/pschlump/pluto/avl_tree_ts"
 )
 
 // Writers from many goroutines share one tree; readers see a consistent

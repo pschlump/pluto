@@ -6,13 +6,13 @@ BSD 3 Clause Licensed.
 
 // Package hash_tab_bt_ts implements a thread-safe generic hash table with
 // a fixed number of buckets in which every bucket is a binary search tree
-// (charon/binary_tree).  Collisions are resolved by the tree instead of a
+// (pluto/binary_tree).  Collisions are resolved by the tree instead of a
 // chain — the thread-safe sibling of the hash_tab_bt package — so
 // Search, Insert and Delete stay logarithmic in the number of elements
 // per bucket even when many keys collide: O(log(n/k)) on average with k
 // buckets.
 //
-// It is the thread-safe twin of github.com/pschlump/charon/hash_tab_bt —
+// It is the thread-safe twin of github.com/pschlump/pluto/hash_tab_bt —
 // the same API, guarded by a sync.RWMutex — with the addition of the Lock
 // and Unlock pair and the Nl-prefixed (no-lock) methods for compound
 // operations.
@@ -69,7 +69,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/pschlump/charon/binary_tree"
+	"github.com/pschlump/pluto/binary_tree"
 )
 
 // HashTab is a generic, thread-safe hash table with a fixed number of

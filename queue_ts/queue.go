@@ -6,10 +6,10 @@ BSD 3 Clause Licensed.
 
 // Package queue_ts implements a generic FIFO (first-in, first-out) queue
 // on top of a slice that is safe for concurrent use.  It is the
-// thread-safe twin of github.com/pschlump/charon/queue — the same API,
+// thread-safe twin of github.com/pschlump/pluto/queue — the same API,
 // guarded by a sync.RWMutex.
 //
-// Like every charon package it uses value semantics: elements are
+// Like every pluto package it uses value semantics: elements are
 // stored and returned by value — Dequeue and Peek return (T, error)
 // instead of a pointer — so a returned element is an independent copy
 // that cannot race with a concurrent pop zeroing the slot.

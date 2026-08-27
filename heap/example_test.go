@@ -12,7 +12,7 @@ package heap_test
 import (
 	"fmt"
 
-	"github.com/pschlump/charon/heap"
+	"github.com/pschlump/pluto/heap"
 )
 
 // A min-heap: Push adds, Peek sees the minimum, Pop drains in ascending

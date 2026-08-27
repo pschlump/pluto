@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pschlump/charon/cuckoo_grow15_ts"
+	"github.com/pschlump/pluto/cuckoo_grow15_ts"
 )
 
 const (

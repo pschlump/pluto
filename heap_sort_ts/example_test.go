@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/pschlump/charon/heap_sort_ts"
+	"github.com/pschlump/pluto/heap_sort_ts"
 )
 
 // A sorter of structs ordered by one field — the element type

@@ -149,7 +149,7 @@ func TestDll(t *testing.T) {
 
 // TestDllWalkStop verifies Walk and ReverseWalk.  Note the dll convention:
 // returning true from the callback STOPS the walk (the opposite of the
-// charon tree packages).
+// pluto tree packages).
 func TestDllWalkStop(t *testing.T) {
 
 	Dll1 := newTestDll()

@@ -1,7 +1,7 @@
 = sll_ts
 
 A generic *singly linked list* that is *safe for concurrent use* —
-the thread-safe twin of link:../sll/[charon/sll].  Every operation is
+the thread-safe twin of link:../sll/[pluto/sll].  Every operation is
 guarded by a `sync.RWMutex`: readers run in parallel with each other,
 writers are exclusive.  Like `sll`, it works as a stack
 (`Push`/`Pop`/`Peek` at the head), supports O(1) tail insertion
@@ -82,7 +82,7 @@ import (
     "fmt"
     "sync"
 
-    "github.com/pschlump/charon/sll_ts"
+    "github.com/pschlump/pluto/sll_ts"
 )
 
 func main() {

@@ -12,7 +12,7 @@ package priority_queue_test
 import (
 	"fmt"
 
-	"github.com/pschlump/charon/priority_queue"
+	"github.com/pschlump/pluto/priority_queue"
 )
 
 // A priority queue of tasks ordered by a priority field — the element

@@ -8,10 +8,10 @@ BSD 3 Clause Licensed.
 // top of a singly linked list.
 //
 // The package is self-contained rather than a wrapper over the sll_ts
-// package: charon's sll_ts requires an equality function at insert (its
+// package: pluto's sll_ts requires an equality function at insert (its
 // Search needs one), but a stack never compares elements — so wrapping
 // would force a dummy comparator and break the constraint-free contract.
-// Like every charon _ts package this one has its own sync.RWMutex and a
+// Like every pluto _ts package this one has its own sync.RWMutex and a
 // plain singly linked list underneath.
 //
 // Basic operations on a stack:

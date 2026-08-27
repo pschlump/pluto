@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/pschlump/charon/heap_ts"
+	"github.com/pschlump/pluto/heap_ts"
 )
 
 // Writers from many goroutines share one heap; the total drain is

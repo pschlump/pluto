@@ -19,7 +19,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pschlump/charon/hash_tab_dll_ts"
+	"github.com/pschlump/pluto/hash_tab_dll_ts"
 )
 
 // A basic set-membership table of strings shared by goroutines: no methods

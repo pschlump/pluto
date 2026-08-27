@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/pschlump/charon/dqueue_ts"
+	"github.com/pschlump/pluto/dqueue_ts"
 )
 
 // Writers from many goroutines share one deque, pushing at both ends;

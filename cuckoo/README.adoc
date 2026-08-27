@@ -31,7 +31,7 @@ legal hash and needs no remapping (unlike `hash_grow`, which uses 0 as its
 empty marker).
 
 The package is built to the same contract as `hash_grow`; the differences
-section below is written against link:../hash_grow[charon/hash_grow].
+section below is written against link:../hash_grow[pluto/hash_grow].
 
 * Elements are stored and returned *by value* (`T`, not `*T`).
 * Keys of types comparable with `==` need no functions at all:
@@ -143,7 +143,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/pschlump/charon/cuckoo"
+	"github.com/pschlump/pluto/cuckoo"
 )
 
 func main() {
@@ -214,11 +214,11 @@ them and `Insert` panics after its resize attempts, naming the fix (a less
 colliding hash function). With `NewHashTab`'s per-table random `maphash`
 seed this is unreachable for practical purposes.
 
-== Differences from charon/hash_grow
+== Differences from pluto/hash_grow
 
 `hash_grow` is the sibling auto-growing table (open addressing, linear
 probing); the differences are written against
-link:../hash_grow[charon/hash_grow]:
+link:../hash_grow[pluto/hash_grow]:
 
 * *Cuckoo hashing instead of linear probing*: each element has four
   candidate slots derived from one base hash (`h & mask`, `h>>1 & mask`,

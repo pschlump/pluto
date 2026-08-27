@@ -8,7 +8,7 @@ BSD 3 Clause Licensed.
 // on top of a doubly linked list.
 //
 // The package is self-contained rather than a wrapper over the dll
-// package: charon's dll requires an equality function at construction
+// package: pluto's dll requires an equality function at construction
 // (its Search needs one), but a queue never compares elements — so
 // wrapping would force a dummy equality function and break the
 // constraint-free contract.  Like dqueue (and stack_sll_ts) this package

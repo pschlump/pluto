@@ -71,7 +71,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/pschlump/charon/hash_tab"
+	"github.com/pschlump/pluto/hash_tab"
 )
 
 func main() {

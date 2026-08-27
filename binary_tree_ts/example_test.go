@@ -14,7 +14,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pschlump/charon/binary_tree_ts"
+	"github.com/pschlump/pluto/binary_tree_ts"
 )
 
 // Writers from many goroutines share one tree; readers see a consistent

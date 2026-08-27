@@ -12,7 +12,7 @@ package rb_tree_test
 import (
 	"fmt"
 
-	"github.com/pschlump/charon/rb_tree"
+	"github.com/pschlump/pluto/rb_tree"
 )
 
 // Sorted input into a plain BST builds a degenerate chain; the red-black

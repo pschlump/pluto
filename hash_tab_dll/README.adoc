@@ -11,7 +11,7 @@ fixed at construction; when the number of elements is not known up front
 use link:../hash_grow[`hash_grow`], which grows and re-hashes
 automatically.
 
-It is the fourth intra-charon composition after `priority_queue`,
+It is the fourth intra-pluto composition after `priority_queue`,
 `heap_sort` and `hash_tab_bt`: a bucket that is a doubly linked list with
 O(1) splice-out is exactly what `dll` is, so the table stores one
 `*dll.Dll[T]` per bucket instead of reimplementing the lists — the
@@ -21,7 +21,7 @@ boxed into an interface and never unboxed with a type assertion.
 
 * Elements are stored *by value* (`T`, not `*T`) inside the dll nodes.
   The handles `Search` returns — together with a found bool — are the one
-  pointer-bearing find in the charon hash-table family, inherited from
+  pointer-bearing find in the pluto hash-table family, inherited from
   `dll`'s own `Search` because the handle is what makes `DeleteFound` O(1);
   `DllElement.GetData` returns the element by value, and a handle stays
   valid across an `Insert` replacement (the replacement is `SetData` on
@@ -101,7 +101,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/pschlump/charon/hash_tab_dll"
+	"github.com/pschlump/pluto/hash_tab_dll"
 )
 
 func main() {

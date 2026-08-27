@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/pschlump/charon/queue_ts"
+	"github.com/pschlump/pluto/queue_ts"
 )
 
 // Producers and consumers share one queue; the accounting balances once

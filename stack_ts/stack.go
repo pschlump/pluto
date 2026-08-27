@@ -6,11 +6,11 @@ BSD 3 Clause Licensed.
 
 // Package stack_ts implements a generic LIFO stack on top of a slice that
 // is safe for concurrent use.  It is the thread-safe twin of
-// github.com/pschlump/charon/stack — the same API, guarded by a
+// github.com/pschlump/pluto/stack — the same API, guarded by a
 // sync.RWMutex.
 //
 // For a thread-safe stack with stable O(1) memory per push/pop (no slice
-// window, no reallocation) see charon/stack_sll_ts.
+// window, no reallocation) see pluto/stack_sll_ts.
 //
 // Basic operations on a stack:
 //

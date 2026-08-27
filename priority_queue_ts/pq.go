@@ -6,8 +6,8 @@ BSD 3 Clause Licensed.
 
 // Package priority_queue_ts implements a generic priority queue that is
 // safe for concurrent use, backed by the thread-safe binary min-heap in
-// charon/heap_ts.  It is the thread-safe twin of
-// github.com/pschlump/charon/priority_queue — the same API — with the
+// pluto/heap_ts.  It is the thread-safe twin of
+// github.com/pschlump/pluto/priority_queue — the same API — with the
 // addition of the Lock/Unlock pair and the Nl-prefixed (no-lock) methods
 // for compound operations.
 //
@@ -65,7 +65,7 @@ import (
 	"cmp"
 	"iter"
 
-	"github.com/pschlump/charon/heap_ts"
+	"github.com/pschlump/pluto/heap_ts"
 )
 
 // PriorityQueue is a thread-safe priority queue of T values ordered by
