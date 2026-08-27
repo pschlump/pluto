@@ -1,0 +1,109 @@
+= index_pq
+
+A generic *indexed priority queue* — Sedgwick's `IndexMinPQ` (Algorithms
+§2.6).  The client owns stable indices `0..n-1`; each index in the queue
+carries a value, and `Peek`/`Pop` always return the *minimum* value
+together with its index.  Because the indices are stable, the value of
+any index can be replaced (`Change` — the decrease-key operation of
+Dijkstra's algorithm) or removed (`Delete`) in O(log n).
+
+The queue is *self-contained*, not a composition over
+link:../heap/[pluto/heap]: an indexed priority queue needs the inverse
+position map (`qp`, index → heap position) maintained inside the heap's
+swim/sink, which a plain heap does not expose.  A reversed comparison
+function (`NewIndexPQFunc` with `-Compare(a, b)`) turns it into a
+max-first queue.
+
+The value type implements no interface: ordering is either the value
+type's built-in `<` / `>` operators (`NewIndexPQ`) or a caller supplied
+function (`NewIndexPQFunc`) — no boxing, no dynamic dispatch, no type
+assertions.  Values are stored and returned *by value* (`T`, not `*T`).
+
+== Operations
+
+[options="header"]
+|===
+| Operation        | Description                                              | Complexity
+
+| `Insert(k, v)`   | Add index `k` with value `v`; *replaces* if `k` present  | O(log n)
+| `Change(k, v)`   | Replace the value of a present index (decrease-key)      | O(log n)
+| `Delete(k)`      | Remove index `k`                                         | O(log n)
+| `Contains(k)`    | Is index `k` in the queue                                | O(1)
+| `Value(k)`       | The value associated with index `k`, or `(_, false)`     | O(1)
+| `Peek`           | The minimum `(index, value)`, without removing           | O(1)
+| `Pop`            | Remove and return the minimum `(index, value)`           | O(log n)
+| `All`            | Iterate `(index, value)` in priority order (snapshot)    | O(n log n)
+| `Len` / `IsEmpty`| Size queries                                             | O(1)
+| `Truncate`       | Remove all indices (keeps the ordering and index space)  | O(n)
+|===
+
+The index space `0..n-1` is fixed at construction (`n ≥ 1`).  Indices
+that are out of range, or absent from the queue, are reported — never
+panicked on: `Insert` returns `false` only for an out-of-range `k`
+(replacing a present in-range `k` reports `true`), `Change`/`Delete`
+return `false` for an absent or out-of-range `k`, and
+`Contains`/`Value` report not-found.  `Peek`/`Pop` return
+`(k, v, found)` triples.
+
+`All` yields the pairs in priority order (minimum first) by draining a
+*private snapshot copy* taken when it is called — the queue is unchanged
+afterwards, later modifications are not observed, and mutating the queue
+from inside the loop is safe.
+
+== Usage
+
+[source,go]
+----
+q := index_pq.NewIndexPQ[int](4) // indices 0..3
+q.Insert(0, 30)
+q.Insert(1, 10)
+q.Insert(2, 50)
+q.Change(2, 5) // decrease-key: index 2 is now the minimum
+
+k, v, _ := q.Pop() // 2, 5
+----
+
+Structs ordered by a field — the value type implements no interface, and
+the exported `Compare` helper builds the field ordering:
+
+[source,go]
+----
+type Task struct {
+    Priority int
+    Name     string
+}
+
+q := index_pq.NewIndexPQFunc(16, func(a, b Task) int {
+    return index_pq.Compare(a.Priority, b.Priority)
+})
+q.Insert(0, Task{3, "write"})
+q.Insert(1, Task{1, "review"})
+// Pop yields 1:{1 review} first.
+----
+
+== Panics
+
+The package panics in exactly four situations — all programmer errors
+with no sane fallback:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewIndexPQFunc(n, nil)`                 | nil comparison function, caught at construction time
+| `NewIndexPQ`/`NewIndexPQFunc` with n < 1 | no usable index space
+| `Insert`/`Change` on a nil queue         | a nil queue cannot store a value
+| `Insert`/`Change` on a zero-value queue  | no comparison function; the message names the constructors
+|===
+
+Everything else — including every operation with a bad index — tolerates
+a nil queue and the zero value as an empty queue and reports `false`.
+
+== Concurrency
+
+This package is *not* safe for concurrent use.  The mutex-guarded twin
+link:../index_pq_ts/[`index_pq_ts`] has the identical API behind a
+`sync.RWMutex`, a snapshot `All` taken under the read lock, and a real
+`Lock`/`Unlock` pair with `Nl*` methods for atomic compound operations.
+`Lock`/`Unlock` here are no-ops kept for API compatibility with the
+twin.

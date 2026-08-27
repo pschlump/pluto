@@ -1,0 +1,81 @@
+= graph_ts
+
+The thread-safe twin of link:../graph/[`graph`]: an *undirected graph* on
+the integer vertices `0..n-1` with adjacency lists, plus depth-first
+paths, breadth-first paths, and connected components as constructor-style
+query objects — the identical public API behind a `sync.RWMutex`
+(Sedgwick's §4.1 `Graph`, `DepthFirstPaths`, `BreadthFirstPaths`, `CC`).
+
+== Concurrency model
+
+[options="header"]
+|===
+| Operation                              | Locking
+
+| `AddEdge`                              | write lock
+| `V` / `Len` / `E` / `Degree` / `HasEdge` | read lock, released before returning
+| `Adj`                                  | snapshot of the one adjacency list copied under the read lock, then iterated lock-free
+| `NewDFSPaths` / `NewBFSPaths` / `NewCC` | snapshot of the whole adjacency structure under the read lock, then the traversal runs lock-free on the snapshot
+|===
+
+Because `Adj` and the query constructors work on snapshots, they are safe
+to use concurrently with any graph operation — including mutating the
+graph from inside an `Adj` loop — and they never observe later
+modifications.  No lock is held during a traversal.  The query objects
+(`DFSPaths`, `BFSPaths`, `CC`) are immutable and safe for concurrent
+reads.
+
+The BFS traversal queue is pluto's own link:../queue/[`queue`] (the plain
+one — nothing but the constructing goroutine ever touches it).
+
+== Operations and queries
+
+Identical to link:../graph/[`graph`]: `NewGraph`/`AddEdge`/`V`/`Len`/`E`/
+`Degree`/`Adj`/`HasEdge` (AddEdge O(1)); `NewDFSPaths`/`NewBFSPaths`/
+`NewCC` with `HasPathTo`/`PathTo`/`DistTo`/`Connected`/`ID`/`Count`
+(DFS/BFS O(V+E), space O(V)).  Self-loops count once in `E` and twice in
+`Degree`; parallel edges are allowed; there is deliberately no
+`RemoveEdge`.
+
+== Panics
+
+Identical to link:../graph/[`graph`] (each message names the method):
+
+[options="header"]
+|===
+| Call                                        | Why
+
+| `NewGraph(n < 1)`                           | a graph needs at least one vertex
+| `AddEdge` on a nil graph                    | a nil graph cannot store an edge
+| `NewDFSPaths`/`NewBFSPaths` nil/empty graph | no source vertex exists to search from
+| `NewDFSPaths`/`NewBFSPaths` bad source      | out-of-range source is a programmer error
+|===
+
+Everything else tolerates a nil or zero-value graph as an empty graph
+with no vertices.
+
+== Usage
+
+[source,go]
+----
+g := graph_ts.NewGraph(64)
+
+var wg sync.WaitGroup
+for w := range 4 {
+    wg.Add(1)
+    go func(w int) {
+        defer wg.Done()
+        for i := 0; i < 500; i++ {
+            g.AddEdge((w*7+i)%64, (i*13+w)%64)
+        }
+    }(w)
+}
+wg.Wait()
+
+// Safe concurrently with the writers above: the traversal runs on a
+// snapshot taken under the read lock.
+bfs := graph_ts.NewBFSPaths(g, 0)
+path, ok := bfs.PathTo(63)
+----
+
+Run the tests with `-race`.

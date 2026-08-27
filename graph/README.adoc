@@ -1,0 +1,103 @@
+= graph
+
+An *undirected graph* on the integer vertices `0..n-1` with adjacency
+lists — Sedgwick's §4.1 `Graph` — plus the three fundamental graph
+queries as constructor-style query objects in the same package:
+depth-first paths, breadth-first paths, and connected components.  The
+vertices *are* the indices, like Sedgwick; there is no element type.
+
+Self-loops and parallel edges are allowed: `AddEdge(v, v)` counts once in
+`E` and twice in `Degree(v)`, exactly like Sedgwick.  There is
+deliberately *no* `RemoveEdge` — matching Sedgwick's `Graph` and keeping
+the surface minimal.
+
+Not safe for concurrent use (a mutex-guarded twin,
+link:../graph_ts/[`graph_ts`], has the same interface).
+
+== Operations
+
+[options="header"]
+|===
+| Operation          | Description                                  | Complexity
+
+| `NewGraph(n)`      | Create a graph with n vertices, no edges     | O(n)
+| `AddEdge(v, w)`    | Add the edge v-w (false if out of range)     | O(1)
+| `V` / `Len`        | Number of vertices                           | O(1)
+| `E`                | Number of edges (self-loop counts once)      | O(1)
+| `Degree(v)`        | Edges incident to v (self-loop counts twice) | O(1)
+| `Adj(v)`           | Iterator over the neighbors of v             | O(degree(v))
+| `HasEdge(v, w)`    | Report whether the edge v-w exists           | O(degree(v))
+|===
+
+`Len` is an alias for `V`, matching the other pluto packages.  `Adj`
+yields neighbors in *insertion order* (deterministic — there is no random
+seed); the graph must not be modified while an iterator is running.
+
+== Queries
+
+Each query is a constructor that runs a traversal once and answers
+queries in O(1)-ish time afterwards.  The result objects are *immutable
+snapshots* of the graph at construction time: later `AddEdge` calls are
+not reflected.
+
+[options="header"]
+|===
+| Query                          | Description                              | Complexity
+
+| `NewDFSPaths(g, s)`            | Paths from s via depth-first search      | O(V+E)
+| `NewBFSPaths(g, s)`            | Shortest paths from s via BFS            | O(V+E)
+| `NewCC(g)`                     | Connected components                     | O(V+E)
+| `HasPathTo(v)`                 | Is v reachable from the source           | O(1)
+| `PathTo(v)`                    | Path source→v, source first, fresh slice | O(path length)
+| `DistTo(v)` (BFS only)         | Edges on a shortest path to v            | O(1)
+| `Connected(v, w)` / `ID` / `Count` (CC only) | Component queries        | O(1)
+|===
+
+The BFS traversal queue is pluto's own link:../queue/[`queue`] — an
+intra-pluto composition, like `priority_queue` over `heap`.
+
+== Usage
+
+[source,go]
+----
+g := graph.NewGraph(6)
+for _, e := range [][2]int{{0, 5}, {2, 4}, {2, 3}, {1, 2}, {0, 1}, {3, 4}, {3, 5}, {0, 2}} {
+    g.AddEdge(e[0], e[1])
+}
+
+bfs := graph.NewBFSPaths(g, 0)
+d, _ := bfs.DistTo(4)      // 2 — shortest path
+path, _ := bfs.PathTo(4)   // [0 2 4], source first
+
+cc := graph.NewCC(g)
+cc.Count()                 // 1 — the graph is connected
+
+for w := range g.Adj(0) {  // 5 1 2 — insertion order
+    ...
+}
+----
+
+== Panics
+
+[options="header"]
+|===
+| Call                                        | Why
+
+| `NewGraph(n < 1)`                           | a graph needs at least one vertex
+| `AddEdge` on a nil graph                    | a nil graph cannot store an edge
+| `NewDFSPaths`/`NewBFSPaths` nil/empty graph | no source vertex exists to search from
+| `NewDFSPaths`/`NewBFSPaths` bad source      | out-of-range source is a programmer error
+|===
+
+Everything else tolerates a nil or zero-value graph as an empty graph
+with no vertices: reads report not-found/0, `Adj` yields nothing, `NewCC`
+reports 0 components, and `AddEdge` on a zero-value graph returns false
+(every vertex is out of range).  A nil `*DFSPaths`/`*BFSPaths`/`*CC`
+answers every query with not-found.
+
+== Concurrency
+
+Not safe for concurrent use.  Use link:../graph_ts/[`graph_ts`], where
+`Adj` iterates a snapshot copied under the read lock and the query
+constructors snapshot the adjacency under the read lock, then traverse
+lock-free.

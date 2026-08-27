@@ -1,0 +1,80 @@
+= union_find
+
+The classic *disjoint-set (union-find)* structure of Sedgwick & Wayne,
+Algorithms, 4th ed. §1.5 — union-by-rank with path halving in `Find`.
+The elements *are* the indices `0..n-1`: there is no element type `T`,
+no ordering, and no equality to supply — a union-find tracks which of
+`n` abstract sites are connected, nothing more.
+
+Out-of-range indices *report, they do not panic* (the `heap`
+indexed-operation convention, not Sedgwick's exception): `Find` returns
+`ok=false`, `Union` and `Connected` return `false`.
+
+Not safe for concurrent use — see
+link:../union_find_ts/[pluto/union_find_ts] for the thread-safe twin.
+
+== Operations
+
+[options="header"]
+|===
+| Operation    | Description                                    | Complexity
+
+| `Find`       | Root (representative) of p's set, `(root, ok)` | O(α(n)) amortized
+| `Union`      | Merge the sets containing p and q              | O(α(n)) amortized
+| `Connected`  | Are p and q in the same set?                   | O(α(n)) amortized
+| `Count`      | Number of disjoint sets                        | O(1)
+| `Len`        | n, the number of elements (0..n-1)             | O(1)
+|===
+
+α is the inverse Ackermann function — effectively a small constant for
+any conceivable n.  `Find` performs *path halving*: it shortens the
+internal parent links as it walks, which mutates the tree shape but
+never the logical sets.  `Union` merges by rank (the shorter tree goes
+under the taller; rank rises only when equal ranks merge and is never
+decremented).
+
+`Union` returns `true` when it merged two sets and `false` when the
+elements were already connected (or an index is out of range).  `Count`
+starts at n and drops by one per successful `Union`.
+
+== Usage
+
+[source,go]
+----
+uf := union_find.NewUnionFind(10) // sites 0..9
+
+uf.Union(4, 3)
+uf.Union(3, 8)
+uf.Union(6, 5)
+
+uf.Connected(4, 8) // true — through 3
+uf.Connected(4, 5) // false
+uf.Count()         // 7
+
+root, ok := uf.Find(8) // the set's representative element
+----
+
+== Panics
+
+The package has exactly *two* panics:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewUnionFind(n)` with `n < 1` | a union-find over no elements is meaningless
+| `Union` on a nil `*UnionFind`  | a nil structure cannot record a merge — the one write with no sane answer
+|===
+
+A nil `*UnionFind` and the zero value behave as an *empty* union-find
+(no elements, no sets) for every other operation: `Find` returns
+`(0, false)`, `Union`/`Connected` return `false`, `Count` and `Len`
+return 0.
+
+== Concurrency
+
+Not safe for concurrent use.  The twin
+link:../union_find_ts/[pluto/union_find_ts] guards the identical API
+with a `sync.RWMutex` — with the caveat that `Find` and `Connected`
+take the *write* lock there, because path halving mutates the parent
+links.

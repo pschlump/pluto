@@ -1,0 +1,108 @@
+= index_pq_ts
+
+A generic, *thread-safe indexed priority queue* — the twin of
+link:../index_pq/[pluto/index_pq].  Every operation is guarded by a
+`sync.RWMutex`: readers run in parallel with each other, writers are
+exclusive.  Like `index_pq`, the client owns stable indices `0..n-1`,
+`Peek`/`Pop` always return the minimum value with its index, `Change` is
+the O(log n) decrease-key, a reversed comparison function turns it into
+a max-first queue, the value type implements no interface, values are
+stored and returned by value, and out-of-range or absent indices report
+`false`.
+
+The public API is identical to `index_pq`, *plus* the real
+`Lock`/`Unlock` pair and the `Nl*` (no-lock) methods for compound
+operations.
+
+== Locking behavior
+
+* *Reads* (`Contains`, `Value`, `Peek`, `Len`, `IsEmpty`) take the read
+lock and release it before returning — they can run in parallel with
+each other — and return *value copies* taken under the lock, never
+pointers aliasing values in the queue.
+* *Writes* (`Insert`, `Change`, `Delete`, `Pop`, `Truncate`) take the
+write lock.  `Pop`/`Delete` (and `NlPop`/`NlDelete`) zero the vacated
+value slot so the GC can reclaim the removed value.
+* *`All` operates on a snapshot* copied under the read lock when it is
+called (one O(n) copy), then drained lock-free in priority order.  It is
+safe to mutate the queue while iterating — including from inside the
+loop — and an iterator never observes modifications made after it was
+created.
+* *`Lock`/`Unlock` expose the write lock* for compound operations that
+must be atomic.  While the lock is held, only the `Nl*` methods may be
+called — calling a regular method will deadlock:
+`NlLen`, `NlContains`, `NlValue`, `NlInsert`, `NlChange`, `NlDelete`,
+`NlPop`.
+
+[source,go]
+----
+q.Lock()
+if v, found := q.NlValue(k); found && v > threshold {
+    q.NlChange(k, threshold) // atomic decrease-key-if-greater
+}
+q.Unlock()
+----
+
+== Errors and panics
+
+Identical to `index_pq`: no errors — every empty, absent or out-of-range
+outcome is a `false` return — and exactly four panics:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewIndexPQFunc(n, nil)`                 | nil comparison function, caught at construction time
+| `NewIndexPQ`/`NewIndexPQFunc` with n < 1 | no usable index space
+| `Insert`/`Change` on a nil queue         | a nil queue cannot store a value
+| `Insert`/`Change` on a zero-value queue  | no comparison function; the message names the constructors
+|===
+
+Everything else tolerates a nil queue and the zero value as an empty
+queue.
+
+== Usage
+
+[source,go]
+----
+package main
+
+import (
+    "fmt"
+    "sync"
+
+    "github.com/pschlump/pluto/index_pq_ts"
+)
+
+func main() {
+    q := index_pq_ts.NewIndexPQ[int](800)
+
+    // Writers from many goroutines share one queue, each on a
+    // disjoint stripe of the index space.
+    var wg sync.WaitGroup
+    for w := 0; w < 8; w++ {
+        wg.Add(1)
+        go func(w int) {
+            defer wg.Done()
+            for k := w; k < 800; k += 8 {
+                q.Insert(k, k)
+            }
+        }(w)
+    }
+    wg.Wait()
+    fmt.Println(q.Len()) // 800
+
+    // Concurrent pops drain it; every index comes out exactly once.
+    for !q.IsEmpty() {
+        if _, _, found := q.Pop(); !found {
+            break
+        }
+    }
+    fmt.Println(q.IsEmpty()) // true
+}
+----
+
+Runnable, tested copies of these examples live in
+link:example_test.go[`example_test.go`].  The
+link:../index_pq/[index_pq README] documents the full API usage; it
+applies unchanged.

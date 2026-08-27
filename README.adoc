@@ -56,6 +56,12 @@ with an identical public API.
 | link:cuckoo/[cuckoo]                       | Generic auto-growing cuckoo hash table (4 derived hashes per key, powers of 2, == or eq+hash funcs).
 | link:cuckoo_ts/[cuckoo_ts]                 | Thread-safe cuckoo hash table (RWMutex, background resizes, snapshot iterators, Lock+Nl* compound ops).
 | link:cuckoo_grow15_ts/[cuckoo_grow15_ts]   | EXPERIMENTAL cuckoo_ts variant (×1.5 growth via multiply-shift addressing; benchmarks showed no clear win — kept for reference).
+| link:union_find/[union_find]               | Disjoint-set union-find over indices 0..n-1 (union-by-rank + path halving, Sedgwick §1.5).
+| link:union_find_ts/[union_find_ts]         | Thread-safe union-find (RWMutex; Find takes the write lock — path halving mutates).
+| link:index_pq/[index_pq]                   | Generic indexed priority queue (decrease-key by client index, Sedgwick §2.6 IndexMinPQ).
+| link:index_pq_ts/[index_pq_ts]             | Thread-safe indexed priority queue (RWMutex, snapshot All, Lock+Nl* compound ops).
+| link:graph/[graph]                         | Undirected graph with DFS/BFS paths and connected components (Sedgwick §4.1–4.2).
+| link:graph_ts/[graph_ts]                   | Thread-safe graph (RWMutex, snapshot adjacency; traversals run lock-free on a snapshot).
 | link:g_lib/[g_lib]                         | Generic utility functions (min/max, slice ops, set/map conversion, numeric constraints).
 |===
 
@@ -416,6 +422,31 @@ multi-step operations — `InsertArray` (append+rebuild) and
 `Sort`/`SortDown` (drain) — hold the heap's write lock for the whole
 operation, so each is *atomic*.
 
+=== Indexed Priority Queue — `index_pq/`, `index_pq_ts/`
+
+Sedgwick's §2.6 `IndexMinPQ`: a min-first priority queue where the
+client owns stable indices `0..n-1` and can `Change` (decrease-key) or
+`Delete` by index. *Self-contained* — not composed on `pluto/heap`,
+because the inverse position map (`qp[]`, index → heap position) must
+be maintained inside swim/sink, which the heap does not expose (the
+same self-contained rationale as `stack_sll_ts`/`dqueue`). Two-
+constructor ordering like `heap` (`NewIndexPQ(n)` /
+`NewIndexPQFunc(n, fx)`; max-PQ via a reversed comparator).
+`Insert(k, v)` *replaces* the value if k is already present (the
+trees' duplicates-replace convention); `Peek`/`Pop` return the minimum
+as `(index, value, ok)`; `All` drains a private snapshot in priority
+order (non-destructive). Insert/Change/Delete/Pop O(log n);
+Peek/Contains/Value O(1). This is the priority queue Dijkstra and
+Prim want.
+
+* Good: decrease-key by client index in O(log n); stable client-owned
+indices — none of `priority_queue`'s stale-position problem.
+* Bad: the index space `0..n-1` is fixed at construction.
+
+`index_pq_ts` is the twin with the RWMutex, snapshot `All`, and the
+compound-op surface (real `Lock`/`Unlock` + `NlLen`/`NlContains`/
+`NlValue`/`NlInsert`/`NlChange`/`NlDelete`/`NlPop`).
+
 == Hash Tables
 
 All four families are equality+hashing structures with two
@@ -564,6 +595,53 @@ after each rebuild. Operations between trigger and rebuild run against
 the still-valid (merely saturated) table. Plus the usual twin surface:
 snapshot `All`/`Values`, real `Lock`/`Unlock`, and the `Nl*` methods
 for compound operations.
+
+== Union-Find — `union_find/`, `union_find_ts/`
+
+Sedgwick's §1.5 disjoint set over the indices `0..n-1` — the one
+non-generic structure in the library, because the elements *are* the
+indices. Union-by-rank with path halving in `Find`, so `Union`/
+`Find`/`Connected` are amortized O(α(n)) — effectively constant.
+`Union` reports whether a merge happened (false when the pair was
+already connected); out-of-range indices report `false`, never panic
+(the `heap` indexed-operation convention). Panics only on
+`NewUnionFind(n < 1)` and `Union` on a nil set. This is the building
+block for Kruskal-style connectivity over a fixed universe.
+
+* Good: near-constant amortized operations; tiny API; no comparison
+or equality function to supply.
+* Bad: the universe `0..n-1` is fixed at construction; sets cannot be
+split back apart.
+
+`union_find_ts` is the twin with the RWMutex — but `Find`/`Connected`
+take the *write* lock, not the read lock, because path halving mutates
+the parent pointers; only `Count`/`Len` are true reads.
+
+== Graphs — `graph/`, `graph_ts/`
+
+Sedgwick's §4.1–4.2 undirected graph on the int vertices `0..n-1`
+(adjacency lists; self-loops and parallel edges allowed — a self-loop
+counts once in `E`, twice in `Degree`), plus the three fundamental
+queries as constructor-style result objects in the same package:
+`NewDFSPaths(g, s)` and `NewBFSPaths(g, s)` (`HasPathTo`, `PathTo` —
+a source-first slice; BFS adds `DistTo`, the shortest distance in
+unweighted edges) and `NewCC(g)` (`Connected`, `ID`, `Count`).
+`AddEdge` O(1); the traversals O(V+E) time and O(V) space. Result
+objects are immutable snapshots of the graph at call time — later
+`AddEdge` calls are not reflected — and there is no `RemoveEdge`
+(deliberate, matching Sedgwick's Graph). BFS uses `pluto/queue`
+internally (an intra-pluto composition).
+
+* Good: the classic graph traversals with pluto's value semantics and
+panic contracts; BFS shortest paths and connected components out of
+the box.
+* Bad: undirected only (no Digraph yet); int vertices — a symbol
+layer is a possible later package; no edge removal.
+
+`graph_ts` is the twin with the RWMutex: `Adj` yields a snapshot slice
+copied under the read lock, and the traversal constructors deep-copy
+the adjacency under the read lock, then run *lock-free* on the
+snapshot — no lock is held for the duration of a traversal.
 
 == Supporting Packages
 

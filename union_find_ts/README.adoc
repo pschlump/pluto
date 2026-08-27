@@ -1,0 +1,65 @@
+= union_find_ts
+
+The classic *disjoint-set (union-find)* structure of Sedgwick & Wayne,
+Algorithms, 4th ed. §1.5, *safe for concurrent use* — the thread-safe
+twin of link:../union_find/[pluto/union_find].  Same API (union-by-rank
+with path halving over the indices `0..n-1`), guarded by a
+`sync.RWMutex`.
+
+== Locking behavior — read this
+
+* *`Find` and `Connected` take the WRITE lock, not the read lock.*
+`Find` performs path halving, which mutates the internal parent links
+even though it changes no logical set — under the race detector a query
+is a write, and it must not race with a concurrent `Union` or another
+`Find`.  Queries on a shared union-find therefore *serialize*; they
+never run in parallel with each other.
+* *`Union` takes the write lock.*
+* *Only `Count` and `Len` are true readers* and take the read lock.
+
+[source,go]
+----
+uf := union_find_ts.NewUnionFind(100)
+
+var wg sync.WaitGroup
+for g := 0; g < 4; g++ {
+    wg.Add(1)
+    go func(base int) {
+        defer wg.Done()
+        for i := 1; i < 25; i++ {
+            uf.Union(base, base+i) // no extra synchronization needed
+        }
+    }(g * 25)
+}
+wg.Wait()
+uf.Count() // 4
+----
+
+== Errors and panics
+
+Identical to `union_find`: out-of-range indices report (`Find` returns
+`ok=false`, `Union`/`Connected` return `false`), and the package has
+exactly *two* panics:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewUnionFind(n)` with `n < 1` | a union-find over no elements is meaningless
+| `Union` on a nil `*UnionFind`  | a nil structure cannot record a merge
+|===
+
+A nil `*UnionFind` and the zero value behave as an empty union-find for
+every other operation.
+
+== Differences from pluto/union_find
+
+* Same public API with a `sync.RWMutex` added; nil guards come *before*
+the lock acquisition (a nil-receiver `lock.Lock()` would itself panic).
+* `Find`/`Connected` are *write-locked* here — see above.  In the plain
+package the distinction is moot (no concurrency at all), but callers
+moving code between the packages should not assume queries are cheap
+parallel reads in the twin.
+
+Run the tests with `-race` — race coverage lives in
+`TestConcurrentUnionFind`.
