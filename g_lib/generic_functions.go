@@ -249,4 +249,15 @@ func Ptr[T any](v T) *T {
 	return new(v)
 }
 
+// Return true if the array, haystack, has the value, needle in it.
+// This uses the Dijkstra L algorithm for the search.
+func ArrayHas[T comparable](haystack []T, needle T) bool {
+	for _, val := range haystack {
+		if val == needle {
+			return true
+		}
+	}
+	return false
+}
+
 /* vim: set noai ts=4 sw=4: */
