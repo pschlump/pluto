@@ -1,0 +1,94 @@
+= dijkstra_ts
+
+The thread-safe twin of link:../dijkstra/[`dijkstra`] — Dijkstra's
+shortest-path algorithm over edge-weighted digraphs and graphs on the
+int vertices `0..n-1` (Sedgwick, Algorithms §4.4), with the identical
+API guarded by a `sync.RWMutex`.  Built on
+link:../index_pq/[pluto/index_pq] for the indexed priority queue.
+
+== Concurrency model
+
+* `AddEdge` takes the *write* lock.
+* `V` / `E` take the *read* lock and release it before returning, so
+they run in parallel with each other.
+* `Adj` returns a *snapshot copy* of the one adjacency list, taken under
+the read lock when `Adj` is called — safe to use concurrently with any
+graph operation, and it never observes later modifications.
+* The Dijkstra constructors (`NewDijkstraSP`,
+`NewDijkstraUndirectedSP`, `NewDijkstraAllPairsSP`) snapshot the whole
+adjacency structure under the read lock, validate the snapshot's
+weights, then run the search *lock-free* on the snapshot — no lock is
+held during the search (the `graph_ts` traversal pattern).
+
+The query objects (`DijkstraSP`, `DijkstraUndirectedSP`,
+`DijkstraAllPairsSP`) are *immutable* after construction — snapshots of
+the graph at construction time — so they are safe for concurrent reads.
+Their `Lock`/`Unlock` are no-ops kept for API parity with the plain
+package.
+
+The graphs expose the *real* write lock as `Lock`/`Unlock` (nil
+no-ops).  There are no `Nl*`-prefixed methods in this package, so while
+a graph's `Lock` is held do *not* call any of its public methods — `V`,
+`E`, `Adj`, `AddEdge` and the Dijkstra constructors would all deadlock.
+
+== Operations
+
+Identical to link:../dijkstra/[`dijkstra`]:
+
+[options="header"]
+|===
+| Operation                        | Description                                    | Complexity
+
+| `NewEdgeWeightedDigraph(v)`      | Digraph on vertices `0..v-1`, no edges         | O(v)
+| `NewEdgeWeightedGraph(v)`        | Undirected twin (edges relax both ways)        | O(v)
+| `AddEdge(e)`                     | Add an edge (false on out-of-range endpoints)  | O(1)
+| `V()` / `E()`                    | Vertex / edge counts                           | O(1)
+| `Adj(v)`                         | Snapshot of the edges at `v`                   | O(degree(v))
+| `NewDijkstraSP(g, s)`            | Shortest paths from `s` in a digraph           | O(E log V) + O(V+E) snapshot
+| `NewDijkstraUndirectedSP(g, s)`  | Shortest paths from `s` in a graph             | O(E log V) + O(V+E) snapshot
+| `NewDijkstraAllPairsSP(g)`       | One `DijkstraSP` per source vertex             | O(V·E log V) + O(V+E) snapshot
+| `DistTo(v)` / `Dist(s, t)`       | Shortest distance (`+Inf` if unreachable)      | O(1)
+| `HasPathTo(v)` / `HasPath(s, t)` | Reachability queries                           | O(1)
+| `PathTo(v)` / `Path(s, t)`       | Shortest path as a source-first edge slice     | O(path length)
+|===
+
+== Usage
+
+[source,go]
+----
+g := dijkstra_ts.NewEdgeWeightedDigraph(4)
+g.AddEdge(dijkstra_ts.DirectedEdge{From: 0, To: 1, Weight: 2})
+g.AddEdge(dijkstra_ts.DirectedEdge{From: 1, To: 2, Weight: 1})
+g.AddEdge(dijkstra_ts.DirectedEdge{From: 0, To: 2, Weight: 10})
+
+sp := dijkstra_ts.NewDijkstraSP(g, 0) // snapshots the graph, then searches lock-free
+sp.DistTo(2)    // 3 — via vertex 1
+sp.HasPathTo(3) // false
+sp.PathTo(2)    // [{0 1 2} {1 2 1}], source first
+----
+
+== Panics
+
+Same contract as the plain package — all programmer errors:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewEdgeWeightedDigraph`/`NewEdgeWeightedGraph` with v < 1 | no usable vertex set
+| `AddEdge` on a nil graph            | a nil graph cannot store an edge
+| `NewDijkstraSP`/`NewDijkstraUndirectedSP` on a nil or empty graph | no graph to search
+| `NewDijkstraSP`/`NewDijkstraUndirectedSP` with an out-of-range source | no such vertex
+| any Dijkstra constructor when an edge has a negative weight | Dijkstra requires non-negative weights
+|===
+
+Everything else tolerates nil receivers and zero values: a nil or
+zero-value graph reads as an empty graph (`AddEdge` on a zero-value
+graph reports false — every endpoint is out of range), and a nil query
+object reports `+Inf` / `false` / `nil` for every question.
+
+== Concurrency
+
+This package *is* safe for concurrent use — see the concurrency model
+above.  The lock-free original is link:../dijkstra/[`dijkstra`].  Run
+the tests with `-race`.

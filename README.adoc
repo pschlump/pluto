@@ -62,6 +62,8 @@ with an identical public API.
 | link:index_pq_ts/[index_pq_ts]             | Thread-safe indexed priority queue (RWMutex, snapshot All, Lock+Nl* compound ops).
 | link:graph/[graph]                         | Undirected graph with DFS/BFS paths and connected components (Sedgwick §4.1–4.2).
 | link:graph_ts/[graph_ts]                   | Thread-safe graph (RWMutex, snapshot adjacency; traversals run lock-free on a snapshot).
+| link:dijkstra/[dijkstra]                   | Edge-weighted digraph/graph with Dijkstra shortest paths (single-source, undirected, all-pairs; Sedgwick §4.4).
+| link:dijkstra_ts/[dijkstra_ts]             | Thread-safe Dijkstra shortest paths (RWMutex, snapshot adjacency; searches run lock-free on a snapshot).
 | link:g_lib/[g_lib]                         | Generic utility functions (min/max, slice ops, set/map conversion, numeric constraints).
 |===
 
@@ -642,6 +644,35 @@ layer is a possible later package; no edge removal.
 copied under the read lock, and the traversal constructors deep-copy
 the adjacency under the read lock, then run *lock-free* on the
 snapshot — no lock is held for the duration of a traversal.
+
+== Dijkstra Shortest Paths — `dijkstra/`, `dijkstra_ts/`
+
+Sedgwick's §4.4 shortest paths on edge-weighted graphs: an
+`EdgeWeightedDigraph` (directed) and `EdgeWeightedGraph` (undirected)
+on the int vertices `0..n-1`, with the constructor-style query objects
+`NewDijkstraSP(g, s)` (`DistTo` — `+Inf` when unreachable, `HasPathTo`,
+`PathTo` — a source-first edge slice whose weights sum to the
+distance), its undirected twin `NewDijkstraUndirectedSP`, and
+`NewDijkstraAllPairsSP` (one search per source; `Dist`/`HasPath`/
+`Path`). The priority queue is `pluto/index_pq` (an intra-pluto
+composition — Dijkstra's decrease-key is exactly `index_pq.Change`);
+single-source is O(E log V), all-pairs O(V·E log V). All weights must
+be non-negative — a negative edge panics at construction, as do a nil
+or empty graph and an out-of-range source. Result objects are
+immutable snapshots of the graph at call time; self-loops and parallel
+edges are allowed; no `RemoveEdge` (deliberate, matching Sedgwick).
+
+* Good: the classic algorithm with pluto's panic contracts and value
+semantics; single-source, undirected and all-pairs out of the box, all
+verified bit-for-bit against the algs4 Java reference.
+* Bad: non-negative weights only (no Bellman-Ford yet); int vertices —
+a symbol layer is a possible later package; no edge removal.
+
+`dijkstra_ts` is the twin with the RWMutex: `Adj` returns a snapshot
+slice copied under the read lock, and the Dijkstra constructors
+deep-copy the adjacency under the read lock, then run *lock-free* on
+the snapshot — no lock is held for the duration of a search. The query
+objects are immutable, so they are safe for concurrent reads.
 
 == Supporting Packages
 

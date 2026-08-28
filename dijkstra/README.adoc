@@ -1,0 +1,89 @@
+= dijkstra
+
+Dijkstra's shortest-path algorithm over *edge-weighted digraphs and
+graphs* on the int vertices `0..n-1` (Sedgwick, Algorithms §4.4), built
+on link:../index_pq/[pluto/index_pq] for the indexed priority queue — an
+intra-pluto composition: the decrease-key operation Dijkstra's algorithm
+is built on is exactly what an indexed priority queue provides.
+
+The graph types are plain adjacency-list containers in the style of
+link:../graph/[pluto/graph] (self-loops and parallel edges allowed, no
+`RemoveEdge`), and the shortest-path computations are constructor-style
+query objects in the same package: each is an *immutable snapshot* of
+the graph at construction time, so later `AddEdge` calls are not
+reflected.  All edge weights must be non-negative; a negative weight
+panics at construction.
+
+== Operations
+
+[options="header"]
+|===
+| Operation                        | Description                                    | Complexity
+
+| `NewEdgeWeightedDigraph(v)`      | Digraph on vertices `0..v-1`, no edges         | O(v)
+| `NewEdgeWeightedGraph(v)`        | Undirected twin (edges relax both ways)        | O(v)
+| `AddEdge(e)`                     | Add an edge (false on out-of-range endpoints)  | O(1)
+| `V()` / `E()`                    | Vertex / edge counts                           | O(1)
+| `Adj(v)`                         | Edges leaving (or incident to) `v`             | O(1)
+| `NewDijkstraSP(g, s)`            | Shortest paths from `s` in a digraph           | O(E log V)
+| `NewDijkstraUndirectedSP(g, s)`  | Shortest paths from `s` in a graph             | O(E log V)
+| `NewDijkstraAllPairsSP(g)`       | One `DijkstraSP` per source vertex             | O(V·E log V)
+| `DistTo(v)` / `Dist(s, t)`       | Shortest distance (`+Inf` if unreachable)      | O(1)
+| `HasPathTo(v)` / `HasPath(s, t)` | Reachability queries                           | O(1)
+| `PathTo(v)` / `Path(s, t)`       | Shortest path as a source-first edge slice     | O(path length)
+|===
+
+`DistTo`/`Dist` return `+Inf` for unreachable (and out-of-range)
+vertices; `PathTo`/`Path` return `nil` when there is no path and an
+empty non-nil slice for the source-to-itself path.  The weights along a
+returned path always sum to the reported distance.
+
+== Usage
+
+[source,go]
+----
+g := dijkstra.NewEdgeWeightedDigraph(4)
+g.AddEdge(dijkstra.DirectedEdge{From: 0, To: 1, Weight: 2})
+g.AddEdge(dijkstra.DirectedEdge{From: 1, To: 2, Weight: 1})
+g.AddEdge(dijkstra.DirectedEdge{From: 0, To: 2, Weight: 10})
+
+sp := dijkstra.NewDijkstraSP(g, 0)
+sp.DistTo(2)    // 3 — via vertex 1
+sp.HasPathTo(3) // false
+sp.PathTo(2)    // [{0 1 2} {1 2 1}], source first
+----
+
+The undirected `EdgeWeightedGraph` records every edge in both endpoints'
+adjacency lists, so `DijkstraUndirectedSP` relaxes it in both
+directions.  `DijkstraAllPairsSP` answers every `(s, t)` pair from one
+construction.
+
+== Panics
+
+The package panics in exactly these situations — all programmer errors
+with no sane fallback:
+
+[options="header"]
+|===
+| Call                                                                  | Why
+
+| `NewEdgeWeightedDigraph`/`NewEdgeWeightedGraph` with v < 1            | no usable vertex set
+| `AddEdge` on a nil graph                                              | a nil graph cannot store an edge
+| `NewDijkstraSP`/`NewDijkstraUndirectedSP` on a nil or empty graph     | no graph to search
+| `NewDijkstraSP`/`NewDijkstraUndirectedSP` with an out-of-range source | no such vertex
+| any Dijkstra constructor when an edge has a negative weight           | Dijkstra requires non-negative weights
+|===
+
+Everything else tolerates nil receivers and zero values: a nil or
+zero-value graph reads as an empty graph (`AddEdge` on a zero-value
+graph reports false — every endpoint is out of range), and a nil query
+object reports `+Inf` / `false` / `nil` for every question.
+
+== Concurrency
+
+This package is *not* safe for concurrent use.  The mutex-guarded twin
+link:../dijkstra_ts/[`dijkstra_ts`] has the identical API behind a
+`sync.RWMutex`: `Adj` returns a snapshot copy, and the Dijkstra
+constructors snapshot the adjacency lists under the read lock and then
+run lock-free on the snapshot.  `Lock`/`Unlock` here are no-ops kept for
+API compatibility with the twin.
