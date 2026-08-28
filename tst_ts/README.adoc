@@ -1,0 +1,134 @@
+= tst_ts
+
+A *thread-safe ternary search trie (TST)* — the thread-safe twin of
+link:../tst/[pluto/tst], the string-keyed symbol table of Sedgwick &
+Wayne, Algorithms, 4th ed. §5.5, and the memory-efficient counterpart
+of the sibling R-way trie link:../trie/[pluto/trie].  Where an R-way
+trie spends a 256-way array per character, a TST spends one small node
+per character: a byte plus three pointers (`left`/`mid`/`right`).
+`left`/`right` form a binary search tree on the alternative bytes at
+the current key position; `mid` continues the current key one byte
+deeper.
+
+The API is identical to `tst`'s — same method names, signatures, and
+semantics — guarded by a `sync.RWMutex`, plus the `Lock`/`Unlock` pair
+and the `Nl`-prefixed (no-lock) methods for compound operations.
+
+Keys are byte strings — arbitrary UTF-8 works, and ordering is inherent
+in the key bytes, so the structure is *constraint-free*: no comparison
+function, no constructors, and the zero value is fully usable including
+`Insert`.
+
+The *empty key is rejected* (algs4 throws on it; pluto reports):
+`Insert("")` returns `false` changing nothing, `Search("")` and
+`Contains("")` report not-found, `Delete("")` returns `false`.
+
+== Operations
+
+(L is the key length, n the number of keys)
+
+[options="header"]
+|===
+| Operation          | Description                                        | Complexity
+
+| `Insert`           | Add or replace a key's value; true if added        | O(L + ln n) average
+| `Search`           | Value of a key, `(value, ok)`                      | O(L + ln n) average
+| `Contains`         | Is the key present?                                | O(L + ln n) average
+| `Delete`           | Remove a key, pruning dead branches; true if found | O(L + ln n) average
+| `IsEmpty`          | No keys?                                           | O(1)
+| `Length` / `Len`   | Number of keys                                     | O(1)
+| `LongestPrefixOf`  | Longest key that is a prefix of the query          | O(L + ln n) average
+| `KeysWithPrefix`   | All keys with a prefix, ascending (nil when none)  | O(L + m) — m = total matched length
+| `KeysThatMatch`    | All keys matching a `.` wildcard pattern, ascending | O(m)
+| `All`              | Iterate `(key, value)` pairs, ascending key order  | O(n·L)
+| `Lock` / `Unlock` + `Nl*` | Compound multi-step operations            | O(1) to lock
+|===
+
+`Insert` returns `true` when a key was added and `false` when an
+existing value was replaced.  `Delete` clears the value *and* prunes
+the childless value-less nodes the key leaves behind (algs4's TST has
+no delete; pluto trees all do), so deleting every key restores the trie
+to its zero shape.
+
+`All` is an `iter.Seq2[string, T]` — a single-variable `range` yields
+the KEY (a string).
+
+== Usage
+
+[source,go]
+----
+var tt tst_ts.Tst[int] // zero value is ready to use
+
+tt.Insert("shells", 3)
+tt.Insert("she", 0)
+tt.Insert("sea", 6)
+
+tt.Search("she")          // (0, true)
+tt.Contains("seas")       // false
+tt.LongestPrefixOf("shellsort") // "shells"
+tt.KeysWithPrefix("sh")   // ["she", "shells"]
+tt.KeysThatMatch("s..")   // ["sea", "she"]
+
+for key, value := range tt.All() { // ascending key order, snapshot
+	// ... safe to call tt.Insert / tt.Delete here ...
+}
+
+tt.Delete("sea")          // true; dead branch pruned
+----
+
+== Panics
+
+The package has exactly *one* panic, identical to the plain package's:
+
+[options="header"]
+|===
+| Call | Why
+
+| `Insert` on a nil `*Tst` | a nil structure cannot store a value — the one write with no sane answer
+|===
+
+The panic fires *before* any lock acquisition.  A nil `*Tst` and the
+zero value behave as an *empty* trie for every other operation:
+`Search` returns `(zero, false)`, `Contains`/`Delete` return `false`,
+`Length`/`Len` return 0, `LongestPrefixOf` returns `""`, the key
+queries return nil, and `All` visits nothing.
+
+== Concurrency
+
+The whole API is guarded by one `sync.RWMutex`:
+
+* Reads (`Search`, `Contains`, `IsEmpty`, `Length`, `Len`,
+  `LongestPrefixOf`) take the *read* lock and release it before
+  returning, so they run in parallel with each other.
+* Writes (`Insert`, `Delete`) take the *write* lock.  `Delete` holds it
+  across the search and the unlink, so a Delete-then-Search race cannot
+  resurrect a key.
+* `All`, `KeysWithPrefix` and `KeysThatMatch` collect an eager
+  *snapshot* of the (key, value) pairs / key strings under the read
+  lock when they are called, then release it (the plain package's `All`
+  walks the *live* trie — here the contracts differ).  The snapshot is
+  safe to iterate concurrently with any trie operation — including
+  mutating the trie from inside the `All` loop — and never observes
+  later modifications.
+
+`Lock` and `Unlock` expose the *real* write lock (no-ops on a nil trie)
+for compound multi-step operations, together with the `Nl`-prefixed
+no-lock methods `NlIsEmpty`, `NlLen`, `NlSearch`, `NlInsert` and
+`NlDelete`:
+
+[source,go]
+----
+tt.Lock()
+if v, found := tt.NlSearch("sea"); found { // atomic search-and-delete
+	tt.NlDelete("sea")
+	_ = v
+}
+tt.Unlock()
+----
+
+*Calling a locking public method while holding `Lock` deadlocks* —
+inside the critical section use only the `Nl` methods.  A locked public
+method never calls another locked public method; the lock-free `Nl*` /
+`nl*` internals do the work under the held lock.
+
+Run the tests with `-race`.

@@ -64,6 +64,11 @@ with an identical public API.
 | link:graph_ts/[graph_ts]                   | Thread-safe graph (RWMutex, snapshot adjacency; traversals run lock-free on a snapshot).
 | link:dijkstra/[dijkstra]                   | Edge-weighted digraph/graph with Dijkstra shortest paths (single-source, undirected, all-pairs; Sedgwick §4.4).
 | link:dijkstra_ts/[dijkstra_ts]             | Thread-safe Dijkstra shortest paths (RWMutex, snapshot adjacency; searches run lock-free on a snapshot).
+| link:trie/[trie]                           | String-keyed R-way trie symbol table (prefix/wildcard queries, Sedgwick §5.4 TrieST).
+| link:trie_ts/[trie_ts]                     | Thread-safe R-way trie (RWMutex, snapshot iterators, Lock+Nl* compound ops).
+| link:tst/[tst]                             | String-keyed ternary search trie (memory-efficient trie, Sedgwick §5.5 TST).
+| link:tst_ts/[tst_ts]                       | Thread-safe ternary search trie (RWMutex, snapshot iterators, Lock+Nl* compound ops).
+| link:suffix_array/[suffix_array]           | Immutable suffix array with Kasai LCP (Sedgwick §6.3; no `_ts` twin — immutable, concurrent reads safe).
 | link:g_lib/[g_lib]                         | Generic utility functions (min/max, slice ops, set/map conversion, numeric constraints).
 |===
 
@@ -89,6 +94,9 @@ are the fully generic replacement).
 * *Constraint-free containers* (`queue`, `stack`, and their `_ts`
 siblings — anything with no ordering and no equality) need no
 constructors at all: the zero value is fully usable, including Push.
+The string-keyed tries (`trie`, `tst`, and their twins) also have no
+constructors — their ordering is inherent in the key bytes, so there
+is no comparison function to store and the zero value is usable.
 * *A nil container and the zero value behave as an empty container*
 for every operation that has a sane answer (searches return
 not-found, deletes return false, walks visit nothing). Each package
@@ -109,12 +117,12 @@ for the whole traversal, so the callback must not call methods on the
 same container. The exceptions are the legacy `DllIter`/`SllIter`
 cursors in the list packages, which walk the live list under a
 per-call read lock.
-* *Compound operations.* Eight `_ts` packages expose the *real
+* *Compound operations.* Ten `_ts` packages expose the *real
 `Lock`/`Unlock`* plus `Nl`-prefixed no-lock methods
 (`NlLen`, `NlSearch`, `NlInsert`, ...) so a search-then-update
 sequence can run atomically: `heap_ts`, `priority_queue_ts`,
 `heap_sort_ts`, `hash_grow_ts`, `hash_tab_ts`, `hash_tab_bt_ts`,
-`hash_tab_dll_ts`, `cuckoo_ts` (and `dll_ts` exposes
+`hash_tab_dll_ts`, `cuckoo_ts`, `trie_ts`, `tst_ts` (and `dll_ts` exposes
 `Lock`/`Unlock`). Calling a regular method while the lock is held
 will deadlock — use the `Nl*` methods inside. The plain counterparts
 keep no-op `Lock`/`Unlock` so the same code compiles against both.
@@ -673,6 +681,81 @@ slice copied under the read lock, and the Dijkstra constructors
 deep-copy the adjacency under the read lock, then run *lock-free* on
 the snapshot — no lock is held for the duration of a search. The query
 objects are immutable, so they are safe for concurrent reads.
+
+== R-way Tries — `trie/`, `trie_ts/`
+
+Sedgwick's §5.4 `TrieST`: a string-keyed symbol table generic over the
+value (`Trie[T any]`) built on a byte-oriented R-way trie (R = 256, so
+arbitrary UTF-8 strings work as keys transparently — including the
+empty string, which lives at the root). No comparison function and no
+constructors — the ordering is inherent in the key bytes, so the zero
+value is fully usable; the single panic is `Insert` on a nil `*Trie`.
+`Insert` replaces duplicates (returns added-vs-replaced); `Delete`
+prunes childless value-less nodes on the way back up. Beyond the
+symbol-table basics (`Search`/`Contains`/`IsEmpty`/`Length`) it
+supports the trie specialties: `LongestPrefixOf`, `KeysWithPrefix`,
+`KeysThatMatch` (`.` matches any one byte), and `All` — an ascending
+`iter.Seq2[string, T]` over the live trie. `Insert`/`Search`/`Delete`
+are O(L) for a key of length L.
+
+* Good: search hits in time proportional to the key, not the table;
+prefix and wildcard queries no hash table can answer; ascending key
+iteration for free.
+* Bad: memory — every node carries a `[256]` children array (2 KiB of
+pointers), so wide shallow key sets waste space; `tst` is the
+memory-efficient alternative.
+
+`trie_ts` is the twin with the RWMutex: identical API, eager
+value-snapshot `All`/`KeysWithPrefix`/`KeysThatMatch` taken under the
+read lock (safe to mutate from inside the loop), and the real
+`Lock`/`Unlock` plus `Nl*` methods for atomic search-then-update.
+
+== Ternary Search Tries — `tst/`, `tst_ts/`
+
+Sedgwick's §5.5 `TST`: the same string-keyed symbol-table surface as
+`trie` (`Tst[T any]` — `Insert`/`Search`/`Contains`/`Delete`/
+`IsEmpty`/`Length`/`LongestPrefixOf`/`KeysWithPrefix`/
+`KeysThatMatch`/`All`), but each node holds one byte and three
+pointers (left/mid/right) instead of a 256-way array — one small node
+per character, so it is the memory-efficient counterpart to `trie`.
+The empty key is rejected (`Insert("")` returns false; algs4 throws).
+`Delete` clears the value and prunes childless value-less branches
+(algs4's TST has no delete; pluto's trees all do). Search/Insert are
+O(L + ln n) on average. Same contract as `trie`: no constructors,
+zero value usable, single panic (`Insert` on a nil `*Tst`).
+
+* Good: a fraction of `trie`'s memory; the full prefix/wildcard query
+set; ascending `All`.
+* Bad: misses cost a compare-and-branch per character instead of one
+array index — slower than `trie` on search-heavy workloads with cheap
+memory.
+
+`tst_ts` is the twin with the RWMutex, snapshot iterators, and the
+real `Lock`/`Unlock` plus `Nl*` methods, mirroring `trie_ts`.
+
+== Suffix Arrays — `suffix_array/`
+
+Sedgwick's §6.3 `SuffixArray`: the sorted order of a string's
+suffixes, with the LCP (longest common prefix) table alongside —
+non-generic over `string`, like `union_find`. `NewSuffixArray(s)`
+builds the array by prefix doubling (sort by rank pairs, doubling the
+lookahead — O(n log² n), simple and deterministic) and the LCP table
+with Kasai's algorithm (O(n)). Queries are all O(1): `Index` (text
+offset of the i-th sorted suffix), `Select` (the suffix itself),
+`LCP`, `Rank` (the inverse of `Index`), plus `Len` and
+`LongestRepeatedSubstring` (the algs4 LRS client folded in as a
+method, O(n)). Out-of-range indices report `false`, never panic — the
+package has no panics at all.
+
+* Good: O(1) positional access to the sorted suffixes and their LCPs;
+the base for substring/repeat analyses (binary search over `Select`
+answers substring membership in O(m log n)).
+* Bad: construction cost and three n-word tables; static text only —
+a new string is a new `SuffixArray`.
+
+The structure is *immutable after construction*, so concurrent reads
+are safe as-is and there is no `suffix_array_ts` twin (the `queue_dll`
+precedent — documented in the package doc and README).
 
 == Supporting Packages
 

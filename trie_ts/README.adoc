@@ -1,0 +1,151 @@
+= trie_ts
+
+A generic string-keyed symbol table on an *R-way trie* that is *safe for
+concurrent use* — the thread-safe twin of link:../trie/[pluto/trie]
+(the TrieST of Sedgwick & Wayne, Algorithms, 4th ed. §5.4).  It has the
+identical API, guarded by a `sync.RWMutex`: readers run in parallel with
+each other, writers are exclusive.  On top of the plain API it adds the
+`Lock`/`Unlock` pair and the `Nl*`-prefixed (no-lock) methods for
+compound operations.
+
+Like `trie`, the trie is byte-oriented (R = 256): keys are arbitrary
+strings (including UTF-8), ordering falls out of the key bytes
+themselves — *no comparison function to supply* — the element type needs
+*no constraints at all*, there are *no constructors*, and the zero value
+of `Trie[T]` is an empty trie ready to use (including `Insert`).  Keys
+are not stored — a key is implicit in the path from the root, and each
+node carries a `[256]*trieNode` children array.  The empty string is a
+valid key, stored at the root (algs4 behavior).  `Insert` *replaces* the
+value of an existing key and returns `false`; `true` means the key was
+added.  `Delete` prunes now-childless, value-less nodes on the way back
+up.  Elements are stored and returned by value — `Search` returns
+`(T, bool)`.
+
+== Operations
+
+L is the length of the key (or query) in bytes.
+
+[options="header"]
+|===
+| Operation | Description | Complexity
+
+| `Insert(key, value)` | Add key with value; `false` if it replaced an existing value (write lock) | O(L)
+| `Search(key)`        | Value associated with key, `(T, bool)` (read lock)                | O(L)
+| `Contains(key)`      | Is key in the trie? (read lock)                                     | O(L)
+| `Delete(key)`        | Remove key, pruning dead nodes; `false` if absent (write lock)      | O(L)
+| `IsEmpty()`          | Is the trie empty? (read lock)                                      | O(1)
+| `Length()` / `Len()` | Number of keys (read lock)                                          | O(1)
+| `LongestPrefixOf(query)` | Longest key that is a prefix of query, `""` if none (read lock) | O(L)
+| `KeysWithPrefix(prefix)` | All keys starting with prefix, ascending; nil when none (snapshot under the read lock) | O(L + nodes visited)
+| `KeysThatMatch(pattern)` | Keys matching pattern (`.` = any one byte), ascending; nil when none (snapshot under the read lock) | O(nodes visited)
+| `All()`              | `iter.Seq2[string, T]` over (key, value) pairs, ascending key order (snapshot under the read lock) | O(nodes)
+| `Lock()` / `Unlock()` + `Nl*` | Compound multi-step operations                       | O(1) to lock
+|===
+
+`All()` visits the pairs in ascending key order.  A single-variable
+range over it yields the *key*, not the value; use
+`for key, value := range tr.All()`.
+
+== Locking behavior
+
+* *Reads* (`Search`, `Contains`, `IsEmpty`, `Length`, `Len`,
+`LongestPrefixOf`) take the read lock and release it before returning —
+they can run in parallel with each other.
+* *Writes* (`Insert`, `Delete`) take the write lock.  `Delete` holds it
+across the search and the unlink, so the delete is atomic.
+* *`KeysWithPrefix`, `KeysThatMatch` and `All` operate on a snapshot*
+collected under the read lock when they are called: the matching keys
+(and, for `All`, the values) are gathered into a slice while the read
+lock is held and returned or yielded after it is released.  It is safe
+to mutate the trie while iterating — including from inside the `All`
+loop — and an iterator never observes modifications made after it was
+created.
+
+[source,go]
+----
+for key := range tr.All() {
+    tr.Delete(key) // safe: All walks a snapshot
+}
+----
+
+== Compound operations: Lock + Nl*
+
+`Search` followed by `Delete` is two lock acquisitions — another
+goroutine can mutate the trie between them.  `Lock` plus the `Nl*`
+methods (`NlIsEmpty`, `NlLen`, `NlSearch`, `NlInsert`, `NlDelete`) run
+the same steps atomically under one lock hold:
+
+[source,go]
+----
+tr.Lock()
+if v, found := tr.NlSearch(probe); found {
+	use(v)
+	tr.NlDelete(probe)
+}
+tr.Unlock()
+----
+
+Calling a locking public method while holding `Lock` deadlocks, so
+inside the critical section use only the `Nl` methods.  `Lock`/`Unlock`
+on a nil trie are no-ops.
+
+== Usage
+
+[source,go]
+----
+var tr trie_ts.Trie[int] // zero value, ready to use — no constructor
+
+tr.Insert("she", 0)
+tr.Insert("shells", 1)
+tr.Insert("sea", 2)
+
+v, ok := tr.Search("sea")       // (2, true)
+tr.Contains("shell")            // false — a prefix of a key, not a key
+tr.LongestPrefixOf("shellsort") // "shells"
+tr.KeysWithPrefix("sh")         // ["she", "shells"], ascending
+tr.KeysThatMatch(".he")         // ["she"], '.' matches any one byte
+
+tr.Delete("she")                // true; dead nodes pruned
+tr.Length()                     // 2
+
+for key, value := range tr.All() { // ascending key order, snapshot
+	fmt.Println(key, value)
+}
+----
+
+Runnable, tested copies of these examples live in
+link:example_test.go[`example_test.go`].
+
+== Panics
+
+Identical to `trie` — exactly *one* panic, and the nil guard runs before
+any lock acquisition:
+
+[options="header"]
+|===
+| Call | Why
+
+| `Insert` on a nil `*Trie` | a nil trie cannot store a value — the one write with no sane answer
+|===
+
+A nil `*Trie` and the zero value behave as an *empty* trie for every
+other operation: `Search` returns `(zero, false)`, `Contains`/`Delete`
+return `false`, `IsEmpty` returns `true`, `Length`/`Len` return 0,
+`LongestPrefixOf` returns `""`, `KeysWithPrefix`/`KeysThatMatch` return
+nil, and `All` visits nothing.
+
+=== Memory trade-off
+
+Every node carries a full `[256]*trieNode` children array — *2 KiB of
+pointers per node*, allocated even when a node has a single child.  An
+R-way trie trades memory for speed: search and insert touch exactly one
+node per key byte.  If your keys are long and sparse and memory matters,
+an R-way trie is the wrong shape (see the `trie` README's discussion of
+ternary search tries).
+
+== Concurrency
+
+Safe for concurrent use: every operation is guarded by the
+`sync.RWMutex`, the iterators and key-collecting queries work on
+snapshots, and `Lock` + the `Nl*` methods cover atomic compound
+operations.  Run the tests with `-race`.

@@ -1,0 +1,103 @@
+= trie
+
+A generic string-keyed symbol table on an *R-way trie* — the TrieST of
+Sedgwick & Wayne, Algorithms, 4th ed. §5.4, generic over the value type
+`T`.  The trie is byte-oriented (R = 256): keys are arbitrary strings,
+including UTF-8 text, and ordering falls out of the key bytes
+themselves, so there is *no comparison function to supply* — like
+`queue` and `stack`, the package is constraint-free, has *no
+constructors*, and the zero value of `Trie[T]` is an empty trie ready
+to use (including `Insert`).
+
+Keys are not stored — a key is implicit in the path from the root, and
+each node carries a `[256]*trieNode` children array.  The empty string
+is a valid key, stored at the root (algs4 behavior).  `Insert`
+*replaces* the value of an existing key and returns `false` (the trees'
+duplicates-replace convention); `true` means the key was added.
+`Delete` prunes now-childless, value-less nodes on the way back up
+(algs4's recursive delete), so deleted paths do not linger.
+
+Elements are stored and returned by value — `Search` returns `(T, bool)`.
+
+Not safe for concurrent use — see
+link:../trie_ts/[pluto/trie_ts] for the thread-safe twin.
+
+== Operations
+
+L is the length of the key (or query) in bytes.
+
+[options="header"]
+|===
+| Operation | Description | Complexity
+
+| `Insert(key, value)` | Add key with value; `false` if it replaced an existing value | O(L)
+| `Search(key)`        | Value associated with key, `(T, bool)`                         | O(L)
+| `Contains(key)`      | Is key in the trie?                                            | O(L)
+| `Delete(key)`        | Remove key, pruning dead nodes; `false` if absent              | O(L)
+| `IsEmpty()`          | Is the trie empty?                                             | O(1)
+| `Length()` / `Len()` | Number of keys                                                 | O(1)
+| `LongestPrefixOf(query)` | Longest key that is a prefix of query, `""` if none      | O(L)
+| `KeysWithPrefix(prefix)` | All keys starting with prefix, ascending; nil when none  | O(L + nodes visited)
+| `KeysThatMatch(pattern)` | Keys matching pattern (`.` = any one byte), ascending; nil when none | O(nodes visited)
+| `All()`              | `iter.Seq2[string, T]` over (key, value) pairs, ascending key order | O(nodes)
+|===
+
+`All()` visits the *live* trie in ascending key order — do not modify
+the trie while iterating.  A single-variable range over it yields the
+*key*, not the value; use `for key, value := range tr.All()`.
+
+=== Memory trade-off
+
+Every node carries a full `[256]*trieNode` children array — *2 KiB of
+pointers per node*, allocated even when a node has a single child.  An
+R-way trie trades memory for speed: search and insert touch exactly one
+node per key byte.  If your keys are long and sparse and memory
+matters, use the sibling link:../tst/[pluto/tst] package — a ternary
+search trie stores one pointer per branching character, not 256.
+
+== Usage
+
+[source,go]
+----
+var tr trie.Trie[int] // zero value, ready to use — no constructor
+
+tr.Insert("she", 0)
+tr.Insert("shells", 1)
+tr.Insert("sea", 2)
+
+v, ok := tr.Search("sea")       // (2, true)
+tr.Contains("shell")            // false — a prefix of a key, not a key
+tr.LongestPrefixOf("shellsort") // "shells"
+tr.KeysWithPrefix("sh")         // ["she", "shells"], ascending
+tr.KeysThatMatch(".he")         // ["she"], '.' matches any one byte
+
+tr.Delete("she")                // true; dead nodes pruned
+tr.Length()                     // 2
+
+for key, value := range tr.All() { // ascending key order
+	fmt.Println(key, value)
+}
+----
+
+== Panics
+
+The package has exactly *one* panic:
+
+[options="header"]
+|===
+| Call | Why
+
+| `Insert` on a nil `*Trie` | a nil trie cannot store a value — the one write with no sane answer
+|===
+
+A nil `*Trie` and the zero value behave as an *empty* trie for every
+other operation: `Search` returns `(zero, false)`, `Contains`/`Delete`
+return `false`, `IsEmpty` returns `true`, `Length`/`Len` return 0,
+`LongestPrefixOf` returns `""`, `KeysWithPrefix`/`KeysThatMatch` return
+nil, and `All` visits nothing.
+
+== Concurrency
+
+Not safe for concurrent use.  The twin
+link:../trie_ts/[pluto/trie_ts] guards the identical API with a
+`sync.RWMutex`.

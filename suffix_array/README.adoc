@@ -1,0 +1,84 @@
+= suffix_array
+
+The *suffix array with LCP* of Sedgwick & Wayne, Algorithms, 4th ed.
+§6.3.  A suffix array of a string `s` of length `n` is the sorted
+order of `s`’s `n` suffixes: `suffixes[i]` is the text offset of the
+`i`-th smallest suffix.  Alongside it the constructor builds the *LCP
+table* (`lcp[i]` is the longest common prefix of the sorted suffixes
+`i` and `i-1`, with `lcp[0] == 0`) and the *rank table* (`rank[i]` is
+the position of suffix `i` in the sorted order — the inverse
+permutation).
+
+Like `union_find` the structure is *non-generic*: there is no element
+type `T` and no comparison function to supply, because the
+lexicographic order is inherent in the bytes of the string.
+
+The structure is *immutable after construction* — `NewSuffixArray`
+builds every table and nothing ever mutates them afterwards — so it is
+inherently safe for concurrent use and has no `_ts` twin (the same
+situation as `queue_dll`, which has no twin for its own reason).
+
+== Operations
+
+[options="header"]
+|===
+| Operation    | Description                                              | Complexity
+
+| `NewSuffixArray(s)` | Build the suffix array, LCP and rank tables | O(n log² n)
+| `Len`        | Number of suffixes (== `len(s)`)                   | O(1)
+| `Index(i)`   | Text offset of the i-th sorted suffix, `(off, ok)` | O(1)
+| `Select(i)`  | The i-th sorted suffix itself, `(suffix, ok)`      | O(1)
+| `LCP(i)`     | LCP of sorted suffixes i and i-1, `(len, ok)`      | O(1)
+| `Rank(i)`    | Sorted position of suffix i, `(pos, ok)`           | O(1)
+| `LongestRepeatedSubstring` | Longest substring appearing ≥ 2 times | O(n)
+|===
+
+Construction sorts the suffixes by *prefix doubling*: starting from
+byte-value ranks, the indices are repeatedly sorted by the pair
+`(rank[i], rank[i+k] or -1 when out of range)` for `k = 1, 2, 4, ...`
+until every rank is distinct — O(n log² n), simple and deterministic.
+The LCP table is then built with *Kasai's algorithm* in O(n).  The
+empty string is valid input (`Len() == 0`).
+
+Out-of-range positions *report, they do not panic*: `Index`, `LCP` and
+`Rank` return `(0, false)`, `Select` returns `("", false)`.  `LCP(0)`
+is a valid query and returns `(0, true)` — the first sorted suffix has
+no predecessor, so its LCP is defined to be 0.
+
+`LongestRepeatedSubstring` is the algs4 LRS client folded in as a
+method: the longest common prefix of some pair of adjacent sorted
+suffixes — the maximum over the LCP table, ties broken by first in
+sorted order — or `""` if there is no repeated substring.
+
+== Usage
+
+[source,go]
+----
+sa := suffix_array.NewSuffixArray("banana")
+
+for i := 0; i < sa.Len(); i++ {
+	off, _ := sa.Index(i)   // text offset of the i-th sorted suffix
+	lcp, _ := sa.LCP(i)     // LCP with the previous sorted suffix
+	suf, _ := sa.Select(i)  // the suffix itself
+	fmt.Println(i, off, lcp, suf)
+}
+
+r, _ := sa.Rank(0) // 3 — "banana" is the 4th smallest of its suffixes
+
+sa.LongestRepeatedSubstring() // "ana"
+----
+
+== Panics
+
+*None.*  The package never panics.  A nil `*SuffixArray` and the zero
+value behave as an *empty* suffix array for every operation: `Len`
+returns 0, `Index`/`LCP`/`Rank` return `(0, false)`, `Select` returns
+`("", false)`, and `LongestRepeatedSubstring` returns `""`.
+
+== Concurrency
+
+The structure is immutable after construction: the constructor builds
+the text reference, the `suffixes`, `lcp` and `rank` tables, and no
+method ever writes to them.  It is therefore *safe for concurrent use*
+by any number of readers, and there is no mutex-guarded `_ts` twin —
+there is nothing for a lock to protect.
