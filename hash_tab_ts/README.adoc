@@ -151,3 +151,14 @@ table from inside the loop.  `Walk` and `Dump` hold the read lock for the
 whole traversal instead, so their callbacks must not touch the table.
 * `Delete` holds the write lock across the chain walk and the unlink, so the
 search-and-delete is atomic.
+
+== Performance comparison
+
+Benchmarked head-to-head against the other thread-safe pluto hash tables
+(500k inserts, 750k searches, 250k deletes, Apple M4 Max): the smallest
+footprint of the five (~25 B/elem, one node per element) but the slowest
+under load — the table never grows, so at 122 elements/bucket it ran
+~535 ns/insert and ~723 ns/search, 4–15× slower than the auto-growing
+open-addressing tables.  Speed is a function of the initial size hint:
+size it near the expected element count.  Full methodology, numbers, and
+heap profiles: link:../note/compare-hasing/README.adoc[note/compare-hasing].

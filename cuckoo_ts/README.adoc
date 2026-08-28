@@ -245,3 +245,15 @@ differences are the twin mechanics:
   operations; a threshold-triggered resizer queues behind a held `Lock`.
 * *`Capacity`/`Saturation` may briefly report the pre-rebuild state* right
   after a threshold crossing, until the background rebuild lands.
+
+== Performance comparison
+
+Benchmarked head-to-head against the other thread-safe pluto hash tables
+(500k inserts, 750k searches, 250k deletes, Apple M4 Max):
+~129 ns/insert, ~29 ns/search, ~26 ns/delete at ~50 B/elem — second
+fastest overall behind link:../hash_grow_ts[hash_grow_ts], which is
+simpler open addressing with linear probing.  This table's edge is a
+*bounded* search (exactly four slots at any load) and a shrink threshold
+that hands memory back; the cost is the largest footprint of the five.
+Full methodology, numbers, and heap profiles:
+link:../note/compare-hasing/README.adoc[note/compare-hasing].

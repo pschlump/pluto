@@ -218,3 +218,14 @@ zero-value panic.  `Lock`/`Unlock` on a nil table are no-ops.
   stale between the `Search` and its use; `Lock` + `NlSearch` +
   `NlDeleteFound` is the atomic locate-then-splice.  On a single
   goroutine the contract is unchanged.
+
+== Performance comparison
+
+Benchmarked head-to-head against the other thread-safe pluto hash tables
+(500k inserts, 750k searches, 250k deletes, Apple M4 Max): same ~25
+B/elem footprint as link:../hash_tab_ts[hash_tab_ts] and slightly slower
+(~545 ns/insert, ~795 ns/search at 122 elements/bucket — the table never
+grows).  Its reason to exist is the `DeleteFound` handle API, not
+throughput; for pure speed/memory prefer hash_tab_ts or an auto-growing
+table.  Full methodology, numbers, and heap profiles:
+link:../note/compare-hasing/README.adoc[note/compare-hasing].

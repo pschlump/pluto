@@ -124,3 +124,14 @@ Everything else tolerates a nil table and the zero value as an empty table:
 searches report not-found, `Delete` returns false, and the iterators visit
 nothing.  (`NlInsert` on a zero-value table panics because it *is* the
 Insert body.)
+
+== Performance comparison
+
+Benchmarked head-to-head against the other thread-safe pluto hash tables
+(500k inserts, 750k searches, 250k deletes, Apple M4 Max): ~122
+ns/insert, ~79 ns/search, ~115 ns/delete at ~25 B/elem.  The per-bucket
+binary tree keeps lookups O(log n) per bucket, so it stays within ~4× of
+the auto-growing open-addressing tables even at 122 elements/bucket —
+the best of the three fixed-size chaining tables, with the same minimal
+memory.  Full methodology, numbers, and heap profiles:
+link:../note/compare-hasing/README.adoc[note/compare-hasing].

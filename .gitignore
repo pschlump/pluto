@@ -6,3 +6,4 @@ todo.md
 *.out
 *.pprof
 sync-to-victoria.sh
+compare-hasing
