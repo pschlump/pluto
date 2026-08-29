@@ -1,0 +1,117 @@
+= substring
+
+The *substring search* algorithms of Sedgwick & Wayne, Algorithms, 4th
+ed. §5.3: *Knuth-Morris-Pratt* (DFA simulation), *Boyer-Moore*
+(bad-character rule), and *Rabin-Karp* (rolling hash with
+verification).
+
+Each algorithm is a *constructor-style query object*: the pattern is
+compiled once by the constructor (`NewKMP`, `NewBoyerMoore`,
+`NewRabinKarp`) and the resulting immutable searcher then answers
+`Search(text)` queries against any number of texts.  All three share
+the same semantics:
+
+* `Search` returns the index of the *first (leftmost)* occurrence of
+  the pattern in the text, or *-1* if there is none — like
+  `strings.Index`.  (algs4's Java returns `n`, the text length, on a
+  miss; this package returns -1.)
+* Everything is *byte-oriented*: texts and patterns are arbitrary
+  binary strings, not necessarily UTF-8.
+* An *empty pattern* matches at index 0 of any text, including the
+  empty text — like `strings.Index`.  (algs4's KMP instead crashes
+  with `ArrayIndexOutOfBoundsException` on the empty pattern.)
+* A pattern *longer than the text* never matches (-1).
+
+Like `suffix_array` the structures are *non-generic*: there is no
+element type `T` and no comparison function to supply, because the
+order is inherent in the bytes of the strings.
+
+== Operations
+
+[options="header"]
+|===
+| Operation    | Description                                          | Complexity
+
+| `NewKMP(pattern)`        | Build the KMP DFA (`dfa[c][j]`, R = 256) | O(mR)
+| `(k) Search(text)`       | Leftmost occurrence or -1                | O(n)
+| `(k) Pattern()`          | The pattern the searcher was built from  | O(1)
+| `NewBoyerMoore(pattern)` | Build the bad-character skip table       | O(m + R)
+| `(b) Search(text)`       | Leftmost occurrence or -1                | O(nm) worst, ~n/m typical
+| `(b) Pattern()`          | The pattern the searcher was built from  | O(1)
+| `NewRabinKarp(pattern)`  | Hash the pattern, precompute R^(m-1) mod q | O(m)
+| `(r) Search(text)`       | Leftmost occurrence or -1                | O(nm) worst, O(n+m) expected
+| `(r) Pattern()`          | The pattern the searcher was built from  | O(1)
+|===
+
+n = `len(text)`, m = `len(pattern)`, R = 256 (the byte alphabet).
+
+*KMP* builds the deterministic finite automaton of the pattern and
+simulates it over the text, never backing up in the text — guaranteed
+linear search after the O(mR) construction.
+
+*Boyer-Moore* compares right-to-left and skips by the
+*mismatched-character (bad-character) heuristic only*: `right[c]` is
+the position of the rightmost occurrence of byte `c` in the pattern,
+or -1.  The *strong good-suffix rule is not implemented* — matching
+the algs4 reference exactly.  Worst case is O(nm); on typical natural
+texts it is sublinear.
+
+*Rabin-Karp* hashes the pattern once and scans the text with a rolling
+hash (remove the leading byte, add the trailing byte, all mod q).
+
+== Usage
+
+[source,go]
+----
+text := "abacadabrabracabracadabrabrabracad"
+
+k := substring.NewKMP("rab")        // compile the pattern once
+k.Search(text)                      // 8 — search many texts
+k.Search("nothing here")            // -1
+
+b := substring.NewBoyerMoore("bcara")
+b.Search(text)                      // -1 (algs4's not-found example)
+
+r := substring.NewRabinKarp("\x00\xff") // binary data works
+r.Search("ab\x00\xffcd")            // 2
+
+substring.NewKMP("").Search("abc")  // 0 — empty pattern matches at 0
+----
+
+== Caveats and deliberate deviations from algs4
+
+* *Rabin-Karp is the deterministic Las Vegas variant, not algs4's
+  Monte Carlo variant.*  algs4's published `RabinKarp.java` draws a
+  *random* 31-bit prime per construction (so runs are
+  nondeterministic) and never verifies a hash hit (so a collision is a
+  silent false positive).  This package uses one fixed documented
+  prime, q = 2³¹-1 (a Mersenne prime, small enough that
+  `R*h + c` never overflows `int64`), and *verifies the candidate
+  substring byte-for-byte on every hash hit*, so the result is exact.
+* *Miss reports -1, not n.*  All three algs4 `search` methods return
+  the text length `n` on a miss; this package returns -1, matching
+  `strings.Index`.
+* *The empty pattern returns 0.*  algs4's `KMP` constructor indexes
+  `pat.charAt(0)` and crashes on the empty pattern; this package
+  defines the empty pattern to match at index 0 of every text, like
+  `strings.Index`.
+* *algs4's `RabinKarp(char[], int)` constructor is broken* — its body
+  is `throw new UnsupportedOperationException(...)`.  Irrelevant here:
+  this package takes strings only.
+* *Boyer-Moore implements the bad-character rule only* (no strong
+  good-suffix rule), exactly like algs4 — the O(nm) worst case above
+  is the price.
+
+== Panics
+
+*None.*  The package never panics.  A nil searcher reports -1 from
+`Search` and `""` from `Pattern`; the zero value of each type behaves
+as the searcher for the empty pattern (`Search` returns 0).
+
+== Concurrency
+
+Every searcher is *immutable after construction*: the constructor
+builds the DFA / skip table / pattern hash and no method ever writes
+to them.  They are therefore *safe for concurrent use* by any number
+of readers, and there are no mutex-guarded `_ts` twins — there is
+nothing for a lock to protect (the same situation as `suffix_array`).

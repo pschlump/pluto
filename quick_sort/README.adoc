@@ -1,0 +1,97 @@
+= quick_sort
+
+A generic *quicksort with 3-way partitioning* (Dijkstra's
+Dutch-national-flag partitioning — Sedgwick's algs4 §2.3 `Quick3way`)
+as plain in-place slice-sort functions.  There is no sorter object, no
+constructor and no stored state: `Sort` orders naturally ordered
+element types (all integers, floats, strings — `cmp.Ordered`) by the
+built-in `<` / `>` operators, and `SortFunc` orders any type by a
+caller supplied comparison function — no boxing, no dynamic dispatch,
+no type assertions.
+
+Three-way partitioning splits the slice into `< pivot`, `== pivot` and
+`> pivot` in a single pass, so a slice of all-equal keys is sorted in
+O(n) and inputs with many duplicate keys are handled especially well.
+The sort is *not stable*: elements that compare equal may come out in
+any relative order.  Sorting is in place — the input slice is
+rearranged and nothing is allocated per element.
+
+== Operations
+
+[options="header"]
+|===
+| Operation            | Description                                          | Complexity
+
+| `Sort(data)`         | Sort `[]T` (`cmp.Ordered`) in place, ascending       | O(n log₂ n) avg, O(n²) worst, O(n) all-equal keys
+| `SortFunc(data, fn)` | Sort `[]T` (any type) by a comparison function       | O(n log₂ n) avg, O(n²) worst, O(n) all-equal keys
+|===
+
+Stack depth is bounded at O(log n) on every input (see Deviations
+below).  The O(n²) worst case is made astronomically unlikely by
+median-of-3 pivot selection combined with 3-way partitioning.  Nil,
+empty and single-element slices are no-ops.
+
+== Usage
+
+[source,go]
+----
+data := []int{42, 7, 13, 7, 1}
+quick_sort.Sort(data) // [1 7 7 13 42]
+
+type Item struct {
+    Weight int
+    Name   string
+}
+items := []Item{{7, "anchor"}, {2, "oar"}, {5, "plank"}}
+quick_sort.SortFunc(items, func(a, b Item) int {
+    return a.Weight - b.Weight // ascending by Weight; reverse for descending
+})
+----
+
+== Panics
+
+The package panics in exactly one situation — a programmer error with
+no sane fallback:
+
+[options="header"]
+|===
+| Call | Why
+
+| `SortFunc(data, nil)` | nil comparison function
+|===
+
+Everything else — including nil, empty and single-element slices —
+is tolerated as a no-op.
+
+== Thread safety
+
+`Sort` and `SortFunc` are *stateless functions*: they keep no package
+state and touch only the slice they are given.  They are safe for
+concurrent use on disjoint slices (two goroutines sorting two
+different slices need no synchronization).  Because there is no shared
+state to guard, *no `_ts` twin exists or is needed* — there is nothing
+for a lock to protect.
+
+== Deviations from the algs4 reference
+
+The algs4 `Quick3way.sort` begins with `StdRandom.shuffle(a)`: the
+shuffle is what makes the O(n log₂ n) expected performance hold
+regardless of input order.  A library cannot pre-shuffle — that would
+put a random source in the API and make the sort nondeterministic — so
+this package replaces the shuffle with three robustness measures:
+
+* *Median-of-3 pivot selection*: the pivot is the median of the first,
+  middle and last elements of the partition, so sorted and
+  reverse-sorted inputs (the algs4 unshuffled worst case) pivot on the
+  true median instead of an extreme.
+* *Insertion-sort cutoff*: runs of 12 or fewer elements are finished
+  with a straight insertion sort instead of recursive partitioning.
+* *Recurse into the smaller side, loop on the larger side*: recursion
+  depth is bounded at O(log n) even on adversarial input, where plain
+  algs4 recursion could grow to depth n.
+
+Verified empirically by `TestLargeAdversarial`: 1,000,000
+already-sorted and 1,000,000 reverse-sorted ints sort correctly
+without stack-growth problems.  No correctness bugs were found in the
+algs4 `Quick3way` partitioning loop itself; the changes above are
+robustness measures, not bug fixes.

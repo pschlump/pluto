@@ -1,0 +1,121 @@
+= lzw
+
+LZW compression and expansion of byte slices — the Lempel-Ziv-Welch
+algorithm of Sedgwick & Wayne, Algorithms, 4th ed. §5.5, in the
+variable-codeword-width variant.  Two stateless functions are the whole
+API:
+
+[source,go]
+----
+compressed := lzw.Compress(data)  // []byte, packed MSB-first codewords
+back := lzw.Expand(compressed)    // == data, or nil if malformed
+----
+
+`Compress` builds its encode table on a *ternary search trie*
+(`pluto/tst`, an intra-pluto composition — the TST zero value is
+directly usable, so there is nothing to construct).  `Expand` rebuilds
+the same table as a `[]string` grown one entry per codeword read.
+
+== Stream format
+
+The format follows the algs4 §5.5 LZW algorithm, with codewords that
+widen as the codebook grows:
+
+* The alphabet is the 256 byte values; codewords 0..255 are the
+  literals.
+* Codeword 256 is the *EOF sentinel*; every stream is terminated by it
+  (the empty input compresses to a stream holding just EOF).
+* Codewords from 257 up denote multi-byte strings learned from the
+  input; the encoder adds one entry (`longest match + following byte`)
+  per codeword emitted, and the decoder rebuilds the same entry per
+  codeword read.
+* Codewords are written `W` bits wide, starting at `W = 9` (a 512-entry
+  codebook) and widening by one whenever the next assignable codeword
+  reaches `2^W`, up to `W = 16` — a maximum codebook of 65536 entries.
+  *The table is never reset*: once full, compression continues with the
+  frozen table.
+* Bits are packed *big-endian, MSB-first*: `writeBits(x, r)` emits the
+  `r` low bits of `x` from bit `r-1` down to bit 0, the first bit lands
+  in the `0x80` position of the first byte, and the final partial byte
+  is padded with 0 bits — exactly the algs4 `BinaryStdOut` /
+  `BinaryStdIn` convention.
+
+The decoder's width widens in lockstep with the encoder's: the decoder
+is always one table entry behind, so it widens when its next assignable
+index reaches `2^W - 1` (the encoder widens when its next codeword
+reaches `2^W`).  The `KwKwK` case — the encoder emitting the codeword
+for `val+val[0]` one step before the decoder has that entry — is
+handled per the algorithm (`s = val + val[:1]`).
+
+== Operations
+
+[options="header"]
+|===
+| Operation    | Description                                          | Complexity
+
+| `Compress(data)` | LZW-compress, EOF-terminated packed bit stream | O(n) expected
+| `Expand(compressed)` | Decode; nil if the stream is malformed  | O(n) expected
+|===
+
+The expected linear bound deserves an honest footnote: each TST
+operation costs O(L) for a matched prefix of length L (plus an
+alphabet-bounded BST walk per byte position, since the TST is
+unbalanced), and the matched lengths sum to n, so `Compress` is O(n)
+expected.  Highly repetitive input produces long keys, and the sum of
+key lengths is still O(n) — but adversarial input can degrade the
+unbalanced TST.  `Expand` is strictly linear in the output size.
+
+== Usage
+
+[source,go]
+----
+data := []byte("TOBEORNOTTOBEORTOBEORNOT")
+
+compressed := lzw.Compress(data) // 24 bytes -> 20 bytes of 9-bit codewords
+back := lzw.Expand(compressed)   // == data
+
+lzw.Expand(nil) == nil           // malformed input reports nil
+----
+
+== Panics
+
+*None.*  The package never panics.  `Compress` accepts any input,
+including nil (the empty input yields a stream holding just the EOF
+codeword).  `Expand` returns nil for *malformed* input — a stream
+truncated mid-codeword, a stream with no EOF codeword, or an
+out-of-range codeword — and otherwise returns the decoded bytes.  The
+empty compressed input is malformed (not even one codeword fits).
+Decoding stops at the EOF codeword; trailing bytes after it are ignored
+(the algs4 behavior).
+
+== Concurrency
+
+Both functions are *stateless* — they hold no package-level state, and
+each call builds its own private table — so they are safe for
+concurrent use, and there is no `_ts` twin: there is nothing for a lock
+to protect (the `suffix_array` situation, minus even the shared
+immutable result).
+
+== Caveats
+
+* *Deviation from the stock algs4 `LZW.java`.*  The published algs4
+  code uses a *fixed* 12-bit codeword width (`W = 12`, `L = 4096`);
+  this package implements the variable-width variant (9 up to 16 bits,
+  65536-entry codebook) specified for it.  The two bit formats are NOT
+  interchangeable: a stream produced by stock algs4 `LZW.java` will not
+  decode here and vice versa.  Everything else — the codeword
+  assignment order, the EOF sentinel, the KwKwK rule, the MSB-first bit
+  packing — matches the algs4 algorithm exactly, so a Java reference
+  with the same widening rule produces byte-identical output.
+* *algs4 `expand()` crashes on out-of-range codewords*: `st[codeword]`
+  is `null` for any codeword more than one step ahead of the decoder's
+  table (or the table is full), and the Java throws a
+  `NullPointerException`.  Here that is malformed input and reports
+  nil.
+* *The table is never reset* (matching algs4): on very long streams
+  whose statistics drift, compression stops improving once all 65536
+  entries are assigned.  Unix `compress(1)`'s reset/heuristic variants
+  are out of scope.
+* The algs4 comment about Java's post-7u6 `substring` making
+  compression quadratic does not apply here: Go string slicing is O(1)
+  and the TST match does not copy.

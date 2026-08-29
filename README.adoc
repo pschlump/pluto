@@ -48,6 +48,7 @@ with an identical public API.
 | link:priority_queue_ts/[priority_queue_ts] | Thread-safe priority queue on pluto/heap_ts (RWMutex, Lock+Nl* compound ops).
 | link:heap_sort/[heap_sort]                 | Generic heap sort on pluto/heap (ascending Sort, descending SortDown).
 | link:heap_sort_ts/[heap_sort_ts]           | Thread-safe heap sort on pluto/heap_ts (atomic drain, Lock+Nl* compound ops).
+| link:quick_sort/[quick_sort]               | In-place 3-way quicksort on slices (median-of-3, insertion cutoff; Sedgwick §2.3).
 | link:binomial_queue/[binomial_queue]       | Generic mergeable priority queue (forest of heap-ordered binomial trees, O(log n) Merge; Sedgwick §9).
 | link:hash_tab/[hash_tab]                   | Generic fixed-size hash table (separate chaining, == or eq+hash funcs).
 | link:hash_tab_ts/[hash_tab_ts]             | Thread-safe fixed-size hash table (RWMutex, snapshot iterators, Lock+Nl* compound ops).
@@ -74,6 +75,7 @@ with an identical public API.
 | link:mst_ts/[mst_ts]                       | Thread-safe MST queries on dijkstra_ts's EdgeWeightedGraph (snapshot adjacency; searches run lock-free on a snapshot).
 | link:bellman_ford/[bellman_ford]           | Bellman-Ford shortest paths with negative-cycle detection, plus DAG shortest/longest paths (Sedgwick §4.10–4.11).
 | link:bellman_ford_ts/[bellman_ford_ts]     | Thread-safe Bellman-Ford / acyclic shortest paths (snapshot adjacency; searches run lock-free on a snapshot).
+| link:maxflow/[maxflow]                     | Max-flow / min-cut on a flow network (Ford-Fulkerson with Edmonds-Karp BFS; Sedgwick §6.4).
 | link:fenwick_tree/[fenwick_tree]           | Fenwick (binary indexed) tree, generic over numeric types (prefix sums, point updates; Sedgwick "Beyond").
 | link:fenwick_tree_ts/[fenwick_tree_ts]     | Thread-safe Fenwick tree (RWMutex, Lock+Nl* compound ops).
 | link:segment_tree/[segment_tree]           | Segment tree, generic range-combine queries (sum via numeric constraint, min/max/gcd via combine func).
@@ -84,6 +86,8 @@ with an identical public API.
 | link:tst_ts/[tst_ts]                       | Thread-safe ternary search trie (RWMutex, snapshot iterators, Lock+Nl* compound ops).
 | link:patricia_trie/[patricia_trie]         | String-keyed Patricia (crit-bit) trie with path compression (prefix queries; Sedgwick radix searching).
 | link:suffix_array/[suffix_array]           | Immutable suffix array with Kasai LCP (Sedgwick §6.3; no `_ts` twin — immutable, concurrent reads safe).
+| link:substring/[substring]                 | Substring search: KMP, Boyer-Moore, Rabin-Karp (compile pattern once, search many texts; Sedgwick §5.3).
+| link:lzw/[lzw]                             | LZW compression/expansion over byte slices on pluto/tst (widening 9→16-bit codes; Sedgwick §5.5 variant).
 | link:lru/[lru]                             | Generic capacity-bounded LRU cache (eviction veto callback, soft cap; no `_ts` twin — callers lock).
 | link:crc/[crc]                             | Table-driven CRC-32/CRC-64 checksums (IEEE, Castagnoli, Koopman, ECMA, ISO; pure functions, concurrent-use safe).
 | link:g_lib/[g_lib]                         | Generic utility functions (min/max, slice ops, set/map conversion, numeric constraints).
@@ -904,6 +908,83 @@ The `_ts` twins add the RWMutex: reads under the read lock, writes
 under the write lock, nil guards before lock acquisition, and the real
 `Lock`/`Unlock` plus `Nl*` methods (`NlSum`/`NlRangeSum`/`NlAdd`... /
 `NlQuery`/`NlUpdate`) for atomic read-modify-write compounds.
+
+== Quicksort — `quick_sort/`
+
+Sedgwick's §2.3 3-way quicksort (Dijkstra Dutch-national-flag
+partitioning, algs4 `Quick3way`) as stateless in-place slice sorts:
+`quick_sort.Sort[T cmp.Ordered](data)` and
+`quick_sort.SortFunc[T any](data, cmp)` — not stable. Because a
+library cannot pre-shuffle like the textbook client, robustness comes
+from a median-of-3 pivot, an insertion-sort cutoff at ≤ 12 elements,
+and recurse-smaller-side/loop-larger-side (O(log n) stack); the
+three-way partition makes all-equal-key input O(n). The single panic
+is `SortFunc` with a nil comparison function. Stateless functions —
+safe for concurrent use on disjoint slices; no `_ts` twin.
+
+* Good: O(n log₂ n) average with small constants; excels on
+duplicate-heavy keys where two-way quicksort goes quadratic.
+* Bad: not stable; O(n²) worst case remains possible in principle.
+
+== Substring Search — `substring/`
+
+Sedgwick's §5.3 substring search as three constructor-style,
+compile-once/search-many query objects over byte strings: `NewKMP`
+(DFA simulation, guaranteed O(n+m)), `NewBoyerMoore` (bad-character
+rule only, like algs4 — sublinear in practice, O(n·m) worst), and
+`NewRabinKarp` (rolling hash; the deterministic Las Vegas variant with
+a fixed prime and byte-for-byte verification on every hash hit —
+algs4's published Monte Carlo version is nondeterministic and never
+verifies). `Search(text)` returns the leftmost index or -1 (the
+`strings.Index` convention — algs4 returns n on a miss); the empty
+pattern returns 0. No panics anywhere; nil receivers report -1.
+Immutable after construction — concurrent searches are safe, no `_ts`
+twin (the `suffix_array` precedent).
+
+* Good: KMP never re-examines a text character (stream-safe);
+Boyer-Moore skips ahead on ordinary text.
+* Bad: KMP's DFA costs 256·m ints per pattern; Boyer-Moore without
+the good-suffix rule has a quadratic worst case.
+
+== LZW Compression — `lzw/`
+
+LZW compress/expand over byte slices (Sedgwick §5.5, widening-code
+variant): `Compress(data []byte) []byte` and
+`Expand(compressed []byte) []byte`. The encode table is a
+`pluto/tst.Tst[int]` (intra-pluto composition); the bit format packs
+codewords MSB-first, starting 9 bits wide and widening to 16 as the
+codebook grows toward 65536 entries (256 = EOF sentinel). `Expand`
+returns nil on malformed input — the package has no panics. Stateless
+functions; safe for concurrent use; no `_ts` twin. Note the format is
+NOT wire-compatible with the stock algs4 `LZW.java`, which uses fixed
+12-bit codes — the widening variant handles arbitrarily large inputs
+without table exhaustion.
+
+* Good: O(n) expected; adapts to the data; no entropy model needed.
+* Bad: the table never resets, so compression degrades on very long
+inputs once the 65536-entry codebook fills; fixed-width algs4 streams
+cannot be exchanged.
+
+== Max Flow — `maxflow/`
+
+Sedgwick's §6.4 max-flow / min-cut: a `FlowNetwork` container
+(vertices `0..n-1`, `AddEdge(from, to, capacity)` with float64
+capacities — integer capacities stay exact under float64 summation)
+plus the constructor-style immutable query object
+`NewFordFulkerson(g, s, t)` — Ford-Fulkerson with Edmonds-Karp BFS
+shortest augmenting paths on `pluto/queue` (O(V·E²) worst case). The
+constructor computes on a private deep copy (the caller's network is
+never mutated) and the result is immutable: `Value()`, `InMinCut(v)`,
+`S()`/`T()`, `Edges()`. Panics name the constructor/method: `v < 1`,
+negative/NaN capacity, nil/empty network, out-of-range or equal s/t.
+No `_ts` twin — results are immutable (the `suffix_array` precedent);
+the network container itself is not thread-safe.
+
+* Good: min-cut certificate comes for free (`InMinCut`); exact
+arithmetic on integer capacities.
+* Bad: Edmonds-Karp is the simple heuristic — no scaling or
+push-relabel; float capacities make the result
+data-dependent-terminating.
 
 == Supporting Packages
 

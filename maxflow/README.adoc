@@ -1,0 +1,141 @@
+= maxflow
+
+Maximum flow and minimum cut in a capacitated network — Sedgwick's §6.4 —
+as a container plus a constructor-style query object, the same shape as
+link:../dijkstra/[`dijkstra`] (container) and link:../mst/[`mst`]
+(immutable query object):
+
+* `FlowNetwork` — a capacitated directed network on the vertices
+  `0..n-1`.  As in algs4 (and as in dijkstra's undirected graph) each
+  edge is recorded in *both* endpoints' adjacency lists, because
+  residual-capacity traversal needs incoming edges as well as outgoing
+  ones.
+* `FordFulkerson` — the max s-t flow and min s-t cut, computed with the
+  Edmonds-Karp rule: every augmenting path is a BFS *shortest* path in
+  the residual network, on a link:../queue/[`queue`] (an intra-pluto
+  composition, like graph's `BFSPaths`).
+
+The flow is computed eagerly in the constructor on a *private deep copy*
+of the network's edges: the caller's `FlowNetwork` is never mutated
+(algs4 mutates the input network — pluto does not), and the result
+object is an immutable snapshot; later `AddEdge` calls are not
+reflected.  Parallel edges and self-loops are allowed (a self-loop can
+never carry useful flow).  There is deliberately no `RemoveEdge` —
+matching Sedgwick.
+
+Capacities and flows are `float64` (the dijkstra weight precedent).
+Integer capacities stay exact under float64 summation as long as the
+maxflow value does not exceed 2⁵² — all arithmetic is exact in that
+regime and `Value()` compares with `==`.
+
+Not safe for concurrent use while a network is being built; a
+constructed `FordFulkerson` is immutable and safe for concurrent reads.
+There is no `maxflow_ts` twin — the
+link:../suffix_array/[`suffix_array`] documented-exception precedent
+(immutable results need no lock).
+
+== Operations
+
+[options="header"]
+|===
+| Operation                          | Description                                          | Complexity
+
+| `NewFlowNetwork(v)`                | A network on vertices `0..v-1`                       | O(v)
+| `AddEdge(from, to, capacity)`      | Add the edge `from -> to`; false if out of range     | O(1)
+| `V()` / `E()`                      | The number of vertices / edges                       | O(1)
+| `Adj(v)`                           | The edges incident to v (both directions)            | O(1)
+| `Other(v)`                         | The endpoint of an edge that is not v                | O(1)
+| `ResidualCapacityTo(v)`            | Residual capacity toward v                           | O(1)
+| `AddResidualFlowTo(v, delta)`      | Add flow toward v                                    | O(1)
+| `NewFordFulkerson(g, s, t)`        | Max s-t flow and min s-t cut (Edmonds-Karp)          | O(V·E²) worst case, O(V+E) space
+| `Value()`                          | The maxflow value                                    | O(1)
+| `InMinCut(v)`                      | Is v on the source side of the min cut               | O(1)
+| `S()` / `T()`                      | The source / sink the query was computed for         | O(1)
+| `Edges()`                          | The edges with their computed flows, a fresh slice   | O(E)
+|===
+
+Edmonds-Karp makes at most O(V·E) augmentations, each a BFS in O(E), so
+the worst case is O(V·E²); in practice it runs much faster.
+
+== Usage
+
+[source,go]
+----
+g := maxflow.NewFlowNetwork(4)
+g.AddEdge(0, 1, 2)
+g.AddEdge(0, 2, 3)
+g.AddEdge(1, 2, 1)
+g.AddEdge(1, 3, 1)
+g.AddEdge(2, 3, 4)
+
+ff := maxflow.NewFordFulkerson(g, 0, 3)
+ff.Value()        // 5 — both edges out of the source saturate
+ff.InMinCut(0)    // true
+ff.InMinCut(3)    // false
+for _, e := range ff.Edges() { // flow/capacity per edge
+    ...
+}
+----
+
+== Panics
+
+[options="header"]
+|===
+| Call                                                | Why
+
+| `NewFlowNetwork(v)` with `v < 1`                    | no vertices, no network
+| `AddEdge` on a nil network                          | a nil network cannot store an edge
+| `AddEdge` with a negative or NaN capacity           | no sane answer; algs4 throws too
+| `AddResidualFlowTo` with a negative or NaN delta    | programmer error
+| `AddResidualFlowTo` driving flow outside `[0, Capacity]` | programmer error
+| `NewFordFulkerson` on a nil or empty network        | no flow exists to compute
+| `NewFordFulkerson` with an out-of-range source/sink | programmer error
+| `NewFordFulkerson` with `s == t`                    | algs4 throws too
+|===
+
+A nil or zero-value network tolerates every read (`V`/`E` report 0,
+`Adj` reports nil, `AddEdge` on a zero value reports false — every
+endpoint is out of range, the dijkstra precedent).  A nil result object
+tolerates every read: `Value` 0, `InMinCut` false, `S`/`T` -1, `Edges`
+nil.  `InMinCut` reports false for an out-of-range vertex (algs4
+throws).
+
+== Caveats (deviations from the algs4 Java)
+
+* algs4's `FlowEdge.addResidualFlowTo` rounds the flow to exactly 0 or
+  `capacity` when within 1e-10 — a floating-point fudge that can mask
+  real bugs.  pluto does *not* round: with integer capacities all
+  arithmetic is exact, and with non-integer capacities rounding error
+  can accumulate (the same caveat algs4 documents for itself).
+* algs4's `FlowNetwork.edges()` silently *excludes self-loops* (its
+  `e.to() != v` filter drops both stored copies of a self-loop) — a
+  latent bug for any client that enumerates edges that way.  pluto's
+  `FordFulkerson.Edges()` returns *every* edge, self-loops included.
+* algs4 mutates the input network (the computed flow lives on its
+  edges); pluto computes on a private deep copy and leaves the caller's
+  network untouched, reporting flows through `Edges()`.
+* algs4 validates the initial flow's feasibility at construction; pluto
+  networks always start at zero flow (`AddEdge` takes only a capacity),
+  so initial feasibility holds by construction.
+
+== Concurrency
+
+Not safe for concurrent use while a network is being built — the network
+is an ordinary adjacency-list container with no locking.  A constructed
+`FordFulkerson` is immutable (it shares nothing with the network), so
+concurrent reads of a result are safe.  No `_ts` twin, per the
+link:../suffix_array/[`suffix_array`] immutability precedent.
+
+== Tests
+
+The suite verifies a maxflow by what it *is*, not by the port: after
+every run `checkMaxflow` checks the capacity constraints, flow
+conservation, that net outflow from s equals `Value()`, and the min-cut
+certificate (the capacity of the `InMinCut` cut equals `Value()`
+exactly).  `thorough_test.go` additionally cross-checks hundreds of
+small random networks (fixed seeds 42/43/44, integer capacities,
+self-loops, parallel edges, zero-capacity edges and disconnected
+networks included) against a brute-force oracle that enumerates all
+2^(V-2) s-t cuts, and verifies the tinyFN fixture (embedded verbatim
+from https://algs4.cs.princeton.edu/64maxflow/tinyFN.txt) against both
+its documented value 4 and the oracle.
