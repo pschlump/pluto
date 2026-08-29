@@ -1,0 +1,194 @@
+= b_tree_disk_ts
+
+A disk-backed, thread-safe B+ tree store with an LRU write-back block
+cache and a write-ahead journal — the disk-resident counterpart of
+link:../b_tree/[`b_tree`].  The block cache is built on
+link:../lru/[`lru`] (its eviction veto keeps dirty and pinned blocks
+cached) and the journal CRC on link:../crc/[`crc`].  Values are always
+`uint64`: record offsets or IDs into your own data set.  This is an
+*index library*, not a record store — the tree maps fixed-size keys to
+8-byte values and you resolve the values yourself.
+
+* One data file of fixed-size blocks; crash-safe via a write-ahead
+  journal (`Path + ".journal"`).
+* Many named trees per store, so one file can carry several indexes
+  over the same record set (by-ID, by-name, …).
+* Generic over the key type `K`: you supply `EncodeKey` / `DecodeKey` /
+  `Compare` — no interface to implement, no boxing.  `EncodeKey` and
+  `Compare` MUST agree: the on-disk order is the byte order of the
+  encoding (big-endian encodings of ordered types satisfy this).
+* Safe for concurrent use.
+
+Runnable, tested copies of the example live in
+link:example_test.go[`example_test.go`] — they run under `go test` and
+appear on pkg.go.dev.
+
+== Durability & crash recovery contract
+
+*READ THIS before relying on the store.*
+
+`Insert` and `Delete` return as soon as the change is in the in-memory
+cache.  The change becomes crash-durable only when a flush completes:
+
+* the background flusher — every `FlushInterval` (default 100 ms) and
+  whenever more than half the cache is dirty,
+* an explicit `Sync()`, or
+* `Close()`.
+
+Every flush appends ONE journal batch with the full images of all dirty
+blocks, fsyncs the journal, writes the data blocks, fsyncs the data
+file, and only then truncates the journal.  Therefore:
+
+* A crash NEVER corrupts the store.
+* A crash NEVER loses state that was flush-acknowledged (`Sync` or
+  `Close` returned, or a background flush completed).
+* Operations after the last completed flush may be absent after
+  recovery.  Recovery replays every complete, CRC-valid journal batch
+  and ignores a torn or corrupt tail.
+
+== On-disk layout
+
+All integers on disk are little-endian.  The data file is a
+random-access array of `BlockSize`-byte blocks (4096 by default; ≥ 512
+and a multiple of 512; fixed at creation and verified on reopen).
+
+Block 0 — superblock:: magic (`"pluto-bt"`), format version, block
+size, `numBlocks`, `freeListHead`, and the tree registry:
+`(BlockSize-32)/56` entries of 56 bytes each (32-byte name, rootBlock,
+length, keySize).  8 trees at 512-byte blocks, 72 at 4 KiB blocks.
+Superblock mutations are journaled like any block.
+
+Free blocks:: linked from `freeListHead`; the first 8 bytes of a free
+block hold the next free block number, 0 = end.  Block 0 is the
+superblock, so 0 doubles as the nil sentinel everywhere.  Allocation
+pops the list, else extends the file; deletes push merged-away blocks
+back on it, so the file is reused instead of growing without bound.
+
+Leaf block:: type byte, nkeys `uint32`, nextLeaf `uint64`, then n
+sorted `(key keySize bytes, value 8 bytes)` entries.  The nextLeaf
+links give ordered iteration without descending the tree.
+
+Internal block:: type byte, nkeys `uint32`, then n sorted separator
+keys and n+1 child block numbers.  Separators are lower bounds for the
+subtree to their right; after deletes they may be STALE (a separator
+naming a since-deleted key stays in place), which is the standard B+
+simplification — routing stays correct and plain deletes never touch
+internal nodes.
+
+Journal (`Path + ".journal"`):: an append-only sequence of batches:
+magic `"JRNL"` `uint32` | seq `uint64` | count `uint32` | count ×
+(blockNo `uint64` + full block image) | crc32 (Castagnoli) over
+seq..payload | commit `"COMM"` `uint32` — the CRC is computed with
+pluto's link:../crc/[`crc`] package, the same polynomial `hash/crc32`
+uses, so the format is unchanged.  Recovery stops at the first bad
+magic, bad CRC, bad commit mark or truncated tail (a torn write).
+
+== Entries per block
+
+For `keySize` ks, a leaf holds `(BlockSize-13)/(ks+8)` entries and an
+internal node holds `(BlockSize-13)/(ks+8)` separator keys (the
+formulas coincide).  Fewer than 4 → `ErrKeyTooLarge`.
+
+[options="header"]
+|===
+| Block size | Key size | Entries/keys per block
+
+| 4096 | 8  | 255
+| 4096 | 16 | 170
+| 512  | 8  | 31
+| 512  | 16 | 20
+|===
+
+Splits divide a full node into ceil(max/2) and floor(max/2); deletes
+repair nodes that fall below ceil(max/2) by borrowing from a sibling
+that holds more than floor(max/2), else by merging — which always fits
+in one block.
+
+== Cache & flusher tuning
+
+`CacheBlocks × BlockSize` is the cache's memory budget (default
+1024 × 4 KiB = 4 MiB).  The capacity is a *soft* cap: blocks referenced
+by an in-flight operation or waiting to be flushed are not evictable,
+so the cache can briefly exceed the cap instead of stalling; the
+flusher brings it back under.  The flusher ticks every `FlushInterval`
+and is also woken when more than half the cache is dirty.
+
+== Multi-tree indexes
+
+A store holds many named trees.  `NewTree` with a new name creates a
+tree; with an existing name it attaches to it (the key size must match
+or `ErrKeySizeMismatch`).  Re-attach after every reopen.  `Store.Trees`
+lists the registered names.
+
+[source,go]
+----
+store, _ := b_tree_disk_ts.OpenStore(b_tree_disk_ts.StoreConfig{Path: "shop.db"})
+byID, _ := b_tree_disk_ts.NewTree[uint64](store, b_tree_disk_ts.TreeConfig[uint64]{
+    Name: "by-id", KeySize: 8,
+    EncodeKey: func(k uint64, buf []byte) { binary.BigEndian.PutUint64(buf, k) },
+    DecodeKey: func(buf []byte) uint64    { return binary.BigEndian.Uint64(buf) },
+    Compare:   func(a, b uint64) int      { return cmp.Compare(a, b) },
+})
+byID.Insert(42, offset) // value is an offset into your own record file
+off, found, _ := byID.Search(42)
+store.Close() // final flush; everything is durable now
+----
+
+== Operations
+
+[options="header"]
+|===
+| Operation | Description | Complexity
+
+| `OpenStore`  | Create or open a store; runs journal recovery | O(journal)
+| `NewTree`    | Create or attach a named tree               | O(1)
+| `Insert`     | Add or replace key → uint64                 | O(log n) block accesses
+| `Search`     | Look up a key                               | O(log n) block accesses
+| `Delete`     | Remove a key; borrow/merge repair           | O(log n) block accesses
+| `Length`     | Entry count from the registry               | O(1)
+| `All`        | Ascending iterator over a snapshot          | O(n) snapshot, O(1) per yield
+| `Range(lo)`  | Same, from the first key ≥ lo               | O(log n + k)
+| `Sync`       | Force a flush (durability point)            | O(dirty blocks)
+| `Trees`      | Sorted names of registered trees            | O(registry)
+| `Close`      | Final flush, stop flusher, close files      | O(dirty blocks)
+|===
+
+`Insert` returns `true` when the key is new, `false` when a duplicate's
+value was replaced.  `All`/`Range` collect their pairs under one hold
+of the store lock and iterate that snapshot with no lock held — safe to
+mutate while iterating, at O(n) snapshot memory.
+
+== Panics and errors
+
+Panics are programmer errors, caught at construction:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewTree(nil, …)`                          | nil store
+| `NewTree` with nil EncodeKey/DecodeKey/Compare | the tree cannot encode or order keys
+| `NewTree` with `KeySize ≤ 0`               | keys must have a fixed positive encoded length
+| `NewTree` with an empty or > 31-byte name  | registry names live in a 32-byte field
+|===
+
+Everything else is an error, with these exported sentinels (check with
+`errors.Is`): `ErrClosed` (any operation after `Close`), `ErrKeyTooLarge`,
+`ErrKeySizeMismatch`, `ErrTooManyTrees`.
+
+== Concurrency
+
+Safe for concurrent use.  One `sync.Mutex` guards the whole store, and
+reads take the SAME lock as writes — like
+link:../union_find_ts/[`union_find_ts`], where `Find` takes the write
+lock because path halving mutates, here `Search` mutates the LRU cache
+on every hit, so there is no read-only path.  The flusher releases the
+lock while it does file IO; per-block dirty epochs tell it which blocks
+were re-dirtied while a flush was in flight.
+
+== Benchmarks
+
+`go test -run='^$' -bench=. -benchmem ./b_tree_disk_ts/` —
+`BenchmarkInsert`, `BenchmarkSearchHot` (100k keys, cache 1024 blocks),
+`BenchmarkSearchCold` (cache 64 blocks over a 100k-key tree),
+`BenchmarkDelete`.

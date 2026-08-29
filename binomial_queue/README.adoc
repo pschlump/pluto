@@ -1,0 +1,121 @@
+= binomial_queue
+
+A generic *binomial queue* (binomial heap) — the mergeable priority
+queue from Sedgwick's *Algorithms in C*, chapter 9.  `DeleteMin` always
+removes and returns the minimum element.  A reversed comparison function
+(`NewBinomialQueueFunc` with `-Compare(a, b)`) turns it into a max-first
+queue.
+
+The structure is a forest of binomial trees, at most one tree of each
+degree, kept in strictly increasing order of degree; every tree is
+min-heap-ordered (each child sorts at or after its parent).  A degree-k
+tree holds exactly 2^k nodes, so a queue of n elements has at most
+log₂ n + 1 trees.
+
+The distinguishing operation is `Merge`: one queue absorbs another in
+O(log n) — a binary heap (link:../heap[`heap`]) cannot merge faster than
+O(n).  `Insert` is a 1-node merge, so it is O(1) amortized (the same
+carry argument as incrementing a binary counter).
+
+The element type implements no interface: ordering is either the
+element type's built-in `<` / `>` operators (`NewBinomialQueue`) or a
+caller supplied function (`NewBinomialQueueFunc`) — no boxing, no
+dynamic dispatch, no type assertions.  Elements are stored and returned
+*by value* (`T`, not `*T`).
+
+== Operations
+
+[options="header"]
+|===
+| Operation                    | Description                                                    | Complexity
+
+| `Insert(v)`                  | Add an element (a 1-node merge)                                | O(1) amortized, O(log n) worst
+| `Merge(other)`               | Absorb `other` into the receiver, leaving `other` empty        | O(log n + log m)
+| `DeleteMin()`                | Remove and return the minimum                                  | O(log n)
+| `FindMin()` / `Peek()`       | The minimum, without removing (scan of the tree roots)         | O(log n)
+| `IsEmpty` / `Len` / `Length` | Size queries                                                   | O(1)
+| `Truncate`                   | Remove all elements                                            | O(1)
+| `All` / `Backward`           | Iterate internal forest order — *not sorted*                   | O(n)
+| `Dump`                       | Indented per-tree listing, for debugging                       | O(n)
+|===
+
+The element-returning operations (`DeleteMin`, `Peek`, `FindMin`) return
+`(T, bool)` — a value copy plus a found flag, never a pointer into the
+queue; an empty queue reports `false`.  `DeleteMin` detaches the minimum
+root and merges its children (already a valid binomial forest) back in.
+
+`All` yields index/value pairs in internal forest order (pre-order
+within each tree), which is *not* sorted; repeatedly calling `DeleteMin`
+is the way to consume a queue in sorted order.  `Backward` is the exact
+reverse of `All`, with indexes counting down from `Length()-1`, so each
+element gets the same index from both iterators.  A single-variable
+range yields the index.  The queue must not be modified while an
+iterator is running.
+
+== Usage
+
+[source,go]
+----
+q := binomial_queue.NewBinomialQueue[int]()
+for _, v := range []int{42, 7, 13} {
+    q.Insert(v)
+}
+min, _ := q.Peek() // 7
+// DeleteMin drains in ascending order.
+----
+
+Merge — the reason to reach for a binomial queue over a binary heap:
+
+[source,go]
+----
+a := binomial_queue.NewBinomialQueue[int]() // producer A's items
+b := binomial_queue.NewBinomialQueue[int]() // producer B's items
+// ... fill both ...
+a.Merge(b) // b is now empty; a holds everything, still min-first
+----
+
+A max-first queue or a priority queue over structs — the element type
+implements no interface, and the exported `Compare` helper builds the
+field ordering:
+
+[source,go]
+----
+type Task struct {
+    Priority int
+    Name     string
+}
+
+pq := binomial_queue.NewBinomialQueueFunc(func(a, b Task) int {
+    return binomial_queue.Compare(a.Priority, b.Priority)
+})
+pq.Insert(Task{3, "write"})
+pq.Insert(Task{1, "review"})
+// DeleteMin yields 1:review first.
+----
+
+== Panics
+
+The package panics in exactly three situations — all programmer errors
+with no sane fallback:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewBinomialQueueFunc(nil)` | nil comparison function, caught at construction time
+| `Insert` on a nil queue | a nil queue cannot store an element
+| `Insert` on a zero-value queue | no comparison function; the message names the constructors
+| `Merge` on a nil receiver with a non-empty other | the elements have nowhere to go
+|===
+
+Everything else tolerates a nil queue and the zero value as an empty
+queue and reports not-found / no-op: `DeleteMin`, `Peek`, `FindMin`,
+`Len`, `Length`, `IsEmpty`, `Truncate`, `Dump`, `All`, `Backward`, and a
+`Merge` whose other side is empty or nil.  Merging into a zero-value
+receiver adopts the other queue's comparison function; merging a queue
+into itself is a no-op.
+
+== Concurrency
+
+A `BinomialQueue` is not safe for concurrent use.  Guard it with your
+own mutex if it is shared between goroutines.

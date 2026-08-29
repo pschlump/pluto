@@ -25,6 +25,9 @@ with an identical public API.
 | link:avl_tree_ts/[avl_tree_ts]             | Thread-safe self-balancing AVL tree (RWMutex, snapshot iterators).
 | link:rb_tree/[rb_tree]                     | Generic self-balancing red-black binary search tree.
 | link:rb_tree_ts/[rb_tree_ts]               | Thread-safe self-balancing red-black tree (RWMutex, snapshot iterators).
+| link:splay_tree/[splay_tree]               | Generic self-adjusting splay tree (top-down splaying, amortized O(log n); Sedgwick, Algorithms in C).
+| link:b_tree/[b_tree]                       | Generic B-tree (multiway search tree, configurable order; Sedgwick external searching).
+| link:b_tree_disk_ts/[b_tree_disk_ts]       | Disk-backed thread-safe B+ tree store (4K blocks, LRU write-back cache, WAL journal, crash recovery, multi-tree indexes).
 | link:skip_list/[skip_list]                 | Generic probabilistic ordered skip list.
 | link:skip_list_ts/[skip_list_ts]           | Thread-safe skip list (RWMutex, snapshot iterators).
 | link:dll/[dll]                             | Generic doubly linked list (stack/queue/list).
@@ -45,6 +48,7 @@ with an identical public API.
 | link:priority_queue_ts/[priority_queue_ts] | Thread-safe priority queue on pluto/heap_ts (RWMutex, Lock+Nl* compound ops).
 | link:heap_sort/[heap_sort]                 | Generic heap sort on pluto/heap (ascending Sort, descending SortDown).
 | link:heap_sort_ts/[heap_sort_ts]           | Thread-safe heap sort on pluto/heap_ts (atomic drain, Lock+Nl* compound ops).
+| link:binomial_queue/[binomial_queue]       | Generic mergeable priority queue (forest of heap-ordered binomial trees, O(log n) Merge; Sedgwick §9).
 | link:hash_tab/[hash_tab]                   | Generic fixed-size hash table (separate chaining, == or eq+hash funcs).
 | link:hash_tab_ts/[hash_tab_ts]             | Thread-safe fixed-size hash table (RWMutex, snapshot iterators, Lock+Nl* compound ops).
 | link:hash_tab_bt/[hash_tab_bt]             | Generic fixed-size hash table, binary-tree buckets (log-time collisions, cmp+hash funcs).
@@ -78,7 +82,10 @@ with an identical public API.
 | link:trie_ts/[trie_ts]                     | Thread-safe R-way trie (RWMutex, snapshot iterators, Lock+Nl* compound ops).
 | link:tst/[tst]                             | String-keyed ternary search trie (memory-efficient trie, Sedgwick §5.5 TST).
 | link:tst_ts/[tst_ts]                       | Thread-safe ternary search trie (RWMutex, snapshot iterators, Lock+Nl* compound ops).
+| link:patricia_trie/[patricia_trie]         | String-keyed Patricia (crit-bit) trie with path compression (prefix queries; Sedgwick radix searching).
 | link:suffix_array/[suffix_array]           | Immutable suffix array with Kasai LCP (Sedgwick §6.3; no `_ts` twin — immutable, concurrent reads safe).
+| link:lru/[lru]                             | Generic capacity-bounded LRU cache (eviction veto callback, soft cap; no `_ts` twin — callers lock).
+| link:crc/[crc]                             | Table-driven CRC-32/CRC-64 checksums (IEEE, Castagnoli, Koopman, ECMA, ISO; pure functions, concurrent-use safe).
 | link:g_lib/[g_lib]                         | Generic utility functions (min/max, slice ops, set/map conversion, numeric constraints).
 |===
 

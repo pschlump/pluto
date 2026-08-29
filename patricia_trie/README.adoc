@@ -1,0 +1,113 @@
+= patricia_trie
+
+A generic string-keyed symbol table on a *Patricia trie* — the compact
+bitwise radix trie of Sedgwick's radix-searching chapter (PATRICIA:
+Practical Algorithm To Retrieve Information Coded In Alphanumeric),
+generic over the value type `T`.  The equivalent *crit-bit tree*
+formulation is used: keys live only at the leaves, and every internal
+node stores nothing but a critical bit index and two children.
+
+Keys are arbitrary strings — UTF-8 text, embedded NUL bytes, the empty
+string — and ordering falls out of the key bytes themselves, so there
+is *no comparison function to supply*: like `trie` and `tst`, the
+package is constraint-free, has *no constructors*, and the zero value
+of `PatriciaTrie[T]` is an empty trie ready to use (including
+`Insert`).
+
+*Path compression*: an ordinary bitwise radix trie spends one node per
+key bit; a Patricia trie stores a node only where two keys actually
+diverge, so there are *no one-child internal nodes*.  A trie of n keys
+has exactly n leaves and n-1 internal nodes, and search examines each
+bit of the key at most once — every operation is O(w), where w is the
+key length in bits, *independent of the number of keys*.  Because
+untested bits are skipped, the full key is compared at the leaf to
+decide membership.
+
+To keep arbitrary byte strings prefix-free while preserving byte order,
+keys are viewed through an order-preserving encoding: each byte
+contributes a 1 bit followed by its 8 bits (most significant first),
+and the end of the key contributes a single 0 bit.  Distinct keys
+therefore always differ at some encoded bit (`""` and `"\x00"` never
+collide), and ascending encoded-bit order is exactly ascending byte
+order with shorter prefixes first — so `All` yields plain ascending
+key order.
+
+`Insert` *replaces* the value of an existing key and returns `false`
+(the trees' duplicates-replace convention); `true` means the key was
+added.  `Delete` unlinks the key's leaf and collapses its now-redundant
+branch node, so deleting every key restores the zero shape
+(`root == nil`).
+
+Elements are stored and returned by value — `Search` returns `(T, bool)`.
+
+Not safe for concurrent use.
+
+== Operations
+
+w is the key (or prefix) length in bits — O(w) = O(L) for an L-byte
+key; n is the number of keys.
+
+[options="header"]
+|===
+| Operation | Description | Complexity
+
+| `Insert(key, value)` | Add key with value; `false` if it replaced an existing value | O(w)
+| `Search(key)`        | Value associated with key, `(T, bool)`                         | O(w)
+| `Contains(key)`      | Is key in the trie?                                            | O(w)
+| `Delete(key)`        | Remove key, collapsing its branch; `false` if absent           | O(w)
+| `IsEmpty()`          | Is the trie empty?                                             | O(1)
+| `Length()` / `Len()` | Number of keys                                                 | O(1)
+| `Truncate()`         | Remove all keys, restoring the zero shape                      | O(1)
+| `KeysWithPrefix(prefix)` | All keys starting with prefix, ascending; nil when none  | O(w + matches)
+| `All()`              | `iter.Seq2[string, T]` over (key, value) pairs, ascending key order | O(n)
+| `Backward()`         | `iter.Seq2[string, T]` over (key, value) pairs, descending key order | O(n)
+| `Dump(w)`            | Indented structural listing to an `io.Writer` (debug aid)      | O(n)
+|===
+
+`All()` and `Backward()` visit the *live* trie — do not modify the
+trie while iterating.  A single-variable range over them yields the
+*key*, not the value; use `for key, value := range pt.All()`.
+
+== Usage
+
+[source,go]
+----
+var pt patricia_trie.PatriciaTrie[int] // zero value, ready to use — no constructor
+
+pt.Insert("she", 0)
+pt.Insert("shells", 1)
+pt.Insert("sea", 2)
+
+v, ok := pt.Search("sea")       // (2, true)
+pt.Contains("shell")            // false — a prefix of a key, not a key
+pt.KeysWithPrefix("sh")         // ["she", "shells"], ascending
+
+pt.Delete("she")                // true; branch collapsed
+pt.Length()                     // 2
+
+for key, value := range pt.All() { // ascending key order
+	fmt.Println(key, value)
+}
+----
+
+== Panics
+
+The package has exactly *one* panic:
+
+[options="header"]
+|===
+| Call | Why
+
+| `Insert` on a nil `*PatriciaTrie` | a nil trie cannot store a value — the one write with no sane answer
+|===
+
+A nil `*PatriciaTrie` and the zero value behave as an *empty* trie for
+every other operation: `Search` returns `(zero, false)`,
+`Contains`/`Delete` return `false`, `IsEmpty` returns `true`,
+`Length`/`Len` return 0, `KeysWithPrefix` returns nil, `All`/`Backward`
+visit nothing, and `Truncate`/`Dump` are harmless.
+
+== Concurrency
+
+Not safe for concurrent use.  There is no `_ts` twin; guard the trie
+with your own mutex if you share one across goroutines.

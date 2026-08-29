@@ -1,0 +1,190 @@
+= splay_tree
+
+A generic splay tree — a self-adjusting binary search tree (Sleator and
+Tarjan) using top-down splaying as presented in Sedgwick's _Algorithms in
+C_.  Ordering never goes through an interface method, so element data is
+never boxed into an interface and never unboxed with a type assertion.
+
+* Elements are stored and returned *by value* (`T`, not `*T`); find-style
+operations (`Search`, `FindMin`, `FindMax`) return `(T, bool)`.
+* Trees of ordered key types (integers, floats, strings) are ordered by the
+built-in `<` / `>` operators of the key type.
+* Trees of any other type — including structs ordered by a single field —
+take a plain comparison function, with no interface to implement.
+
+A tree is created with one of the two constructors.  A nil `*SplayTree`
+and the zero value both behave as an empty tree for every operation except
+`Insert` (see link:#panics[Panics]).
+
+Runnable, tested copies of every example below live in
+link:example_test.go[`example_test.go`] (they run under `go test` and appear
+on pkg.go.dev).
+
+== Mutation on read
+
+Every access restructures the tree.  `Search`, `FindMin` and `FindMax` are
+*not* pure reads: each one splays a node to the root (the found node, or
+on a miss the last node visited), so the tree's shape changes on every
+lookup.  The elements and their order never change — only the shape.  Two
+consequences:
+
+* A repeated `Search` for the same key is O(1): the found node is already
+at the root.  Working sets that are accessed repeatedly migrate to the top
+of the tree, which is where the amortized bound comes from.
+* Iterating with `All` / `Backward` walks the live nodes, and any
+interleaved `Search` / `FindMin` / `FindMax` counts as a modification and
+invalidates the walk.
+
+The shape is a deterministic function of the full history of operations,
+so shape-dependent output (the indentation in `Dump`) is only
+reproducible for a fixed sequence of calls.
+
+== Complexity
+
+All tree operations are O(log₂ n) *amortized*: any single operation can be
+O(n) in the worst case, but any sequence of m operations on a tree of n
+elements costs O(m log₂ n) overall.
+
+[options="header"]
+|===
+| Operation                         | Complexity
+
+| Insert                            | O(log₂ n) amortized
+| Delete                            | O(log₂ n) amortized
+| Search                            | O(log₂ n) amortized
+| FindMin / FindMax                 | O(log₂ n) amortized
+| DeleteAtHead / DeleteAtTail       | O(log₂ n) amortized
+| Depth                             | O(n)
+| Dump                              | O(n)
+| All / Backward (full iteration)   | O(n)
+| IsEmpty / Len / Length / Truncate | O(1)
+|===
+
+Insert of a duplicate replaces the stored value in place and returns
+`false`; a new element returns `true`.  `Truncate` and `Delete` drop node
+references so the garbage collector can reclaim them.
+
+SplayTree is *not* safe for concurrent use — not even for concurrent
+reads, because every read mutates the tree.
+
+== Usage
+
+Naturally ordered keys need no comparison function:
+
+[source,go]
+----
+tree := splay_tree.NewSplayTree[int]()
+for _, v := range []int{42, 7, 13, 99, 55} {
+    tree.Insert(v)
+}
+
+min, _ := tree.FindMin() // 7
+max, _ := tree.FindMax() // 99
+
+if _, found := tree.Search(13); found {
+    // ...
+}
+----
+
+Structs ordered by a field — the element type implements no interface, and
+the exported `Compare` helper builds the field comparison:
+
+[source,go]
+----
+type Employee struct {
+    ID   int
+    Name string
+}
+
+byID := splay_tree.NewSplayTreeFunc(func(a, b Employee) int {
+    return splay_tree.Compare(a.ID, b.ID)
+})
+byID.Insert(Employee{ID: 3, Name: "Ada"})
+
+// A search probe only needs the fields the comparison reads: the ID.
+if e, found := byID.Search(Employee{ID: 3}); found {
+    fmt.Println(e.Name) // Ada
+}
+----
+
+Because `Search`/`Delete` probes only need the key fields, a tree of
+keyed structs works like an ordered map: insert the full value, look it up
+with a key-only probe.
+
+=== Recipes
+
+A priority queue: order by priority with ties broken by a field, and drain
+from the tail (`FindMax` + `DeleteAtTail`) for highest-first:
+
+[source,go]
+----
+tasks := splay_tree.NewSplayTreeFunc(func(a, b Task) int {
+    if c := splay_tree.Compare(a.Priority, b.Priority); c != 0 {
+        return c
+    }
+    return strings.Compare(a.Name, b.Name) // tie break
+})
+for !tasks.IsEmpty() {
+    top, _ := tasks.FindMax()
+    tasks.DeleteAtTail()
+    // ... top is the highest-priority task
+}
+----
+
+Draining in sorted order without knowing the keys up front:
+
+[source,go]
+----
+var ascending []int
+for !tree.IsEmpty() {
+    v, _ := tree.FindMin()
+    ascending = append(ascending, v)
+    tree.DeleteAtHead()
+}
+----
+
+== Iteration
+
+`All` iterates ascending, `Backward` descending; both yield
+`(index, value)` pairs and both walk the live nodes — do not touch the
+tree (not even `Search`) while an iteration is in progress:
+
+[source,go]
+----
+for i, v := range tree.All() {      // i is 0, 1, 2, ... ascending
+    ...
+}
+for i, v := range tree.Backward() { // i counts down from Len()-1
+    ...
+}
+----
+
+A single-variable range yields the INDEX, not the value:
+
+[source,go]
+----
+for i := range tree.All() { // i is the position, not the element
+    ...
+}
+----
+
+== Panics
+
+The package panics in exactly three situations — all programmer errors
+with no sane fallback:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewSplayTreeFunc(nil)` | nil comparison function, caught at construction time
+| `Insert` on a nil `*SplayTree` | a nil tree cannot store an element
+| `Insert` on a zero-value tree | no comparison function; the message names the constructors
+|===
+
+Everything else tolerates a nil tree and the zero value as an empty tree:
+`Search` finds nothing, `Delete`/`DeleteAtHead`/`DeleteAtTail` return
+`false`, `FindMin`/`FindMax` report not-found, `Len` and `Depth` are 0,
+and the iterators visit nothing.  (A tolerant read on a nil or zero-value
+tree never needs the comparison function, so splaying is skipped and no
+panic occurs.)

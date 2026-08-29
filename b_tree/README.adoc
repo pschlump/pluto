@@ -1,0 +1,143 @@
+= b_tree
+
+A generic B-tree — the balanced external-searching tree of Sedgwick
+(Bayer & McCreight, 1972).  A B-tree of order M stores up to M-1 keys
+per node and up to M children per internal node; every node other than
+the root holds at least ceil(M/2)-1 keys, and all leaves are at the same
+depth, so `Insert`, `Delete` and `Search` are *O(log n) in the worst
+case* — regardless of the order of operations.  `Insert` splits
+overflowing nodes and pushes the median key up; `Delete` borrows from a
+sibling or merges nodes to restore the minimum occupancy.  See
+link:https://en.wikipedia.org/wiki/B-tree[]
+for the theory.
+
+NOTE: An in-memory B-tree is mostly a teaching tool — in RAM a balanced
+binary tree (`avl_tree`, `rb_tree`) does the same job with less code.
+The B-tree's real purpose is *external* searching: ordered access to a
+data set too large to keep in memory, where one node should equal one
+disk block.  For that, use
+link:../b_tree_disk_ts/[b_tree_disk_ts] — a disk-backed, thread-safe B+
+tree with 4K blocks (keys-per-block computed from the block and key
+sizes), an LRU write-back cache with a background flusher, a
+write-ahead journal with crash recovery, a free-block list, and
+multiple named trees per file so one data set can carry several
+indexes.
+
+Ordering never goes through an interface method, so element data is
+never boxed into an interface and never unboxed with a type assertion.
+
+* Elements are stored and returned *by value* (`T`, not `*T`); find-style
+operations return `(T, bool)`.  The keys are the elements themselves —
+the tree is an ordered set, not a key/value map.
+* Trees of ordered key types (integers, floats, strings) are ordered by
+the built-in `<` / `>` operators: `b_tree.NewBTree[int](4)`.
+* Trees of any other type — including structs ordered by a single field —
+take a plain comparison function, with no interface to implement:
+`b_tree.NewBTreeFunc(4, func(a, b Item) int { ... })`.
+
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and appear
+on pkg.go.dev.
+
+== Operations
+
+[options="header"]
+|===
+| Operation                        | Description                                     | Complexity
+
+| `Insert`                         | Add an element; duplicates replace the old data | O(log n)
+| `Delete`                         | Remove an element; reports whether it was found | O(log n)
+| `Search`                         | Return the stored element equal to the probe    | O(log n)
+| `FindMin` / `FindMax`            | Return the smallest / largest element           | O(log n)
+| `DeleteAtHead` / `DeleteAtTail`  | Remove the smallest / largest element           | O(log n)
+| `IsEmpty` / `Len` / `Length`     | Tree size queries                               | O(1)
+| `Depth`                          | Height of the tree (all leaves same depth)      | O(log n)
+| `Truncate`                       | Remove all elements                             | O(1)
+| `Dump`                           | Write the node structure for debugging          | O(n)
+| `All` / `Backward`               | Range-over-func iterators                       | O(n)
+|===
+
+`Insert` returns `true` when a new element was added and `false` when a
+duplicate replaced the stored value.  `Len` is an alias for `Length`,
+matching link:../avl_tree/[`avl_tree`].  `DeleteAtHead` and
+`DeleteAtTail` each make a single descent down the left/right spine —
+there is no separate search for the victim key.
+
+The tree is *not* safe for concurrent use.
+
+== Usage
+
+[source,go]
+----
+tree := b_tree.NewBTree[int](4) // order 4: up to 3 keys, 4 children per node
+
+// Sorted input still leaves a shallow tree: node splits keep every leaf
+// at the same depth.
+for i := range 1000 {
+    tree.Insert(i)
+}
+fmt.Println(tree.Depth()) // 6, not 1000
+----
+
+Structs ordered by a field — the element type implements no interface,
+and the exported `Compare` helper builds the field comparison:
+
+[source,go]
+----
+type Employee struct {
+    ID   int
+    Name string
+}
+
+byID := b_tree.NewBTreeFunc(4, func(a, b Employee) int {
+    return b_tree.Compare(a.ID, b.ID)
+})
+byID.Insert(Employee{ID: 3, Name: "Ada"})
+
+// A search probe only needs the fields the comparison reads: the ID.
+if e, found := byID.Search(Employee{ID: 3}); found {
+    fmt.Println(e.Name) // Ada
+}
+----
+
+== Iteration
+
+`All()` / `Backward()` are range-over-func iterators (Go 1.23+) that
+yield `(index, value)` pairs in ascending / descending order:
+
+[source,go]
+----
+for i, v := range tree.All() {
+    fmt.Println(i, v)
+}
+----
+
+Both are `iter.Seq2[int, T]`, so a *single-variable range yields the
+INDEX, not the value* — use the two-variable form.  It is not safe to
+modify the tree while an iterator is in progress.
+
+== Panics
+
+The package panics in exactly four situations — all programmer errors
+with no sane fallback:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewBTree` / `NewBTreeFunc` with `order < 3` | a node needs room for at least 2 keys and 3 children
+| `NewBTreeFunc(order, nil)` | nil comparison function, caught at construction time
+| `Insert` on a nil `*BTree` | a nil tree cannot store an element
+| `Insert` on a zero-value tree | no comparison function; the message names the constructors
+|===
+
+Everything else tolerates a nil tree and the zero value as an empty tree:
+`Search` finds nothing, `Delete`/`DeleteAtHead`/`DeleteAtTail` return
+false, `FindMin`/`FindMax` report not-found, `Len` and `Depth` are 0,
+and the iterators yield nothing.
+
+== Concurrency
+
+`BTree` is not safe for concurrent use.  There is no `_ts` twin (yet);
+guard the tree with your own `sync.RWMutex` if you share it between
+goroutines.

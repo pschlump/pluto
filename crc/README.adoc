@@ -1,0 +1,87 @@
+= crc — Table-Driven CRC Checksums
+:toc:
+
+== Overview
+
+`crc` computes 32-bit and 64-bit CRC checksums with the classic
+table-driven reflected (right-shifting) algorithm — the same
+conventions as the standard library's `hash/crc32` and `hash/crc64`,
+so this package returns **identical results** for every polynomial the
+two share (cross-checked against stdlib on random buffers in
+link:thorough_test.go[`thorough_test.go`]).
+
+There is no state and nothing to construct: build a lookup table once
+with `MakeTable32` / `MakeTable64` (or use a prebuilt package table),
+then call `Checksum32` / `Checksum64` for a one-shot checksum, or
+`Update32` / `Update64` to fold data in incrementally.
+
+[source,go]
+----
+import "github.com/pschlump/pluto/crc"
+
+sum := crc.Checksum32(data, crc.CastagnoliTable)
+
+running := crc.Update32(0, crc.CastagnoliTable, header)
+running = crc.Update32(running, crc.CastagnoliTable, payload) // == Checksum32(header+payload)
+----
+
+== Polynomials and prebuilt tables
+
+The constants carry the same numeric values as the standard library,
+and each has a prebuilt table made once at package init.
+
+[cols="2,1,2,2",options="header"]
+|===
+| Constant | Value | Common name | Prebuilt table
+
+| `IEEE`       | `0xedb88320`         | CRC-32 (Ethernet, zip, PNG) | `IEEETable`
+| `Castagnoli` | `0x82f63b78`         | CRC-32C (iSCSI, ext4)       | `CastagnoliTable`
+| `Koopman`    | `0xeb31d82e`         | CRC-32K                     | `KoopmanTable`
+| `ECMA`       | `0xC96C5795D7870F42` | CRC-64/XZ                   | `ECMATable`
+| `ISO`        | `0xD800000000000000` | CRC-64/ISO (HDLC)           | `ISOTable`
+|===
+
+Any other polynomial works too — `MakeTable32(poly)` /
+`MakeTable64(poly)` build a table for it.  The published check vectors
+for `"123456789"` (CRC-32/IEEE `0xCBF43926`, CRC-32C `0xE3069283`,
+CRC-32K `0x2D3DD0AE`, CRC-64/XZ `0x995DC9BBDF1939FA`, CRC-64/ISO
+`0xB90956C775A41001`) are verified in the tests.  Note the 64-bit ECMA
+entry: like `hash/crc64`, this package uses an all-ones init/xorout, so
+the result is the CRC-64/XZ catalogue value — implementations calling
+themselves "CRC-64/ECMA" with a zero init produce a different value.
+
+== Functions
+
+[cols="1,2,1",options="header"]
+|===
+| Function | Description | Complexity
+
+| `MakeTable32`, `MakeTable64` | Build a 256-entry lookup table for a polynomial | O(1) — fixed 256 × 8 loop
+| `Checksum32`, `Checksum64`   | One-shot CRC of a byte slice                    | O(len(data))
+| `Update32`, `Update64`       | Fold more bytes into a running CRC              | O(len(data))
+|===
+
+`Checksum(data, tab)` is exactly `Update(0, tab, data)`, and chunking
+the input does not change the result — an incremental checksum in any
+chunk sizes equals the one-shot checksum of the whole buffer.
+
+== Panics
+
+Exactly one panic, a programmer error with no sane answer: calling
+`Update32` / `Update64` / `Checksum32` / `Checksum64` with a **nil
+table**.  The message names the method and the fix (build a table with
+`MakeTable32` / `MakeTable64`, or use one of the prebuilt package
+tables).
+
+== Thread Safety
+
+Safe for concurrent use.  Every function is pure — it operates only on
+its arguments and the read-only table — and the prebuilt tables are
+written once at package init and never mutated, so one table can be
+shared across goroutines with no locking.
+
+== Examples
+
+Runnable, tested examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and
+appear on pkg.go.dev.

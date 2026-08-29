@@ -1,0 +1,88 @@
+= lru — Generic Capacity-Bounded LRU Cache
+:toc:
+
+== Overview
+
+`lru` is a generic LRU (least recently used) cache: a map for O(1)
+lookups plus a doubly linked list that tracks recency,
+most-recently-used at the front.  A `Get` hit re-marks the entry as
+most-recently-used; a `Put` that would exceed the capacity evicts the
+least recently used entries first.
+
+It exists to serve
+link:../b_tree_disk_ts/[`b_tree_disk_ts`]'s block cache, which is why
+the eviction callback and the soft cap are part of the design (below).
+
+[source,go]
+----
+import "github.com/pschlump/pluto/lru"
+
+c := lru.NewLru[string, int](1024)
+c.Put("answer", 42)
+if v, ok := c.Get("answer"); ok { ... }
+----
+
+== Soft-cap semantics and the eviction veto
+
+`NewLruFunc` takes an `evictable func(K, V) bool` callback consulted
+before every eviction (a nil callback means everything is evictable).
+`false` **vetoes** the eviction: the scan skips that entry and tries
+the next-older one.  When *nothing* is evictable the cache temporarily
+**exceeds its capacity** — a soft cap, not a stall.  This is required
+by `b_tree_disk_ts`: a dirty or pinned block must never be evicted, so
+its block cache briefly grows past the cap instead of deadlocking on a
+flush, and the flusher shrinks it back under.
+
+== Operations
+
+[cols="1,2,1",options="header"]
+|===
+| Operation | Description | Complexity
+
+| `NewLru(capacity)`              | Cache with every entry evictable                | O(1)
+| `NewLruFunc(capacity, veto)`    | Cache with an eviction veto callback            | O(1)
+| `Get(key)`                      | Look up; a hit marks most-recently-used         | O(1)
+| `Peek(key)`                     | Look up without changing the recency order      | O(1)
+| `Put(key, value)`               | Insert/update (update marks MRU); evict down to capacity first | O(1) — O(scan) worst case when the veto protects entries
+| `Delete(key)`                   | Remove a key, reporting whether it was present  | O(1)
+| `Len` / `Capacity`              | Size queries (Len may exceed Capacity under the soft cap) | O(1)
+| `Clear`                         | Drop all entries, keep capacity and veto        | O(n)
+| `All` / `Backward`              | Iterators, MRU→LRU / LRU→MRU (`iter.Seq2[K, V]`; a single-variable range yields the KEY) | O(n)
+|===
+
+`All` and `Backward` walk the live recency list, so the cache must not
+be modified while an iterator runs — and note that `Get` counts as a
+modification (it re-marks the hit).
+
+== Panics
+
+Exactly three, all programmer errors that cannot be handled where they
+occur; each message names the method and the fix:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewLru` / `NewLruFunc` with `capacity < 1` | a cache needs room for at least one entry
+| `Put` on a nil cache       | a nil cache cannot store an entry
+| `Put` on a zero-value cache | no capacity; the message names the constructors
+|===
+
+A nil `*Lru` and the zero value tolerate every read: `Get`/`Peek`
+report not-found, `Delete` returns false, `Len`/`Capacity` are 0,
+`Clear` is a no-op, and the iterators yield nothing.
+
+== Concurrency
+
+Not safe for concurrent use — callers that share a cache across
+goroutines must guard it with their own mutex (`b_tree_disk_ts` holds
+its store lock around every cache operation).  There is deliberately no
+`_ts` twin: wrap the cache in the caller's lock, the same way
+link:../queue_dll/[`queue_dll`] points shared-FIFO callers at guarding
+with a mutex rather than offering a twin.
+
+== Examples
+
+Runnable, tested examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and
+appear on pkg.go.dev.
