@@ -259,5 +259,3 @@ func ArrayHas[T comparable](haystack []T, needle T) bool {
 	}
 	return false
 }
-
-/* vim: set noai ts=4 sw=4: */

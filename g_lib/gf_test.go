@@ -346,5 +346,3 @@ func BenchmarkUnique(b *testing.B) {
 		_ = Unique(s)
 	}
 }
-
-/* vim: set noai ts=4 sw=4: */

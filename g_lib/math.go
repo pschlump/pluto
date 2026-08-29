@@ -25,5 +25,3 @@ func Pow[T Number](base T, exponent int) T {
 	}
 	return result
 }
-
-/* vim: set noai ts=4 sw=4: */
