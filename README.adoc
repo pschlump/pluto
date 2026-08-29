@@ -62,8 +62,18 @@ with an identical public API.
 | link:index_pq_ts/[index_pq_ts]             | Thread-safe indexed priority queue (RWMutex, snapshot All, Lock+Nl* compound ops).
 | link:graph/[graph]                         | Undirected graph with DFS/BFS paths and connected components (Sedgwick §4.1–4.2).
 | link:graph_ts/[graph_ts]                   | Thread-safe graph (RWMutex, snapshot adjacency; traversals run lock-free on a snapshot).
+| link:digraph/[digraph]                     | Directed graph with DFS/BFS reachability, cycle detection, topological order, Kosaraju SCC (Sedgwick §4.4–4.6).
+| link:digraph_ts/[digraph_ts]               | Thread-safe digraph (RWMutex, snapshot adjacency; traversals run lock-free on a snapshot).
 | link:dijkstra/[dijkstra]                   | Edge-weighted digraph/graph with Dijkstra shortest paths (single-source, undirected, all-pairs; Sedgwick §4.4).
 | link:dijkstra_ts/[dijkstra_ts]             | Thread-safe Dijkstra shortest paths (RWMutex, snapshot adjacency; searches run lock-free on a snapshot).
+| link:mst/[mst]                             | Minimum spanning trees on dijkstra's EdgeWeightedGraph (lazy Prim, eager Prim, Kruskal; Sedgwick §4.7–4.8).
+| link:mst_ts/[mst_ts]                       | Thread-safe MST queries on dijkstra_ts's EdgeWeightedGraph (snapshot adjacency; searches run lock-free on a snapshot).
+| link:bellman_ford/[bellman_ford]           | Bellman-Ford shortest paths with negative-cycle detection, plus DAG shortest/longest paths (Sedgwick §4.10–4.11).
+| link:bellman_ford_ts/[bellman_ford_ts]     | Thread-safe Bellman-Ford / acyclic shortest paths (snapshot adjacency; searches run lock-free on a snapshot).
+| link:fenwick_tree/[fenwick_tree]           | Fenwick (binary indexed) tree, generic over numeric types (prefix sums, point updates; Sedgwick "Beyond").
+| link:fenwick_tree_ts/[fenwick_tree_ts]     | Thread-safe Fenwick tree (RWMutex, Lock+Nl* compound ops).
+| link:segment_tree/[segment_tree]           | Segment tree, generic range-combine queries (sum via numeric constraint, min/max/gcd via combine func).
+| link:segment_tree_ts/[segment_tree_ts]     | Thread-safe segment tree (RWMutex, Lock+Nl* compound ops).
 | link:trie/[trie]                           | String-keyed R-way trie symbol table (prefix/wildcard queries, Sedgwick §5.4 TrieST).
 | link:trie_ts/[trie_ts]                     | Thread-safe R-way trie (RWMutex, snapshot iterators, Lock+Nl* compound ops).
 | link:tst/[tst]                             | String-keyed ternary search trie (memory-efficient trie, Sedgwick §5.5 TST).
@@ -645,13 +655,48 @@ internally (an intra-pluto composition).
 * Good: the classic graph traversals with pluto's value semantics and
 panic contracts; BFS shortest paths and connected components out of
 the box.
-* Bad: undirected only (no Digraph yet); int vertices — a symbol
-layer is a possible later package; no edge removal.
+* Bad: undirected only — the directed sibling is `digraph`; int
+vertices — a symbol layer is a possible later package; no edge
+removal.
 
 `graph_ts` is the twin with the RWMutex: `Adj` yields a snapshot slice
 copied under the read lock, and the traversal constructors deep-copy
 the adjacency under the read lock, then run *lock-free* on the
 snapshot — no lock is held for the duration of a traversal.
+
+== Directed Graphs — `digraph/`, `digraph_ts/`
+
+Sedgwick's §4.4–4.6 directed graph on the int vertices `0..n-1` — the
+directed sibling of `graph`, with the same adjacency-list shape
+(self-loops and parallel edges allowed; no `RemoveEdge`) plus a
+maintained in-degree array so `InDegree` is O(1) alongside
+`OutDegree`. `Reverse()` flips every edge (Kosaraju's building block).
+The §4.4–4.6 queries are constructor-style immutable result objects in
+the same package: `NewDirectedDFS(g, sources...)` (multi-source
+reachability — `Marked`, `Count`), `NewDFSDirectedPaths` /
+`NewBFSDirectedPaths(g, s)` (`HasPathTo`, source-first `PathTo`; BFS
+adds `DistTo` — `pluto/queue` internally, like `graph`),
+`NewDirectedCycle(g)` (`HasCycle`, `Cycle` — on-stack DFS marking),
+`NewDepthFirstOrder(g)` (`Pre`, `Post`, `ReversePost`),
+`NewTopological(g)` (`HasOrder`, `Order` — cycle check plus reverse
+postorder) and `NewKosarajuSCC(g)` (`StronglyConnected`, `ID`,
+`Count`). All traversals O(V+E). Sourced constructors panic on a
+nil/empty graph or out-of-range source; the source-less queries
+(`DirectedCycle`, `DepthFirstOrder`, `Topological`, `KosarajuSCC`)
+tolerate empty graphs — an empty digraph has a sane answer, the
+`NewCC` precedent.
+
+* Good: the full §4.4–4.6 toolkit — reachability, paths, cycle
+detection, topological sort and strong components — with pluto's panic
+contracts and immutable result objects; verified against the algs4
+tinyDG/tinyDAG datasets.
+* Bad: int vertices (a symbol layer is a possible later package); no
+edge removal; edge-weighted directed graphs live in `dijkstra`.
+
+`digraph_ts` is the twin with the RWMutex: `Adj` yields a snapshot
+slice copied under the read lock, and every query constructor
+deep-copies the adjacency under the read lock, then runs *lock-free*
+on the snapshot — no lock is held for the duration of a traversal.
 
 == Dijkstra Shortest Paths — `dijkstra/`, `dijkstra_ts/`
 
@@ -673,14 +718,81 @@ edges are allowed; no `RemoveEdge` (deliberate, matching Sedgwick).
 * Good: the classic algorithm with pluto's panic contracts and value
 semantics; single-source, undirected and all-pairs out of the box, all
 verified bit-for-bit against the algs4 Java reference.
-* Bad: non-negative weights only (no Bellman-Ford yet); int vertices —
-a symbol layer is a possible later package; no edge removal.
+* Bad: non-negative weights only — negative weights are
+`bellman_ford`'s job; int vertices — a symbol layer is a possible
+later package; no edge removal.
 
 `dijkstra_ts` is the twin with the RWMutex: `Adj` returns a snapshot
 slice copied under the read lock, and the Dijkstra constructors
 deep-copy the adjacency under the read lock, then run *lock-free* on
 the snapshot — no lock is held for the duration of a search. The query
 objects are immutable, so they are safe for concurrent reads.
+
+== Minimum Spanning Trees — `mst/`, `mst_ts/`
+
+Sedgwick's §4.7–4.8 minimum spanning trees over `dijkstra`'s
+`EdgeWeightedGraph` — three algorithms, each a constructor-style
+immutable result object with the same surface (`Edges` — the tree
+edges, `Weight` — their sum, `Len`): `NewLazyPrimMST` (crossing edges
+in `pluto/priority_queue`, stale edges discarded on pop),
+`NewPrimMST` (eager — `pluto/index_pq`, decrease-key via `Change`),
+and `NewKruskalMST` (edges sorted with `slices.SortFunc`, cycle check
+via `pluto/union_find`) — three intra-pluto compositions on one graph
+type. Eager Prim is O(E log V), lazy Prim O(E log E), Kruskal
+O(E log E). Any edge weights are legal (negative edges are no problem
+for MSTs — only the Dijkstra constructors reject them); a disconnected
+graph yields the minimum spanning *forest* (fewer than V-1 edges).
+Constructors panic on a nil or empty graph; verified edge-for-edge
+against the algs4 tinyEWG dataset (weight 1.81) and cross-checked
+against each other plus an in-test brute-force reference at fixed
+seed.
+
+* Good: pick the algorithm that fits — eager Prim for dense graphs,
+lazy Prim for code clarity, Kruskal when edges come pre-sorted; all
+three agree, tested so.
+* Bad: undirected only (an MST is inherently undirected); the graph
+type is borrowed from `dijkstra` — no weighted-graph container of its
+own.
+
+`mst_ts` is the twin whose constructors take
+`*dijkstra_ts.EdgeWeightedGraph`: each per-vertex `Adj` call already
+returns a snapshot copied under the graph's read lock, so the
+algorithms run lock-free on a consistent-per-vertex view (not an
+atomic whole-graph snapshot — `dijkstra_ts` exports none) and the
+result objects are immutable.
+
+== Bellman-Ford & DAG Shortest Paths — `bellman_ford/`, `bellman_ford_ts/`
+
+Sedgwick's §4.10–4.11 shortest paths where `dijkstra` cannot go:
+negative edge weights. `NewBellmanFordSP(g, s)` over `dijkstra`'s
+`EdgeWeightedDigraph` is the queue-based Bellman-Ford (FIFO of
+vertices whose `distTo` decreased — `pluto/queue` internally; relax
+rounds counted, a full round with no improvement ends it, and every
+V-th round scans the `edgeTo` subgraph for a negative cycle).
+`DistTo` (`+Inf` when unreachable), `HasPathTo`, source-first `PathTo`
+whose weights sum to `DistTo`, `HasNegativeCycle` and `NegativeCycle`
+(the cycle in cycle order). Following algs4, when a negative cycle is
+reachable from the source, `DistTo`/`PathTo` panic naming the method —
+the distances are undefined; `HasNegativeCycle`/`NegativeCycle` are
+the way to inspect that case. Also in the package, §4.10:
+`NewAcyclicSP` / `NewAcyclicLP` (g, s) — shortest and longest paths in
+an edge-weighted DAG by topological-order relaxation, O(E+V), with an
+internal topological sort (self-contained; no import of `digraph`);
+both panic if the digraph has a cycle. `AcyclicLP` reports `-Inf` for
+unreachable. Verified against tinyEWD/tinyEWDn/tinyEWDAG from algs4
+and cross-checked against `dijkstra` on non-negative graphs and a
+naive relax-everything reference at fixed seeds.
+
+* Good: the general single-source shortest path — negative edges,
+negative-cycle detection with a witness cycle, plus the linear-time
+DAG special cases (CPM-style critical paths included).
+* Bad: O(V·E) worst case — use `dijkstra` when weights are
+non-negative and `AcyclicSP` when the digraph is a DAG.
+
+`bellman_ford_ts` is the twin whose constructors take
+`*dijkstra_ts.EdgeWeightedDigraph`, snapshot the adjacency per vertex
+under the read lock (same atomicity caveat as `mst_ts`), then compute
+lock-free; the result objects are immutable.
 
 == R-way Tries — `trie/`, `trie_ts/`
 
@@ -756,6 +868,35 @@ a new string is a new `SuffixArray`.
 The structure is *immutable after construction*, so concurrent reads
 are safe as-is and there is no `suffix_array_ts` twin (the `queue_dll`
 precedent — documented in the package doc and README).
+
+== Fenwick & Segment Trees — `fenwick_tree/`, `segment_tree/` (+ `_ts` twins)
+
+The two classic range-query structures from Sedgwick's "Beyond"
+section, generic over `g_lib.Numeric` (the `~int|~float64|...` union —
+defined numeric types pass). `FenwickTree[T]` (binary indexed tree,
+internal 1-based array over the indices `0..n-1`) answers prefix sums:
+`Add(i, delta)` point updates and `Sum(i)`/`RangeSum(lo, hi)` queries
+in O(log n), plus `Value` (prefix-difference reconstruction) and `Set`
+(via computed delta); `NewFenwickTree(n)` or `NewFenwickTreeFrom(data)`
+(O(n) build). `SegmentTree[T]` is the general form: array-backed
+(2·next-pow-2, identity-padded leaves), `NewSegmentTree(data)` for
+range sums and `NewSegmentTreeFunc(data, combine, identity)` for any
+associative op — min/max/gcd — with `Query(lo, hi)` and point-assign
+`Update(i, v)` in O(log n) and `Value` in O(1). Both follow the `heap`
+indexed-operation convention: out-of-range indices report
+`false`/zero, never panic; panics only on `n < 1`/empty data, a nil
+`combine`, and writes on a nil tree.
+
+* Good: O(log n) range queries with tiny constants; Fenwick is ~1/3
+the memory of the segment tree for the sum case, the segment tree
+covers any associative combine.
+* Bad: both are point-update structures — no range-update/lazy
+propagation (yet); the index space is fixed at construction.
+
+The `_ts` twins add the RWMutex: reads under the read lock, writes
+under the write lock, nil guards before lock acquisition, and the real
+`Lock`/`Unlock` plus `Nl*` methods (`NlSum`/`NlRangeSum`/`NlAdd`... /
+`NlQuery`/`NlUpdate`) for atomic read-modify-write compounds.
 
 == Supporting Packages
 

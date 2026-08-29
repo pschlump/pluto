@@ -1,0 +1,85 @@
+= fenwick_tree
+
+A *Fenwick tree (binary indexed tree)* over the indices `0..n-1` — the
+classic prefix-sum structure from the "Beyond" section of Sedgwick &
+Wayne's algs4 code list.  It maintains an array of `n` numeric values
+and answers prefix-sum queries in O(log n) with point updates in
+O(log n), using exactly `n` slots of storage — no node objects, no
+recursion.
+
+Generic over `g_lib.Numeric` (`~int | ~uint | ... | ~float64`): the
+element type must be addable and subtractable, which `Numeric`
+guarantees.  Range sums are the difference of two prefix sums; a point
+`Value` is the difference of two adjacent prefix sums.
+
+Out-of-range indices *report, they do not panic* (the `heap`
+indexed-operation convention): `Add` and `Set` return `false`, `Value`
+and `RangeSum` report `ok=false`, and `Sum` returns the zero value of
+`T` (a `Sum` on any out-of-range index, including `Sum(-1)`, is the
+empty sum).
+
+Not safe for concurrent use — see
+link:../fenwick_tree_ts/[pluto/fenwick_tree_ts] for the thread-safe
+twin.
+
+== Operations
+
+[options="header"]
+|===
+| Operation  | Description                                  | Complexity
+
+| `Add`      | Add delta to the value at i                  | O(log n)
+| `Set`      | Assign v to the value at i (via the delta)   | O(log n)
+| `Sum`      | Sum of the values at 0..i inclusive          | O(log n)
+| `RangeSum` | Sum over [lo, hi] inclusive, `(sum, ok)`     | O(log n)
+| `Value`    | Value at i, `(value, ok)`                    | O(log n)
+| `Len`      | n, the number of slots (0..n-1)              | O(1)
+| `IsEmpty`  | True only for a nil or zero-value tree       | O(1)
+|===
+
+The internal array is 1-based: `tree[k]` holds the sum of the
+`lowbit(k)` values ending at slot `k-1`.  `NewFenwickTreeFrom` builds
+in O(n) by summing each slot into its parent range rather than by `n`
+calls to `Add`.
+
+== Usage
+
+[source,go]
+----
+ft := fenwick_tree.NewFenwickTreeFrom([]int{3, 1, 4, 1, 5, 9, 2, 6})
+
+ft.Sum(3)          // 9 — 3+1+4+1
+ft.RangeSum(2, 5)  // (19, true) — 4+1+5+9
+
+ft.Add(0, 10)      // slot 0: 3 -> 13
+ft.Set(1, 20)      // slot 1: 1 -> 20
+ft.Sum(3)          // 38
+
+v, ok := ft.Value(7) // (6, true)
+----
+
+== Panics
+
+The package has exactly *three* panics:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewFenwickTree(n)` with `n < 1`            | a Fenwick tree over no slots is meaningless
+| `NewFenwickTreeFrom(data)` with empty data  | same reason
+| `Add` / `Set` on a nil `*FenwickTree`       | a nil structure cannot record an update
+|===
+
+A nil `*FenwickTree` and the zero value behave as an *empty* tree (no
+slots) for every other operation: `Sum` returns 0, `RangeSum` and
+`Value` report `ok=false`, `Add`/`Set` on a *zero value* report `false`
+(there are no slots to update), and `Len` returns 0.
+
+== Concurrency
+
+Not safe for concurrent use.  The twin
+link:../fenwick_tree_ts/[pluto/fenwick_tree_ts] guards the identical
+API with a `sync.RWMutex` — reads (`Sum`/`RangeSum`/`Value`/`Len`)
+under the read lock, writes (`Add`/`Set`) under the write lock, plus a
+real `Lock`/`Unlock` and `Nl*` methods for compound operations.

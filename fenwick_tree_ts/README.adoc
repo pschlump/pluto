@@ -1,0 +1,74 @@
+= fenwick_tree_ts
+
+The thread-safe twin of link:../fenwick_tree/[pluto/fenwick_tree] — a
+*Fenwick tree (binary indexed tree)* over the indices `0..n-1`, the
+identical API guarded by a `sync.RWMutex`, with the addition of a real
+`Lock`/`Unlock` pair and the `Nl`-prefixed (no-lock) methods for
+compound operations.
+
+Generic over `g_lib.Numeric`.  Out-of-range indices *report, they do
+not panic*: `Add`/`Set` return `false`, `Value`/`RangeSum` report
+`ok=false`, `Sum` returns the zero value of `T` (`Sum(-1)` is the
+empty prefix).
+
+== Operations
+
+[options="header"]
+|===
+| Operation  | Description                                  | Complexity | Lock
+
+| `Add`      | Add delta to the value at i                  | O(log n)   | write
+| `Set`      | Assign v to the value at i (via the delta)   | O(log n)   | write
+| `Sum`      | Sum of the values at 0..i inclusive          | O(log n)   | read
+| `RangeSum` | Sum over [lo, hi] inclusive, `(sum, ok)`     | O(log n)   | read
+| `Value`    | Value at i, `(value, ok)`                    | O(log n)   | read
+| `Len`      | n, the number of slots (0..n-1)              | O(1)       | read
+| `IsEmpty`  | True only for a nil or zero-value tree       | O(1)       | read
+|===
+
+Unlike `union_find_ts` (whose `Find` mutates via path halving), no read
+here mutates the structure — prefix sums and value reconstruction are
+pure, so readers really do run under the read lock in parallel.
+
+== Usage
+
+[source,go]
+----
+ft := fenwick_tree_ts.NewFenwickTreeFrom([]int{3, 1, 4, 1, 5, 9, 2, 6})
+
+ft.Sum(3)         // 9
+ft.Add(0, 10)     // safe to call from any goroutine
+
+// Atomic read-modify-write: Lock + the Nl-prefixed methods.
+ft.Lock()
+v, _ := ft.NlValue(2)
+ft.NlSet(2, 10*v)
+ft.Unlock()
+----
+
+While `Lock` is held, call only the `Nl`-prefixed methods —
+`NlLen`/`NlSum`/`NlRangeSum`/`NlValue`/`NlAdd`/`NlSet`.  Calling a
+regular method while holding `Lock` deadlocks.
+
+== Panics
+
+The package has exactly *three* panics, identical to `fenwick_tree`
+(messages prefixed `fenwick_tree_ts:`):
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewFenwickTree(n)` with `n < 1`            | a Fenwick tree over no slots is meaningless
+| `NewFenwickTreeFrom(data)` with empty data  | same reason
+| `Add` / `Set` on a nil `*FenwickTree`       | a nil structure cannot record an update
+|===
+
+Nil guards come *before* the lock acquisition (a nil-receiver lock
+would itself panic).  A nil `*FenwickTree` and the zero value behave as
+an *empty* tree for every other operation; `Lock`/`Unlock` on a nil
+tree are no-ops.
+
+== Concurrency
+
+Safe for concurrent use.  Run the tests with `go test -race`.

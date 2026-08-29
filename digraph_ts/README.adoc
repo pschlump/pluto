@@ -1,0 +1,93 @@
+= digraph_ts
+
+The thread-safe twin of link:../digraph/[`digraph`]: a *directed graph*
+on the integer vertices `0..n-1` with adjacency lists, plus multi-source
+depth-first reachability, depth-first and breadth-first directed paths,
+directed-cycle detection, depth-first order, topological sort, and
+Kosaraju's strong components as constructor-style query objects — the
+identical public API behind a `sync.RWMutex` (Sedgwick's §4.4–4.6
+`Digraph`, `DirectedDFS`, `DepthFirstDirectedPaths`,
+`BreadthFirstDirectedPaths`, `DirectedCycle`, `DepthFirstOrder`,
+`Topological`, `KosarajuSharirSCC`).
+
+== Concurrency model
+
+[options="header"]
+|===
+| Operation                              | Locking
+
+| `AddEdge`                              | write lock
+| `V` / `Len` / `E` / `OutDegree` / `InDegree` / `HasEdge` | read lock, released before returning
+| `Adj`                                  | snapshot of the one adjacency list copied under the read lock, then iterated lock-free
+| `Reverse`                              | snapshot of the adjacency under the read lock, built into an independent copy
+| `NewDirectedDFS` / `NewDFSDirectedPaths` / `NewBFSDirectedPaths` / `NewDirectedCycle` / `NewDepthFirstOrder` / `NewTopological` / `NewKosarajuSCC` | snapshot of the whole adjacency structure under the read lock, then the traversal runs lock-free on the snapshot
+|===
+
+Because `Adj` and the query constructors work on snapshots, they are safe
+to use concurrently with any digraph operation — including mutating the
+digraph from inside an `Adj` loop — and they never observe later
+modifications.  No lock is held during a traversal.  The query objects
+(`DirectedDFS`, `DFSDirectedPaths`, `BFSDirectedPaths`, `DirectedCycle`,
+`DepthFirstOrder`, `Topological`, `KosarajuSCC`) are immutable and safe
+for concurrent reads.
+
+The BFS traversal queue is pluto's own link:../queue/[`queue`] (the plain
+one — nothing but the constructing goroutine ever touches it).
+
+== Operations and queries
+
+Identical to link:../digraph/[`digraph`]:
+`NewDigraph`/`AddEdge`/`V`/`Len`/`E`/`OutDegree`/`InDegree`/`Adj`/
+`HasEdge`/`Reverse` (AddEdge O(1)); `NewDirectedDFS`/
+`NewDFSDirectedPaths`/`NewBFSDirectedPaths`/`NewDirectedCycle`/
+`NewDepthFirstOrder`/`NewTopological`/`NewKosarajuSCC` with
+`Marked`/`Count`/`HasPathTo`/`PathTo`/`DistTo`/`HasCycle`/`Cycle`/
+`Pre`/`Post`/`ReversePost`/`HasOrder`/`Order`/`StronglyConnected`/`ID`/
+`Count` (all traversals O(V+E), space O(V)).  Self-loops count once in
+`E`, once in `OutDegree`, and once in `InDegree`; parallel edges are
+allowed; there is deliberately no `RemoveEdge`.
+
+== Panics
+
+Identical to link:../digraph/[`digraph`] (each message names the method,
+prefixed `digraph_ts:`):
+
+[options="header"]
+|===
+| Call                                                | Why
+
+| `NewDigraph(n < 1)`                                 | a digraph needs at least one vertex
+| `AddEdge` on a nil digraph                          | a nil digraph cannot store an edge
+| `NewDirectedDFS`/`NewDFSDirectedPaths`/`NewBFSDirectedPaths` nil/empty digraph | no source vertex exists to search from
+| `NewDirectedDFS`/`NewDFSDirectedPaths`/`NewBFSDirectedPaths` bad source        | out-of-range source is a programmer error
+| `NewDirectedDFS` with no sources                    | nothing to search from
+|===
+
+Everything else tolerates a nil or zero-value digraph as an empty digraph
+with no vertices.
+
+== Usage
+
+[source,go]
+----
+g := digraph_ts.NewDigraph(64)
+
+var wg sync.WaitGroup
+for w := range 4 {
+    wg.Add(1)
+    go func(w int) {
+        defer wg.Done()
+        for i := 0; i < 500; i++ {
+            g.AddEdge((w*7+i)%64, (i*13+w)%64)
+        }
+    }(w)
+}
+wg.Wait()
+
+// Safe concurrently with the writers above: the traversal runs on a
+// snapshot taken under the read lock.
+scc := digraph_ts.NewKosarajuSCC(g)
+n := scc.Count()
+----
+
+Run the tests with `-race`.

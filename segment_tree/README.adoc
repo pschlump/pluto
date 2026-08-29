@@ -1,0 +1,86 @@
+= segment_tree
+
+An array-backed *segment tree* over the indices `0..n-1` — the general
+range-combine structure from the "Beyond" section of Sedgwick & Wayne's
+algs4 code list.  It maintains an array of `n` values under an
+associative combine operation and answers range-combine queries in
+O(log n) with point updates in O(log n).  Where a Fenwick tree
+(link:../fenwick_tree/[pluto/fenwick_tree]) only sums, a segment tree
+carries any associative operation with an identity: sum, min, max,
+gcd, ...
+
+Following the pluto ordering convention there are two constructors:
+`NewSegmentTree[T g_lib.Numeric](data)` (range SUM over the type's
+built-in `+` operator, identity 0) and `NewSegmentTreeFunc[T any](data,
+combine, identity)` for an arbitrary associative combine — min with
+`+Inf`, max with `-Inf`, gcd with 0.  The `combine`/`identity` pair
+*must agree*: `combine(identity, x) == combine(x, identity) == x`.
+
+Out-of-range indices *report, they do not panic* (the `heap`
+indexed-operation convention): `Update` returns `false`, `Query` and
+`Value` report `ok=false`.
+
+Not safe for concurrent use — see
+link:../segment_tree_ts/[pluto/segment_tree_ts] for the thread-safe
+twin.
+
+== Operations
+
+[options="header"]
+|===
+| Operation | Description                                    | Complexity
+
+| `Query`   | Combine of the values over [lo, hi], `(v, ok)` | O(log n)
+| `Update`  | Assign v to the value at i                     | O(log n)
+| `Value`   | Value at i, `(value, ok)`                      | O(1)
+| `Len`     | n, the number of slots (0..n-1)                | O(1)
+| `IsEmpty` | True only for a nil or zero-value tree         | O(1)
+|===
+
+The tree is stored in a slice of size `2*size`, where `size` is the
+smallest power of two ≥ n: slot `i`'s value lives at `tree[size+i]`,
+and every internal node `tree[k]` holds `combine(tree[2k],
+tree[2k+1])`.  Padding leaves hold the identity, so they never affect
+a query.  `Query` and `Update` are iterative — no recursion.
+
+== Usage
+
+[source,go]
+----
+st := segment_tree.NewSegmentTree([]int{3, 1, 4, 1, 5, 9, 2, 6})
+
+st.Query(2, 5)   // (19, true) — 4+1+5+9
+st.Update(0, 10) // slot 0: 3 -> 10
+
+// A range-MIN tree over the same data:
+min := func(a, b int) int { if a < b { return a }; return b }
+mt := segment_tree.NewSegmentTreeFunc(data, min, math.MaxInt)
+mt.Query(4, 7)   // (2, true)
+----
+
+== Panics
+
+The package has exactly *four* panics:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewSegmentTree(data)` with empty data          | a segment tree over no slots is meaningless
+| `NewSegmentTreeFunc(data, ...)` with empty data | same reason
+| `NewSegmentTreeFunc` with a nil combine         | no combine function, no sane answer
+| `Update` on a nil `*SegmentTree`                | a nil structure cannot record an update
+|===
+
+A nil `*SegmentTree` and the zero value behave as an *empty* tree (no
+slots) for every other operation: `Query` and `Value` report
+`ok=false`, `Update` on a *zero value* reports `false` (there are no
+slots to update), and `Len` returns 0.
+
+== Concurrency
+
+Not safe for concurrent use.  The twin
+link:../segment_tree_ts/[pluto/segment_tree_ts] guards the identical
+API with a `sync.RWMutex` — reads (`Query`/`Value`/`Len`) under the
+read lock, `Update` under the write lock, plus a real `Lock`/`Unlock`
+and `Nl*` methods for compound operations.

@@ -1,0 +1,80 @@
+= mst_ts
+
+The thread-safe twin of link:../mst/[`mst`]: minimum spanning trees of an
+edge-weighted *undirected graph* — Sedgwick's §4.3 — as constructor-style
+query objects over link:../dijkstra_ts/[`dijkstra_ts`]'s
+`EdgeWeightedGraph`.  Same three algorithms, same API:
+
+* `LazyPrimMST` — lazy Prim's algorithm, crossing edges on a
+  link:../priority_queue/[`priority_queue`].
+* `PrimMST` — eager Prim's algorithm, one queue entry per vertex on a
+  link:../index_pq/[`index_pq`] (`Change` is the decrease-key).
+* `KruskalMST` — Kruskal's algorithm, cycle detection with a
+  link:../union_find/[`union_find`].
+
+Each result is computed eagerly in the constructor and is an *immutable
+snapshot*, safe for concurrent reads.  On a disconnected graph every
+constructor produces the minimum spanning *forest* — one minimum tree per
+connected component, so fewer than `V-1` edges.  Edge weights may be
+*negative*, and self-loops / parallel edges are handled: a self-loop
+never joins a tree and the cheapest of parallel edges wins.
+
+== Operations
+
+[options="header"]
+|===
+| Operation            | Description                                   | Complexity
+
+| `NewLazyPrimMST(g)`  | MST/MSF via lazy Prim's algorithm             | O(E log E) + O(V+E) snapshot
+| `NewPrimMST(g)`      | MST/MSF via eager Prim's algorithm            | O(E log V) + O(V+E) snapshot
+| `NewKruskalMST(g)`   | MST/MSF via Kruskal's algorithm               | O(E log E) + O(V+E) snapshot
+| `Edges()`            | The tree edges, a fresh slice                 | O(Len)
+| `Weight()`           | Total weight of the tree (forest)             | O(1)
+| `Len()`              | Number of tree edges (`V-1` when connected)   | O(1)
+|===
+
+All three algorithms produce the same total weight; when the MST is
+unique (distinct edge weights) they produce the same edge set, too.
+
+== Usage
+
+[source,go]
+----
+g := dijkstra_ts.NewEdgeWeightedGraph(4)
+g.AddEdge(dijkstra_ts.Edge{V: 0, W: 1, Weight: 1})
+g.AddEdge(dijkstra_ts.Edge{V: 1, W: 2, Weight: 2})
+g.AddEdge(dijkstra_ts.Edge{V: 2, W: 3, Weight: 3})
+g.AddEdge(dijkstra_ts.Edge{V: 0, W: 3, Weight: 10})
+
+mst := mst_ts.NewKruskalMST(g)
+for _, e := range mst.Edges() {   // 0--1(1), 1--2(2), 2--3(3), ascending by weight
+    ...
+}
+mst.Weight()                      // 6
+mst.Len()                         // 3 — V-1 on a connected graph
+----
+
+== Panics
+
+[options="header"]
+|===
+| Call                                    | Why
+
+| `NewLazyPrimMST`/`NewPrimMST`/`NewKruskalMST` on a nil or empty graph | no spanning tree exists to compute
+|===
+
+That is the whole panic surface; the messages are prefixed `mst_ts:`.
+A nil result object tolerates every read: `Edges` reports nil, `Weight`
+0, `Len` 0.
+
+== Concurrency
+
+Each constructor reads the graph's adjacency through `dijkstra_ts.Adj` —
+one snapshot copy per vertex list, each taken under the graph's read
+lock — and then computes *lock-free* on the snapshots; no lock is held
+during the computation.  The snapshot is per list, not atomic across the
+whole graph: an edge added concurrently may be seen from one endpoint's
+list and not the other's, so the result is a valid MST of *some* recent
+state of the graph, computed race-free.  The result objects are
+immutable after construction and safe for concurrent reads.  Run the
+tests with `-race`.

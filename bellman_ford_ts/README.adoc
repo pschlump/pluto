@@ -1,0 +1,73 @@
+= bellman_ford_ts
+
+The thread-safe twin of link:../bellman_ford/[`bellman_ford`]: the
+queue-based *Bellman-Ford* shortest-path algorithm with negative-cycle
+detection (Sedgwick §4.11) plus the §4.10 DAG shortest/longest-path
+algorithms (`AcyclicSP` / `AcyclicLP`), computed over the
+mutex-guarded edge-weighted digraphs of
+link:../dijkstra_ts/[`dijkstra_ts`].  Negative edge weights are legal —
+that is the point of the package.
+
+== Operations
+
+Identical query API to `bellman_ford`:
+
+[options="header"]
+|===
+| Operation                | Description                                          | Complexity
+
+| `NewBellmanFordSP(g, s)` | Shortest paths from `s`, or a reachable negative cycle | O(E·V) worst case
+| `NewAcyclicSP(g, s)`     | Shortest paths from `s` in a DAG                     | O(E+V)
+| `NewAcyclicLP(g, s)`     | Longest paths from `s` in a DAG                      | O(E+V)
+| `DistTo(v)`              | Shortest/longest distance (`+Inf` / `-Inf` if unreachable) | O(1)
+| `HasPathTo(v)`           | Reachability query                                   | O(1)
+| `PathTo(v)`              | Path source→v, source-first, fresh slice             | O(path length)
+| `HasNegativeCycle()`     | Is a negative cycle reachable from the source        | O(1)
+| `NegativeCycle()`        | One such cycle, in cycle order (nil when none)       | O(cycle length)
+|===
+
+== Usage
+
+[source,go]
+----
+g := dijkstra_ts.NewEdgeWeightedDigraph(3)
+g.AddEdge(dijkstra_ts.DirectedEdge{From: 0, To: 1, Weight: 2})
+g.AddEdge(dijkstra_ts.DirectedEdge{From: 1, To: 2, Weight: -4})
+
+sp := bellman_ford_ts.NewBellmanFordSP(g, 0) // snapshots under the read lock, then computes lock-free
+sp.HasNegativeCycle() // false
+sp.DistTo(2)          // -2
+----
+
+== Panics
+
+Same contract as `bellman_ford`, with messages prefixed
+`bellman_ford_ts:`:
+
+[options="header"]
+|===
+| Call                                                          | Why
+
+| `NewBellmanFordSP`/`NewAcyclicSP`/`NewAcyclicLP` nil/empty graph | no graph to search
+| the constructors with an out-of-range source                  | no such vertex
+| `NewAcyclicSP`/`NewAcyclicLP` on a digraph with a cycle       | no topological order exists
+| `DistTo`/`PathTo` on a `BellmanFordSP` with a negative cycle  | shortest paths are undefined then
+|===
+
+== Concurrency
+
+The constructors take the graph's read lock via `dijkstra_ts`'s `V` and
+`Adj` — `Adj` returns a snapshot copy of one adjacency list taken under
+the read lock — and then compute *lock-free* on the snapshot; no lock is
+held during the search.  The snapshot is consistent per vertex; under
+concurrent `AddEdge` calls different vertices' lists may reflect
+slightly different points in time, but the result is always correct for
+some state of the graph.
+
+The query objects (`BellmanFordSP`, `AcyclicSP`, `AcyclicLP`) are
+immutable after construction and safe for concurrent reads; their
+`Lock`/`Unlock` are no-ops kept for API parity with the plain package.
+
+Run the tests with `-race`; `TestBellmanFordConcurrent` and
+`TestAcyclicConcurrent` hammer the graph with concurrent writers,
+readers, and constructors.

@@ -1,0 +1,128 @@
+= digraph
+
+A *directed graph* on the integer vertices `0..n-1` with adjacency lists
+— Sedgwick's §4.4 `Digraph` — plus the fundamental digraph algorithms of
+§4.4–4.6 as constructor-style query objects in the same package:
+multi-source depth-first reachability, depth-first and breadth-first
+directed paths, directed-cycle detection, depth-first order, topological
+sort, and Kosaraju's strong components.  The vertices *are* the indices,
+like Sedgwick; there is no element type.
+
+Self-loops and parallel edges are allowed: `AddEdge(v, v)` counts once in
+`E`, once in `OutDegree(v)`, and once in `InDegree(v)`.  There is
+deliberately *no* `RemoveEdge` — matching Sedgwick's `Digraph` and
+keeping the surface minimal.
+
+Not safe for concurrent use (a mutex-guarded twin,
+link:../digraph_ts/[`digraph_ts`], has the same interface).
+
+== Operations
+
+[options="header"]
+|===
+| Operation          | Description                                    | Complexity
+
+| `NewDigraph(n)`    | Create a digraph with n vertices, no edges     | O(n)
+| `AddEdge(v, w)`    | Add the edge v->w (false if out of range)      | O(1)
+| `V` / `Len`        | Number of vertices                             | O(1)
+| `E`                | Number of edges (self-loop counts once)        | O(1)
+| `OutDegree(v)`     | Edges leaving v                                | O(1)
+| `InDegree(v)`      | Edges entering v (maintained, not recomputed)  | O(1)
+| `Adj(v)`           | Iterator over the out-neighbors of v           | O(outdegree(v))
+| `HasEdge(v, w)`    | Report whether the edge v->w exists            | O(outdegree(v))
+| `Reverse()`        | New digraph with every edge flipped            | O(V+E)
+|===
+
+`Len` is an alias for `V`, matching the other pluto packages.  `Adj`
+yields out-neighbors in *insertion order* (deterministic — there is no
+random seed); the digraph must not be modified while an iterator is
+running.  `Reverse` returns an independent copy (a nil digraph reverses
+to nil); it powers the Kosaraju strong-component query.
+
+== Queries
+
+Each query is a constructor that runs a traversal once and answers
+queries in O(1)-ish time afterwards.  The result objects are *immutable
+snapshots* of the digraph at construction time: later `AddEdge` calls are
+not reflected.
+
+[options="header"]
+|===
+| Query                              | Description                                  | Complexity
+
+| `NewDirectedDFS(g, sources...)`    | Reachability from a set of sources           | O(V+E)
+| `NewDFSDirectedPaths(g, s)`        | Paths from s via depth-first search          | O(V+E)
+| `NewBFSDirectedPaths(g, s)`        | Shortest paths from s via BFS                | O(V+E)
+| `NewDirectedCycle(g)`              | A directed cycle, if one exists              | O(V+E)
+| `NewDepthFirstOrder(g)`            | Preorder, postorder, reverse postorder       | O(V+E)
+| `NewTopological(g)`                | A topological order, if the digraph is a DAG | O(V+E)
+| `NewKosarajuSCC(g)`                | Strongly connected components (Kosaraju)     | O(V+E)
+| `Marked(v)` / `Count` (DirectedDFS) | Is v reachable / how many vertices          | O(1)
+| `HasPathTo(v)`                     | Is v reachable from the source               | O(1)
+| `PathTo(v)`                        | Path source->v, source first, fresh slice    | O(path length)
+| `DistTo(v)` (BFS only)             | Edges on a shortest path to v                | O(1)
+| `HasCycle` / `Cycle`               | Cycle presence / one cycle, first vertex repeated at the end | O(1) / O(cycle length)
+| `Pre` / `Post` / `ReversePost`     | The DFS vertex orders, fresh slices          | O(V)
+| `HasOrder` / `Order`               | Topological order presence / the order (nil when cyclic) | O(1) / O(V)
+| `StronglyConnected(v, w)` / `ID` / `Count` (SCC) | Strong-component queries         | O(1)
+|===
+
+The BFS traversal queue is pluto's own link:../queue/[`queue`] — an
+intra-pluto composition, like `priority_queue` over `heap`.
+`NewKosarajuSCC` runs `NewDepthFirstOrder` on `Reverse()`, then a DFS on
+the digraph itself in reverse-postorder.  `NewTopological` is
+`NewDirectedCycle` + `NewDepthFirstOrder`: the reverse postorder is a
+topological order exactly when there is no directed cycle.
+
+== Usage
+
+[source,go]
+----
+g := digraph.NewDigraph(5)
+for _, e := range [][2]int{{0, 1}, {0, 2}, {1, 3}, {2, 3}, {3, 4}} {
+    g.AddEdge(e[0], e[1])
+}
+
+bfs := digraph.NewBFSDirectedPaths(g, 0)
+d, _ := bfs.DistTo(4)      // 3 — shortest directed path
+path, _ := bfs.PathTo(4)   // [0 1 3 4], source first
+
+top := digraph.NewTopological(g)
+top.Order()                // [0 2 1 3 4] — for every edge v->w, v precedes w
+
+scc := digraph.NewKosarajuSCC(g)
+scc.Count()                // 5 — a DAG has only singleton strong components
+
+for w := range g.Adj(0) {  // 1 2 — insertion order
+    ...
+}
+----
+
+== Panics
+
+[options="header"]
+|===
+| Call                                                | Why
+
+| `NewDigraph(n < 1)`                                 | a digraph needs at least one vertex
+| `AddEdge` on a nil digraph                          | a nil digraph cannot store an edge
+| `NewDirectedDFS`/`NewDFSDirectedPaths`/`NewBFSDirectedPaths` nil/empty digraph | no source vertex exists to search from
+| `NewDirectedDFS`/`NewDFSDirectedPaths`/`NewBFSDirectedPaths` bad source        | out-of-range source is a programmer error
+| `NewDirectedDFS` with no sources                    | nothing to search from
+|===
+
+Everything else tolerates a nil or zero-value digraph as an empty digraph
+with no vertices: reads report not-found/0, `Adj` yields nothing,
+`Reverse` returns nil/empty, and `AddEdge` on a zero-value digraph
+returns false (every vertex is out of range).  `NewDirectedCycle`,
+`NewDepthFirstOrder`, `NewTopological`, and `NewKosarajuSCC` have a sane
+answer for a nil or empty digraph — no cycle, empty orders, no components
+— so they do not panic.  A nil query object answers every query with
+not-found/nil/0.
+
+== Concurrency
+
+Not safe for concurrent use.  Use link:../digraph_ts/[`digraph_ts`],
+where `Adj` iterates a snapshot copied under the read lock and the query
+constructors snapshot the adjacency under the read lock, then traverse
+lock-free.

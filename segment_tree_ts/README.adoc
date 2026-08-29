@@ -1,0 +1,74 @@
+= segment_tree_ts
+
+The thread-safe twin of link:../segment_tree/[pluto/segment_tree] — an
+array-backed *segment tree* over the indices `0..n-1`, the identical
+API guarded by a `sync.RWMutex`, with the addition of a real
+`Lock`/`Unlock` pair and the `Nl`-prefixed (no-lock) methods for
+compound operations.
+
+Two constructors, per the pluto ordering convention:
+`NewSegmentTree[T g_lib.Numeric](data)` (range SUM, identity 0) and
+`NewSegmentTreeFunc[T any](data, combine, identity)` for an arbitrary
+associative combine with its identity element — the `combine`/`identity`
+pair *must agree*.  Out-of-range indices *report, they do not panic*:
+`Update` returns `false`, `Query`/`Value` report `ok=false`.
+
+== Operations
+
+[options="header"]
+|===
+| Operation | Description                                    | Complexity | Lock
+
+| `Query`   | Combine of the values over [lo, hi], `(v, ok)` | O(log n)   | read
+| `Update`  | Assign v to the value at i                     | O(log n)   | write
+| `Value`   | Value at i, `(value, ok)`                      | O(1)       | read
+| `Len`     | n, the number of slots (0..n-1)                | O(1)       | read
+| `IsEmpty` | True only for a nil or zero-value tree         | O(1)       | read
+|===
+
+No read mutates the structure — queries really do run under the read
+lock in parallel.
+
+== Usage
+
+[source,go]
+----
+st := segment_tree_ts.NewSegmentTree([]int{3, 1, 4, 1, 5, 9, 2, 6})
+
+st.Query(2, 5)    // (19, true)
+st.Update(0, 10)  // safe to call from any goroutine
+
+// Atomic read-modify-write: Lock + the Nl-prefixed methods.
+st.Lock()
+v, _ := st.NlValue(2)
+st.NlUpdate(2, 10*v)
+st.Unlock()
+----
+
+While `Lock` is held, call only the `Nl`-prefixed methods —
+`NlLen`/`NlQuery`/`NlValue`/`NlUpdate`.  Calling a regular method
+while holding `Lock` deadlocks.
+
+== Panics
+
+The package has exactly *four* panics, identical to `segment_tree`
+(messages prefixed `segment_tree_ts:`):
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewSegmentTree(data)` with empty data          | a segment tree over no slots is meaningless
+| `NewSegmentTreeFunc(data, ...)` with empty data | same reason
+| `NewSegmentTreeFunc` with a nil combine         | no combine function, no sane answer
+| `Update` on a nil `*SegmentTree`                | a nil structure cannot record an update
+|===
+
+Nil guards come *before* the lock acquisition (a nil-receiver lock
+would itself panic).  A nil `*SegmentTree` and the zero value behave as
+an *empty* tree for every other operation; `Lock`/`Unlock` on a nil
+tree are no-ops.
+
+== Concurrency
+
+Safe for concurrent use.  Run the tests with `go test -race`.

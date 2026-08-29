@@ -1,0 +1,88 @@
+= bellman_ford
+
+The queue-based *Bellman-Ford* shortest-path algorithm with
+negative-cycle detection (Sedgwick, Algorithms §4.4 — the book's §4.11
+`BellmanFordSP`) over the edge-weighted digraphs of
+link:../dijkstra/[pluto/dijkstra], plus the §4.10 linear-time
+shortest/longest-path algorithms for edge-weighted *DAGs* (`AcyclicSP` /
+`AcyclicLP`).  Unlike Dijkstra's algorithm, *negative edge weights are
+legal* — that is the point of the package.
+
+The queries are constructor-style *immutable snapshots* of the graph at
+construction time, exactly like `dijkstra`'s query objects: later
+`AddEdge` calls are not reflected.  The FIFO queue of vertices to relax
+is link:../queue/[pluto/queue] — an intra-pluto composition, like
+`graph`'s BFS.
+
+== Operations
+
+[options="header"]
+|===
+| Operation                | Description                                          | Complexity
+
+| `NewBellmanFordSP(g, s)` | Shortest paths from `s`, or a reachable negative cycle | O(E·V) worst case
+| `NewAcyclicSP(g, s)`     | Shortest paths from `s` in a DAG                     | O(E+V)
+| `NewAcyclicLP(g, s)`     | Longest paths from `s` in a DAG                      | O(E+V)
+| `DistTo(v)`              | Shortest/longest distance (`+Inf` / `-Inf` if unreachable) | O(1)
+| `HasPathTo(v)`           | Reachability query                                   | O(1)
+| `PathTo(v)`              | Path source→v, source-first, fresh slice             | O(path length)
+| `HasNegativeCycle()`     | Is a negative cycle reachable from the source        | O(1)
+| `NegativeCycle()`        | One such cycle, in cycle order (nil when none)       | O(cycle length)
+|===
+
+`PathTo` returns `nil` when there is no path and an empty non-nil slice
+for the source-to-itself path; the weights along a returned path always
+sum to the reported distance.  `AcyclicLP` reports `-Inf` for
+unreachable vertices (the mirror image of the shortest-path `+Inf`) and
+implements longest paths the algs4 way: `distTo` starts at `-Inf` and
+the relax inequality is switched to maximize.
+
+The negative-cycle check is amortized exactly as in algs4: after every
+`V` vertex relaxations the algorithm looks for a cycle in the `edgeTo`
+subgraph (a cycle there is necessarily a negative cycle).  `NegativeCycle`
+returns the edges in cycle order — each edge's `From` is the previous
+edge's `To`, and the last edge's `To` is the first edge's `From`.
+
+== Usage
+
+[source,go]
+----
+g := dijkstra.NewEdgeWeightedDigraph(4)
+g.AddEdge(dijkstra.DirectedEdge{From: 0, To: 1, Weight: 2})
+g.AddEdge(dijkstra.DirectedEdge{From: 1, To: 2, Weight: -4}) // negative weights are legal
+g.AddEdge(dijkstra.DirectedEdge{From: 0, To: 2, Weight: 6})
+
+sp := bellman_ford.NewBellmanFordSP(g, 0)
+sp.HasNegativeCycle() // false
+sp.DistTo(2)          // -2 — via vertex 1
+sp.PathTo(2)          // [{0 1 2} {1 2 -4}], source first
+----
+
+== Panics
+
+The package panics in exactly these situations — all programmer errors
+with no sane fallback:
+
+[options="header"]
+|===
+| Call                                                          | Why
+
+| `NewBellmanFordSP`/`NewAcyclicSP`/`NewAcyclicLP` nil/empty graph | no graph to search
+| the constructors with an out-of-range source                  | no such vertex
+| `NewAcyclicSP`/`NewAcyclicLP` on a digraph with a cycle       | no topological order exists (for `AcyclicLP` a reachable cycle also makes longest paths unbounded)
+| `DistTo`/`PathTo` on a `BellmanFordSP` with a negative cycle  | shortest paths are undefined then (algs4 throws `UnsupportedOperationException`; pluto panics)
+|===
+
+Each panic message is prefixed `bellman_ford:`, names the method, and
+says why.  Everything else tolerates nil receivers: a nil query object
+reports `+Inf` / `false` / `nil` (and no negative cycle) for every
+question.
+
+== Concurrency
+
+This package is *not* safe for concurrent use.  The mutex-guarded twin
+link:../bellman_ford_ts/[`bellman_ford_ts`] has the identical API over
+link:../dijkstra_ts/[`dijkstra_ts`] graphs: the constructors snapshot
+the adjacency under the graph's lock and then compute lock-free on the
+snapshot.  `Lock`/`Unlock` here are no-ops kept for API compatibility
+with the twin.
