@@ -89,7 +89,7 @@ elements.
 import "github.com/pschlump/pluto/g_lib"
 
 m := g_lib.Min(3, 4)                              // 3
-pos := g_lib.LocationInArray(42, []int{1, 42, 7}) // 1
+pos := g_lib.LocationInArray([]int{1, 42, 7}, 42) // 1
 s := g_lib.Unique([]string{"a", "b", "a"})        // ["a", "b"]
 set := g_lib.ToBoolMap([]string{"x", "y"})        // map[string]bool{"x":true, "y":true}
 p := g_lib.Ptr(42)                                // *int pointing at 42

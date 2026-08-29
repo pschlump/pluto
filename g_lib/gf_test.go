@@ -74,26 +74,38 @@ func TestMinMaxArray(t *testing.T) {
 }
 
 func TestInArray(t *testing.T) {
-	found := InArray[int](42, []int{1, 3, 5, 9, 22, 44, 1, 5, 7, 42, 55})
+	found := InArray[int]([]int{1, 3, 5, 9, 22, 44, 1, 5, 7, 42, 55}, 42)
 	if !found {
 		t.Errorf("Failed to find when should be found in array")
 	}
 
-	found = InArray[int](42, []int{1, 3, 5, 9, 22, 44, 1, 5, 7, 43, 55})
+	found = InArray[int]([]int{1, 3, 5, 9, 22, 44, 1, 5, 7, 43, 55}, 42)
 	if found {
 		t.Errorf("Found in array when not there")
 	}
 }
 
 func TestLocationInArray(t *testing.T) {
-	loc := LocationInArray[int](42, []int{1, 3, 5, 9, 22, 44, 1, 5, 7, 42, 55})
+	loc := LocationInArray[int]([]int{1, 3, 5, 9, 22, 44, 1, 5, 7, 42, 55}, 42)
 	if loc != 9 {
 		t.Errorf("Incorrect Location, found %d expected 9", loc)
 	}
 
-	loc = LocationInArray[int](42, []int{1, 3, 5, 9, 22, 44, 1, 5, 7, 43, 55})
+	loc = LocationInArray[int]([]int{1, 3, 5, 9, 22, 44, 1, 5, 7, 43, 55}, 42)
 	if loc != -1 {
 		t.Errorf("Incorrect Location, should not be found")
+	}
+}
+
+func TestArrayHas(t *testing.T) {
+	found := ArrayHas[int]([]int{1, 3, 5, 9, 22, 44, 1, 5, 7, 42, 55}, 42)
+	if !found {
+		t.Errorf("Failed to find when should be found in array")
+	}
+
+	found = ArrayHas[int]([]int{1, 3, 5, 9, 22, 44, 1, 5, 7, 43, 55}, 42)
+	if found {
+		t.Errorf("Found in array when not there")
 	}
 }
 
@@ -107,10 +119,10 @@ func TestKeyForStringMap(t *testing.T) {
 	if len(k) != 2 {
 		t.Errorf("Incorrect Key Length")
 	}
-	if !InArray("abc", k) {
+	if !InArray(k, "abc") {
 		t.Errorf("Incorrect Key")
 	}
-	if !InArray("def", k) {
+	if !InArray(k, "def") {
 		t.Errorf("Incorrect Key")
 	}
 }
@@ -142,13 +154,13 @@ func TestMapKeys(t *testing.T) {
 	if len(exKey) != 3 {
 		t.Errorf("Incorrect Length of Slice, should be 3, got %d", len(exKey))
 	}
-	if !InArray("bob", exKey) {
+	if !InArray(exKey, "bob") {
 		t.Errorf("Failed to find 'bob' in %s", exKey)
 	}
-	if !InArray("abc", exKey) {
+	if !InArray(exKey, "abc") {
 		t.Errorf("Failed to find 'abc' in %s", exKey)
 	}
-	if !InArray("nope", exKey) {
+	if !InArray(exKey, "nope") {
 		t.Errorf("Failed to find 'nope' in %s", exKey)
 	}
 }
@@ -317,7 +329,7 @@ func BenchmarkInArray(b *testing.B) {
 	haystack := []int{1, 3, 5, 9, 22, 44, 1, 5, 7, 42, 55}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = InArray(42, haystack)
+		_ = InArray(haystack, 42)
 	}
 }
 

@@ -62,14 +62,14 @@ func ExampleIfTrue() {
 }
 
 func ExampleInArray() {
-	fmt.Println(g_lib.InArray(42, []int{1, 42, 7}), g_lib.InArray(43, []int{1, 42, 7}))
+	fmt.Println(g_lib.InArray([]int{1, 42, 7}, 42), g_lib.InArray([]int{1, 42, 7}, 43))
 	// Output:
 	// true false
 }
 
 func ExampleLocationInArray() {
-	fmt.Println(g_lib.LocationInArray("b", []string{"a", "b", "c", "b"}))
-	fmt.Println(g_lib.LocationInArray("z", []string{"a", "b", "c"}))
+	fmt.Println(g_lib.LocationInArray([]string{"a", "b", "c", "b"}, "b"))
+	fmt.Println(g_lib.LocationInArray([]string{"a", "b", "c"}, "z"))
 	// Output:
 	// 1
 	// -1
@@ -161,4 +161,13 @@ func ExamplePtr() {
 	fmt.Println(*p)
 	// Output:
 	// 42
+}
+
+// ArrayHas reports membership.  Like InArray (and strings.Contains /
+// slices.Contains in the standard library) the haystack comes first and
+// the needle second.
+func ExampleArrayHas() {
+	fmt.Println(g_lib.ArrayHas([]int{1, 42, 7}, 42), g_lib.ArrayHas([]int{1, 42, 7}, 43))
+	// Output:
+	// true false
 }

@@ -106,32 +106,59 @@ func TestIfTrueComposite(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestInArrayEdgeCases(t *testing.T) {
-	if InArray(1, []int(nil)) {
+	if InArray([]int(nil), 1) {
 		t.Errorf("InArray of nil slice should be false")
 	}
-	if InArray(1, []int{}) {
+	if InArray([]int{}, 1) {
 		t.Errorf("InArray of empty slice should be false")
 	}
-	if !InArray("only", []string{"only"}) {
+	if !InArray([]string{"only"}, "only") {
 		t.Errorf("InArray of single-element slice should find the element")
 	}
 }
 
 func TestLocationInArrayEdgeCases(t *testing.T) {
-	if loc := LocationInArray(1, []int(nil)); loc != -1 {
+	if loc := LocationInArray([]int(nil), 1); loc != -1 {
 		t.Errorf("LocationInArray of nil slice should be -1, got %d", loc)
 	}
 	// First element.
-	if loc := LocationInArray(9, []int{9, 1, 2}); loc != 0 {
+	if loc := LocationInArray([]int{9, 1, 2}, 9); loc != 0 {
 		t.Errorf("LocationInArray should be 0, got %d", loc)
 	}
 	// Last element.
-	if loc := LocationInArray(9, []int{1, 2, 9}); loc != 2 {
+	if loc := LocationInArray([]int{1, 2, 9}, 9); loc != 2 {
 		t.Errorf("LocationInArray should be 2, got %d", loc)
 	}
 	// Duplicates: must return the FIRST occurrence.
-	if loc := LocationInArray(5, []int{5, 1, 5, 5}); loc != 0 {
+	if loc := LocationInArray([]int{5, 1, 5, 5}, 5); loc != 0 {
 		t.Errorf("LocationInArray with duplicates should return first index 0, got %d", loc)
+	}
+}
+
+func TestArrayHasEdgeCases(t *testing.T) {
+	if ArrayHas([]int(nil), 1) {
+		t.Errorf("ArrayHas of nil slice should be false")
+	}
+	if ArrayHas([]int{}, 1) {
+		t.Errorf("ArrayHas of empty slice should be false")
+	}
+	if !ArrayHas([]string{"only"}, "only") {
+		t.Errorf("ArrayHas of single-element slice should find the element")
+	}
+	// First and last positions.
+	if !ArrayHas([]int{1, 2, 3}, 1) {
+		t.Errorf("ArrayHas should find the first element")
+	}
+	if !ArrayHas([]int{1, 2, 3}, 3) {
+		t.Errorf("ArrayHas should find the last element")
+	}
+	// Structs and other comparable element types.
+	type pt struct{ x, y int }
+	if !ArrayHas([]pt{{1, 2}, {3, 4}}, pt{1, 2}) {
+		t.Errorf("ArrayHas with struct elements failed")
+	}
+	if ArrayHas([]pt{{1, 2}, {3, 4}}, pt{9, 9}) {
+		t.Errorf("ArrayHas of absent struct element should be false")
 	}
 }
 
@@ -618,7 +645,7 @@ func TestPropertyRandomizedFixedSeed(t *testing.T) {
 			t.Fatalf("iter %d: SortSlice changed the element set: %v from %v", iter, a, orig)
 		}
 		for _, v := range a {
-			if !InArray(v, orig) {
+			if !InArray(orig, v) {
 				t.Fatalf("iter %d: SortSlice introduced %d not in input %v", iter, v, orig)
 			}
 		}
@@ -632,10 +659,13 @@ func TestPropertyRandomizedFixedSeed(t *testing.T) {
 			model[v] = true
 		}
 		probe := rng.Intn(44) - 22
-		if got, want := InArray(probe, orig), model[probe]; got != want {
+		if got, want := InArray(orig, probe), model[probe]; got != want {
 			t.Fatalf("iter %d: InArray(%d) = %v, want %v", iter, probe, got, want)
 		}
-		loc := LocationInArray(probe, orig)
+		if got, want := ArrayHas(orig, probe), model[probe]; got != want {
+			t.Fatalf("iter %d: ArrayHas(%d) = %v, want %v", iter, probe, got, want)
+		}
+		loc := LocationInArray(orig, probe)
 		if loc == -1 {
 			if model[probe] {
 				t.Fatalf("iter %d: LocationInArray(%d) = -1 but element present", iter, probe)

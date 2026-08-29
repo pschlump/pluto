@@ -78,13 +78,16 @@ func IfTrue[T any](on bool, a, b T) T {
 }
 
 // InArray reports whether needle occurs in haystack, using a linear search.
-func InArray[T comparable](needle T, haystack []T) bool {
+// The argument order follows the standard-library convention of
+// strings.Contains and slices.Contains: haystack first, needle second.
+func InArray[T comparable](haystack []T, needle T) bool {
 	return slices.Contains(haystack, needle)
 }
 
 // LocationInArray returns the index of the first occurrence of needle in
-// haystack, or -1 if needle is not present.
-func LocationInArray[T comparable](needle T, haystack []T) int {
+// haystack, or -1 if needle is not present.  The argument order matches
+// InArray: haystack first, needle second.
+func LocationInArray[T comparable](haystack []T, needle T) int {
 	for ii, val := range haystack {
 		if val == needle {
 			return ii
