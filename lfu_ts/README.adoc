@@ -1,0 +1,72 @@
+= lfu_ts
+
+Thread-safe twin of link:../lfu/[`lfu`] — the Redis LFU frequency
+counters (8-bit Morris counter + 16-bit last-access-minute per key)
+behind one `sync.RWMutex`, with the identical public API so switching
+twins is an import change. `MorrisCounter` and the constants
+(`InitVal`, `MaxVal`, `DefaultLogFactor`, `DefaultDecayTime`) are
+aliases of the plain package's.
+
+[options="header"]
+|===
+| Operation      | Lock     | Description
+| `Touch`        | write    | Record an access: decay by elapsed periods, then Incr; returns the counter
+| `Add`          | write    | Insert/reset key at `InitVal` with the current minute
+| `Delete`       | write    | Remove a key's entry
+| `Truncate`     | write    | Drop every key, keeping the configuration
+| `Counter`      | read     | Decay-adjusted frequency (the OBJECT FREQ / eviction view), pure
+| `IdleMinutes`  | read     | Minutes since the last Touch/Add
+| `Len`          | read     | Number of keys
+| `Lock`/`Unlock` + `Nl*` | held | Compound operations (below)
+|===
+
+== Compound operations — the eviction scan
+
+The real `Lock`/`Unlock` plus the `Nl*` no-lock methods
+(`NlTouch`/`NlAdd`/`NlDelete`/`NlTruncate`/`NlCounter`/
+`NlIdleMinutes`/`NlLen`) make a scan-and-act sequence atomic:
+
+[source,go]
+----
+l.Lock()
+coldest, val := "", uint8(255)
+for _, k := range sampled {
+    if v, ok := l.NlCounter(k); ok && v < val { coldest, val = k, v }
+}
+l.NlDelete(coldest) // evict the coldest from this instant's view
+l.Unlock()
+----
+
+Calling a regular method while the lock is held deadlocks — use the
+`Nl*` forms inside. Nil receivers no-op for `Lock`/`Unlock`.
+
+== Concurrency model
+
+One lock guards the whole table (the stream_ts/hyperloglog_ts
+composition pattern — the borrowed plain structure carries no locks of
+its own). The request note's guidance applies: Ultima calls these
+inside shard owner-goroutines, so contention is low and the simple
+single lock is deliberate. Writes take the write lock; `Counter`,
+`IdleMinutes` and `Len` take the read lock. Nil guards run *before* any
+lock acquisition.
+
+== Panics
+
+Exactly two situations, messages prefixed `lfu_ts:` and naming the
+constructors: `Touch`/`Add` on a nil table, and `Touch`/`Add` on a
+zero-value table (it cannot fabricate the log-factor/decay/clock
+configuration). Every read tolerates nil and the zero value as empty.
+
+The plain package's `MorrisCounter` (aliased here) is *not* itself
+concurrency-safe — `Incr`/`Decay` mutate the byte; a shared standalone
+counter needs the caller's own lock.
+
+== Testing
+
+`lfu_ts_test.go` mirrors the plain semantics through the twin with an
+injected clock and pins the nil/zero/panic contract;
+`thorough_test.go` holds the race coverage (run with `-race`):
+concurrent touch/read with exact final counts (each Touch is atomic —
+nothing lost), concurrent add/delete with present-count ⟺ `Len`
+agreement, and the eviction-shaped `Lock`+`Nl*` compound racing
+writers — the `ExampleLfu_Lock` checked example shows the same scan.

@@ -93,6 +93,8 @@ with an identical public API.
 | link:stream_ts/[stream_ts]                 | Thread-safe stream (RWMutex, snapshot iterators, Lock+Nl* compound ops).
 | link:hyperloglog/[hyperloglog]             | HyperLogLog cardinality estimator, dense 6-bit registers (Redis PFADD/PFCOUNT/PFMERGE behavior; LinearCounting + Ertl estimator, ~0.8% error).
 | link:hyperloglog_ts/[hyperloglog_ts]       | Thread-safe HyperLogLog (RWMutex, snapshot merging, Lock+Nl* compound ops).
+| link:lfu/[lfu]                             | LFU frequency counters for eviction (8-bit Morris counter + 16-bit minute clock per key, Redis allkeys-lfu/OBJECT FREQ semantics; on hash_grow).
+| link:lfu_ts/[lfu_ts]                       | Thread-safe LFU frequency counters (RWMutex, Lock+Nl* compound ops).
 | link:lru/[lru]                             | Generic capacity-bounded LRU cache (eviction veto callback, soft cap; no `_ts` twin — callers lock).
 | link:crc/[crc]                             | Table-driven CRC-32/CRC-64 checksums (IEEE, Castagnoli, Koopman, ECMA, ISO; pure functions, concurrent-use safe).
 | link:g_lib/[g_lib]                         | Generic utility functions (min/max, slice ops, set/map conversion, numeric constraints).
@@ -145,16 +147,18 @@ for the whole traversal, so the callback must not call methods on the
 same container. The exceptions are the legacy `DllIter`/`SllIter`
 cursors in the list packages, which walk the live list under a
 per-call read lock.
-* *Compound operations.* Eleven `_ts` packages expose the *real
-`Lock`/`Unlock`* plus `Nl`-prefixed no-lock methods
+* *Compound operations.* Most `_ts` packages — `heap_ts`,
+`priority_queue_ts`, `heap_sort_ts`, the hash-table twins
+(`hash_grow_ts`, `hash_tab_ts`, `hash_tab_bt_ts`, `hash_tab_dll_ts`,
+`cuckoo_ts`, `cuckoo_grow15_ts`, `sharded_hash_ts`), `skip_list_ts`,
+`index_pq_ts`, `fenwick_tree_ts`, `segment_tree_ts`, `trie_ts`,
+`tst_ts`, `stream_ts`, `hyperloglog_ts` and `lfu_ts` — expose the
+*real `Lock`/`Unlock`* plus `Nl`-prefixed no-lock methods
 (`NlLen`, `NlSearch`, `NlInsert`, ...) so a search-then-update
-sequence can run atomically: `heap_ts`, `priority_queue_ts`,
-`heap_sort_ts`, `hash_grow_ts`, `hash_tab_ts`, `hash_tab_bt_ts`,
-`hash_tab_dll_ts`, `cuckoo_ts`, `trie_ts`, `tst_ts`, `stream_ts`
-(and `dll_ts` exposes `Lock`/`Unlock`). Calling a regular method while
-the lock is held will deadlock — use the `Nl*` methods inside. The
-plain counterparts keep no-op `Lock`/`Unlock` so the same code
-compiles against both.
+sequence can run atomically (and `dll_ts` exposes `Lock`/`Unlock`).
+Calling a regular method while the lock is held will deadlock — use
+the `Nl*` methods inside. The plain counterparts keep no-op
+`Lock`/`Unlock` so the same code compiles against both.
 
 == Linear Structures
 
@@ -481,6 +485,44 @@ lock, `Merge` snapshots operands under their own read locks before
 taking the destination's write lock (no nested locks, so opposite-way
 merges cannot deadlock), plus the real `Lock`/`Unlock` and `Nl*`
 methods for atomic add-batch-then-count compounds.
+
+== LFU Frequency Counters — `lfu/`, `lfu_ts/`
+
+The Redis LFU eviction mechanism as a generic structure (built for the
+Ultima Redis-clone's `allkeys-lfu`/`volatile-lfu` policies and `OBJECT
+FREQ`; the LRU counterpart is `lru`). Two layers: a standalone
+`MorrisCounter` — the 8-bit logarithmic counter in Redis's exact form
+(`LFULogIncr`: increment with probability `1/((v-5)·logFactor+1)`,
+certain at or below `InitVal` = 5, saturating at 255) with `Decay` —
+and `Lfu[K comparable]`, the keyed table mapping each key to a counter
+plus a 16-bit last-access-minute. `Touch` is Redis's `updateLFU`:
+decay by the elapsed full periods, then the probabilistic increment,
+then retimestamp; `Counter` reports the decay-adjusted view without
+storing it (the `OBJECT FREQ`/eviction value); `IdleMinutes` is the
+`OBJECT IDLETIME` signal. Storage is `hash_grow` (intra-pluto
+composition, eq/hash reading only the key field), so everything is
+O(1) average. `NewLfu(logFactor, decayTimeMinutes)` takes the two
+Redis knobs (`DefaultLogFactor` 10 / `DefaultDecayTime` 1 are its own
+settings); `NewLfuWithClock` injects the clock so tests are
+deterministic. The 16-bit minute clock wraps every ~45.5 days, and
+Redis's wrap arithmetic is mirrored exactly, boundary quirk included.
+Panics: `NewLfuWithClock(nil clock)` and `Touch`/`Add` on a nil or
+zero-value table; every read tolerates nil/zero.
+
+* Good: ~41 ns/op zero-alloc Touch — cheap enough for per-command
+  bookkeeping; hot/cold separation of ~10 counter standard deviations
+  across a 100× access difference; the distribution matches Redis
+  (trial means within a few percent of the fluid-limit expectation,
+  and of the table printed in redis.conf).
+* Bad: the counter is a probabilistic estimate (sd ≈ 2 at 1k accesses,
+  ≈ 7 at 100k); idle time past the 65535-minute wrap is invisible to
+  the 16-bit clock — both inherent to the Redis design it mirrors.
+
+`lfu_ts` is the twin with one RWMutex (the note's guidance: Ultima
+calls these inside shard owner-goroutines, so the simple single lock
+suffices) plus the real `Lock`/`Unlock` and `Nl*` methods — the
+eviction scan is the canonical compound: `Lock`, `NlCounter` over the
+sampled candidates, `NlDelete` the coldest, `Unlock`.
 
 == Heaps and Priority Queues
 

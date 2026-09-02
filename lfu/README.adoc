@@ -1,0 +1,133 @@
+= lfu
+
+The *frequency counters behind Redis's LFU eviction* — the
+`maxmemory-policy allkeys-lfu` / `volatile-lfu` mechanism from
+`note/redis/src/evict.c` (`LFUGetTimeInMinutes`, `LFUTimeElapsed`,
+`LFULogIncr`) and `note/redis/src/db.c` (`updateLFU`,
+`LFUDecrAndReturn`) — as a generic, reusable pluto structure (request
+`note/05-lfu-counter.md`; built for the Ultima Redis-clone's eviction
+policies and `OBJECT FREQ`). LRU is covered by link:../lru/[`lru`];
+this is its frequency counterpart.
+
+Two layers:
+
+* `MorrisCounter` — the standalone 8-bit logarithmic counter (Morris
+1978, in the exact Redis form): `Incr(logFactor)` gains 1 with
+probability `1/((v-InitVal)·logFactor+1)` — certain at or below
+`InitVal` (5, Redis `LFU_INIT_VAL`), `logFactor`-times less likely with
+each step, saturating at 255. `Decay(periods)` subtracts, saturating at
+0.
+* `Lfu[K comparable]` — the keyed table: each key maps to a counter
+plus a 16-bit *last access minute* (the Redis LDT). `Touch` is Redis's
+`updateLFU` — decay by the elapsed periods, then the probabilistic
+increment, then retimestamp. Storage is link:../hash_grow/[`hash_grow`]
+(an intra-pluto composition) with eq/hash reading only the key field
+(the map pattern), so operations are O(1) average and the table grows
+with the keyspace.
+
+== Operations
+
+[options="header"]
+|===
+| Operation      | Description                                                          | Complexity
+
+| `Touch`        | Record an access: decay by elapsed periods, then Incr; returns the counter | O(1) avg
+| `Add`          | Insert key at `InitVal` with the current minute (SET on a new key)   | O(1) avg
+| `Counter`      | Decay-adjusted frequency (the OBJECT FREQ / eviction view), read-only | O(1) avg
+| `IdleMinutes`  | Minutes since the last Touch/Add (the OBJECT IDLETIME signal)        | O(1) avg
+| `Delete`       | Remove a key's entry, reporting presence                             | O(1) avg
+| `Len`          | Number of keys                                                       | O(1)
+| `Truncate`     | Drop every key, keeping the configuration                            | O(n)
+| `MorrisCounter.Incr` / `Decay` / `Value` | The standalone 8-bit counter        | O(1)
+|===
+
+Constructors: `NewLfu(logFactor, decayTimeMinutes)` uses the wall
+clock; `NewLfuWithClock` additionally injects the clock — every
+operation consults it, so an injected fake clock makes the whole table
+deterministic (the tests rely on this). `DefaultLogFactor` (10) and
+`DefaultDecayTime` (1 minute) are Redis's own settings.
+
+== Semantics pinned to Redis
+
+* *Increment math is `LFULogIncr` exactly:* with a random `r` uniform
+in [0,1), the counter increments iff `r < 1/((v-5)·logFactor+1)`, where
+the base value clamps at 0 below `InitVal`. A `logFactor` ≤ 0 makes
+every increment certain (Redis's math at factor 0) — which also gives
+the tests a deterministic path through the public API.
+* *Decay is recomputed from elapsed time, never accumulated:* `Touch`
+subtracts `elapsedMinutes / decayTime` (integer division — only full
+periods decay), `Counter` reports the same value *without storing it*
+(reads are pure), and `decayTime ≤ 0` disables decay entirely (Redis's
+`lfu-decay-time 0`).
+* *`Counter` is what eviction and `OBJECT FREQ` see:* the decay-adjusted
+view, `LFUDecrAndReturn` — not the raw stored byte.
+* *Touch of an unknown key is Add-then-Touch* (the note's picked
+behavior): the counter starts at `InitVal` and the access increments on
+top, so a first-ever Touch returns 6.
+* *Add resets:* a Redis SET replaces the object, and its LFU counter
+restarts at `InitVal`.
+
+== The 16-bit minute clock
+
+`IdleMinutes` and the decay derive from minutes since the epoch
+truncated to 16 bits (`LFUGetTimeInMinutes`), wrapping every 65536
+minutes ≈ 45.5 days. `LFUTimeElapsed`'s wrap arithmetic — direct
+difference when the clock has not wrapped past the stored minute,
+`65535-ldt+now` when it has — is mirrored exactly, including its
+boundary quirk: the wrapped pair `lastMin = 65535, now = 0` reads as
+*zero* elapsed, one minute less than reality (do not "fix"; eviction
+behavior matches Redis because of it). A key idle longer than 65535
+minutes is inherently indistinguishable from a recently-touched one —
+a property of the 16-bit LDT itself, shared with Redis.
+
+== Usage
+
+[source,go]
+----
+l := lfu.NewLfu[string](lfu.DefaultLogFactor, lfu.DefaultDecayTime)
+
+l.Touch("user:42")          // an access — the counter climbs logarithmically
+freq, _ := l.Counter("user:42") // OBJECT FREQ: the decay-adjusted view
+idle, _ := l.IdleMinutes("user:42") // OBJECT IDLETIME
+l.Delete("user:42")         // the key expired away
+----
+
+With the default settings the counter reaches ≈19 after a thousand
+accesses and ≈147 after a hundred thousand (the fluid-limit
+expectation; redis.conf's own table observes 18 and 142 — single runs
+of the same process). Hot/cold separation is unambiguous: a hundredfold
+access difference separates the means by ~10 counter standard
+deviations.
+
+== Panics
+
+The package panics in exactly four situations, all programmer errors
+with messages naming the method and the fix:
+
+* `NewLfuWithClock` with a nil clock.
+* `Touch` / `Add` on a nil table.
+* `Touch` / `Add` on a zero-value table (no configuration).
+
+Every read (including `MorrisCounter.Value`) tolerates nil and the zero
+value as empty; `Delete` reports false and `Truncate` does nothing.
+
+The package is *not safe for concurrent use*; link:../lfu_ts/[`lfu_ts`]
+is the twin with the identical API behind a `sync.RWMutex` (the plain
+package keeps no-op `Lock`/`Unlock` so code compiles against both).
+
+== Testing
+
+`lfu_test.go` pins the arithmetic on exact (counter, factor, r) triples
+and drives the table with an injected clock (decay, wrap, reset, panic
+contract). `thorough_test.go` holds the request note's three gates —
+the seeded distribution test (PCG seed 42: trial means within a band of
+the fluid-limit expectation across 100..100k accesses, means strictly
+increasing in hits; paired counters on the same pattern diverge per
+trial yet agree in the mean), the decay-exactness sweep (every counter
+value × period counts past the uint8 range), and the hot/cold
+separation gate (deterministic at factor 0, ~10σ statistical at factor
+10) — plus a 4000-step randomized model test (seed 42) cross-checking
+every operation against an independent oracle at logFactor 0, where
+Touch is deterministic. Benchmarks: Touch ≈ 41 ns/op zero-alloc (the
+per-command LFU bookkeeping), Counter ≈ 31 ns, the standalone
+`MorrisCounter.Incr` ≈ 4 ns.
