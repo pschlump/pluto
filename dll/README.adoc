@@ -61,12 +61,12 @@ errors (compare with `errors.Is`), not panics:
 
 [options="header"]
 |===
-| Error | Meaning 
+| Error            | Meaning
 
-| `ErrEmptyDll` | pop/peek/trim on an empty list 
-| `ErrNotFound` | `Delete`/`DeleteSearch`/`DeleteFound(nil)` 
-| `ErrOutOfRange` | `Index`/`IndexFromTail` with a bad subscript 
-| `ErrInternalDll` | internal inconsistency (should never happen) 
+| `ErrEmptyDll`    | pop/peek/trim on an empty list
+| `ErrNotFound`    | `Delete`/`DeleteSearch`/`DeleteFound(nil)`
+| `ErrOutOfRange`  | `Index`/`IndexFromTail` with a bad subscript
+| `ErrInternalDll` | internal inconsistency (should never happen)
 |===
 
 == Usage
