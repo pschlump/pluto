@@ -91,6 +91,8 @@ with an identical public API.
 | link:lzw/[lzw]                             | LZW compression/expansion over byte slices on pluto/tst (widening 9→16-bit codes; Sedgwick §5.5 variant).
 | link:stream/[stream]                       | Redis-style stream: append-oriented log of `<ms>-<seq>` ID entries with consumer groups and PEL tracking (on pluto/skip_list).
 | link:stream_ts/[stream_ts]                 | Thread-safe stream (RWMutex, snapshot iterators, Lock+Nl* compound ops).
+| link:hyperloglog/[hyperloglog]             | HyperLogLog cardinality estimator, dense 6-bit registers (Redis PFADD/PFCOUNT/PFMERGE behavior; LinearCounting + Ertl estimator, ~0.8% error).
+| link:hyperloglog_ts/[hyperloglog_ts]       | Thread-safe HyperLogLog (RWMutex, snapshot merging, Lock+Nl* compound ops).
 | link:lru/[lru]                             | Generic capacity-bounded LRU cache (eviction veto callback, soft cap; no `_ts` twin — callers lock).
 | link:crc/[crc]                             | Table-driven CRC-32/CRC-64 checksums (IEEE, Castagnoli, Koopman, ECMA, ISO; pure functions, concurrent-use safe).
 | link:g_lib/[g_lib]                         | Generic utility functions (min/max, slice ops, set/map conversion, numeric constraints).
@@ -442,6 +444,43 @@ PendingEntry types, so switching twins is an import change: snapshot
 atomic read-then-ack compounds. Concurrent appends use the AutoSeq
 form — the next-sequence resolution runs under the lock, which is how
 a Redis server assigns XADD IDs.
+
+== HyperLogLog — `hyperloglog/`, `hyperloglog_ts/`
+
+The Redis PF* sketch as a plain Go structure: an `Hll` approximates the
+number of *distinct* byte strings added, in a fixed 12 KiB of dense
+6-bit registers (m = 2^14), never storing an element. `Add` hashes with
+a frozen xxHash64 (seed 0 — pinned bit-for-bit against the xxHash
+reference suite's vectors; not Redis's MurmurHash64A, which the request
+note made optional) and raises one register, returning whether anything
+changed (the PFADD reply). `Count` estimates: LinearCounting below the
+2.5m threshold while zero registers remain (near-exact — the noise is
+the 0.55%-relative register-collision floor), Ertl's σ/τ corrected
+estimator above it (the estimator current Redis ships; standard error
+≈ 0.81%) — and caches the result (atomics, so the twin can `Count`
+under its read lock). `Merge` is the register-wise maximum, the
+lossless HLL union — splitting a set across sketches and merging is
+*bit-identical* to adding everything to one, which the tests assert.
+`Bytes`/`HllFromBytes` serialize to the frozen 12288-byte dense form
+(corrupt input → `ErrBadLength`/`ErrBadRegister`, never a panic).
+Non-generic over elements (`[]byte` hashed on the way in — the
+union_find/suffix_array precedent) and constructor-free (no comparison
+or equality exists to store; zero value ready, `NewHll` is convenience).
+Two panics: `Add` on nil, and `Merge` into nil that would fold in a
+non-empty operand.
+
+* Good: distinct counts in constant memory with Redis-compatible
+accuracy (measured 0.4–0.7% mean error from 1k to 10M); lossless
+mergeable unions; ~127M adds/s single-goroutine, zero allocations.
+* Bad: an estimate, not an exact count (±0.8%); no element removal or
+iteration — a sketch is write-only besides the count; fixed precision
+(16384 registers, 12 KiB — no sparse encoding yet).
+
+`hyperloglog_ts` is the twin with the RWMutex: reads under the read
+lock, `Merge` snapshots operands under their own read locks before
+taking the destination's write lock (no nested locks, so opposite-way
+merges cannot deadlock), plus the real `Lock`/`Unlock` and `Nl*`
+methods for atomic add-batch-then-count compounds.
 
 == Heaps and Priority Queues
 

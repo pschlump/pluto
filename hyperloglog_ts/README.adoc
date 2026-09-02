@@ -1,0 +1,85 @@
+= hyperloglog_ts
+
+The *thread-safe HyperLogLog cardinality estimator* — the
+link:../hyperloglog/[`hyperloglog`] sketch behind Redis's
+PFADD/PFCOUNT/PFMERGE, guarded by a `sync.RWMutex`. The identical
+public API, plus the real `Lock`/`Unlock` and the `Nl*` (no-lock)
+methods for compound operations; the constants and errors are aliases
+of the plain package's, so switching twins is an import change and a
+sketch serialized by either decodes in both.
+
+== Concurrency
+
+* Writes (`Add`, `Merge`, `Reset`) take the write lock; `Count`,
+`IsEmpty` and `Bytes` take the read lock. The nil guards run *before*
+any lock acquisition.
+* `Count` under the read *looked* like a problem — it fills the cached
+estimate — which is exactly why the plain package's cache fields are
+atomics: concurrent `Count`s race only on idempotent atomic stores,
+and an `Add`'s invalidation happens-before its write-lock release, so a
+`Count` that acquires the read lock afterwards always recomputes.
+* `Merge` snapshots every operand (`Clone` under the operand's own read
+lock, released again) before taking the destination's write lock — the
+avl_tree_ts set-operation pattern. No nested locks, so concurrent
+merges in opposite directions (A merges B while B merges A) cannot
+deadlock; operands may alias the destination (a no-op); an operand
+mutated concurrently merges as its snapshot at the moment it was taken.
+* The plain sketch is embedded by *pointer*, not value: its atomics
+make value copies a `go vet` copylocks error. The zero value is still
+a ready-to-use empty sketch — the inner sketch appears on the first
+write, and reads delegate to the plain package's nil tolerance.
+* Compound operations: hold `Lock` and use the `Nl*` methods
+(`NlAdd`, `NlCount`, `NlIsEmpty`, `NlReset`, `NlBytes`, `NlMerge`) —
+calling a regular method while the lock is held deadlocks. `NlMerge`
+takes no operand locks: keep the operands quiet for its duration.
+
+== Panics and errors
+
+Exactly two panics, both naming the method: `Add` on a nil `*Hll`, and
+`Merge` into a nil `*Hll` that would fold in a non-empty operand
+(merging only empty operands is a tolerated no-op). Everything else
+treats nil and the zero value as an empty sketch. `HllFromBytes`
+reports corrupt data through the plain package's `ErrBadLength` /
+`ErrBadRegister` (re-exported here), never a panic.
+
+== Usage
+
+[source,go]
+----
+var h hyperloglog_ts.Hll // zero value ready to use
+
+var wg sync.WaitGroup
+for w := 0; w < 8; w++ {
+    wg.Add(1)
+    go func(w int) {
+        defer wg.Done()
+        for _, v := range shard[w] {
+            h.Add([]byte(v))
+        }
+    }(w)
+}
+wg.Wait()
+fmt.Println(h.Count())
+
+// Atomic add-batch-then-count:
+h.Lock()
+for _, v := range batch {
+    h.NlAdd([]byte(v))
+}
+n := h.NlCount()
+h.Unlock()
+----
+
+See the link:../hyperloglog/[`hyperloglog`] README for the accuracy
+profile, the serialized form and the estimator lineage — this twin
+changes only the concurrency.
+
+== Testing
+
+`thorough_test.go` runs the race-detector suite: concurrent
+writers/readers (the atomic-cache pairing), merges in all directions
+including opposite-way pairs (deadlock freedom), `Lock`+`Nl*`
+compounds, and Reset races. `hyperloglog_ts_test.go` mirrors the plain
+package's basics, proves bit-identical parity with the plain twin on
+the same key stream, exact merge-of-partition, and cross-twin
+decode/merge. Run with `-race`.

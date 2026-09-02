@@ -1,0 +1,125 @@
+= hyperloglog
+
+A *HyperLogLog cardinality estimator* (Flajolet, Fusy, Gandouet,
+Meunier) in the dense-register form Redis uses for its
+PFADD/PFCOUNT/PFMERGE commands (`note/redis/src/hyperloglog.c`
+lineage) — built for the Ultima Redis-clone's PF command family
+(request `note/04-hyperloglog.md`). An `Hll` approximates the number of
+*distinct* byte strings added to it, in 12 KiB of state, without ever
+storing an element: `Add` hashes, updates one 6-bit register, and
+forgets.
+
+* 2^14 = 16384 six-bit registers (the Redis HLL_P = 14), the dense
+packed array — 12288 bytes.
+* A fixed 64-bit xxHash64 (seed 0) as the element hash — *not* Redis's
+MurmurHash64A (matching it was optional per the request note), but
+frozen the same way: two sketches only merge and compare validly when
+every version derives the same registers, so the hash is part of the
+serialized-format contract. The test suite pins it bit-for-bit against
+the xxHash reference suite's published vectors.
+* The estimator is LinearCounting below the classic 2.5m threshold
+while zero registers remain, and *Ertl's corrected estimator* (σ/τ
+closed forms, arXiv:1702.01284) above it — the estimator current Redis
+ships. Chosen over HLL++ bias tables (same O(m) cost, no tables to
+embed, no table-boundary jumps) and over the LogLog-Beta polynomial
+(the strictly better-behaved successor Redis itself switched to); see
+`estimate.go`.
+* Non-generic over the element type (elements are `[]byte` hashed on
+the way in) — the union_find-over-indices / suffix_array-over-strings
+precedent: a sketch never stores, compares or boxes an element.
+
+== Accuracy
+
+|===
+| Regime | Behavior
+
+| n ≲ 2.5m (≈41k) | LinearCounting: near-exact. The noise is the register-collision floor, sd ≈ n/√(2m) ≈ 0.55% relative regardless of n; the only bias is the collision count itself (n²/2m elements — −0.3% at n=100 — unobservable: a sketch cannot tell two elements that share a register apart).
+| n ≳ 2.5m | Ertl σ/τ: standard error ≈ 1.04/√m = 0.81%.
+| any | `Merge` (register-wise max) is the lossless HLL union — error unchanged by merging.
+|===
+
+`Count` caches its result; the first call after a change pays O(m)
+(~11 µs measured), later calls are O(1) (~1 ns).
+
+== Operations
+
+[options="header"]
+|===
+| Operation           | Description                                            | Complexity
+
+| `Add`               | Hash v, raise one register; true if anything changed   | O(len(v)) + O(1)
+| `Count`             | Estimated distinct count (cached after first call)     | O(m), then O(1)
+| `Merge`             | Register-wise max union with the others                | O(k·m)
+| `MergeMax`          | Lock-free union core (no cache handling)               | O(m)
+| `Reset`             | Empty the sketch                                       | O(m)
+| `IsEmpty`           | Every register zero                                    | O(m) early exit
+| `Bytes` / `HllFromBytes` | Serialize / validate-and-decode the dense form     | O(m)
+| `Clone`             | Independent point-in-time copy, cache cleared          | O(m)
+| `Invalidate`        | Drop the cached estimate                              | O(1)
+|===
+
+== Usage
+
+[source,go]
+----
+var h hyperloglog.Hll // zero value ready to use (including Add)
+
+for _, ip := range requestIPs {
+    h.Add([]byte(ip))
+}
+fmt.Println(h.Count()) // ~distinct IP count, ±0.8%
+
+// The union of two sets (PFMERGE): merge is the register-wise max.
+total := hyperloglog.NewHll()
+total.Merge(euSketch, apSketch)
+
+// Snapshot across a process boundary; the 12288-byte form is frozen.
+data := total.Bytes()
+restored, err := hyperloglog.HllFromBytes(data)
+----
+
+`Add` returning `true` is the PFADD reply (element may have changed the
+count) and the cache-invalidation signal; re-adding the same value
+keeps returning `false`.
+
+== Panics and errors
+
+The package panics in exactly two situations, both programmer errors
+with messages naming the method: `Add` on a nil `*Hll` (nowhere to
+record the element), and `Merge` into a nil `*Hll` that would fold in a
+non-empty operand (nowhere to record the union — merging only empty
+operands is a tolerated no-op). Every other operation treats a nil `*Hll`
+and the zero value as an empty sketch.
+
+Corrupt serialized data is an *error*, checked with `errors.Is`:
+
+* `ErrBadLength` — data that is not exactly 12288 bytes.
+* `ErrBadRegister` — a register value above 51, which no 64-bit hash at
+this precision can produce (the 6-bit packing admits 0–63; everything
+≤ 51 decodes).
+
+The structure is *not safe for concurrent use*; link:../hyperloglog_ts/[`hyperloglog_ts`]
+is the twin with the identical API behind a `sync.RWMutex` (the plain
+package keeps no-op `Lock`/`Unlock` so code compiles against both).
+
+== Serialized form
+
+`Bytes` returns exactly `DenseSize` = 12288 bytes: register i occupies
+bits [6i, 6i+6) of the array, least-significant first (the Redis dense
+packing; registers 4k..4k+3 fill bytes 3k..3k+2). The form is versionless
+— no header — because the hash, precision and packing are frozen
+constants; changing any of them breaks compatibility with every
+previously serialized Hll, which is why they are documented constants.
+
+== Testing
+
+`thorough_test.go` cross-checks a 4000-step randomized run (fixed seed
+42) against an exact set oracle, and `TestCardinalitySweep` demonstrates
+the request note's accuracy contract against the exact-distinct-count
+oracle: mean |relative error| < 1.5% at 1k/10k/100k/1M/10M (observed
+0.4–0.7%) and mean |error| < 0.5% below ~1000 (observed ≈0.4–0.5%,
+essentially single-shot). `TestMergeSplitExact` proves merge ⊕ partition
+is *bit-identical* to the all-in-one sketch for k ∈ {2,3,7}.
+Benchmarks cover the note's targets: Add ≥ 10M ops/s (measured ~127M
+ops/s for 8-byte keys, zero allocations), cached and uncached Count,
+and Merge.
