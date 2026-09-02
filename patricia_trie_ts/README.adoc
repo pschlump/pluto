@@ -1,0 +1,122 @@
+= patricia_trie_ts
+
+A *thread-safe* generic string-keyed symbol table on a *Patricia trie*
+— the compact bitwise radix trie (crit-bit formulation) of
+link:../patricia_trie/[patricia_trie], generic over the value type `T`,
+guarded by a single `sync.RWMutex`.  It is the `_ts` twin of
+`patricia_trie`: the same API, plus the `Lock`/`Unlock` pair and the
+`Nl*` (no-lock) methods for compound operations.
+
+Keys are arbitrary strings — UTF-8 text, embedded NUL bytes, the empty
+string — and ordering falls out of the key bytes, so there is *no
+comparison function to supply*: constraint-free, *no constructors*, and
+the zero value of `PatriciaTrie[T]` is an empty trie ready to use
+(including `Insert`).  Path compression stores one internal node per
+branching point and no others — n keys cost n leaves + n−1 internal
+nodes, 96 bytes per key all told — and every operation is O(w) in the
+key length in bits, *independent of the number of keys*.
+
+`Insert` *replaces* the value of an existing key and returns `false`;
+`true` means the key was added.  `Delete` unlinks the key's leaf and
+collapses its now-redundant branch node, so deleting every key restores
+the zero shape (`root == nil`).  Elements are stored and returned by
+value — `Search` returns `(T, bool)`.
+
+See link:../patricia_trie/README.adoc[the patricia_trie README] for the
+structure itself and the benchmark comparison against `tst`/`trie`, and
+for the glob semantics of `KeysThatMatch` (Redis's `stringmatchlen`:
+`*`, `?`, `[...]`, `[^...]`, `\x` escaping, binary-safe).
+
+== Operations
+
+w is the key (or prefix) length in bits — O(w) = O(L) for an L-byte
+key; n is the number of keys.
+
+[options="header"]
+|===
+| Operation | Description | Complexity
+
+| `Insert(key, value)` | Add key with value; `false` if it replaced an existing value | O(w)
+| `Search(key)`        | Value associated with key, `(T, bool)`                         | O(w)
+| `Contains(key)`      | Is key in the trie?                                            | O(w)
+| `Delete(key)`        | Remove key, collapsing its branch; `false` if absent           | O(w)
+| `IsEmpty()`          | Is the trie empty?                                             | O(1)
+| `Length()` / `Len()` | Number of keys                                                 | O(1)
+| `Truncate()`         | Remove all keys, restoring the zero shape                      | O(1)
+| `KeysWithPrefix(prefix)` | All keys starting with prefix, ascending; nil when none  | O(w + matches)
+| `LongestPrefixOf(key)` | Longest stored key that is a prefix of key, `(key, value, ok)` | O(w)
+| `KeysThatMatch(pattern)` | `iter.Seq2[string, T]` over keys matching a Redis glob, ascending | O(w + k·m)
+| `All()`              | `iter.Seq2[string, T]` over (key, value) pairs, ascending key order  | O(n)
+| `Backward()`         | `iter.Seq2[string, T]` over (key, value) pairs, descending key order | O(n)
+| `Dump(w)`            | Indented structural listing to an `io.Writer` (debug aid)      | O(n)
+| `Lock()` / `Unlock()` | Expose the write lock for compound `Nl*` sections             | O(1) to lock
+| `NlInsert` / `NlSearch` / `NlDelete` / `NlIsEmpty` / `NlLen` | The same operations without locking | —
+|===
+
+A single-variable range over the iterators yields the *key*, not the
+value; use `for key, value := range pt.All()`.
+
+== Usage
+
+[source,go]
+----
+var pt patricia_trie_ts.PatriciaTrie[int] // zero value, ready to use — no constructor
+
+pt.Insert("she", 0)
+pt.Insert("shells", 1)
+
+v, ok := pt.Search("shells")          // (1, true)
+k, v, ok := pt.LongestPrefixOf("shellshock") // ("shells", 1, true)
+
+for key, value := range pt.KeysThatMatch("sh*") { // "she", "shells"
+	fmt.Println(key, value)
+}
+
+// A compound sequence under one lock hold: calling a locking public
+// method while holding Lock deadlocks — use the Nl methods inside.
+pt.Lock()
+if _, found := pt.NlSearch("she"); found {
+	pt.NlDelete("she")
+}
+pt.Unlock()
+----
+
+== Panics
+
+The package has exactly *one* panic:
+
+[options="header"]
+|===
+| Call | Why
+
+| `Insert` on a nil `*PatriciaTrie` | a nil structure cannot store a value — the one write with no sane answer
+|===
+
+The panic fires *before* any lock acquisition.  A nil `*PatriciaTrie`
+and the zero value behave as an *empty* trie for every other operation:
+`Search` returns `(zero, false)`, `Contains`/`Delete` return `false`,
+`IsEmpty` returns `true`, `Length`/`Len` return 0, `KeysWithPrefix`
+returns nil, `LongestPrefixOf` reports not-found, the iterators visit
+nothing, and `Truncate`/`Dump` are harmless.
+
+== Concurrency
+
+One `sync.RWMutex` guards the whole trie.  Reads (`Search`, `Contains`,
+`IsEmpty`, `Length`, `Len`, `LongestPrefixOf`) take the read lock;
+writes (`Insert`, `Delete`, `Truncate`) take the write lock.  `Dump`
+holds the read lock for the whole traversal — do not touch the trie
+from anything that runs inside it.
+
+`All`, `Backward` and `KeysThatMatch` collect an *eager snapshot* of
+the pairs under the read lock *when they are called*, then release it
+before iteration begins — safe to use concurrently with any trie
+operation, including mutating the trie from inside the loop, and never
+observing later modifications.  (This is the opposite of the plain
+package's live-walk contract.)  `KeysWithPrefix` returns an eager slice
+and is a snapshot by construction.
+
+`Lock`/`Unlock` expose the real write lock; inside the critical section
+use only the `Nl*` methods — an atomic `NlSearch`-then-`NlDelete`, say.
+Locking or unlocking a nil trie is a no-op.
+
+Run the tests with `-race`.

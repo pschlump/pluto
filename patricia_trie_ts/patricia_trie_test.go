@@ -1,4 +1,4 @@
-package patricia_trie
+package patricia_trie_ts
 
 /*
 Copyright (C) Philip Schlump, 2012-2026.

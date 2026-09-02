@@ -85,7 +85,8 @@ with an identical public API.
 | link:trie_ts/[trie_ts]                     | Thread-safe R-way trie (RWMutex, snapshot iterators, Lock+Nl* compound ops).
 | link:tst/[tst]                             | String-keyed ternary search trie (memory-efficient trie, Sedgwick §5.5 TST).
 | link:tst_ts/[tst_ts]                       | Thread-safe ternary search trie (RWMutex, snapshot iterators, Lock+Nl* compound ops).
-| link:patricia_trie/[patricia_trie]         | String-keyed Patricia (crit-bit) trie with path compression (prefix queries; Sedgwick radix searching).
+| link:patricia_trie/[patricia_trie]         | String-keyed Patricia (crit-bit) trie with path compression (prefix/glob queries; Sedgwick radix searching).
+| link:patricia_trie_ts/[patricia_trie_ts]   | Thread-safe Patricia trie (RWMutex, snapshot iterators, Lock+Nl* compound ops).
 | link:suffix_array/[suffix_array]           | Immutable suffix array with Kasai LCP (Sedgwick §6.3; no `_ts` twin — immutable, concurrent reads safe).
 | link:substring/[substring]                 | Substring search: KMP, Boyer-Moore, Rabin-Karp (compile pattern once, search many texts; Sedgwick §5.3).
 | link:lzw/[lzw]                             | LZW compression/expansion over byte slices on pluto/tst (widening 9→16-bit codes; Sedgwick §5.5 variant).
@@ -1051,6 +1052,41 @@ memory.
 
 `tst_ts` is the twin with the RWMutex, snapshot iterators, and the
 real `Lock`/`Unlock` plus `Nl*` methods, mirroring `trie_ts`.
+
+== Patricia Tries — `patricia_trie/`, `patricia_trie_ts/`
+
+Sedgwick's radix-searching chapter in the crit-bit formulation:
+`PatriciaTrie[T any]` stores keys only at the leaves and one internal
+node per actual branching point (a critical bit index plus two
+children) — no unary internal nodes, so n keys cost n leaves + n−1
+internal nodes (96 bytes/key measured) and every operation is O(w) in
+the key length in bits, independent of n. Keys go through an
+order-preserving prefix-free encoding (marker bit + 8 data bits per
+byte, a 0 terminator), so `""` and `"\x00"` never collide and `All` is
+plain ascending byte order. Constructor-free like `trie`/`tst` (zero
+value usable, single nil-`Insert` panic) and binary-safe (any byte
+value legal). Beyond the basics: `KeysWithPrefix`,
+`LongestPrefixOf(key) (string, T, bool)` (longest stored key that is a
+prefix of the query — the routing-table lookup), `KeysThatMatch` (a
+Redis-style glob with the exact `stringmatchlen` semantics behind the
+KEYS command: `*`, `?`, `[abc]`, `[a-z]`, `[^...]`, `\x` escaping —
+not the `.`-wildcard of `trie`/`tst`), and ascending/descending
+`All`/`Backward` over the live trie. On 1M random 16-byte keys it
+builds in ~479 ns/key (96 B/key) and searches in ~234 ns — faster than
+`tst` at a seventh of the memory, and where the R-way `trie` would
+need ~30 GiB (see the package README's comparison table).
+
+* Good: the smallest footprint and fastest searches of the string
+tables; prefix + Redis-glob queries; O(w) everything.
+* Bad: bitwise descent touches every bit of the key (no byte skips);
+no wildcard pruning beyond the pattern's literal prefix.
+
+`patricia_trie_ts` is the twin with the RWMutex: identical API, eager
+snapshot `All`/`Backward`/`KeysThatMatch` taken under the read lock
+(safe to mutate from inside the loop), `KeysWithPrefix` an eager slice
+by construction, `Dump` holding the read lock for the whole traversal,
+and the real `Lock`/`Unlock` plus `Nl*` methods, mirroring
+`trie_ts`/`tst_ts`.
 
 == Suffix Arrays — `suffix_array/`
 

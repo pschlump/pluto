@@ -39,6 +39,8 @@ BSD 3 Clause Licensed.
 //	IsEmpty — Report whether the trie is empty.								O(1)
 //	Length / Len — Return the number of keys.								O(1)
 //	KeysWithPrefix(prefix) — All keys starting with prefix, ascending.		O(w + matches)
+//	LongestPrefixOf(key) — Longest stored key that is a prefix of key.		O(w)
+//	KeysThatMatch(pattern) — Iterate keys matching a Redis glob, ascending.	O(w + k·m)
 //	All — Iterate (key, value) pairs in ascending key order.				O(n)
 //	Backward — Iterate (key, value) pairs in descending key order.			O(n)
 //
@@ -279,6 +281,62 @@ func (t *PatriciaTrie[T]) KeysWithPrefix(prefix string) []string {
 	var results []string
 	collectPrefixed(x, prefix, &results)
 	return results
+}
+
+// leftmostLeaf returns the leaf holding the smallest key of the subtree
+// rooted at x — in-order is ascending key order, so the leftmost leaf
+// is the minimum.
+func leftmostLeaf[T any](x *patriciaNode[T]) *patriciaNode[T] {
+	for x.bit >= 0 {
+		x = x.child[0]
+	}
+	return x
+}
+
+// LongestPrefixOf returns the longest key of the trie that is a prefix
+// of key, together with its value and true; if no stored key is a
+// prefix of key it returns ("", zero, false).  A nil *PatriciaTrie
+// reports not-found.
+//
+// The descent follows key's branching bits.  Every stored prefix of key
+// hangs off that descent: at a branch where key's bit is 1, the 0-side
+// subtree can hold at most one prefix of key — the key that ends at
+// that exact bit position, which is that subtree's smallest key (its
+// leftmost leaf) — and where key's bit is 0 the 1-side holds none (a
+// prefix of key agrees with key on every bit it has).  The leaf the
+// descent ends on is tested last; deeper branches carry longer
+// prefixes, so the last candidate found wins.
+//
+// Complexity is O(w) for the descent plus at most one leftmost descent
+// per level — a worst case of O(w + h²) where h is the trie height —
+// O(w) in practice when few stored keys are prefixes of key.
+func (t *PatriciaTrie[T]) LongestPrefixOf(key string) (string, T, bool) {
+	if t == nil {
+		var zero T
+		return "", zero, false
+	}
+	var bestKey string
+	var bestVal T
+	found := false
+	consider := func(leaf *patriciaNode[T]) {
+		if leaf != nil && strings.HasPrefix(key, leaf.key) {
+			bestKey, bestVal, found = leaf.key, leaf.value, true
+		}
+	}
+	// Encoded keys longer than key cannot be prefixes of it, so stop at
+	// the first branch below key's last encoded bit (position 9·len).
+	x := t.root
+	for x != nil && x.bit >= 0 && x.bit <= symbolBits*len(key) {
+		d := bitDir(key, x.bit)
+		if d == 1 {
+			consider(leftmostLeaf(x.child[0]))
+		}
+		x = x.child[d]
+	}
+	if x != nil && x.bit < 0 {
+		consider(x) // the leaf the descent ends on — key itself when stored
+	}
+	return bestKey, bestVal, found
 }
 
 // collectPrefixed appends every key of the subtree rooted at x that

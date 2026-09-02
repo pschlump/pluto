@@ -1,4 +1,4 @@
-package patricia_trie
+package patricia_trie_ts
 
 /*
 Copyright (C) Philip Schlump, 2012-2026.
@@ -7,9 +7,11 @@ BSD 3 Clause Licensed.
 */
 
 import (
+	"fmt"
 	"math/rand"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -644,5 +646,362 @@ func TestDeletePrefixSharedKeys(t *testing.T) {
 	if !pt.IsEmpty() || pt.Length() != 0 || pt.root != nil {
 		t.Fatalf("Expected a fully collapsed trie after the drain; IsEmpty=%v Length=%d root=%v",
 			pt.IsEmpty(), pt.Length(), pt.root)
+	}
+}
+
+// -------------------------------------------------------------------------------------------------------
+// Snapshot iterators (ts-specific)
+// -------------------------------------------------------------------------------------------------------
+
+// TestIteratorSnapshotSemantics is the opposite of the plain package's
+// live-walk contract: All, Backward and KeysThatMatch operate on
+// snapshots collected when they are called — later modifications, even
+// deleting every key, are not observed — and mutating the trie from
+// inside the loop is safe.  KeysWithPrefix returns an eager slice, so it
+// is a snapshot by construction.
+func TestIteratorSnapshotSemantics(t *testing.T) {
+	var pt PatriciaTrie[int]
+	keys := []string{"sea", "sells", "she", "shells", "shore", "the"}
+	for i, k := range keys {
+		pt.Insert(k, i)
+	}
+
+	all := pt.All()                     // snapshot collected now
+	back := pt.Backward()               // snapshot collected now
+	matched := pt.KeysThatMatch("s??")  // snapshot collected now
+	prefixed := pt.KeysWithPrefix("sh") // eager slice, copied now
+
+	// Empty the trie after the snapshots were taken.
+	for _, k := range keys {
+		pt.Delete(k)
+	}
+	if !pt.IsEmpty() {
+		t.Fatalf("Expected an empty trie after deleting every key.")
+	}
+
+	n := 0
+	for range all {
+		n++
+	}
+	if n != len(keys) {
+		t.Errorf("All should yield the %d pairs captured at call time, got %d", len(keys), n)
+	}
+	n = 0
+	for range back {
+		n++
+	}
+	if n != len(keys) {
+		t.Errorf("Backward should yield the %d pairs captured at call time, got %d", len(keys), n)
+	}
+	n = 0
+	for range matched {
+		n++
+	}
+	if n != 2 { // "sea" and "she"
+		t.Errorf("KeysThatMatch should keep the 2 keys captured at call time, got %d", n)
+	}
+	if len(prefixed) != 3 {
+		t.Errorf("KeysWithPrefix should keep the 3 keys captured at call time, got %v", prefixed)
+	}
+
+	// Mutating the trie from inside the loop body is safe: the loop sees
+	// the snapshot.
+	for i, k := range keys {
+		pt.Insert(k, i)
+	}
+	visited := 0
+	for k := range pt.All() {
+		visited++
+		pt.Delete(k) // delete each yielded key inside the loop
+	}
+	if visited != len(keys) {
+		t.Errorf("Expected %d visits while deleting during iteration, got %d", len(keys), visited)
+	}
+	if !pt.IsEmpty() {
+		t.Errorf("Expected an empty trie after deleting every yielded key.")
+	}
+}
+
+// -------------------------------------------------------------------------------------------------------
+// Lock + Nl* compound operations (ts-specific)
+// -------------------------------------------------------------------------------------------------------
+
+// TestLockNlCompound verifies the Lock/Unlock + Nl* escape hatch for
+// compound operations: a search followed by a delete (or a bulk insert)
+// runs atomically under one lock hold.
+func TestLockNlCompound(t *testing.T) {
+	var pt PatriciaTrie[int]
+	for i := range 40 {
+		pt.Insert(fmt.Sprintf("c%03d", i), i)
+	}
+
+	pt.Lock()
+	if v, found := pt.NlSearch("c021"); found {
+		if v != 21 {
+			t.Errorf("NlSearch returned %d, want 21", v)
+		}
+		if !pt.NlDelete("c021") {
+			t.Errorf("NlDelete inside the held lock should succeed")
+		}
+	} else {
+		t.Errorf("NlSearch should have found c021")
+	}
+	if pt.NlLen() != 39 || pt.NlIsEmpty() {
+		t.Errorf("NlLen/NlIsEmpty should report 39/false, got %d/%v", pt.NlLen(), pt.NlIsEmpty())
+	}
+	// A bulk insert under the same single lock hold.
+	for i := 100; i < 150; i++ {
+		pt.NlInsert(fmt.Sprintf("c%03d", i), i)
+	}
+	pt.Unlock()
+
+	if pt.Len() != 89 {
+		t.Fatalf("Expected length 89 after the compound section, got %d", pt.Len())
+	}
+	if _, found := pt.Search("c021"); found {
+		t.Errorf("c021 should be gone")
+	}
+	for i := 100; i < 150; i++ {
+		if v, found := pt.Search(fmt.Sprintf("c%03d", i)); !found || v != i {
+			t.Errorf("Expected to find c%03d with value %d, got %v found=%v", i, i, v, found)
+		}
+	}
+
+	model := make(map[string]int)
+	for i := range 40 {
+		if i != 21 {
+			model[fmt.Sprintf("c%03d", i)] = i
+		}
+	}
+	for i := 100; i < 150; i++ {
+		model[fmt.Sprintf("c%03d", i)] = i
+	}
+	checkInvariants(t, &pt, model)
+}
+
+// -------------------------------------------------------------------------------------------------------
+// Thread-safety: snapshot iterators and concurrent access (ts-specific)
+// -------------------------------------------------------------------------------------------------------
+
+// TestPatriciaTrieConcurrent runs writers inserting disjoint key ranges
+// against one shared trie while observers hammer the read operations and
+// the snapshot iterators.  It is primarily a test for the race detector
+// (`make race`); the final state must be exactly the union of the
+// ranges.
+func TestPatriciaTrieConcurrent(t *testing.T) {
+	var pt PatriciaTrie[int]
+	const writers = 8
+	const perWriter = 200
+	const total = writers * perWriter
+
+	key := func(w, i int) string { return fmt.Sprintf("w%d-%04d", w, i) }
+
+	var wg sync.WaitGroup
+	for w := range writers {
+		wg.Add(1)
+		go func(w int) {
+			defer wg.Done()
+			for i := range perWriter {
+				pt.Insert(key(w, i), w*perWriter+i)
+			}
+		}(w)
+	}
+
+	// Observers run until the writers finish.  Searches may hit or miss
+	// (writers are in flight); every snapshot must be a consistent,
+	// ascending view of at most the total number of keys.
+	stop := make(chan struct{})
+	var observers sync.WaitGroup
+	for range 4 {
+		observers.Go(func() {
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				_, _ = pt.Search(key(3, 42))
+				_ = pt.Contains(key(3, 42))
+				_ = pt.IsEmpty()
+				_ = pt.Len()
+				_ = pt.Length()
+				_, _, _ = pt.LongestPrefixOf(key(3, 42))
+				n := 0
+				var prev string
+				for k, v := range pt.All() { // snapshot; safe alongside the writers
+					if n > 0 && prev >= k {
+						t.Errorf("All snapshot out of ascending order: %q then %q", prev, k)
+						return
+					}
+					prev = k
+					_ = v
+					n++
+				}
+				if n > total {
+					t.Errorf("All yielded %d pairs, more than the %d ever inserted", n, total)
+					return
+				}
+				if got := pt.KeysWithPrefix("w3-"); len(got) > perWriter {
+					t.Errorf("KeysWithPrefix(\"w3-\") returned %d keys, more than the %d ever inserted there", len(got), perWriter)
+					return
+				}
+				if got := pt.KeysThatMatch("w3-*"); got != nil {
+					n := 0
+					for range got {
+						n++
+					}
+					if n > perWriter {
+						t.Errorf("KeysThatMatch(\"w3-*\") returned %d keys, more than the %d ever inserted there", n, perWriter)
+						return
+					}
+				}
+			}
+		})
+	}
+
+	wg.Wait()
+	close(stop)
+	observers.Wait()
+
+	if pt.Len() != total {
+		t.Fatalf("Expected length %d, got %d", total, pt.Len())
+	}
+	for w := range writers {
+		for i := range perWriter {
+			v, found := pt.Search(key(w, i))
+			if !found {
+				t.Fatalf("Expected to find %q after all writers finished", key(w, i))
+			}
+			if v != w*perWriter+i {
+				t.Fatalf("%q stored %d, want %d", key(w, i), v, w*perWriter+i)
+			}
+		}
+	}
+}
+
+// TestPatriciaTrieConcurrentDelete fills a trie and then deletes
+// disjoint key ranges from concurrent goroutines while observers search
+// and iterate.  After the wait the trie must be empty and every key
+// not-found.  Race-detector target (`make race`).
+func TestPatriciaTrieConcurrentDelete(t *testing.T) {
+	var pt PatriciaTrie[int]
+	const deleters = 8
+	const perDeleter = 100
+	key := func(d, i int) string { return fmt.Sprintf("d%d-%04d", d, i) }
+
+	for d := range deleters {
+		for i := range perDeleter {
+			pt.Insert(key(d, i), d*perDeleter+i)
+		}
+	}
+
+	var wg sync.WaitGroup
+	for d := range deleters {
+		wg.Add(1)
+		go func(d int) {
+			defer wg.Done()
+			for i := range perDeleter {
+				if !pt.Delete(key(d, i)) {
+					t.Errorf("Expected to delete %q", key(d, i))
+					return
+				}
+			}
+		}(d)
+	}
+
+	stop := make(chan struct{})
+	var observers sync.WaitGroup
+	for range 4 {
+		observers.Go(func() {
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				_, _ = pt.Search(key(3, 42)) // found or not: both legal mid-flight
+				_ = pt.Contains(key(3, 42))
+				_, _, _ = pt.LongestPrefixOf(key(3, 42))
+				for range pt.All() { // snapshot; safe alongside the deleters
+				}
+				_ = pt.KeysWithPrefix("d3-")
+				for range pt.KeysThatMatch("d3-*") { // snapshot
+				}
+			}
+		})
+	}
+
+	wg.Wait()
+	close(stop)
+	observers.Wait()
+
+	if !pt.IsEmpty() || pt.Len() != 0 {
+		t.Fatalf("Expected an empty trie after all deleters finished, got length %d", pt.Len())
+	}
+	if pt.root != nil { // single goroutine again: the trie fully collapsed itself
+		t.Fatalf("Expected a fully collapsed trie (root == nil) after the concurrent drain")
+	}
+	for d := range deleters {
+		for i := range perDeleter {
+			if _, found := pt.Search(key(d, i)); found {
+				t.Fatalf("%q should be gone", key(d, i))
+			}
+		}
+	}
+}
+
+// TestPatriciaTrieConcurrentCompound mixes compound Lock+Nl sections
+// with plain locked operations: writers do atomic read-modify-write
+// counter bumps under Lock while other goroutines insert disjoint keys
+// and drain the snapshot iterators.  A torn compound would surface as a
+// lost increment in the final tally.  Race-detector target
+// (`make race`).
+func TestPatriciaTrieConcurrentCompound(t *testing.T) {
+	var pt PatriciaTrie[int]
+
+	const writers = 4
+	const rounds = 200
+
+	var wg sync.WaitGroup
+	// Compound writers: atomically bump xNNN's counter (NlSearch +
+	// NlInsert under one lock hold).  Each x-key sees exactly
+	// writers*(rounds/50) increments.
+	for range writers {
+		wg.Go(func() {
+			for r := range rounds {
+				k := fmt.Sprintf("x%03d", r%50)
+				pt.Lock()
+				v, found := pt.NlSearch(k)
+				if found {
+					pt.NlInsert(k, v+1)
+				} else {
+					pt.NlInsert(k, 1)
+				}
+				pt.Unlock()
+			}
+		})
+	}
+	// Plain writers on a disjoint key space, plus snapshot iterators.
+	for w := range 2 {
+		wg.Add(1)
+		go func(w int) {
+			defer wg.Done()
+			for r := range rounds {
+				pt.Insert(fmt.Sprintf("y%d-%03d", w, r%50), r)
+				for range pt.All() {
+				}
+			}
+		}(w)
+	}
+	wg.Wait()
+
+	if pt.Len() != 150 { // 50 x-keys + 2*50 y-keys
+		t.Fatalf("Expected length 150, got %d", pt.Len())
+	}
+	for i := range 50 {
+		want := writers * (rounds / 50)
+		if v, found := pt.Search(fmt.Sprintf("x%03d", i)); !found || v != want {
+			t.Errorf("x%03d: expected counter %d, got (%d, %v) — a torn compound lost increments", i, want, v, found)
+		}
 	}
 }

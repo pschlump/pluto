@@ -59,14 +59,83 @@ key; n is the number of keys.
 | `Length()` / `Len()` | Number of keys                                                 | O(1)
 | `Truncate()`         | Remove all keys, restoring the zero shape                      | O(1)
 | `KeysWithPrefix(prefix)` | All keys starting with prefix, ascending; nil when none  | O(w + matches)
+| `LongestPrefixOf(key)` | Longest stored key that is a prefix of key, `(key, value, ok)` | O(w)
+| `KeysThatMatch(pattern)` | `iter.Seq2[string, T]` over keys matching a Redis glob, ascending | O(w + k·m)
 | `All()`              | `iter.Seq2[string, T]` over (key, value) pairs, ascending key order | O(n)
 | `Backward()`         | `iter.Seq2[string, T]` over (key, value) pairs, descending key order | O(n)
 | `Dump(w)`            | Indented structural listing to an `io.Writer` (debug aid)      | O(n)
 |===
 
-`All()` and `Backward()` visit the *live* trie — do not modify the
-trie while iterating.  A single-variable range over them yields the
-*key*, not the value; use `for key, value := range pt.All()`.
+`All()`, `Backward()` and `KeysThatMatch()` visit the *live* trie — do
+not modify the trie while iterating.  A single-variable range over them
+yields the *key*, not the value; use `for key, value := range pt.All()`.
+
+== Prefix and glob queries
+
+`LongestPrefixOf(key)` returns the longest *stored* key that is a
+prefix of `key` — the routing-table lookup, and what a KEYS-style scan
+needs per key.  The descent follows `key`'s branching bits; every
+stored prefix hangs off that path (at a branch where `key`'s bit is 1,
+the 0-side can hold at most one prefix — the key ending at that bit,
+which is that subtree's smallest key).  The descent is O(w), plus at
+most one leftmost descent per level — a worst case of O(w + h²), h the
+height, O(w) in practice.
+
+`KeysThatMatch(pattern)` matches keys against a Redis-style glob — the
+semantics of Redis's `stringmatchlen` (`util.c`), the matcher behind
+the KEYS command (so `trie`/`tst`'s `.`-wildcard `KeysThatMatch` and
+this one differ by design; here it is the real KEYS glob):
+
+----
+*        any sequence of bytes, including empty
+?        any single byte
+[abc]    any one of the listed bytes
+[a-z]    any byte in the range (bounds swap if reversed)
+[^abc]   any byte NOT listed / NOT in range
+\x       a literal x — the backslash escapes any special byte
+----
+
+Edge behavior mirrors the C exactly (all pinned by tests hand-traced
+from `util.c`): a trailing lone backslash matches a literal backslash;
+an unterminated `[` runs as a class to the end of the pattern (a bare
+trailing `[` is an empty class matching nothing, an unterminated `[^`
+matches any byte); `]` as the first class byte closes immediately; in
+`[a-]` the `-` makes a range whose end is `]`; and — the one to
+remember — `*` does *not* match the empty string, because the C loop
+never runs on one (only the empty pattern matches `""`).  Matching is
+on raw bytes; keys are binary-safe.
+
+Cost: the pattern's literal prefix (bytes before the first wildcard,
+escapes resolved) prunes the descent — only the subtree holding keys
+with that prefix is walked, then each candidate is matched in full.
+O(w + k·m) where k keys share the literal prefix and m is the
+pattern/key length; a pattern *starting* with a wildcard is a full
+O(n·m) descent.
+
+== Comparison with `tst` and `trie`
+
+1M random 16-byte binary keys (fixed seed), `BenchmarkTable*` in
+bench_test.go, Apple M4 Max (14 cores).  The R-way `trie` runs on the
+first 32k of the same keys: with unshared random keys it spends one
+2 KiB 256-way node per key byte — ~30 GiB at 1M, the documented
+memory trade-off this package exists to avoid.  Its per-op costs are
+depth-bound (16 hops for a 16-byte key, independent of n), so the
+reduced-size numbers remain comparable.
+
+[options="header"]
+|===
+| Contender | Build (ns/key) | Build (B/key) | Search hit | KeysWithPrefix (2-byte) | Keys at 1M
+
+| `patricia_trie` | 479 | 96 | 234 ns | 354 ns | 1M
+| `tst`           | 610 | 674 | 391 ns | 6.2 µs | 1M
+| `trie`          | 3,848 | ~34,000 | 260 ns | 1.1 µs | 32k
+|===
+
+Patricia-only queries on the 1M-key trie: `KeysThatMatch` with a
+2-byte literal prefix plus `*` ≈ 262 ns; `LongestPrefixOf` (miss
+descent) ≈ 671 ns.  Path compression is the whole story: 2 nodes and
+96 bytes per key, and one bit test per level instead of a 256-way hop
+or a byte BST.
 
 == Usage
 
@@ -81,6 +150,11 @@ pt.Insert("sea", 2)
 v, ok := pt.Search("sea")       // (2, true)
 pt.Contains("shell")            // false — a prefix of a key, not a key
 pt.KeysWithPrefix("sh")         // ["she", "shells"], ascending
+k, v, ok := pt.LongestPrefixOf("shellshock") // ("shells", 1, true)
+
+for key, value := range pt.KeysThatMatch("s??") { // "sea", "she"
+	fmt.Println(key, value)
+}
 
 pt.Delete("she")                // true; branch collapsed
 pt.Length()                     // 2
@@ -104,10 +178,14 @@ The package has exactly *one* panic:
 A nil `*PatriciaTrie` and the zero value behave as an *empty* trie for
 every other operation: `Search` returns `(zero, false)`,
 `Contains`/`Delete` return `false`, `IsEmpty` returns `true`,
-`Length`/`Len` return 0, `KeysWithPrefix` returns nil, `All`/`Backward`
+`Length`/`Len` return 0, `KeysWithPrefix` returns nil,
+`LongestPrefixOf` reports not-found, `KeysThatMatch`/`All`/`Backward`
 visit nothing, and `Truncate`/`Dump` are harmless.
 
 == Concurrency
 
-Not safe for concurrent use.  There is no `_ts` twin; guard the trie
-with your own mutex if you share one across goroutines.
+Not safe for concurrent use.  Guard the trie with your own mutex if you
+share one across goroutines, or use the thread-safe twin
+link:../patricia_trie_ts/[patricia_trie_ts] (same API behind a
+`sync.RWMutex`, snapshot iterators, `Lock`/`Unlock` + `Nl*` compound
+operations).

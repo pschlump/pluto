@@ -7,18 +7,18 @@ BSD 3 Clause Licensed.
 // The examples in this file are compiled and run by `go test` (their
 // output is checked against the // Output: comments) and appear on
 // pkg.go.dev as the package documentation examples.
-package patricia_trie_test
+package patricia_trie_ts_test
 
 import (
 	"fmt"
 
-	"github.com/pschlump/pluto/patricia_trie"
+	"github.com/pschlump/pluto/patricia_trie_ts"
 )
 
 // The classic string-table keys as a tiny symbol table: insert, search,
 // replace, delete, then iterate in ascending key order.
 func Example() {
-	var pt patricia_trie.PatriciaTrie[int] // the zero value is ready to use
+	var pt patricia_trie_ts.PatriciaTrie[int] // the zero value is ready to use
 
 	pt.Insert("she", 0)
 	pt.Insert("sells", 1)
@@ -58,7 +58,7 @@ func Example() {
 
 // KeysWithPrefix collects keys sharing a prefix, in ascending order.
 func ExamplePatriciaTrie_KeysWithPrefix() {
-	var pt patricia_trie.PatriciaTrie[int]
+	var pt patricia_trie_ts.PatriciaTrie[int]
 	pt.Insert("sea", 0)
 	pt.Insert("sells", 1)
 	pt.Insert("she", 2)
@@ -75,7 +75,7 @@ func ExamplePatriciaTrie_KeysWithPrefix() {
 
 // Backward iterates in descending key order.
 func ExamplePatriciaTrie_Backward() {
-	var pt patricia_trie.PatriciaTrie[int]
+	var pt patricia_trie_ts.PatriciaTrie[int]
 	pt.Insert("sea", 0)
 	pt.Insert("sells", 1)
 	pt.Insert("she", 2)
@@ -89,10 +89,29 @@ func ExamplePatriciaTrie_Backward() {
 	// sea
 }
 
+// Insert on a nil *PatriciaTrie panics — the package's only panic.
+// Every other operation tolerates a nil trie as an empty one.
+func ExamplePatriciaTrie_Insert_panic() {
+	var nilTrie *patricia_trie_ts.PatriciaTrie[int]
+	fmt.Println(nilTrie.Length())       // a nil trie reads as empty
+	fmt.Println(nilTrie.Contains("go")) //
+
+	defer func() {
+		fmt.Println("recovered:", recover())
+	}()
+	nilTrie.Insert("go", 1)
+	// Output:
+	// 0
+	// false
+	// recovered: patricia_trie_ts: Insert called on a nil PatriciaTrie
+}
+
 // KeysThatMatch iterates the keys matching a Redis-style glob (the
-// KEYS-command matcher: *, ?, [...], \x escaping), in ascending order.
+// KEYS-command matcher: *, ?, [...], \x escaping), in ascending order,
+// over a call-time snapshot — mutating the trie from inside the loop is
+// safe.
 func ExamplePatriciaTrie_KeysThatMatch() {
-	var pt patricia_trie.PatriciaTrie[int]
+	var pt patricia_trie_ts.PatriciaTrie[int]
 	pt.Insert("user:1000", 0)
 	pt.Insert("user:1001", 1)
 	pt.Insert("user:2000", 2)
@@ -109,7 +128,7 @@ func ExamplePatriciaTrie_KeysThatMatch() {
 // LongestPrefixOf returns the longest stored key that is a prefix of
 // the query, with its value.
 func ExamplePatriciaTrie_LongestPrefixOf() {
-	var pt patricia_trie.PatriciaTrie[int]
+	var pt patricia_trie_ts.PatriciaTrie[int]
 	pt.Insert("user", 0)
 	pt.Insert("user:1000", 1)
 
@@ -123,19 +142,20 @@ func ExamplePatriciaTrie_LongestPrefixOf() {
 	//  0 false
 }
 
-// Insert on a nil *PatriciaTrie panics — the package's only panic.
-// Every other operation tolerates a nil trie as an empty one.
-func ExamplePatriciaTrie_Insert_panic() {
-	var nilTrie *patricia_trie.PatriciaTrie[int]
-	fmt.Println(nilTrie.Length())       // a nil trie reads as empty
-	fmt.Println(nilTrie.Contains("go")) //
+// Lock + Nl methods run a compound sequence atomically under one lock
+// hold — here an atomic search-then-delete.
+func ExamplePatriciaTrie_Lock() {
+	var pt patricia_trie_ts.PatriciaTrie[int]
+	pt.Insert("user:1000", 1)
+	pt.Insert("user:1001", 2)
 
-	defer func() {
-		fmt.Println("recovered:", recover())
-	}()
-	nilTrie.Insert("go", 1)
+	pt.Lock()
+	if _, found := pt.NlSearch("user:1000"); found {
+		pt.NlDelete("user:1000") // remove only if the search saw it — atomically
+	}
+	pt.Unlock()
+
+	fmt.Println(pt.Len(), pt.Contains("user:1000"))
 	// Output:
-	// 0
-	// false
-	// recovered: patricia_trie: Insert called on a nil PatriciaTrie
+	// 1 false
 }
