@@ -61,6 +61,7 @@ with an identical public API.
 | link:cuckoo/[cuckoo]                       | Generic auto-growing cuckoo hash table (4 derived hashes per key, powers of 2, == or eq+hash funcs).
 | link:cuckoo_ts/[cuckoo_ts]                 | Thread-safe cuckoo hash table (RWMutex, background resizes, snapshot iterators, Lock+Nl* compound ops).
 | link:cuckoo_grow15_ts/[cuckoo_grow15_ts]   | EXPERIMENTAL cuckoo_ts variant (×1.5 growth via multiply-shift addressing; benchmarks showed no clear win — kept for reference).
+| link:sharded_hash_ts/[sharded_hash_ts]     | Thread-safe striped hash table (per-stripe locks, Redis-style rehash-safe SCAN cursor, LockKey+Nl*; no plain twin).
 | link:union_find/[union_find]               | Disjoint-set union-find over indices 0..n-1 (union-by-rank + path halving, Sedgwick §1.5).
 | link:union_find_ts/[union_find_ts]         | Thread-safe union-find (RWMutex; Find takes the write lock — path halving mutates).
 | link:index_pq/[index_pq]                   | Generic indexed priority queue (decrease-key by client index, Sedgwick §2.6 IndexMinPQ).
@@ -638,6 +639,32 @@ after each rebuild. Operations between trigger and rebuild run against
 the still-valid (merely saturated) table. Plus the usual twin surface:
 snapshot `All`/`Values`, real `Lock`/`Unlock`, and the `Nl*` methods
 for compound operations.
+
+=== Sharded for concurrency — `sharded_hash_ts/`
+
+The striped hash table — one logical table sharded over a power-of-two
+number of independently locked stripes, built for shared keyspaces (the
+Ultima keyspace request). Each stripe is a *chained* table with a
+power-of-two bucket array that doubles at a configurable load factor
+(default 0.75); `Insert`/`Search`/`Delete` touch exactly one stripe, and
+`Len` is a lock-free atomic — no global lock anywhere. The stripe
+internals are deliberately not `hash_grow`/`cuckoo` open addressing: the
+Redis SCAN guarantee (a full iteration returns everything present
+throughout, at least once) is only provable when elements never change
+buckets except by the deterministic v-or-v+size split of a doubling —
+`hash_grow`'s backward-shift deletes and home-slot re-probing can strand
+an unscanned element. Chains move nothing: insert pushes a node, delete
+unlinks, growth re-links at `hash & newMask` (Redis's own `dict` split).
+`Scan` walks all stripes with one cursor (stripe index in the high bits,
+Redis reverse-binary bucket cursor in the low bits) holding at most one
+stripe read lock, never across calls; `LockKey(key)` plus the `Nl*`
+methods give atomic read-modify-write on one key's stripe (multi-key
+clients must lock in stripe-index order). Replaces N independent tables
+plus caller-side routing glue: ~12.5 ns/op read-heavy at 256 stripes
+versus ~67 for single-lock `hash_grow_ts` on 14 cores, matching the
+manual N-tables arrangement while giving it the one thing it lacks — a
+single cursor space. No plain twin; striping exists only for concurrent
+use.
 
 == Union-Find — `union_find/`, `union_find_ts/`
 

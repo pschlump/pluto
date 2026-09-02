@@ -260,8 +260,8 @@ func TestThresholdDefaults(t *testing.T) {
 		{0.5, 0.05, 0.5, 0.05},
 		{2.0, 0.1, 2.0, 0.1},                        // a grow threshold above 1 defers threshold growth
 		{0.05, 0.5, defaultGrowAt, defaultShrinkAt}, // inverted band: both defaults
-		{0.5, 0.4, 0.5, 0.5 / 1.5},                       // narrow band: shrink clamped to grow/1.5
-		{0.3, 0.2, 0.3, 0.19999999999999998},             // ditto (runtime 0.3/1.5, not the exact constant)
+		{0.5, 0.4, 0.5, 0.5 / 1.5},                  // narrow band: shrink clamped to grow/1.5
+		{0.3, 0.2, 0.3, 0.19999999999999998},        // ditto (runtime 0.3/1.5, not the exact constant)
 	}
 	for i, c := range cases {
 		ht := newTestTab(16, c.grow, c.shrink)

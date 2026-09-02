@@ -1,0 +1,232 @@
+= sharded_hash_ts
+
+`sharded_hash_ts` is a thread-safe generic hash table that shards its
+keyspace across a fixed power-of-two number of independently locked
+stripes. One logical table, N internal tables, N `sync.RWMutex` —
+operations on keys that hash to different stripes never contend for the
+same lock, and `Len` is a lock-free atomic, so there is no global lock
+anywhere on the hot path.
+
+It is the native replacement for the N independent tables plus
+caller-side routing and iteration glue that a shared keyspace otherwise
+needs (its request — note/03-sharded-hash-table.md — comes from the
+Ultima keyspace, which previously ran N `cuckoo_ts` tables). One cursor
+space covers the whole table: `Scan` iterates every stripe with the
+rehash-safe cursor of Redis SCAN.
+
+Element data is never boxed into an interface and never unboxed with a
+type assertion.
+
+* Elements are stored and returned *by value* (`T`, not `*T`); `Search`
+returns `(T, bool)` and `Insert` returns bool — true when a new element
+was added, false when it replaced an equal element.
+* Keys of types comparable with `==` need no functions at all:
+`sharded_hash_ts.NewShardedHash[string](256, 16, 0)`.  Equality is the
+`==` operator and hashing is the stdlib `hash/maphash` with one random
+seed for the whole table.
+* Any other type — or identity by a single field — takes a plain equality
+function *and* a hash function, with no interface to implement.  The two
+functions must agree: equal elements must have equal hashes.
+* A two-field struct with eq/hash reading only the key field is the map
+pattern: `Insert` replaces, `Search` returns the stored (key, value)
+pair.
+
+Stripe routing is Fibonacci hashing — the top bits of `hash * φ⁶⁴` —
+which spreads any caller hash evenly over the stripes and decorrelates
+the routing bits from the low bits the bucket mask uses.  Elements never
+migrate stripes: the stripe count is fixed at construction.
+
+There is no plain (non-`_ts`) twin; the striping exists only for
+concurrent use.  Single-goroutine callers want link:../hash_grow[pluto/hash_grow]
+or link:../hash_tab[pluto/hash_tab].
+
+== Why chained stripes (and not hash_grow/cuckoo internals)
+
+Each stripe is a *chained* hash table: a power-of-two array of bucket
+heads indexed by `hash & (heads-1)` that doubles when the load factor
+passes a configurable threshold (default 0.75).  The open-addressing
+machinery of link:../hash_grow[pluto/hash_grow] and
+link:../cuckoo[pluto/cuckoo] was deliberately not reused, and the reason
+is the SCAN contract.  Scan promises, like Redis SCAN, that a full
+iteration returns every element present for the entire scan at least
+once — a promise that is only provable when an element never changes
+buckets except by the deterministic split of a doubling (bucket v becomes
+v or v+oldSize, decided by one hash bit).
+
+* `hash_grow`'s backward-shift deletion moves elements between buckets on
+every delete, and its growth re-probes each element from its home slot
+depending on occupancy.  Either can move an element into an
+already-scanned bucket and strand it.
+* Chained buckets move nothing: `Insert` pushes a node at the chain head,
+`Delete` unlinks a node, and growth re-links every existing node at
+`hash & newMask` — the split Redis's `dict` performs.  No re-hash, no
+occupancy-dependent placement.
+
+The per-op speed of open addressing is traded for the scan guarantee;
+the benchmarks below measure the trade — striping more than pays for it
+under concurrency.
+
+== Complexity
+
+[cols="2,1,1,4",options="header"]
+|===
+| Operation                                | Average | Worst case | Notes
+
+| `Insert`                                 | O(1)    | O(n)       | one stripe write-locked; doubling amortized
+| `Search`                                 | O(1)    | O(n)       | one stripe read-locked
+| `Delete`                                 | O(1)    | O(n)       | one stripe write-locked, atomic search-and-unlink
+| `IsEmpty`, `Len`, `Length`               | O(1)    | O(1)       | lock-free atomic counter
+| `Truncate`                               | O(n)    | O(n)       | clears stripes one at a time
+| `Scan`                                   | O(count)| O(n)       | one stripe read-locked at a time, never across calls
+| `LockKey` + `Nl*`                        | O(1)    | O(1)       | one stripe write-locked
+| `StripeCount`, `StripeLen`               | O(1)    | O(1)       | per-stripe load metrics
+| `Walk`, `All`, `Values`                  | O(n)    | O(n)       | per-stripe snapshots
+| `Dump`                                   | O(stripes) | O(stripes) | per-stripe summary
+|===
+
+Worst case occurs when many keys collide into one chain.  The load factor
+is kept below the threshold (default 0.75), so chains stay short.  A
+loadFactor ≤ 0 or NaN selects the 0.75 default; `initialCapacity` is
+rounded up to a power of two with a floor of 16; `stripes` is rounded up
+to a power of two (1 and 2 are legal — a 1-stripe table is the degenerate
+single-lock case).
+
+== Usage
+
+[source,go]
+----
+h := sharded_hash_ts.NewShardedHash[string](256, 16, 0) // 256 stripes, defaults
+
+h.Insert("alpha")
+if v, found := h.Search("alpha"); found {
+	fmt.Println("found", v)
+}
+h.Delete("alpha")
+----
+
+== Atomic read-modify-write: LockKey + Nl*
+
+`Search` followed by `Insert` is two lock acquisitions — another goroutine
+can mutate between them.  `LockKey(key)` takes the write lock of key's
+stripe and returns the unlock function; the `Nl*` methods
+(`NlIsEmpty`, `NlLen`, `NlSearch`, `NlInsert`, `NlDelete`) run under it:
+
+[source,go]
+----
+unlock := h.LockKey(key)
+if v, found := h.NlSearch(key); found {
+	h.NlInsert(bump(v)) // atomic read-modify-write
+}
+unlock()
+----
+
+The Nl methods are race-free only for keys that route to the *held*
+stripe — a key of another stripe is not protected by the held lock.
+Calling a locking public method (`Insert`, `Delete`, `Truncate`, `Scan`,
+...) on any key of the same stripe while the lock is held deadlocks.
+`LockKey`/unlock on a nil or zero-value table are no-ops.
+
+*Lock ordering:* clients that lock multiple keys at once MUST take them in
+stripe-index order (the order `StripeCount` numbers them in).  Two
+clients holding stripe locks in opposite orders deadlock — the classic
+sharded-map rule, and the one thing the package cannot protect you from.
+
+== Scan
+
+`Scan(cursor, count)` returns up to `count` elements plus the cursor to
+continue with (0 = iteration complete); `count` is a hint (whole buckets
+are emitted, as in Redis) and ≤ 0 selects the default of 10.
+
+[source,go]
+----
+cursor := uint64(0)
+for {
+	items, next := h.Scan(cursor, 100)
+	for _, key := range items {
+		visit(key)
+	}
+	cursor = next
+	if cursor == 0 {
+		break // complete
+	}
+}
+----
+
+The guarantee matches Redis SCAN: a full iteration (cursor 0 to cursor 0)
+returns every element present in the table for the *entire* scan at least
+once; elements added or removed mid-scan may or may not appear; an
+element surviving a stripe doubling may legitimately be returned twice.
+
+The cursor packs the stripe index in its high 24 bits and a
+reverse-binary bucket cursor in its low 40 bits.  Reverse-binary
+iteration (0, 2, 1, 3, 0, 4, 2, 6, 1, 5, 3, 7, ...) is the ordering of
+Redis's `dictScan` (note/redis/src/dict.c): when a stripe's table doubles
+mid-scan, the reverse-binary successors of the cursor at the larger size
+are exactly the not-yet-visited buckets plus the upper halves of the
+visited ones — nothing present throughout is ever stranded.  Stripes are
+visited in index order and elements never migrate stripes, so each
+stripe's scan is independent.
+
+Per call Scan holds at most one stripe's read lock and never holds any
+lock across a call boundary.  A `Truncate` concurrent with a scan simply
+empties stripes; the cursor stays valid and the guarantee covers what
+remains.  A cursor that is not one Scan previously returned is treated as
+0 (the scan restarts) rather than panicking or skipping.
+
+== Iteration
+
+`All() iter.Seq2[int, T]` (a running position — a single-variable range
+yields the *position*, not the element) and `Values() iter.Seq[T]`
+operate on a snapshot copied stripe by stripe under each stripe's read
+lock when the iterator method is called, so it is safe to call other
+table methods from the loop body.  Each stripe's elements are a
+point-in-time view; stripes are not mutually consistent (inherent to
+sharding — there is no global lock to make them so).  `Walk(fx)` is the
+callback alternative (`func(pos int, data T) bool`, returning *false
+stops the walk*); it holds each stripe's read lock only while that stripe
+is walked, so `fx` must not call methods on the same table.  Visit order
+depends on the hash seed and per-stripe growth history — never assert a
+fixed order.
+
+== Panics
+
+Four situations, each message naming the fix:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewShardedHashFunc(nil eq, ...)` / `NewShardedHashFunc(eq, nil hash, ...)` | nil function, caught at construction time
+| `NewShardedHash`/`NewShardedHashFunc` with stripes < 1 | a stripe count is not a tuning hint
+| `Insert` on a nil table | a nil table cannot store an element
+| `Insert`/`NlInsert` on a zero-value table | no equality/hash functions; the message names the constructors
+|===
+
+Everything else tolerates a nil table and the zero value as an empty
+table: searches report not-found, `Delete` returns false, `Scan` returns
+nothing and cursor 0, and the iterators visit nothing.
+
+== Performance
+
+b.RunParallel (GOMAXPROCS = 14, Apple M4 Max), 100k preloaded string
+keys, 90/5/5 read/insert/delete and 50/25/25 mixes — `bench_test.go`:
+
+[cols="3,1,1",options="header"]
+|===
+| Table | Read-heavy ns/op | 50/50 ns/op
+
+| sharded_hash_ts, 1 stripe    | 58.5 | 54.2
+| sharded_hash_ts, 4 stripes   | 58.9 | 44.1
+| sharded_hash_ts, 16 stripes  | 31.8 | 26.3
+| sharded_hash_ts, 256 stripes | 12.5 | 15.1
+| hash_grow_ts (one lock)      | 67.0 | 72.5
+| cuckoo_ts (one lock)         | 75.2 | 68.8
+| 16 × cuckoo_ts + manual routing | 34.2 | 34.6
+|===
+
+Striping scales near-linearly until the stripe count passes the core
+count (256 stripes: ~4.7× over the 1-stripe degenerate case on 14 cores),
+and beats the single-lock tables even at 1 stripe.  It also matches the
+manual 16-independent-tables arrangement per-op — while providing the one
+thing that arrangement cannot: a single SCAN cursor space.  A full scan
+of 100k elements costs ~1.15 ms (~11.5 ns/element).
