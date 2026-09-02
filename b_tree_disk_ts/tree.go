@@ -228,7 +228,7 @@ func (t *Tree[K]) insertNoLock(key []byte, value uint64) (bool, error) {
 		if err := s.setEntryRootLocked(t.slot, newRootNo); err != nil {
 			return false, err
 		}
-		rootNo, root = newRootNo, newRoot // dirty, hence unevictable; no pin needed
+		root = newRoot // dirty, hence unevictable; no pin needed
 	}
 
 	// Descend, splitting full children before stepping into them so the

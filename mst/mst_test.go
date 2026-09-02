@@ -161,8 +161,7 @@ func checkForest(t *testing.T, name string, n int, g *dijkstra.EdgeWeightedGraph
 	for i := range parent {
 		parent[i] = i
 	}
-	var find func(int) int
-	find = func(p int) int {
+	find := func(p int) int {
 		for parent[p] != p {
 			parent[p] = parent[parent[p]]
 			p = parent[p]

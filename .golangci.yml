@@ -1,0 +1,27 @@
+# golangci-lint configuration for `make lint` (golangci-lint v2).
+version: "2"
+
+issues:
+  # Report every instance of every finding.  The default cap of 3 per
+  # identical issue hid 52 of the 78 findings in the 2026-09 lint sweep
+  # (12 of the 13 bare f.Close() cleanups in b_tree_disk_ts.go, 30 of the
+  # 33 SA2001s) — a fix-all pass has to see them all.
+  max-same-issues: 0
+
+linters:
+  exclusions:
+    rules:
+      # The nil-contract tests lock and immediately unlock nil (or
+      # no-op-lock) objects — the empty critical section IS the
+      # assertion that Lock/Unlock on nil are tolerated no-ops.
+      - path: _test\.go
+        linters: [staticcheck]
+        text: "SA2001"
+      # Deferred test cleanup (store Close, temp-dir RemoveAll): the
+      # test verdict never depends on the close/remove error.
+      - path: _test\.go
+        linters: [errcheck]
+        text: "Error return value of `.*Close` is not checked"
+      - path: _test\.go
+        linters: [errcheck]
+        text: "Error return value of `os.RemoveAll` is not checked"

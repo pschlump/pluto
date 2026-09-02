@@ -189,9 +189,9 @@ func (s *Store) flusher() {
 		case <-s.flusherStop:
 			return
 		case <-ticker.C:
-			s.flush()
+			_ = s.flush() // background cycle: failures keep blocks dirty and surface on the next Sync/Close
 		case <-s.flusherSignal:
-			s.flush()
+			_ = s.flush()
 		}
 	}
 }
@@ -269,8 +269,14 @@ func (s *Store) flushInner() error {
 		}
 	}
 	if err == nil {
-		s.jf.Truncate(0)
-		s.jf.Seek(0, 0)
+		// The journal checkpoint is part of the flush: a failed truncate
+		// or seek must surface, or every later open replays the batch and
+		// the journal never shrinks.
+		if terr := s.jf.Truncate(0); terr != nil {
+			err = fmt.Errorf("b_tree_disk_ts: journal checkpoint truncate: %w", terr)
+		} else if _, serr := s.jf.Seek(0, 0); serr != nil {
+			err = fmt.Errorf("b_tree_disk_ts: journal checkpoint seek: %w", serr)
+		}
 	}
 	return err
 }

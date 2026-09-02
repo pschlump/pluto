@@ -225,7 +225,7 @@ func OpenStore(cfg StoreConfig) (*Store, error) {
 	}
 	st, err := f.Stat()
 	if err != nil {
-		f.Close()
+		_ = f.Close()
 		return nil, fmt.Errorf("b_tree_disk_ts: stat %s: %w", cfg.Path, err)
 	}
 
@@ -238,45 +238,45 @@ func OpenStore(cfg StoreConfig) (*Store, error) {
 		binary.LittleEndian.PutUint32(img[sbBlockSize:], uint32(blockSize))
 		binary.LittleEndian.PutUint64(img[sbNumBlocks:], 1)
 		if _, err := f.WriteAt(img, 0); err != nil {
-			f.Close()
+			_ = f.Close()
 			return nil, fmt.Errorf("b_tree_disk_ts: write superblock: %w", err)
 		}
 		if err := f.Sync(); err != nil {
-			f.Close()
+			_ = f.Close()
 			return nil, fmt.Errorf("b_tree_disk_ts: fsync superblock: %w", err)
 		}
 		numBlocks = 1
 	} else {
 		if st.Size() < sbHeader {
-			f.Close()
+			_ = f.Close()
 			return nil, fmt.Errorf("b_tree_disk_ts: %s is too short to be a store (%d bytes)", cfg.Path, st.Size())
 		}
 		hdr := make([]byte, sbHeader)
 		if _, err := f.ReadAt(hdr, 0); err != nil {
-			f.Close()
+			_ = f.Close()
 			return nil, fmt.Errorf("b_tree_disk_ts: read superblock: %w", err)
 		}
 		if binary.LittleEndian.Uint64(hdr[sbMagic:]) != storeMagic {
-			f.Close()
+			_ = f.Close()
 			return nil, fmt.Errorf("b_tree_disk_ts: %s is not a b_tree_disk_ts store (bad magic)", cfg.Path)
 		}
 		if v := binary.LittleEndian.Uint32(hdr[sbVersion:]); v != storeVersion {
-			f.Close()
+			_ = f.Close()
 			return nil, fmt.Errorf("b_tree_disk_ts: %s has format version %d, this build understands %d", cfg.Path, v, storeVersion)
 		}
 		stored := int(binary.LittleEndian.Uint32(hdr[sbBlockSize:]))
 		if cfg.BlockSize != 0 && cfg.BlockSize != stored {
-			f.Close()
+			_ = f.Close()
 			return nil, fmt.Errorf("b_tree_disk_ts: %s was created with block size %d, config requests %d", cfg.Path, stored, cfg.BlockSize)
 		}
 		if int64(stored) > st.Size() {
-			f.Close()
+			_ = f.Close()
 			return nil, fmt.Errorf("b_tree_disk_ts: %s is truncated: shorter than one %d-byte block", cfg.Path, stored)
 		}
 		blockSize = stored
 		sb := make([]byte, blockSize)
 		if _, err := f.ReadAt(sb, 0); err != nil {
-			f.Close()
+			_ = f.Close()
 			return nil, fmt.Errorf("b_tree_disk_ts: read superblock: %w", err)
 		}
 		numBlocks = binary.LittleEndian.Uint64(sb[sbNumBlocks:])
@@ -285,13 +285,13 @@ func OpenStore(cfg StoreConfig) (*Store, error) {
 
 	jf, err := os.OpenFile(cfg.Path+".journal", os.O_RDWR|os.O_CREATE, 0o666)
 	if err != nil {
-		f.Close()
+		_ = f.Close()
 		return nil, fmt.Errorf("b_tree_disk_ts: open journal: %w", err)
 	}
 	seq, err := recoverJournal(jf, f, blockSize)
 	if err != nil {
-		jf.Close()
-		f.Close()
+		_ = jf.Close()
+		_ = f.Close()
 		return nil, err
 	}
 
@@ -406,8 +406,9 @@ func (s *Store) simulateCrash() {
 	close(s.flusherStop)
 	s.flusherWg.Wait()
 
-	s.f.Close()
-	s.jf.Close()
+	// A crashed process checks nothing — including its close errors.
+	_ = s.f.Close()
+	_ = s.jf.Close()
 }
 
 // -------------------------------------------------------------------------------------------------------

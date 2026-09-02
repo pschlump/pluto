@@ -564,37 +564,37 @@ func TestNewTreePanics(t *testing.T) {
 	s := openTempStore(t, StoreConfig{})
 
 	expectPanic(t, "NewTree(nil store)", "nil store", func() {
-		NewTree[uint64](nil, u64TreeConfig) //nolint:staticcheck // intentional nil
+		_, _ = NewTree[uint64](nil, u64TreeConfig) //nolint:staticcheck // intentional nil
 	})
 	expectPanic(t, "NewTree(nil EncodeKey)", "nil EncodeKey", func() {
 		cfg := u64TreeConfig
 		cfg.EncodeKey = nil
-		NewTree[uint64](s, cfg)
+		_, _ = NewTree[uint64](s, cfg)
 	})
 	expectPanic(t, "NewTree(nil DecodeKey)", "nil DecodeKey", func() {
 		cfg := u64TreeConfig
 		cfg.DecodeKey = nil
-		NewTree[uint64](s, cfg)
+		_, _ = NewTree[uint64](s, cfg)
 	})
 	expectPanic(t, "NewTree(nil Compare)", "nil Compare", func() {
 		cfg := u64TreeConfig
 		cfg.Compare = nil
-		NewTree[uint64](s, cfg)
+		_, _ = NewTree[uint64](s, cfg)
 	})
 	expectPanic(t, "NewTree(KeySize 0)", "KeySize <= 0", func() {
 		cfg := u64TreeConfig
 		cfg.KeySize = 0
-		NewTree[uint64](s, cfg)
+		_, _ = NewTree[uint64](s, cfg)
 	})
 	expectPanic(t, "NewTree(empty name)", "empty tree name", func() {
 		cfg := u64TreeConfig
 		cfg.Name = ""
-		NewTree[uint64](s, cfg)
+		_, _ = NewTree[uint64](s, cfg)
 	})
 	expectPanic(t, "NewTree(32-byte name)", "maximum is 31", func() {
 		cfg := u64TreeConfig
 		cfg.Name = strings.Repeat("x", 32)
-		NewTree[uint64](s, cfg)
+		_, _ = NewTree[uint64](s, cfg)
 	})
 
 	// A 31-byte name is legal.
