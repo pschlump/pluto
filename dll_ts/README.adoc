@@ -51,6 +51,13 @@ current element is deleted.  Prefer `All`/`Backward` for a stable view.
 * *`Concat` snapshots the source under the source's own read lock*
 before taking the destination's write lock — no two locks are ever held
 at once, so the source may safely alias the destination.
+* *`MarshalJSON` snapshots under the read lock and encodes without it*
+(the `All`/`Backward` snapshot convention), so it is safe concurrently
+with any list operation — and an element type with its own
+`MarshalJSON` may safely call back into the list.
+* *`UnmarshalJSON` decodes before taking the write lock* — element-level
+unmarshalers must not run under the list lock — and then replaces the
+contents under one hold of the write lock.
 * *`Lock`/`Unlock` expose the write lock* for compound operations that
 must be atomic (unlike the no-op pair in the plain `dll` package).  No
 other list operation may run while the lock is held; inside the locked
@@ -87,8 +94,14 @@ exactly three situations, all programmer errors:
 |===
 
 The insert family is `InsertBeforeHead`, `Push`, `AppendAtTail`,
-`Enqueue`, and `Concat` (only when the source has elements).  Everything
+`Enqueue`, `Concat` (only when the source has elements), and
+`UnmarshalJSON` (when the data holds elements).  Everything
 else tolerates a nil list and the zero value as an empty list.
+
+The JSON support (`MarshalJSON`/`UnmarshalJSON`) is otherwise identical
+to dll's — the list encodes as a JSON array of its elements, head to
+tail — see the JSON section of the
+link:../dll/[dll README]; only the locking differs, as described above.
 
 == Usage
 

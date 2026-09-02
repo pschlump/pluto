@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package dll_ts_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -237,4 +238,34 @@ func ExampleDll_Trim() {
 	fmt.Println(got)
 	// Output:
 	// [0 1]
+}
+
+// MarshalJSON encodes the list as a JSON array of its elements, head to
+// tail.  It is safe to call concurrently with any list operation.
+func ExampleDll_MarshalJSON() {
+	list := dll_ts.NewDll[int]()
+	list.AppendAtTail(3)
+	list.AppendAtTail(1)
+	list.AppendAtTail(2)
+
+	b, err := json.Marshal(list)
+	fmt.Println(string(b), err)
+	// Output:
+	// [3,1,2] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the list from a JSON array;
+// element 0 becomes the new head.
+func ExampleDll_UnmarshalJSON() {
+	list := dll_ts.NewDll[string]()
+	if err := json.Unmarshal([]byte(`["c","a"]`), list); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for i, v := range list.All() {
+		fmt.Println(i, v)
+	}
+	// Output:
+	// 0 c
+	// 1 a
 }

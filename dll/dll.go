@@ -48,6 +48,11 @@ BSD 3 Clause Licensed.
 //	TrimTail — Cut list to specified length, keeping the tail; unchanged if shorter.			O(n)
 //	Concat — Append a copy of the elements of another list to this list.						O(n)
 //
+// The list also implements the json.Marshaler and json.Unmarshaler
+// interfaces (MarshalJSON/UnmarshalJSON, in json.go): it encodes as a
+// JSON array of its elements, head to tail, and unmarshaling replaces
+// the contents.
+//
 // With the basic stack operations it also can be used as a stack:
 //
 //	Push — Inserts an element at the top														O(1)
@@ -85,8 +90,9 @@ BSD 3 Clause Licensed.
 //	Insert-family on a nil list   — a nil list cannot store an element.
 //	Insert-family on a zero-value list — no equality function; the message names the constructors.
 //
-// The insert family is InsertBeforeHead, Push, AppendAtTail, Enqueue and
-// Concat (which appends).
+// The insert family is InsertBeforeHead, Push, AppendAtTail, Enqueue,
+// Concat (which appends) and UnmarshalJSON (when the data holds
+// elements).
 //
 // This version of the DLL is not suitable for concurrent usage; a mutex
 // guarded thread-safe twin has the exact same interface.

@@ -45,6 +45,9 @@ BSD 3 Clause Licensed.
 //	Lock and Unlock expose the write lock for compound operations (for
 //	example a search-and-insert that must be atomic).  No other list
 //	operation may run while the lock is held.
+//	MarshalJSON (json.go) snapshots under the read lock and encodes
+//	without it; UnmarshalJSON (json.go) decodes before taking the write
+//	lock and then replaces the contents under one hold of it.
 //
 // Errors, not panics, report empty-list, not-found and out-of-range
 // conditions: ErrEmptyDll, ErrNotFound, ErrOutOfRange and ErrInternalDll.
@@ -61,8 +64,10 @@ BSD 3 Clause Licensed.
 //	Insert-family on a nil list   — a nil list cannot store an element.
 //	Insert-family on a zero-value list — no equality function; the message names the constructors.
 //
-// The insert family is InsertBeforeHead, Push, AppendAtTail, Enqueue and
-// Concat (which appends).
+// The insert family is InsertBeforeHead, Push, AppendAtTail, Enqueue,
+// Concat (which appends) and UnmarshalJSON (when the data holds
+// elements).  The list implements the json.Marshaler and
+// json.Unmarshaler interfaces — see json.go.
 package dll_ts
 
 import (

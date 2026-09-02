@@ -47,6 +47,7 @@ on pkg.go.dev.
 | `Truncate`                               | Remove all elements                        | O(1)
 | `IsEmpty` / `Len` / `Length`             | Size queries                               | O(1)
 | `Dump`                                   | One line per element, for debugging        | O(n)
+| `MarshalJSON` / `UnmarshalJSON`          | JSON array of the elements, head→tail      | O(n)
 |===
 
 `DllIter` (from `Front`, `Rear`, or `Current`) can be walked with `Next`
@@ -121,6 +122,45 @@ The `Walk`/`ReverseWalk` callbacks capture caller state in a closure
 *true stops the walk* — the opposite of the pluto tree packages — and
 the walk returns the element and position where it stopped.
 
+== JSON
+
+`Dll` implements `json.Marshaler` and `json.Unmarshaler`
+(`MarshalJSON`/`UnmarshalJSON`, in link:json.go[`json.go`]), so the list
+can be used directly with the `encoding/json` package:
+
+* The list encodes as a *JSON array of its elements, head to tail* —
+the head is element 0.  An empty list encodes as `[]`.
+* The elements are encoded and decoded by the json package itself, so
+element types with their own `MarshalJSON`/`UnmarshalJSON` — or struct
+field tags — are honored; only the list structure is pluto's.  Errors
+from the json package are passed through unchanged.
+* `UnmarshalJSON` *replaces* the current contents of the list (it does
+not append) and keeps the equality function, so the list stays usable.
+A decode error — malformed JSON, a non-array document, wrong element
+types — leaves the list untouched.  `null` and `[]` clear the list.
+* Unmarshaling stores elements, so it follows the insert contract: data
+with elements panics on a nil or zero-value list (see Panics); `null`
+and `[]` store nothing and are tolerated everywhere.
+
+[source,go]
+----
+list := dll.NewDll[int]()
+list.AppendAtTail(3)
+list.AppendAtTail(1)
+b, _ := json.Marshal(list)    // [3,1]
+
+fresh := dll.NewDll[int]()
+_ = json.Unmarshal(b, fresh)  // fresh now holds 3, 1
+----
+
+Note for struct fields: unmarshal into a list *created with `NewDll` or
+`NewDllFunc`*.  For a nil `*Dll` field the json package allocates the
+list itself — a zero value with no equality function — so non-empty
+data panics with the insert-family message (`json.Unmarshal` does not
+recover panics).  Marshaling a nil `*Dll` field yields `null` (the json
+package's own nil-pointer rule; a direct `MarshalJSON()` call on a nil
+list yields `[]`).
+
 == Panics
 
 The package panics in exactly three situations — all programmer errors
@@ -136,6 +176,7 @@ with no sane fallback:
 |===
 
 The insert family is `InsertBeforeHead`, `Push`, `AppendAtTail`,
-`Enqueue`, and `Concat` (which appends).  Everything else tolerates a nil
+`Enqueue`, `Concat` (which appends), and `UnmarshalJSON` (when the data
+holds elements).  Everything else tolerates a nil
 list and the zero value as an empty list.
 

@@ -30,8 +30,8 @@ with an identical public API.
 | link:b_tree_disk_ts/[b_tree_disk_ts]       | Disk-backed thread-safe B+ tree store (4K blocks, LRU write-back cache, WAL journal, crash recovery, multi-tree indexes).
 | link:skip_list/[skip_list]                 | Generic probabilistic ordered skip list (span-backed rank/range queries).
 | link:skip_list_ts/[skip_list_ts]           | Thread-safe skip list (RWMutex, snapshot iterators, Nl* compounds).
-| link:dll/[dll]                             | Generic doubly linked list (stack/queue/list).
-| link:dll_ts/[dll_ts]                       | Thread-safe doubly linked list (RWMutex, snapshot iterators).
+| link:dll/[dll]                             | Generic doubly linked list (stack/queue/list, JSON array marshal/unmarshal).
+| link:dll_ts/[dll_ts]                       | Thread-safe doubly linked list (RWMutex, snapshot iterators, JSON array marshal/unmarshal).
 | link:sll/[sll]                             | Generic singly linked list (stack/FIFO list).
 | link:sll_ts/[sll_ts]                       | Thread-safe singly linked list (RWMutex, snapshot iterator).
 | link:queue/[queue]                         | Generic slice-backed FIFO queue.
