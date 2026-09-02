@@ -99,6 +99,7 @@ with an identical public API.
 | link:lru/[lru]                             | Generic capacity-bounded LRU cache (eviction veto callback, soft cap).
 | link:lru_ts/[lru_ts]                       | Thread-safe capacity-bounded LRU cache (RWMutex; Get takes the write lock, snapshot iterators, Lock+Nl* compound ops).
 | link:crc/[crc]                             | Table-driven CRC-32/CRC-64 checksums (IEEE, Castagnoli, Koopman, ECMA, ISO; pure functions, concurrent-use safe).
+| link:geo/[geo]                             | Redis GEO geohash math: 52-bit Encode/Decode (bit-compatible with Redis), Neighbors, radius/box score ranges, haversine Distance, m/km/ft/mi units (pure functions, concurrent-use safe).
 | link:g_lib/[g_lib]                         | Generic utility functions (min/max, slice ops, set/map conversion, numeric constraints).
 |===
 
