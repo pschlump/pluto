@@ -1,0 +1,73 @@
+= stream_ts
+
+The *thread-safe twin* of link:../stream/[`stream`] — the
+append-oriented `<ms>-<seq>` ID-keyed entry log with consumer groups
+(the Redis stream of XADD/XRANGE/XREAD/XGROUP) — with the identical
+public API guarded by one `sync.RWMutex`, plus the real `Lock`/`Unlock`
+and the `Nl*` no-lock methods for compound operations. See the
+link:../stream/README.adoc[stream README] for the data-structure
+contracts (ID monotonicity, the AutoSeq sentinel, group delivery
+semantics, the PEL); this twin changes only the concurrency.
+
+* `ID`, `Entry` and `PendingEntry` are *aliases* of the stream
+package's types, and the errors/sentinels/`ParseID`/`CompareID` are
+re-exported — code written against either twin compiles and compares
+`errors.Is` across both. Switching is an import change.
+* One lock guards a plain `stream.Stream` value (the
+link:../hash_tab_bt_ts/[`hash_tab_bt_ts`] pattern — no locks inside the
+borrowed structure).
+* Zero value ready to use; a nil `*Stream` behaves as an empty stream
+for everything except `Add` and `CreateGroup` (panic naming the method,
+*before* any lock acquisition — the package's only panics).
+
+== Concurrency model
+
+[options="header"]
+|===
+| Class        | Operations                                                              | Lock
+| Read         | `Len`, `IsEmpty`, `FirstID`, `LastID`, `GroupNames`, `GroupLastID`, `GroupConsumers`, `Pending`, `PendingRange` | read
+| Write        | `Add`, `Delete`, `TrimMaxLen`, `TrimMinID`, `SetLastID`, `CreateGroup`, `DestroyGroup`, `GroupSetID`, `GroupCreateConsumer`, `GroupDeleteConsumer` | write
+| Deliver      | `ReadGroup`, `Ack`, `Claim`, `AutoClaim` — they move entries onto pending lists | write
+| Snapshot     | `Range`, `RevRange` — collected under the read lock, yielded after release | read (during collection)
+|===
+
+`Range`/`RevRange` are *eager snapshots* taken at call time: safe to
+mutate the stream from inside the loop, never observing later
+modifications (the plain package's iterators walk the live storage
+instead).
+
+Concurrent appends of *explicit* IDs cannot work — the strictly
+increasing rule has no room for two independent ID choosers; that is
+the stream's contract, not a locking deficiency. The concurrent form is
+`Add(ID{Ms: m, Seq: AutoSeq}, ...)`: the next-sequence resolution runs
+under the lock, which is exactly how a Redis server assigns XADD IDs.
+
+== Compound operations
+
+The `Lock`/`Unlock` pair plus the `Nl*` methods make multi-step
+sequences atomic — the read-then-ack the Ultima command layer needs:
+
+[source,go]
+----
+s.Lock()
+delivered := s.NlReadGroup("workers", "alice", stream_ts.MinID, 10)
+acked := s.NlAck("workers", idsOf(delivered)...)
+s.Unlock()
+----
+
+The full `Nl*` surface mirrors the API: `NlLen`, `NlIsEmpty`,
+`NlFirstID`, `NlLastID`, `NlAdd`, `NlDelete`, `NlTrimMaxLen`,
+`NlTrimMinID`, `NlSetLastID`, `NlCreateGroup`, `NlDestroyGroup`,
+`NlGroupNames`, `NlGroupLastID`, `NlGroupConsumers`,
+`NlGroupCreateConsumer`, `NlGroupDeleteConsumer`, `NlGroupSetID`,
+`NlReadGroup`, `NlAck`, `NlPending`, `NlPendingRange`, `NlClaim`,
+`NlAutoClaim`, and the two snapshot collectors `NlRangeSnapshot` /
+`NlRevRangeSnapshot` (iterators get no `Nl*` form — a lock cannot be
+held across their consumption). Calling a regular locking method while
+`Lock` is held deadlocks; the plain `stream` package keeps no-op
+`Lock`/`Unlock` so the same code compiles against both.
+
+Run the tests with `-race` — `TestConcurrentReadWriteMix` hammers
+appends, snapshot iterators and the whole group surface from many
+goroutines, and `TestLockNlCompound` runs an atomic read+ack against a
+competing claimer.

@@ -1,0 +1,167 @@
+= stream
+
+An *append-oriented log of entries keyed by `<ms>-<seq>` IDs*, with
+*consumer groups* and *pending-entry tracking* — the Redis stream of
+XADD/XRANGE/XREAD/XGROUP/XAUTOCLAIM (`note/redis/src/t_stream.c`
+lineage) as a plain Go data structure. Built for the Ultima
+Redis-clone's stream command family (request `note/02-stream.md`).
+
+* Constructor-free like the tries: ordering is inherent in the ID type
+(`CompareID`), so there is no comparison function to store and *the
+zero value of Stream is ready to use* (including `Add`).
+* Entries are stored by value; `Add` copies the field slice; find-style
+operations return `(T, bool)` / `(ID, error)` — no pointer handles.
+* Storage is a link:../skip_list/[`skip_list`] keyed by ID (an
+intra-pluto composition): O(log₂ n) expected add/seek, O(log₂ n + m)
+range walks, and — through the skip list's span counters —
+O(log₂ n + k) trimming by rank. Redis packs entries into listpack
+blocks under a radix tree for byte-level compactness; this port follows
+the request note's guidance to favor simplicity over compactness and
+stores each entry by value.
+
+== Operations
+
+[options="header"]
+|===
+| Operation                     | Description                                          | Complexity
+
+| `Add`                         | Append an entry; AutoSeq assigns the sequence part   | O(log₂ n) expected
+| `Len` / `IsEmpty`             | Number of entries / emptiness                        | O(1)
+| `FirstID`                     | Smallest entry ID                                    | O(1)
+| `LastID`                      | Last assigned ID (survives trim/delete)             | O(1)
+| `Range` / `RevRange`          | Iterate start ≤ id ≤ end, ascending / descending    | O(log₂ n + m)
+| `Delete`                      | Remove one entry; group PELs unaffected             | O(log₂ n) expected
+| `TrimMaxLen` / `TrimMinID`    | Evict oldest / everything below an ID               | O(log₂ n + k)
+| `SetLastID`                   | Move the last-assigned ID (XSETID)                   | O(1)
+| `CreateGroup` / `DestroyGroup`| Consumer group lifecycle                            | O(1)
+| `GroupNames` / `GroupConsumers` / `GroupLastID` | The XINFO surface | O(g log g) / O(c log c) / O(1)
+| `ReadGroup`                   | Deliver new (or replayed) entries to a consumer     | O(log₂ n + m·log₂ p)
+| `Ack`                         | Remove IDs from a group's pending list              | O(k·log₂ p)
+| `Pending` / `PendingRange`    | Pending summary / ID-range detail                   | O(p) / O(log₂ p + m)
+| `Claim` / `AutoClaim`         | Transfer idle pending entries to a consumer         | O(k·(log₂ p + log₂ n)) / O(examined·(log₂ p + log₂ n))
+| `GroupSetID`                  | Reposition a group's next `>` read                  | O(1)
+| `GroupCreateConsumer` / `GroupDeleteConsumer` | Consumer lifecycle | O(1) / O(p)
+|===
+
+== IDs
+
+`ID{Ms, Seq uint64}` compares ms first, then seq. IDs *strictly
+increase*: `Add` rejects an ID equal to or smaller than the stream's
+last ID with `ErrIDTooSmall` — which is also why `0-0` is never a valid
+entry ID, not even on an empty stream (`0-1` is the smallest legal
+first entry).
+
+* `Add` with `id.Seq == AutoSeq` asks for the next sequence number of
+that millisecond: last.Seq+1 when the ms part equals the last ID's,
+0 otherwise (`ErrIDExhausted` when it would overflow). AutoSeq is
+`math.MaxUint64` — the internal sentinel Redis uses too — so an
+explicit seq of `math.MaxUint64` cannot be added, and `MaxID` prints in
+the `ms-*` form.
+* `ParseID` accepts `"1234-56"`, bare `"1234"` (seq 0) and `"1234-*"`
+(seq AutoSeq); `ID.String` renders the canonical form.
+* The Redis sentinels map at the caller: `-` is `MinID` (0-0, the
+inclusive range start), `+` is `MaxID` (the inclusive range end), `$` is
+`s.LastID()`, and `>` is `ReadGroup` with `after == MinID`.
+
+== Ranges
+
+`Range(start, end, count)` iterates ascending with *inclusive* bounds
+(the XRANGE form); `RevRange(end, start, count)` iterates the same span
+descending — note the parameter order mirrors XREVRANGE, and a start
+greater than end iterates as empty. `count ≤ 0` means no limit. Both
+walk the live storage: do not modify the stream while an iterator runs
+(the `stream_ts` twin snapshots instead).
+
+== Consumer groups
+
+Each group holds a last-delivered ID, a consumer name set, and one
+group-wide *pending-entries list* (PEL) ordered by ID — a `skip_list`
+whose nodes carry the owning consumer, delivery time and delivery
+count. The PEL queries the Redis command family asks for are all
+range-shaped, so ID order (Redis's own rax key order) serves all of
+them; XAUTOCLAIM's min-idle filter runs during that ID-ordered scan,
+capped at 10 × count examined entries (Redis's attempt limit), rather
+than through a delivery-time index.
+
+* `ReadGroup(g, c, MinID, count)` is the `>` form: delivers entries
+above the group's last-delivered ID (never re-delivering live pending
+ones), advances the last-delivered ID, and auto-creates the consumer.
+Any other `after` is a *replay*: deliver above that ID without moving
+the last-delivered ID. Reading a consumer's own pending history without
+re-delivering is `PendingRange`.
+* `Claim` transfers explicit pending IDs that have been idle at least
+`minIdle`, bumping delivery counts; a pending ID whose entry was
+deleted or trimmed is dropped from the PEL.
+* `AutoClaim(start, count)` scans pending IDs from `start` (inclusive),
+claims the idle ones, and *reports the IDs it dropped because their
+stream entries are gone* — the deleted array of Redis 7 — so trimmed
+data is discoverable. `nextStart` is the cursor for the next call
+(`MinID` when exhausted).
+* `Delete` and the trims *never touch the PELs* (Redis behavior): a
+trimmed entry stays pending until acked, claimed (silently dropped) or
+autoclaimed (reported). `TrimMaxLen(0)` empties the stream and keeps
+both the last ID and every pending entry.
+
+== Usage
+
+[source,go]
+----
+var s stream.Stream // zero value ready to use
+
+id, _ := s.Add(stream.ID{Ms: 1234, Seq: stream.AutoSeq},
+    [][2]string{"sensor", "21.5"})
+fmt.Println(id) // 1234-0
+
+for e := range s.Range(stream.MinID, stream.MaxID, 100) {
+    fmt.Println(e.ID, e.Fields)
+}
+----
+
+[source,go]
+----
+_ = s.CreateGroup("workers", s.LastID()) // "$": only new entries
+
+batch := s.ReadGroup("workers", "alice", stream.MinID, 10)
+for _, e := range batch {
+    // ... process ...
+    s.Ack("workers", e.ID)
+}
+
+// Recover abandoned work after an idle threshold.
+entries, next, deleted := s.AutoClaim("workers", "carol",
+    time.Minute, stream.MinID, 100)
+----
+
+== Panics and errors
+
+The package panics in exactly two situations, both programmer errors
+with messages naming the method: `Add` on a nil `*Stream`, and
+`CreateGroup` on a nil `*Stream`. Every other operation treats a nil
+stream and the zero value as an empty stream (missing groups report
+empties — Redis's NOGROUP error is the caller's layer).
+
+Data rules are *errors*, checked with `errors.Is`:
+
+* `ErrInvalidID` — `ParseID` on a malformed string.
+* `ErrIDTooSmall` — `Add` with an ID equal to or smaller than the last
+(resolves auto-seq first).
+* `ErrIDExhausted` — auto-seq overflow of the sequence part.
+* `ErrGroupExists` — `CreateGroup` with a taken name.
+
+`SetLastID` is unconditional (Redis's XSETID rejects decreases —
+compare with `LastID` first if you want that check; the entry storage
+stays ordered regardless).
+
+The structure is *not safe for concurrent use*; link:../stream_ts/[`stream_ts`]
+is the twin with the identical API behind a `sync.RWMutex` (the plain
+package keeps no-op `Lock`/`Unlock` so code compiles against both).
+
+== Testing
+
+`thorough_test.go` cross-checks a 4000-step randomized run (fixed seed
+42) against a map/slice reference model that re-implements the
+documented semantics — every return value and the full post-state after
+every step — and `checkInvariants` verifies the structural contracts
+(entries strictly ascending, PELs owned by registered consumers,
+`Pending` agreement). Benchmarks cover the request note's targets: 1M
+adds, ranges over a 1M-entry stream, and AutoClaim over 100k pending.

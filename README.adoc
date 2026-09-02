@@ -89,6 +89,8 @@ with an identical public API.
 | link:suffix_array/[suffix_array]           | Immutable suffix array with Kasai LCP (Sedgwick §6.3; no `_ts` twin — immutable, concurrent reads safe).
 | link:substring/[substring]                 | Substring search: KMP, Boyer-Moore, Rabin-Karp (compile pattern once, search many texts; Sedgwick §5.3).
 | link:lzw/[lzw]                             | LZW compression/expansion over byte slices on pluto/tst (widening 9→16-bit codes; Sedgwick §5.5 variant).
+| link:stream/[stream]                       | Redis-style stream: append-oriented log of `<ms>-<seq>` ID entries with consumer groups and PEL tracking (on pluto/skip_list).
+| link:stream_ts/[stream_ts]                 | Thread-safe stream (RWMutex, snapshot iterators, Lock+Nl* compound ops).
 | link:lru/[lru]                             | Generic capacity-bounded LRU cache (eviction veto callback, soft cap; no `_ts` twin — callers lock).
 | link:crc/[crc]                             | Table-driven CRC-32/CRC-64 checksums (IEEE, Castagnoli, Koopman, ECMA, ISO; pure functions, concurrent-use safe).
 | link:g_lib/[g_lib]                         | Generic utility functions (min/max, slice ops, set/map conversion, numeric constraints).
@@ -118,7 +120,9 @@ siblings — anything with no ordering and no equality) need no
 constructors at all: the zero value is fully usable, including Push.
 The string-keyed tries (`trie`, `tst`, and their twins) also have no
 constructors — their ordering is inherent in the key bytes, so there
-is no comparison function to store and the zero value is usable.
+is no comparison function to store and the zero value is usable — and
+`stream` (with its twin) is constructor-free the same way: the entry
+ordering is inherent in the ID type.
 * *A nil container and the zero value behave as an empty container*
 for every operation that has a sane answer (searches return
 not-found, deletes return false, walks visit nothing). Each package
@@ -139,15 +143,16 @@ for the whole traversal, so the callback must not call methods on the
 same container. The exceptions are the legacy `DllIter`/`SllIter`
 cursors in the list packages, which walk the live list under a
 per-call read lock.
-* *Compound operations.* Ten `_ts` packages expose the *real
+* *Compound operations.* Eleven `_ts` packages expose the *real
 `Lock`/`Unlock`* plus `Nl`-prefixed no-lock methods
 (`NlLen`, `NlSearch`, `NlInsert`, ...) so a search-then-update
 sequence can run atomically: `heap_ts`, `priority_queue_ts`,
 `heap_sort_ts`, `hash_grow_ts`, `hash_tab_ts`, `hash_tab_bt_ts`,
-`hash_tab_dll_ts`, `cuckoo_ts`, `trie_ts`, `tst_ts` (and `dll_ts` exposes
-`Lock`/`Unlock`). Calling a regular method while the lock is held
-will deadlock — use the `Nl*` methods inside. The plain counterparts
-keep no-op `Lock`/`Unlock` so the same code compiles against both.
+`hash_tab_dll_ts`, `cuckoo_ts`, `trie_ts`, `tst_ts`, `stream_ts`
+(and `dll_ts` exposes `Lock`/`Unlock`). Calling a regular method while
+the lock is held will deadlock — use the `Nl*` methods inside. The
+plain counterparts keep no-op `Lock`/`Unlock` so the same code
+compiles against both.
 
 == Linear Structures
 
@@ -392,6 +397,51 @@ its `Range`/`RangeBackward` snapshot only the m elements of the range,
 and it exposes the real `Lock`/`Unlock` plus `Nl*` no-lock variants of
 the positional/range methods for atomic compounds such as
 rank-then-delete.
+
+== Streams — `stream/`, `stream_ts/`
+
+The Redis stream as a plain Go structure: an append-oriented log of
+entries keyed by strictly increasing `<ms>-<seq>` IDs, with consumer
+groups and pending-entry tracking (the XADD/XRANGE/XREAD/XGROUP/XACK/
+XCLAIM/XAUTOCLAIM semantics; built for the Ultima Redis-clone).
+Constructor-free like the tries — the ordering is inherent in the ID
+type (`CompareID`), so the zero value is ready to use. Storage composes
+`pluto/skip_list` keyed by ID: O(log₂ n) add/seek, O(log₂ n + m)
+`Range`/`RevRange` (inclusive bounds; RevRange takes (end, start)
+mirroring XREVRANGE), and span-backed O(log₂ n + k) trims by rank
+(`TrimMaxLen`/`TrimMinID`). `Add` copies the ordered field pairs
+(duplicates allowed, as in Redis) and enforces the ID rules as errors:
+`ErrIDTooSmall` (equal/smaller than last — so 0-0 is never an entry
+ID), `ErrIDExhausted`; `ID{Ms, Seq: AutoSeq}` asks for the next
+sequence of that millisecond. `LastID` survives delete/trim;
+`SetLastID` is the XSETID support. The package's only panics are `Add`
+and `CreateGroup` on a nil stream.
+
+Consumer groups deliver entries to named consumers (`ReadGroup` with
+after = MinID is the Redis `>` form; any other floor is a replay that
+does not move the group's last-delivered ID), track them in a per-group
+PEL ordered by ID, and reclaim them: `Ack`, `Pending`/`PendingRange`,
+`Claim` (min-idle gated) and cursor-based `AutoClaim` with the Redis 7
+deleted-IDs report. Deleting or trimming entries *never touches the
+PELs* — Redis behavior — so abandoned work over evicted data is
+discoverable. `GroupNames`/`GroupLastID`/`GroupConsumers` plus
+`Pending` are the XINFO surface.
+
+* Good: the whole stream command family's data structure in one
+dependency-free package; drop-in `_ts` twin; model-tested against a
+reference implementation at fixed seed.
+* Bad: expected-case (skip list) bounds, not worst-case; the PEL is
+  per-group (no per-consumer sub-index — scans filter by consumer);
+  `Range` on the plain package walks live storage (mutate-and-iterate
+  is a `stream_ts` snapshot away).
+
+`stream_ts` guards a plain `stream.Stream` value with one RWMutex (the
+`hash_tab_bt_ts` composition pattern) and aliases the ID/Entry/
+PendingEntry types, so switching twins is an import change: snapshot
+`Range`/`RevRange`, real `Lock`/`Unlock` plus the full `Nl*` mirror for
+atomic read-then-ack compounds. Concurrent appends use the AutoSeq
+form — the next-sequence resolution runs under the lock, which is how
+a Redis server assigns XADD IDs.
 
 == Heaps and Priority Queues
 
