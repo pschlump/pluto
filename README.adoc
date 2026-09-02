@@ -28,8 +28,8 @@ with an identical public API.
 | link:splay_tree/[splay_tree]               | Generic self-adjusting splay tree (top-down splaying, amortized O(log n); Sedgwick, Algorithms in C).
 | link:b_tree/[b_tree]                       | Generic B-tree (multiway search tree, configurable order; Sedgwick external searching).
 | link:b_tree_disk_ts/[b_tree_disk_ts]       | Disk-backed thread-safe B+ tree store (4K blocks, LRU write-back cache, WAL journal, crash recovery, multi-tree indexes).
-| link:skip_list/[skip_list]                 | Generic probabilistic ordered skip list.
-| link:skip_list_ts/[skip_list_ts]           | Thread-safe skip list (RWMutex, snapshot iterators).
+| link:skip_list/[skip_list]                 | Generic probabilistic ordered skip list (span-backed rank/range queries).
+| link:skip_list_ts/[skip_list_ts]           | Thread-safe skip list (RWMutex, snapshot iterators, Nl* compounds).
 | link:dll/[dll]                             | Generic doubly linked list (stack/queue/list).
 | link:dll_ts/[dll_ts]                       | Thread-safe doubly linked list (RWMutex, snapshot iterators).
 | link:sll/[sll]                             | Generic singly linked list (stack/FIFO list).
@@ -364,21 +364,33 @@ Probabilistic ordered map: towers up to 32 levels, level probability
 0.5, drawn from the *global* `math/rand/v2` source. Expected O(log n)
 insert/search/delete; `FindMin` O(1), `FindMax` O(log n);
 `DeleteAtHead`/`DeleteAtTail`; `Truncate` O(1); per-level `Dump` for
-debugging. API is lean like `rb_tree` (no `Index`/`Walk*`/`Front`/set
-ops). Duplicates replace. Because tower heights come from the global
-source, outputs that depend on them (`Dump` line counts, the `level`
-field) are nondeterministic — never asserted in tests/examples.
-`All` walks the level-0 chain in O(1) space; `Backward` collects it
-into a slice (O(n) space — no back pointers).
+debugging. Every forward pointer carries a *span* (the number of
+level-0 nodes it skips — Redis `zskiplist` style), which makes the
+positional/range family O(log n): `Rank`/`AtIndex` (0-based position
+and its inverse), `Ceil`/`Floor`, `CountRange`,
+`Range`/`RangeBackward` (iterators over lo ≤ x ≤ hi yielding global
+ranks, O(log n + m)), `DeleteRange`/`DeleteByRank` (bulk removal,
+O(log n + m)). API is lean like `rb_tree` (no `Index`/`Walk*`/`Front`/
+set ops — the span family replaces `Index`). Duplicates replace.
+Because tower heights come from the global source, outputs that depend
+on them (`Dump` line counts, the `level` field) are nondeterministic —
+never asserted in tests/examples. `All` walks the level-0 chain in
+O(1) space; `Backward` collects it into a slice (O(n) space — no back
+pointers).
 
 * Good: unlike `binary_tree`, does *not* degrade on sorted input;
 simpler to reason about than balanced-tree rotations; ordered
-iteration for free.
+iteration for free; span-backed rank/range queries without the
+balancing machinery a ranked tree needs.
 * Bad: expected-case, not worst-case, bounds (use `rb_tree` for hard
 guarantees); `FindMax`/`DeleteAtTail` are O(log n), not O(1);
 `Backward` costs O(n) space.
 
-`skip_list_ts` is the twin with the RWMutex and snapshot iterators.
+`skip_list_ts` is the twin with the RWMutex and snapshot iterators;
+its `Range`/`RangeBackward` snapshot only the m elements of the range,
+and it exposes the real `Lock`/`Unlock` plus `Nl*` no-lock variants of
+the positional/range methods for atomic compounds such as
+rank-then-delete.
 
 == Heaps and Priority Queues
 

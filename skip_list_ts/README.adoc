@@ -18,25 +18,53 @@ built-in `<` / `>` operators: `skip_list_ts.NewSkipList[int]()`.
 take a plain comparison function, with no interface to implement.
 
 The public API is identical to `skip_list` (plus the locking behavior
-below), so switching between the two is a package-name change.
+below), so switching between the two is a package-name change.  Like
+`skip_list`, every forward pointer carries a *span* — the number of
+level-0 nodes it skips over, as in Redis's `zskiplist` — so the positional
+and range operations (`Rank`, `AtIndex`, `Ceil`, `Floor`, `CountRange`,
+`Range`/`RangeBackward`, `DeleteRange`, `DeleteByRank`) are O(log₂ n) (or
+O(log₂ n + m) for the range forms), not O(n) walks.
 
 Runnable, tested copies of the examples live in
 link:example_test.go[`example_test.go`] — they run under `go test` and appear
 on pkg.go.dev.  The link:../skip_list/[skip_list README] documents the full
-API usage; it applies unchanged.
+API usage; it applies unchanged (with the snapshot semantics below in place
+of the plain package's live-walk `Range`).
 
 == Locking behavior
 
-* *Reads* (`Search`, `FindMin`, `FindMax`, `Len`, `Length`, `IsEmpty`)
-take the read lock and release it before returning — they can run in
-parallel with each other.
+* *Reads* (`Search`, `FindMin`, `FindMax`, `Rank`, `AtIndex`, `Ceil`,
+`Floor`, `CountRange`, `Len`, `Length`, `IsEmpty`) take the read lock and
+release it before returning — they can run in parallel with each other.
 * *Writes* (`Insert`, `Delete`, `DeleteAtHead`, `DeleteAtTail`,
-`Truncate`) take the write lock.
+`DeleteRange`, `DeleteByRank`, `Truncate`) take the write lock.
 * *`All` and `Backward` operate on a snapshot* of the list taken when
 they are called (under the read lock, released immediately after).  It
 is safe to mutate the list while iterating — including from inside the
 loop — and an iterator never observes modifications made after it was
 created.  The snapshot costs one O(n) copy.
+* *`Range` and `RangeBackward` snapshot only the m elements of the
+range* (plus the O(log₂ n) descent to it), so they cost O(log₂ n + m) —
+not the O(n) of a full snapshot — with the same safety: mutate the list
+freely while iterating.  They yield `(index, value)` pairs where index is
+the element's global 0-based rank.
+* *`Lock`/`Unlock` expose the real write lock*, and the `Nl*` methods
+(`NlIsEmpty`, `NlLen`, `NlRank`, `NlAtIndex`, `NlCeil`, `NlFloor`,
+`NlCountRange`, `NlDeleteRange`, `NlDeleteByRank`) are the lock-free
+bodies for atomic compound operations:
+
+[source,go]
+----
+// Atomic rank-then-delete: remove exactly the element ranked 3rd.
+list.Lock()
+if r, found := list.NlRank(key); found {
+    list.NlDeleteByRank(r, r)
+}
+list.Unlock()
+----
+
+Calling a public method while `Lock` is held deadlocks — use the `Nl*`
+forms inside the critical section.
 * *`Dump` holds the read lock for the whole dump*, so the writer must
 not call methods on the same list.
 

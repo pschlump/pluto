@@ -169,3 +169,51 @@ func ExampleSkipList_Truncate() {
 	// 0 true
 	// 1
 }
+
+// Rank reports the 0-based position of a key in ascending order, without
+// walking the list — the span counters on the forward pointers carry the
+// rank arithmetic.  AtIndex is its inverse.
+func ExampleSkipList_Rank() {
+	list := skip_list.NewSkipList[string]()
+	for _, s := range []string{"pear", "fig", "apple", "date"} {
+		list.Insert(s)
+	}
+
+	r, _ := list.Rank("date")
+	fmt.Println("date ranks", r)
+
+	v, _ := list.AtIndex(1)
+	fmt.Println("rank 1 holds", v)
+
+	if _, found := list.Rank("kiwi"); !found {
+		fmt.Println("kiwi is not in the list")
+	}
+	// Output:
+	// date ranks 1
+	// rank 1 holds date
+	// kiwi is not in the list
+}
+
+// Range iterates the elements x with lo <= x <= hi in ascending order,
+// yielding each element's global rank alongside its value.  RangeBackward
+// is the same walk from largest to smallest.
+func ExampleSkipList_Range() {
+	list := skip_list.NewSkipList[int]()
+	for _, v := range []int{42, 7, 13, 99, 55, 3} {
+		list.Insert(v)
+	}
+
+	for i, v := range list.Range(10, 60) {
+		fmt.Println(i, v)
+	}
+	fmt.Println("count:", list.CountRange(10, 60))
+
+	n := list.DeleteRange(10, 60)
+	fmt.Println("removed:", n, "leaving", list.Len())
+	// Output:
+	// 2 13
+	// 3 42
+	// 4 55
+	// count: 3
+	// removed: 3 leaving 3
+}

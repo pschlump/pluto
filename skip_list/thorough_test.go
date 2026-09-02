@@ -145,6 +145,10 @@ func checkInvariant(t *testing.T, tt *SkipList[TestSkipListNode], where string) 
 				t.Errorf("%s: node %s has %d forward pointers but list level is %d",
 					where, cur.data.S, len(cur.forward), tt.level)
 			}
+			if len(cur.span) != len(cur.forward) {
+				t.Errorf("%s: node %s has %d forward pointers but %d spans",
+					where, cur.data.S, len(cur.forward), len(cur.span))
+			}
 			if prev != nil && *prev >= cur.data.S {
 				t.Errorf("%s: level %d not strictly ascending: %s then %s", where, i, *prev, cur.data.S)
 			}
@@ -154,6 +158,35 @@ func checkInvariant(t *testing.T, tt *SkipList[TestSkipListNode], where string) 
 		}
 		if i == 0 && n != tt.length {
 			t.Errorf("%s: level-0 chain has %d nodes but Length()=%d", where, n, tt.length)
+		}
+	}
+
+	// Span invariant: span[i] on a link counts the level-0 nodes in
+	// (node, forward[i]], and when forward[i] is nil it counts the remaining
+	// nodes after this one — so the spans along any level, sentinel head
+	// included, always sum to Length().  Every link to a real node skips at
+	// least that node.
+	for i := 0; i < tt.level; i++ {
+		sum := 0
+		cur := tt.head
+		for {
+			if cur.forward[i] != nil {
+				if cur.span[i] < 1 {
+					t.Errorf("%s: level %d: link to %s has span %d < 1",
+						where, i, cur.forward[i].data.S, cur.span[i])
+				}
+			} else if i < len(cur.span) && cur.span[i] < 0 {
+				t.Errorf("%s: level %d: nil link from %s has negative span %d",
+					where, i, cur.data.S, cur.span[i])
+			}
+			sum += cur.span[i]
+			if cur.forward[i] == nil {
+				break
+			}
+			cur = cur.forward[i]
+		}
+		if sum != tt.length {
+			t.Errorf("%s: level %d spans sum to %d but Length()=%d", where, i, sum, tt.length)
 		}
 	}
 }

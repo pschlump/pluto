@@ -17,9 +17,19 @@ roughly half of the nodes below it.  The operations provided are:
   - Len / Length — number of nodes in the list.											O(1)
   - FindMin / FindMax — smallest / largest item.										O(1) / O(log₂ n) expected
   - DeleteAtHead / DeleteAtTail — remove smallest / largest item.						O(1) / O(log₂ n) expected
+  - Rank / AtIndex — 0-based position of a key / element at a position.				O(log₂ n) expected
+  - Ceil / Floor — smallest element ≥ key / largest element ≤ key.					O(log₂ n) expected
+  - CountRange — number of elements with lo ≤ x ≤ hi.									O(log₂ n) expected
+  - Range / RangeBackward — iterators over lo ≤ x ≤ hi (see iter.go).					O(log₂ n + m)
+  - DeleteRange / DeleteByRank — bulk removal of a span of elements.					O(log₂ n + m)
   - Truncate — remove all nodes.														O(1)
   - Dump     — write a per-level picture of the list for debugging.					O(n)
   - All / Backward — range-over-func iterators (see iter.go).							O(n)
+
+Every forward pointer carries a span — the number of level-0 nodes it
+skips over, as in Redis's zskiplist (note/redis/src/t_zset.c) — which is
+what makes the positional operations (Rank, AtIndex, DeleteByRank) O(log₂ n)
+instead of O(n) walks.
 
 Skip lists are probabilistic: the expected cost of Insert/Search/Delete is
 O(log₂ n), but the worst case is O(n).  Unlike an unbalanced binary search
@@ -71,10 +81,15 @@ const levelProbability = 0.5
 
 // SkipListNode is a single node of the list.  It holds the item data and a
 // slice of forward pointers, one per level the node participates in.  Level 0
-// links every node in ascending order.
+// links every node in ascending order.  Each forward pointer carries a span:
+// span[i] is the number of level-0 nodes in the half-open interval
+// (node, forward[i]] — the number of nodes the pointer skips over, counting
+// the node it lands on.  When forward[i] is nil the span counts the remaining
+// nodes after this one, so the spans along any level always sum to Length().
 type SkipListNode[T any] struct {
 	data    T
 	forward []*SkipListNode[T]
+	span    []int
 }
 
 // SkipList is a generic skip list.  Use NewSkipList for naturally ordered
@@ -132,7 +147,10 @@ func NewSkipListFunc[T any](fx func(a, b T) int) *SkipList[T] {
 // ensureHead lazily allocates the sentinel head node.
 func (tt *SkipList[T]) ensureHead() {
 	if tt.head == nil {
-		tt.head = &SkipListNode[T]{forward: make([]*SkipListNode[T], maxLevel)}
+		tt.head = &SkipListNode[T]{
+			forward: make([]*SkipListNode[T], maxLevel),
+			span:    make([]int, maxLevel),
+		}
 	}
 }
 
@@ -162,6 +180,31 @@ func (tt *SkipList[T]) findPath(item T) (update []*SkipListNode[T]) {
 		update[i] = cur
 	}
 	return
+}
+
+// findPathRank is findPath with rank bookkeeping: it fills update[i] with the
+// last node at level i that compares strictly less than item, and rank[i]
+// with the 1-based rank of update[i] — the number of level-0 nodes up to and
+// including it, accumulated from the spans along the descent.  rank[0] is
+// therefore the number of nodes that sort before the insertion position.
+// The caller allocates both slices (length >= maxLevel) and passes them in,
+// which keeps them off the heap; the caller is responsible for having called
+// ensureHead.
+func (tt *SkipList[T]) findPathRank(item T, update []*SkipListNode[T], rank []int) {
+	for i := range update {
+		update[i] = tt.head
+		rank[i] = 0
+	}
+	cur := tt.head
+	r := 0
+	for i := tt.level - 1; i >= 0; i-- {
+		for cur.forward[i] != nil && tt.cmp(cur.forward[i].data, item) < 0 {
+			r += cur.span[i]
+			cur = cur.forward[i]
+		}
+		update[i] = cur
+		rank[i] = r
+	}
 }
 
 // IsEmpty will return true if the list is empty.
@@ -216,7 +259,9 @@ func (tt *SkipList[T]) Insert(item T) (added bool) {
 		panic("skip_list: Insert called on a list with no comparison function (create the list with NewSkipList or NewSkipListFunc)")
 	}
 	tt.ensureHead()
-	update := tt.findPath(item)
+	var update [maxLevel]*SkipListNode[T]
+	var rank [maxLevel]int
+	tt.findPathRank(item, update[:], rank[:])
 
 	// If the next node at level 0 is equal, replace its data.
 	if next := update[0].forward[0]; next != nil && tt.cmp(next.data, item) == 0 {
@@ -226,17 +271,33 @@ func (tt *SkipList[T]) Insert(item T) (added bool) {
 
 	lvl := randomLevel()
 	if lvl > tt.level {
-		// The head node is the predecessor on all new levels.
+		// The head node is the predecessor on all new levels, and its span on
+		// each of them covers the whole list.
 		for i := tt.level; i < lvl; i++ {
 			update[i] = tt.head
+			rank[i] = 0
+			tt.head.span[i] = tt.length
 		}
 		tt.level = lvl
 	}
 
-	node := &SkipListNode[T]{data: item, forward: make([]*SkipListNode[T], lvl)}
+	node := &SkipListNode[T]{
+		data:    item,
+		forward: make([]*SkipListNode[T], lvl),
+		span:    make([]int, lvl),
+	}
 	for i := range lvl {
 		node.forward[i] = update[i].forward[i]
 		update[i].forward[i] = node
+		// The new node takes over the part of update[i]'s span that lies
+		// beyond the insertion position; update[i]'s span shrinks to just the
+		// nodes up to and including the new node.
+		node.span[i] = update[i].span[i] - (rank[0] - rank[i])
+		update[i].span[i] = (rank[0] - rank[i]) + 1
+	}
+	// Every level the new node does not reach still skips over it.
+	for i := lvl; i < tt.level; i++ {
+		update[i].span[i]++
 	}
 	tt.length++
 	return true
@@ -279,7 +340,13 @@ func (tt *SkipList[T]) Delete(item T) (found bool) {
 	}
 	for i := 0; i < tt.level; i++ {
 		if update[i].forward[i] == node {
+			// The predecessor absorbs the removed node's span, minus the node
+			// itself.
+			update[i].span[i] += node.span[i] - 1
 			update[i].forward[i] = node.forward[i]
+		} else {
+			// Levels the removed node did not reach still skip over it.
+			update[i].span[i]--
 		}
 	}
 	// Drop levels that are no longer in use.
@@ -322,7 +389,18 @@ func (tt *SkipList[T]) DeleteAtHead() (found bool) {
 		return false
 	}
 	node := tt.head.forward[0]
-	copy(tt.head.forward, node.forward)
+	// The head takes over the removed node's forward pointers.  On the levels
+	// the node participated in the head's span becomes the node's span (its
+	// interval loses exactly the removed node); on every other level the
+	// head's span still skips over the removed node, so it shrinks by one.
+	for i := range tt.level {
+		if i < len(node.forward) {
+			tt.head.forward[i] = node.forward[i]
+			tt.head.span[i] = node.span[i]
+		} else {
+			tt.head.span[i]--
+		}
+	}
 	// Drop levels that are no longer in use.
 	for tt.level > 0 && tt.head.forward[tt.level-1] == nil {
 		tt.level--

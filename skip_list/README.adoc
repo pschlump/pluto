@@ -33,6 +33,13 @@ on pkg.go.dev.
 | `Search`                     | Return the stored item equal to the probe        | O(log₂ n) expected
 | `FindMin` / `DeleteAtHead`   | Smallest item / remove it                        | O(1) / O(1) amortized
 | `FindMax` / `DeleteAtTail`   | Largest item / remove it                         | O(log₂ n) expected
+| `Rank`                       | 0-based position of a key (exact match only)    | O(log₂ n) expected
+| `AtIndex`                    | Element at a 0-based position                    | O(log₂ n) expected
+| `Ceil` / `Floor`             | Smallest element ≥ key / largest ≤ key           | O(log₂ n) expected
+| `CountRange`                 | Number of elements with lo ≤ x ≤ hi             | O(log₂ n) expected
+| `Range` / `RangeBackward`    | Iterators over lo ≤ x ≤ hi, with global ranks   | O(log₂ n + m)
+| `DeleteRange`                | Remove all x with lo ≤ x ≤ hi, returning count  | O(log₂ n + m)
+| `DeleteByRank`               | Remove ranks [start, stop] inclusive             | O(log₂ n + m)
 | `IsEmpty` / `Len` / `Length` | Size queries                                     | O(1)
 | `Truncate`                   | Remove all items                                 | O(1)
 | `Dump`                       | Per-level picture of the list, for debugging     | O(n)
@@ -48,6 +55,31 @@ operations is O(log₂ n) but the worst case is O(n).  Node tower heights
 are drawn (from the global `math/rand/v2` source, promotion probability
 0.5, up to 32 levels); the observable ordering semantics are deterministic
 regardless of the heights drawn.
+
+== Rank and range queries
+
+Every forward pointer carries a *span* — the number of level-0 nodes it
+skips over, counting the node it lands on (the same annotation Redis's
+`zskiplist` uses for `ZRANK`/`ZRANGE`).  The spans are maintained by
+`Insert`, `Delete`, `DeleteAtHead` and the bulk deletes, and they are what
+keeps every positional operation O(log₂ n) instead of an O(n) walk:
+
+[source,go]
+----
+rank, found := list.Rank(key)        // 0-based position, exact match only
+v, found := list.AtIndex(3)          // the element at position 3
+ceil, _ := list.Ceil(probe)          // smallest element >= probe
+floor, _ := list.Floor(probe)        // largest element <= probe
+n := list.CountRange(lo, hi)         // elements with lo <= x <= hi
+removed := list.DeleteRange(lo, hi)  // remove them, O(log₂ n + m)
+removed := list.DeleteByRank(2, 5)   // remove ranks [2,5] inclusive
+----
+
+Edge contracts: a range with `lo > hi` is empty (no error, no panic),
+`Rank` on a missing key reports `found=false` (it does not count the
+elements below the key), `AtIndex` out of bounds reports `false`, and
+`DeleteByRank` clamps `stop` to `Len()-1` while ignoring windows that
+start before 0 or after the last element.
 
 The list is *not* safe for concurrent use.
 
@@ -103,6 +135,22 @@ for v := range list.All() {
 }
 for v := range list.Backward() {
     ...
+}
+----
+
+`Range(lo, hi)` and `RangeBackward(lo, hi)` iterate only the elements x
+with lo ≤ x ≤ hi — one O(log₂ n) descent plus the m elements of the range
+— yielding `(index, value)` pairs where index is the element's global
+0-based rank, exactly the index `All()` would assign.  `RangeBackward`
+visits them from largest to smallest with the same indexes counting down;
+it collects the m elements of the range first (no back pointers).  Like
+`All`, both walk the live nodes: do not modify the list while they run,
+and `break` exits early.
+
+[source,go]
+----
+for i, v := range list.Range(lo, hi) {
+    ... // i is the global rank of v
 }
 ----
 

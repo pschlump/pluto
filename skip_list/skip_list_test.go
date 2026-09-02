@@ -440,3 +440,53 @@ func BenchmarkDelete(b *testing.B) {
 		list.Delete(keys[i%benchmarkListSize])
 	}
 }
+
+// rankBenchSize is the list size for the positional benchmarks; the span
+// counters are what keep Rank and Range O(log n) at this scale.
+const rankBenchSize = 1_000_000
+
+// newRankBenchList builds a list of rankBenchSize zero-padded keys.
+func newRankBenchList(b *testing.B) *SkipList[string] {
+	b.Helper()
+	list := NewSkipList[string]()
+	for i := range rankBenchSize {
+		list.Insert(fmt.Sprintf("%08d", i))
+	}
+	if list.Length() != rankBenchSize {
+		b.Fatalf("benchmark setup: length %d, expected %d", list.Length(), rankBenchSize)
+	}
+	return list
+}
+
+// BenchmarkRank exercises Rank (hit and miss) over a 1e6-element list.
+func BenchmarkRank(b *testing.B) {
+	list := newRankBenchList(b)
+	keys := []string{"00000000", "00120000", "00499999", "00999999", "00555555"}
+	miss := "00555554x"
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		k := keys[i%len(keys)]
+		if _, found := list.Rank(k); !found {
+			b.Fatalf("Rank(%s) not found", k)
+		}
+		if _, found := list.Rank(miss); found {
+			b.Fatalf("Rank(%s) found", miss)
+		}
+	}
+}
+
+// BenchmarkRange iterates a 1000-element window out of a 1e6-element list;
+// with spans the cost is O(log n + m), independent of the list size.
+func BenchmarkRange(b *testing.B) {
+	list := newRankBenchList(b)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		n := 0
+		for range list.Range("00400000", "00400999") {
+			n++
+		}
+		if n != 1000 {
+			b.Fatalf("Range yielded %d, expected 1000", n)
+		}
+	}
+}
