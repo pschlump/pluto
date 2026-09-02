@@ -95,7 +95,8 @@ with an identical public API.
 | link:hyperloglog_ts/[hyperloglog_ts]       | Thread-safe HyperLogLog (RWMutex, snapshot merging, Lock+Nl* compound ops).
 | link:lfu/[lfu]                             | LFU frequency counters for eviction (8-bit Morris counter + 16-bit minute clock per key, Redis allkeys-lfu/OBJECT FREQ semantics; on hash_grow).
 | link:lfu_ts/[lfu_ts]                       | Thread-safe LFU frequency counters (RWMutex, Lock+Nl* compound ops).
-| link:lru/[lru]                             | Generic capacity-bounded LRU cache (eviction veto callback, soft cap; no `_ts` twin — callers lock).
+| link:lru/[lru]                             | Generic capacity-bounded LRU cache (eviction veto callback, soft cap).
+| link:lru_ts/[lru_ts]                       | Thread-safe capacity-bounded LRU cache (RWMutex; Get takes the write lock, snapshot iterators, Lock+Nl* compound ops).
 | link:crc/[crc]                             | Table-driven CRC-32/CRC-64 checksums (IEEE, Castagnoli, Koopman, ECMA, ISO; pure functions, concurrent-use safe).
 | link:g_lib/[g_lib]                         | Generic utility functions (min/max, slice ops, set/map conversion, numeric constraints).
 |===
@@ -152,7 +153,7 @@ per-call read lock.
 (`hash_grow_ts`, `hash_tab_ts`, `hash_tab_bt_ts`, `hash_tab_dll_ts`,
 `cuckoo_ts`, `cuckoo_grow15_ts`, `sharded_hash_ts`), `skip_list_ts`,
 `index_pq_ts`, `fenwick_tree_ts`, `segment_tree_ts`, `trie_ts`,
-`tst_ts`, `stream_ts`, `hyperloglog_ts` and `lfu_ts` — expose the
+`tst_ts`, `stream_ts`, `hyperloglog_ts`, `lfu_ts` and `lru_ts` — expose the
 *real `Lock`/`Unlock`* plus `Nl`-prefixed no-lock methods
 (`NlLen`, `NlSearch`, `NlInsert`, ...) so a search-then-update
 sequence can run atomically (and `dll_ts` exposes `Lock`/`Unlock`).
@@ -523,6 +524,31 @@ calls these inside shard owner-goroutines, so the simple single lock
 suffices) plus the real `Lock`/`Unlock` and `Nl*` methods — the
 eviction scan is the canonical compound: `Lock`, `NlCounter` over the
 sampled candidates, `NlDelete` the coldest, `Unlock`.
+
+== Capacity-Bounded LRU — `lru/`, `lru_ts/`
+
+The recency counterpart to `lfu`: `Lru[K, V]` is a map for O(1)
+lookups plus a recency list (MRU at the front), capacity-bounded with
+an eviction *veto* callback — `NewLruFunc(capacity, evictable)`,
+where `evictable(k, v) == false` skips that entry and evicts the
+next-older one — and a *soft cap*: when nothing is evictable the cache
+temporarily exceeds capacity instead of stalling (`b_tree_disk_ts`'s
+block cache depends on this: dirty/pinned blocks must never be
+evicted). `Get` re-marks the hit MRU, `Peek` looks without reordering,
+`Put` evicts down to capacity before inserting, `All`/`Backward`
+iterate MRU→LRU / LRU→MRU over the live list. Panics: `capacity < 1`
+at construction and `Put` on a nil/zero-value cache.
+
+`lru_ts` is the twin (built for Ultima's `allkeys-lru`/`volatile-lru`,
+one cache per shard): one RWMutex with a lock split worth knowing —
+`Get` takes the *write* lock (a hit mutates the recency list; `Peek`
+is the read-lock form; measured ~7 ns lock overhead uncontended, and
+at 8 goroutines `Get` serializes at ~135 ns while `Peek` readers share
+at ~86 ns), snapshot `All`/`Backward` (safe to mutate from inside the
+loop), and the real `Lock`/`Unlock` + `Nl*` surface — the atomic
+batch put with eviction-to-capacity is the canonical compound. The
+veto callback runs with the write lock held: it must not call back
+into the cache (deadlock), which the twin's docs state prominently.
 
 == Heaps and Priority Queues
 

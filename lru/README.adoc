@@ -75,11 +75,14 @@ report not-found, `Delete` returns false, `Len`/`Capacity` are 0,
 == Concurrency
 
 Not safe for concurrent use — callers that share a cache across
-goroutines must guard it with their own mutex (`b_tree_disk_ts` holds
-its store lock around every cache operation).  There is deliberately no
-`_ts` twin: wrap the cache in the caller's lock, the same way
-link:../queue_dll/[`queue_dll`] points shared-FIFO callers at guarding
-with a mutex rather than offering a twin.
+goroutines either guard it with their own mutex (`b_tree_disk_ts` holds
+its store lock around every cache operation) or use the mutex-guarded
+twin link:../lru_ts/[`lru_ts`], which has the same interface plus
+`Lock`/`Nl*` compound operations and snapshot iterators.  (This
+package keeps no-op `Lock`/`Unlock` so code written against the twin
+compiles unchanged.)  `All` and `Backward` here walk the *live*
+recency list — O(1) extra space, but the cache must not be modified
+while an iterator runs, and `Get` counts as a modification.
 
 == Examples
 

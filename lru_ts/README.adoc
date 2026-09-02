@@ -1,0 +1,96 @@
+= lru_ts
+
+Thread-safe twin of link:../lru/[`lru`] — the capacity-bounded LRU
+cache with the eviction-veto callback and the soft cap — behind one
+`sync.RWMutex`, with the identical public API so switching twins is an
+import change (the plain package keeps no-op `Lock`/`Unlock`).
+Built for the Ultima Redis-clone's `allkeys-lru` / `volatile-lru`
+eviction, one cache per shard (request `note/06-lru-ts.md`).
+
+== Which method takes which lock
+
+[options="header"]
+|===
+| Method                          | Lock     | Why
+
+| `Get`                           | *write*  | a hit re-marks the entry most-recently-used — a mutation of the recency list; a read lock would race with every other Get
+| `Peek`, `Len`, `Capacity`       | read     | true reads
+| `Put`, `Delete`, `Clear`        | write    | mutations
+| `All`, `Backward`               | read (held only while the snapshot is materialized) | see below
+| `Lock`/`Unlock` + `Nl*`         | held     | compound operations
+|===
+
+`Get` is the one to remember: it *looks* like a read but needs the
+write lock — `Peek` is the read-lock form. Under contention that
+matters: at 8 goroutines a shared `Get` costs ~135 ns/op (the write
+lock serializes) while a shared `Peek` costs ~86 ns (readers share the
+read lock). Uncontended, the lock adds ~7 ns/op over the plain package
+(14.3 vs 7.4 ns measured).
+
+== Snapshot iterators
+
+`All` (MRU→LRU) and `Backward` (LRU→MRU) materialize their pairs into
+a slice under the read lock *when called*, then iterate the copy
+lock-free — the eager-snapshot convention of the pluto `_ts` twins,
+inverted from the plain package's live-list walk (which costs O(1)
+extra space but forbids mutation during iteration). So it is safe to
+mutate the cache, even from inside the loop (`Get` and `Put` included)
+— changes made after the call are not visible to the running
+iteration. Cost: O(n) time and O(n) space per call. A single-variable
+range yields the KEY.
+
+== Compound operations
+
+The real `Lock`/`Unlock` plus the `Nl*` no-lock methods
+(`NlGet`/`NlPeek`/`NlPut`/`NlDelete`/`NlClear`/`NlLen`/`NlCapacity`)
+make a sequence atomic — the canonical compound is the atomic batch:
+`Lock`, `NlPut` the batch (each `NlPut` evicts to capacity as it
+goes), `NlLen` to observe the result, `Unlock`. Calling a regular
+method while the lock is held deadlocks — use the `Nl*` forms inside.
+Nil receivers no-op for `Lock`/`Unlock`.
+
+== Callback safety — read this before using NewLruFunc
+
+The eviction-veto callback runs *inside `Put`, while the write lock is
+held*. Therefore the callback:
+
+. must not call any method on the same cache — that deadlocks — and
+. must not run long: it blocks every reader and writer of the cache.
+
+There is deliberately no no-lock handle passed to the callback (the
+request note left it optional "only if it can be done without weakening
+safety" — it cannot; a handle would be an invitation to break the lock
+discipline). The escape hatch for veto-then-act sequences is the
+caller-held `Lock` with the `Nl*` methods.
+
+== Panics
+
+Exactly three, all programmer errors with `lru_ts:`-prefixed messages
+naming the method and the fix: `NewLru`/`NewLruFunc` with
+`capacity < 1`, `Put` on a nil cache, `Put` on a zero-value cache (no
+capacity — the zero value cannot fabricate one). Every other operation
+tolerates nil and the zero value as an empty cache: `Get`/`Peek` report
+not-found, `Delete` false, `Len`/`Capacity` 0, `Clear` a no-op, the
+iterators yield nothing.
+
+== Semantics unchanged from lru
+
+The eviction order (LRU first, updates mark MRU), the veto scan
+(skip protected entries, take the next-older one), and the soft cap
+(when nothing is evictable the cache temporarily exceeds capacity, and
+the next evictable insert shrinks it back) are the plain package's —
+`lru_ts` wraps `*lru.Lru` whole and adds only the locking. See the
+link:../lru/[`lru` README] for those contracts.
+
+== Testing
+
+`lru_ts_test.go` ports every plain-package test for behavioral
+identity; `thorough_test.go` adds the twin-specific coverage (run with
+`-race`): the ported 10,000-step model test (seed 42 — contents *and*
+full recency order verified every step), the randomized veto test, the
+snapshot-iterator contract (mutate and `Get` from inside the loop), a
+mixed Get/Put/Delete/iterate hammer with final consistency, the note's
+compound gate (concurrent `Lock`+`NlPut` batches from 8 goroutines:
+never above capacity, no deadlock) and the soft-cap flush compound.
+`bench_test.go` measures twin vs plain and the contended forms (`go
+test -bench . -cpu 8` for the 8-goroutine shape).

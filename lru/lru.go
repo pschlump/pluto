@@ -42,10 +42,9 @@ BSD 3 Clause Licensed.
 //	Put on a zero-value cache             — no capacity; the message names the constructors.
 //
 // Lru is not safe for concurrent use; callers that share a cache across
-// goroutines must guard it with their own mutex (b_tree_disk_ts holds
-// its store lock around every cache operation).  There is no _ts twin —
-// wrap the cache in the caller's lock, the same way queue_dll points
-// shared-FIFO callers at their own guarding.
+// goroutines either guard it with their own mutex (b_tree_disk_ts holds
+// its store lock around every cache operation) or use the mutex-guarded
+// twin lru_ts, which has the same interface.
 package lru
 
 import "container/list"
@@ -216,3 +215,13 @@ func (c *Lru[K, V]) Clear() {
 	c.ll.Init()
 	clear(c.byKey)
 }
+
+// Lock and Unlock are no-ops kept so code written against the lru_ts
+// twin compiles unchanged.  The plain package is not safe for
+// concurrent use — callers that share a cache across goroutines either
+// guard it with their own mutex (b_tree_disk_ts holds its store lock)
+// or use lru_ts.
+func (c *Lru[K, V]) Lock() {}
+
+// Unlock is the other half of the no-op lock pair — see Lock.
+func (c *Lru[K, V]) Unlock() {}
