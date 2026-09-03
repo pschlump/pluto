@@ -14,6 +14,7 @@ BSD 3 Clause Licensed.
 package hash_grow_ts_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"sort"
@@ -102,4 +103,51 @@ func ExampleHashTab_Lock() {
 	fmt.Println("deleted one,", n, "elements remained, len now", ht.Len())
 	// Output:
 	// deleted one, 1 elements remained, len now 1
+}
+
+// MarshalJSON encodes the table as a JSON array of its elements in bucket
+// order.  Bucket order is hash-dependent and varies from process to
+// process, so the decoded elements are sorted here — a hash table is a
+// set, and the round trip preserves membership, not order.  It is safe to
+// call concurrently with any table operation.
+func ExampleHashTab_MarshalJSON() {
+	ht := hash_grow_ts.NewHashTab[int](9, 0)
+	for _, v := range []int{3, 1, 2} {
+		ht.Insert(v)
+	}
+
+	b, err := json.Marshal(ht)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	var got []int
+	if err := json.Unmarshal(b, &got); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	sort.Ints(got)
+	fmt.Println(got)
+	// Output:
+	// [1 2 3]
+}
+
+// UnmarshalJSON replaces the contents of the table from a JSON array of
+// elements; the equality and hash functions are kept, so the table stays
+// usable afterward.
+func ExampleHashTab_UnmarshalJSON() {
+	ht := hash_grow_ts.NewHashTab[string](8, 0)
+	if err := json.Unmarshal([]byte(`["c","a","b"]`), ht); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+
+	got := []string{}
+	for v := range ht.Values() { // bucket order — sort before printing
+		got = append(got, v)
+	}
+	sort.Strings(got)
+	fmt.Println(got, "len:", ht.Len())
+	// Output:
+	// [a b c] len: 3
 }

@@ -7,6 +7,8 @@ BSD 3 Clause Licensed.
 */
 
 import (
+	"encoding/json"
+	"fmt"
 	"math/rand"
 	"slices"
 	"strings"
@@ -645,4 +647,255 @@ func TestDeletePrefixSharedKeys(t *testing.T) {
 		t.Fatalf("Expected a fully collapsed trie after the drain; IsEmpty=%v Length=%d root=%v",
 			pt.IsEmpty(), pt.Length(), pt.root)
 	}
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+// upperString is a string with its own JSON representation, to verify
+// that value-level marshalers are honored through the trie.
+type upperString string
+
+func (u upperString) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + strings.ToUpper(string(u)) + `"`), nil
+}
+
+func (u *upperString) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	*u = upperString(s)
+	return nil
+}
+
+func TestMarshalJSON(t *testing.T) {
+	// Exact object output; the json package emits members in sorted key
+	// order, which is the trie's natural iteration order.
+	var pt PatriciaTrie[int]
+	pt.Insert("she", 0)
+	pt.Insert("by", 1)
+	pt.Insert("sea", 2)
+	b, err := json.Marshal(&pt)
+	if err != nil {
+		t.Fatalf("json.Marshal(&pt): %v", err)
+	}
+	if string(b) != `{"by":1,"sea":2,"she":0}` {
+		t.Errorf(`Expected {"by":1,"sea":2,"she":0}, got %s`, b)
+	}
+
+	// The empty-string key is just another object member.
+	var emptyKey PatriciaTrie[int]
+	emptyKey.Insert("", 42)
+	if b, err := json.Marshal(&emptyKey); err != nil || string(b) != `{"":42}` {
+		t.Errorf(`Expected {"":42}, got (%s, %v)`, b, err)
+	}
+
+	// An empty trie encodes as {}.
+	if b, err := json.Marshal(&PatriciaTrie[int]{}); err != nil || string(b) != "{}" {
+		t.Errorf("Expected {} for an empty trie, got (%s, %v)", b, err)
+	}
+
+	// A zero-value trie is a tolerated read: {}.
+	var zero PatriciaTrie[int]
+	if b, err := zero.MarshalJSON(); err != nil || string(b) != "{}" {
+		t.Errorf("Expected {} for a zero-value trie, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil trie encodes as {}; json.Marshal on a nil
+	// *PatriciaTrie never reaches the method — the json package writes
+	// null for nil pointers itself.
+	var nilTrie *PatriciaTrie[int]
+	if b, err := nilTrie.MarshalJSON(); err != nil || string(b) != "{}" {
+		t.Errorf("Expected {} from a direct nil-trie call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilTrie); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil trie, got (%s, %v)", b, err)
+	}
+
+	// Value-level marshalers are honored.
+	var custom PatriciaTrie[upperString]
+	custom.Insert("k1", "x")
+	custom.Insert("k2", "y")
+	if b, err := json.Marshal(&custom); err != nil || string(b) != `{"k1":"X","k2":"Y"}` {
+		t.Errorf(`Expected {"k1":"X","k2":"Y"}, got (%s, %v)`, b, err)
+	}
+
+	// Encoding errors pass through unchanged.
+	var bad PatriciaTrie[chan int]
+	bad.Insert("c", make(chan int))
+	if _, err := json.Marshal(&bad); err == nil {
+		t.Errorf("Expected an error marshaling a trie of channels.")
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	// Decoded pairs land under their keys; iteration is ascending.
+	var pt PatriciaTrie[int]
+	if err := json.Unmarshal([]byte(`{"she":0,"by":1,"sea":2}`), &pt); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	var got []string
+	for k, v := range pt.All() {
+		got = append(got, fmt.Sprintf("%s:%d", k, v))
+	}
+	if fmt.Sprint(got) != "[by:1 sea:2 she:0]" {
+		t.Errorf("Expected [by:1 sea:2 she:0], got %v", got)
+	}
+
+	// A round trip rebuilds a structurally sound trie.
+	var items PatriciaTrie[int]
+	items.Insert("a", 1)
+	items.Insert("b", 2)
+	items.Insert("c", 3)
+	b, err := json.Marshal(&items)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	var again PatriciaTrie[int]
+	if err := json.Unmarshal(b, &again); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	checkInvariants(t, &again, map[string]int{"a": 1, "b": 2, "c": 3})
+	if v, ok := again.Search("b"); !ok || v != 2 {
+		t.Errorf("Expected Search to work after unmarshal, got (%d, %v)", v, ok)
+	}
+
+	// Unmarshaling replaces the contents; it does not merge.
+	if err := json.Unmarshal([]byte(`{"z":7}`), &pt); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if pt.Length() != 1 || pt.Contains("by") {
+		t.Errorf("Expected replacement, got Length()=%d, Contains(\"by\")=%v", pt.Length(), pt.Contains("by"))
+	}
+
+	// An empty object and null clear the trie, fully collapsing it.
+	var full PatriciaTrie[int]
+	full.Insert("z", 1)
+	if err := json.Unmarshal([]byte("{}"), &full); err != nil {
+		t.Fatalf("json.Unmarshal({}): %v", err)
+	}
+	if !full.IsEmpty() || full.root != nil {
+		t.Errorf("Expected {} to clear the trie.")
+	}
+	full.Insert("z", 1)
+	if err := json.Unmarshal([]byte("null"), &full); err != nil {
+		t.Fatalf("json.Unmarshal(null): %v", err)
+	}
+	if !full.IsEmpty() || full.root != nil {
+		t.Errorf("Expected null to clear the trie.")
+	}
+
+	// Value-level unmarshalers are honored.
+	var custom PatriciaTrie[upperString]
+	if err := json.Unmarshal([]byte(`{"k1":"X","k2":"Y"}`), &custom); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if v, ok := custom.Search("k2"); !ok || string(v) != "Y" {
+		t.Errorf("Expected Search(\"k2\")=(Y, true), got (%q, %v)", v, ok)
+	}
+
+	// Decode errors are returned and leave the trie untouched.
+	var keep PatriciaTrie[int]
+	keep.Insert("keep", 9)
+	for _, badData := range []string{"{", `{"a":`, `["x"]`, "7", `{"a":"x"}`} {
+		if err := json.Unmarshal([]byte(badData), &keep); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", badData)
+		}
+		if v, ok := keep.Search("keep"); !ok || v != 9 || keep.Length() != 1 {
+			t.Errorf("Trie changed after the error on %s.", badData)
+		}
+	}
+	checkInvariants(t, &keep, map[string]int{"keep": 9})
+}
+
+// TestUnmarshalJSONPanics verifies that UnmarshalJSON joins the insert
+// family: storing values into a nil trie panics with a message naming
+// the method, while {} and null — which store nothing — are tolerated
+// everywhere.  Unlike the constructor-built structures, a zero-value
+// trie is ready to use and accepts elements directly.
+func TestUnmarshalJSONPanics(t *testing.T) {
+	var zero PatriciaTrie[int]
+	for _, data := range []string{"{}", "null"} {
+		if err := zero.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a zero-value trie to be tolerated, got %v", data, err)
+		}
+	}
+
+	// The zero value stores elements without any constructor.
+	if err := zero.UnmarshalJSON([]byte(`{"a":1}`)); err != nil {
+		t.Fatalf("Expected a zero-value trie to accept elements, got %v", err)
+	}
+	if v, ok := zero.Search("a"); !ok || v != 1 {
+		t.Errorf("Expected Search(\"a\")=(1, true) on a zero-value trie, got (%d, %v)", v, ok)
+	}
+
+	var nilTrie *PatriciaTrie[int]
+	for _, data := range []string{"{}", "null"} {
+		if err := nilTrie.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a nil trie to be tolerated, got %v", data, err)
+		}
+	}
+	expectPanic(t, "UnmarshalJSON", func() {
+		_ = nilTrie.UnmarshalJSON([]byte(`{"a":1}`))
+	})
+	expectPanic(t, "nil PatriciaTrie", func() {
+		_ = nilTrie.UnmarshalJSON([]byte(`{"a":1}`))
+	})
+}
+
+// TestJSONRandomizedModel cross-checks marshaling and unmarshaling
+// against a map reference model at fixed seed.
+func TestJSONRandomizedModel(t *testing.T) {
+	rng := rand.New(rand.NewSource(20260903)) // fixed seed: deterministic run
+
+	const alphabet = "abc"
+	var pt PatriciaTrie[int]
+	model := make(map[string]int)
+
+	randomKey := func() string {
+		n := rng.Intn(9)
+		var sb strings.Builder
+		for i := 0; i < n; i++ {
+			sb.WriteByte(alphabet[rng.Intn(len(alphabet))])
+		}
+		return sb.String()
+	}
+
+	for step := range 500 {
+		switch rng.Intn(4) {
+		case 0, 1: // Insert
+			key, value := randomKey(), rng.Intn(10000)
+			pt.Insert(key, value)
+			model[key] = value
+		case 2: // Delete
+			key := randomKey()
+			pt.Delete(key)
+			delete(model, key)
+		case 3: // JSON round trip through the model
+			b, err := json.Marshal(&pt)
+			if err != nil {
+				t.Fatalf("step %d: json.Marshal: %v", step, err)
+			}
+			var want []byte
+			if len(model) == 0 {
+				want = []byte("{}")
+			} else {
+				var err error
+				if want, err = json.Marshal(model); err != nil {
+					t.Fatalf("step %d: json.Marshal(model): %v", step, err)
+				}
+			}
+			if string(b) != string(want) {
+				t.Fatalf("step %d: marshaled %s, model says %s", step, b, want)
+			}
+			var back PatriciaTrie[int]
+			if err := json.Unmarshal(b, &back); err != nil {
+				t.Fatalf("step %d: json.Unmarshal: %v", step, err)
+			}
+			checkInvariants(t, &back, model)
+		}
+	}
+	checkInvariants(t, &pt, model)
 }

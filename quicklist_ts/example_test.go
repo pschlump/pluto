@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package quicklist_ts_test
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/pschlump/pluto/quicklist"
@@ -72,4 +73,34 @@ func ExampleNewQuickList() {
 	fmt.Println(q.Len())
 	// Output:
 	// 300
+}
+
+// MarshalJSON encodes the list as a JSON array of its elements, head to
+// tail.
+func ExampleQuickList_MarshalJSON() {
+	q := quicklist_ts.NewQuickList[int]()
+	q.PushTail(3)
+	q.PushTail(1)
+	q.PushTail(2)
+
+	b, err := json.Marshal(q)
+	fmt.Println(string(b), err)
+	// Output:
+	// [3,1,2] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the list from a JSON array;
+// element 0 becomes the new head.
+func ExampleQuickList_UnmarshalJSON() {
+	q := quicklist_ts.NewQuickList[string]()
+	if err := json.Unmarshal([]byte(`["c","a"]`), q); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for i, v := range q.All() {
+		fmt.Println(i, v)
+	}
+	// Output:
+	// 0 c
+	// 1 a
 }

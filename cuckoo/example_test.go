@@ -14,6 +14,7 @@ BSD 3 Clause Licensed.
 package cuckoo_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"sort"
@@ -131,4 +132,46 @@ func ExampleHashTab_Walk() {
 	fmt.Println("total:", total, "completed:", completed)
 	// Output:
 	// total: 11 completed: true
+}
+
+// MarshalJSON encodes the table as a JSON array of its elements, in slot
+// order.  Slot order depends on the hash seed, so decode and sort when order
+// matters.
+func ExampleHashTab_MarshalJSON() {
+	ht := cuckoo.NewHashTab[string](8, 0, 0)
+	ht.Insert("beta")
+	ht.Insert("alpha")
+
+	b, err := json.Marshal(ht)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	var elems []string
+	if err := json.Unmarshal(b, &elems); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	sort.Strings(elems)
+	fmt.Println(elems)
+	// Output:
+	// [alpha beta]
+}
+
+// UnmarshalJSON replaces the contents of the table from a JSON array; every
+// decoded element is hashed and placed by the same rules as Insert.
+func ExampleHashTab_UnmarshalJSON() {
+	ht := cuckoo.NewHashTab[string](8, 0, 0)
+	if err := json.Unmarshal([]byte(`["c","a","b"]`), ht); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	var got []string
+	for v := range ht.Values() {
+		got = append(got, v)
+	}
+	sort.Strings(got) // iteration is in slot order; sort when order matters
+	fmt.Println(got)
+	// Output:
+	// [a b c]
 }

@@ -7,6 +7,7 @@ BSD 3 Clause Licensed.
 package stream
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand/v2"
 	"slices"
@@ -622,4 +623,228 @@ func TestStreamRandomizedModel(t *testing.T) {
 		}
 		compareStreamModel(t, s, m)
 	}
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+// TestIDJSON verifies the canonical "ms-seq" string encoding of IDs and
+// its round trip through ParseID.
+func TestIDJSON(t *testing.T) {
+	for _, id := range []ID{{Ms: 100}, {Ms: 1234, Seq: 56}, MaxID} {
+		b, err := json.Marshal(id)
+		if err != nil {
+			t.Fatalf("json.Marshal(%v): %v", id, err)
+		}
+		if string(b) != `"`+id.String()+`"` {
+			t.Errorf("json.Marshal(%v) = %s", id, b)
+		}
+		var back ID
+		if err := json.Unmarshal(b, &back); err != nil || back != id {
+			t.Errorf("round trip of %s got (%v, %v)", b, back, err)
+		}
+	}
+
+	// The bare "ms" and "ms-*" request forms parse too.
+	var id ID
+	if err := json.Unmarshal([]byte(`"1234"`), &id); err != nil || id != (ID{Ms: 1234}) {
+		t.Errorf(`Unmarshal("1234") = (%v, %v)`, id, err)
+	}
+	if err := json.Unmarshal([]byte(`"5-*"`), &id); err != nil || id != (ID{Ms: 5, Seq: AutoSeq}) {
+		t.Errorf(`Unmarshal("5-*") = (%v, %v)`, id, err)
+	}
+
+	// Decode errors leave the ID untouched.
+	id = ID{Ms: 7, Seq: 3}
+	for _, bad := range []string{`"nope"`, `"1-2-3"`, `7`, `["1-2"]`, `{"ms":1}`} {
+		if err := json.Unmarshal([]byte(bad), &id); err == nil {
+			t.Errorf("Expected an error unmarshaling %s into an ID.", bad)
+		}
+		if id != (ID{Ms: 7, Seq: 3}) {
+			t.Errorf("ID changed after the error on %s: %v", bad, id)
+		}
+	}
+}
+
+func TestStreamMarshalJSON(t *testing.T) {
+	// Exact array output, ascending ID order.
+	var s Stream
+	for i := range 3 {
+		if _, err := s.Add(ID{Ms: 100, Seq: AutoSeq}, [][2]string{{"sensor", fmt.Sprintf("%d", i*7)}}); err != nil {
+			t.Fatalf("Add: %v", err)
+		}
+	}
+	b, err := json.Marshal(&s)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	want := `[{"id":"100-0","fields":[["sensor","0"]]},` +
+		`{"id":"100-1","fields":[["sensor","7"]]},` +
+		`{"id":"100-2","fields":[["sensor","14"]]}]`
+	if string(b) != want {
+		t.Errorf("Expected %s, got %s", want, b)
+	}
+
+	// An empty stream encodes as [].
+	if b, err := json.Marshal(&Stream{}); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for an empty stream, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil stream encodes as []; json.Marshal on a nil
+	// *Stream never reaches the method — the json package writes null
+	// for nil pointers itself.
+	var nilStream *Stream
+	if b, err := nilStream.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] from a direct nil-stream call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilStream); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil stream, got (%s, %v)", b, err)
+	}
+
+	// Only the entry log is encoded: the last assigned ID and the
+	// consumer groups do not appear.
+	if err := s.CreateGroup("g", MinID); err != nil {
+		t.Fatalf("CreateGroup: %v", err)
+	}
+	s.SetLastID(ID{Ms: 999})
+	if b, err := json.Marshal(&s); err != nil || string(b) != want {
+		t.Errorf("Groups and the last ID leaked into the encoding: (%s, %v)", b, err)
+	}
+}
+
+func TestStreamUnmarshalJSON(t *testing.T) {
+	// Decoded order is the ID order; the zero value is usable.
+	var s Stream
+	data := `[{"id":"1-0","fields":[["job","a"]]},{"id":"1-1","fields":[["job","b"]]}]`
+	if err := json.Unmarshal([]byte(data), &s); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	got := collect(s.Range(MinID, MaxID, 0))
+	if len(got) != 2 || got[0].ID != (ID{Ms: 1}) || got[1].ID != (ID{Ms: 1, Seq: 1}) ||
+		got[0].Fields[0] != [2]string{"job", "a"} {
+		t.Errorf("Unexpected entries after unmarshal: %v", got)
+	}
+	checkInvariants(t, &s)
+
+	// The last assigned ID advances to the restored tail, so the next
+	// Add starts above it.
+	if s.LastID() != (ID{Ms: 1, Seq: 1}) {
+		t.Errorf("LastID after unmarshal = %v", s.LastID())
+	}
+	if _, err := s.Add(ID{Ms: 1, Seq: AutoSeq}, nil); err != nil {
+		t.Errorf("Add after unmarshal: %v", err)
+	}
+
+	// A round trip rebuilds a structurally sound stream.
+	b, err := json.Marshal(&s)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	var again Stream
+	if err := json.Unmarshal(b, &again); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	checkInvariants(t, &again)
+	if got, want := fmt.Sprint(idsOf(collect(again.Range(MinID, MaxID, 0)))),
+		fmt.Sprint(idsOf(collect(s.Range(MinID, MaxID, 0)))); got != want {
+		t.Errorf("Round trip got %s, want %s", got, want)
+	}
+
+	// Unmarshaling replaces the entry log; it does not append.  A higher
+	// last ID (SetLastID) is not regressed.
+	s.SetLastID(ID{Ms: 50})
+	if err := json.Unmarshal([]byte(`[{"id":"7-0","fields":[["k","v"]]}]`), &s); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if s.Len() != 1 {
+		t.Errorf("Expected replacement, got length %d", s.Len())
+	}
+	if s.LastID() != (ID{Ms: 50}) {
+		t.Errorf("LastID regressed to %v", s.LastID())
+	}
+
+	// Replacing the log keeps the consumer groups (the Delete contract:
+	// PELs are unaffected by entry removal).
+	var gs Stream
+	for i := range 3 {
+		if _, err := gs.Add(ID{Ms: 1, Seq: uint64(i)}, [][2]string{{"job", "x"}}); err != nil {
+			t.Fatalf("Add: %v", err)
+		}
+	}
+	if err := gs.CreateGroup("workers", MinID); err != nil {
+		t.Fatalf("CreateGroup: %v", err)
+	}
+	if n := len(gs.ReadGroup("workers", "alice", MinID, 2)); n != 2 {
+		t.Fatalf("ReadGroup delivered %d", n)
+	}
+	if err := json.Unmarshal([]byte(`[{"id":"9-0","fields":[["job","y"]]}]`), &gs); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if names := gs.GroupNames(); !slices.Equal(names, []string{"workers"}) {
+		t.Errorf("Groups lost on unmarshal: %v", names)
+	}
+	if count, _, _, _ := gs.Pending("workers"); count != 2 {
+		t.Errorf("PEL lost on unmarshal: pending %d", count)
+	}
+	checkInvariants(t, &gs)
+
+	// An empty array and null clear the entry log.
+	if err := json.Unmarshal([]byte("[]"), &s); err != nil {
+		t.Fatalf("json.Unmarshal([]): %v", err)
+	}
+	if !s.IsEmpty() {
+		t.Errorf("Expected [] to clear the stream.")
+	}
+	if _, err := s.Add(ID{Ms: 60}, nil); err != nil { // last ID 50 kept: 60-0 is legal
+		t.Fatalf("Add after clear: %v", err)
+	}
+	if err := json.Unmarshal([]byte("null"), &s); err != nil {
+		t.Fatalf("json.Unmarshal(null): %v", err)
+	}
+	if !s.IsEmpty() {
+		t.Errorf("Expected null to clear the stream.")
+	}
+	checkInvariants(t, &s)
+
+	// Decode errors are returned and leave the stream untouched.
+	keep := &Stream{}
+	if _, err := keep.Add(ID{Ms: 3}, [][2]string{{"k", "keep"}}); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+	for _, badData := range []string{
+		"[{",                             // malformed
+		`{"id":"1-0"}`,                   // not an array
+		"7",                              // not an array
+		`[{"id":"bogus","fields":null}]`, // invalid ID
+		`[{"id":7,"fields":null}]`,       // non-string ID
+		`[{"id":"1-1"},{"id":"1-1"}]`,    // duplicate IDs
+		`[{"id":"2-0"},{"id":"1-0"}]`,    // not increasing
+		`[{"id":"0-0","fields":null}]`,   // 0-0 is never an entry ID
+	} {
+		if err := json.Unmarshal([]byte(badData), keep); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", badData)
+		}
+		if got := fmt.Sprint(idsOf(collect(keep.Range(MinID, MaxID, 0)))); got != "[3-0]" {
+			t.Errorf("Stream changed after the error on %s: %s", badData, got)
+		}
+	}
+	checkInvariants(t, keep)
+}
+
+// TestStreamUnmarshalJSONPanics verifies that UnmarshalJSON joins the
+// insert family: storing entries into a nil stream panics with the Add
+// precedent's message, while [] and null — which store nothing — are
+// tolerated everywhere.  (The stream has no constructor, so a zero-value
+// Stream accepts data; only the nil pointer panics.)
+func TestStreamUnmarshalJSONPanics(t *testing.T) {
+	var nilStream *Stream
+	for _, data := range []string{"[]", "null"} {
+		if err := nilStream.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a nil stream to be tolerated, got %v", data, err)
+		}
+	}
+	expectPanic(t, "stream: UnmarshalJSON called on a nil Stream", func() {
+		_ = nilStream.UnmarshalJSON([]byte(`[{"id":"1-0","fields":null}]`))
+	})
 }

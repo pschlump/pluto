@@ -57,8 +57,8 @@ import (
 // pairs.  Fields may repeat a name (Redis allows it) and are stored in
 // order; Add copies the slice, so the caller may reuse it afterwards.
 type Entry struct {
-	ID     ID
-	Fields [][2]string
+	ID     ID          `json:"id"`
+	Fields [][2]string `json:"fields"`
 }
 
 // Stream is an append-oriented log of entries keyed by strictly

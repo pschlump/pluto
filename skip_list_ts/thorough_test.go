@@ -8,6 +8,7 @@ BSD 3 Clause Licensed.
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math/rand/v2"
 	"sort"
@@ -846,5 +847,370 @@ func TestListConcurrent(t *testing.T) {
 
 	if !list.IsEmpty() || list.Length() != 0 {
 		t.Errorf("Expected empty list after concurrent insert/delete, got length %d", list.Length())
+	}
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+// upperString is a string with its own JSON representation, to verify
+// that element-level marshalers are honored through the list.
+type upperString string
+
+func (u upperString) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + strings.ToUpper(string(u)) + `"`), nil
+}
+
+func (u *upperString) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	*u = upperString(s)
+	return nil
+}
+
+func TestMarshalJSON(t *testing.T) {
+	// Exact array output, in ascending order regardless of insert order.
+	list := NewSkipList[int]()
+	for _, v := range []int{3, 1, 2} {
+		list.Insert(v)
+	}
+	b, err := json.Marshal(list)
+	if err != nil {
+		t.Fatalf("json.Marshal(list): %v", err)
+	}
+	if string(b) != "[1,2,3]" {
+		t.Errorf("Expected [1,2,3], got %s", b)
+	}
+
+	// Struct elements use their normal JSON encoding.
+	items := newTestList()
+	for _, s := range []string{"b", "a"} {
+		items.Insert(TestSkipListNode{S: s})
+	}
+	if b, err := json.Marshal(items); err != nil || string(b) != `[{"S":"a","N":0},{"S":"b","N":0}]` {
+		t.Errorf(`Expected [{"S":"a","N":0},{"S":"b","N":0}], got (%s, %v)`, b, err)
+	}
+
+	// An empty list encodes as [].
+	if b, err := json.Marshal(NewSkipList[int]()); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for an empty list, got (%s, %v)", b, err)
+	}
+
+	// A zero-value list is a tolerated read: [].
+	var zero SkipList[int]
+	if b, err := zero.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for a zero-value list, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil list encodes as []; json.Marshal on a nil
+	// *SkipList never reaches the method — the json package writes null
+	// for nil pointers itself.
+	var nilList *SkipList[int]
+	if b, err := nilList.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] from a direct nil-list call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilList); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil list, got (%s, %v)", b, err)
+	}
+
+	// Element-level marshalers are honored.
+	custom := NewSkipList[upperString]()
+	custom.Insert("x")
+	custom.Insert("y")
+	if b, err := json.Marshal(custom); err != nil || string(b) != `["X","Y"]` {
+		t.Errorf(`Expected ["X","Y"], got (%s, %v)`, b, err)
+	}
+
+	// Encoding errors pass through unchanged.
+	bad := NewSkipListFunc(func(a, b chan int) int { return 0 })
+	bad.Insert(make(chan int))
+	if _, err := json.Marshal(bad); err == nil {
+		t.Errorf("Expected an error marshaling a list of channels.")
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	// The decoded set replaces the contents in ascending order.
+	list := NewSkipList[int]()
+	if err := json.Unmarshal([]byte("[3,1,2]"), list); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	var got []int
+	for v := range list.All() {
+		got = append(got, v)
+	}
+	if fmt.Sprint(got) != "[1 2 3]" {
+		t.Errorf("Expected [1 2 3], got %v", got)
+	}
+	if mn, found := list.FindMin(); !found || mn != 1 {
+		t.Errorf("Expected min 1, got (%v, %v)", mn, found)
+	}
+
+	// Duplicate elements in the input replace each other, exactly as
+	// duplicate inserts do.
+	dups := NewSkipList[int]()
+	if err := json.Unmarshal([]byte("[1,1,2]"), dups); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got := dups.Len(); got != 2 {
+		t.Errorf("Expected duplicates to collapse, got length %d", got)
+	}
+
+	// A round trip rebuilds a structurally sound list and keeps the
+	// comparison function (Search works on the rebuilt list).
+	items := newTestList()
+	for _, s := range []string{"c", "a", "b"} {
+		items.Insert(TestSkipListNode{S: s})
+	}
+	b, err := json.Marshal(items)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	again := newTestList()
+	if err := json.Unmarshal(b, again); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	checkInvariant(t, again, "after unmarshal")
+	var keys []string
+	for v := range again.All() {
+		keys = append(keys, v.S)
+	}
+	if got, want := fmt.Sprint(keys), "[a b c]"; got != want {
+		t.Errorf("Expected %s after round trip, got %s", want, got)
+	}
+	if _, found := again.Search(TestSkipListNode{S: "b"}); !found {
+		t.Errorf("Expected Search to work after unmarshal.")
+	}
+
+	// Unmarshaling replaces the contents; it does not merge.
+	if err := json.Unmarshal([]byte("[7]"), list); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got, want := list.Len(), 1; got != want {
+		t.Errorf("Expected replacement, got length %d, want %d", got, want)
+	}
+
+	// An empty array and null clear the list.
+	full := newTestList()
+	full.Insert(TestSkipListNode{S: "z"})
+	if err := json.Unmarshal([]byte("[]"), full); err != nil {
+		t.Fatalf("json.Unmarshal([]): %v", err)
+	}
+	if !full.IsEmpty() {
+		t.Errorf("Expected [] to clear the list.")
+	}
+	full.Insert(TestSkipListNode{S: "z"})
+	if err := json.Unmarshal([]byte("null"), full); err != nil {
+		t.Fatalf("json.Unmarshal(null): %v", err)
+	}
+	if !full.IsEmpty() {
+		t.Errorf("Expected null to clear the list.")
+	}
+	checkInvariant(t, full, "after null")
+
+	// Element-level unmarshalers are honored.
+	custom := NewSkipList[upperString]()
+	if err := json.Unmarshal([]byte(`["Y","X"]`), custom); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	var cs []string
+	for v := range custom.All() {
+		cs = append(cs, string(v))
+	}
+	if fmt.Sprint(cs) != "[X Y]" {
+		t.Errorf("Expected [X Y], got %v", cs)
+	}
+
+	// Decode errors are returned and leave the list untouched.
+	keep := newTestList()
+	keep.Insert(TestSkipListNode{S: "keep"})
+	for _, badData := range []string{"[1,", `["x"]`, `{"S":"a"}`, "7", `["a",3]`} {
+		if err := json.Unmarshal([]byte(badData), keep); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", badData)
+		}
+		if got, want := keep.Len(), 1; got != want {
+			t.Errorf("List changed after the error on %s: length %d, want %d", badData, got, want)
+		}
+		if v, found := keep.FindMin(); !found || v.S != "keep" {
+			t.Errorf("List changed after the error on %s: %+v", badData, v)
+		}
+	}
+	checkInvariant(t, keep, "after decode errors")
+}
+
+// TestUnmarshalJSONPanics verifies that UnmarshalJSON joins the insert
+// family: storing elements into a nil or zero-value list panics with a
+// message naming the method and the fix, while [] and null — which
+// store nothing — are tolerated everywhere.
+func TestUnmarshalJSONPanics(t *testing.T) {
+	var zero SkipList[TestSkipListNode]
+	for _, data := range []string{"[]", "null"} {
+		if err := zero.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a zero-value list to be tolerated, got %v", data, err)
+		}
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with elements to panic on a zero-value list.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "NewSkipList") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = zero.UnmarshalJSON([]byte(`[{"S":"a"}]`))
+	}()
+
+	var nilList *SkipList[TestSkipListNode]
+	if err := nilList.UnmarshalJSON([]byte("[]")); err != nil {
+		t.Errorf("Expected [] on a nil list to be tolerated, got %v", err)
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with elements to panic on a nil list.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "nil list") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = nilList.UnmarshalJSON([]byte(`[{"S":"a"}]`))
+	}()
+}
+
+// TestJSONStructField marshals and unmarshals a SkipList nested in a
+// struct through the encoding/json package.  The list must be created
+// with NewSkipList/NewSkipListFunc before unmarshaling: for a nil
+// *SkipList field the json package allocates a zero-value list itself
+// (no comparison function), so non-empty data panics with the
+// insert-family message.
+func TestJSONStructField(t *testing.T) {
+	type Doc struct {
+		Title string            `json:"title"`
+		Tags  *SkipList[string] `json:"tags"`
+	}
+
+	d := Doc{Title: "pluto", Tags: NewSkipList[string]()}
+	d.Tags.Insert("go")
+	d.Tags.Insert("ds")
+
+	b, err := json.Marshal(d)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if string(b) != `{"title":"pluto","tags":["ds","go"]}` {
+		t.Errorf("Unexpected document: %s", b)
+	}
+
+	// Unmarshal into a pre-created list field.
+	var out Doc
+	out.Tags = NewSkipList[string]()
+	if err := json.Unmarshal(b, &out); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	var tags []string
+	for v := range out.Tags.All() {
+		tags = append(tags, v)
+	}
+	if fmt.Sprint(tags) != "[ds go]" {
+		t.Errorf("Expected [ds go], got %v", tags)
+	}
+
+	// A nil list field marshals as null (the json package's own nil
+	// pointer rule); null clears a pre-created list and never allocates.
+	if b, err := json.Marshal(Doc{Title: "x"}); err != nil || string(b) != `{"title":"x","tags":null}` {
+		t.Errorf("Unexpected null document: (%s, %v)", b, err)
+	}
+	clearDoc := Doc{Title: "x", Tags: NewSkipList[string]()}
+	clearDoc.Tags.Insert("gone")
+	if err := json.Unmarshal([]byte(`{"title":"x","tags":null}`), &clearDoc); err != nil {
+		t.Fatalf("json.Unmarshal with null tags: %v", err)
+	}
+	if !clearDoc.Tags.IsEmpty() {
+		t.Errorf("Expected null tags to clear the list.")
+	}
+
+	// Non-empty data into a nil *SkipList field: the json package
+	// allocates a zero-value list, and the insert contract panics through
+	// json.Unmarshal (it does not recover panics).
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected unmarshaling into an uncreated list field to panic.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "NewSkipList") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		var bad Doc
+		_ = json.Unmarshal([]byte(`{"title":"x","tags":["a"]}`), &bad)
+	}()
+}
+
+// TestJSONRandomizedModel cross-checks marshaling and unmarshaling
+// against a sorted-set reference model at fixed seed.
+func TestJSONRandomizedModel(t *testing.T) {
+	rng := rand.New(rand.NewPCG(20260903, 42))
+	const ops = 500
+
+	list := NewSkipList[int]()
+	set := make(map[int]bool)
+
+	// model returns the reference elements in ascending order; it is
+	// non-nil, so an emptied model marshals as [] like the list.
+	model := func() []int {
+		m := make([]int, 0, len(set))
+		for v := range set {
+			m = append(m, v)
+		}
+		sort.Ints(m)
+		return m
+	}
+
+	for step := range ops {
+		v := rng.IntN(100)
+		switch rng.IntN(3) {
+		case 0, 1: // Insert (duplicates replace)
+			list.Insert(v)
+			set[v] = true
+		case 2: // Delete
+			list.Delete(v)
+			delete(set, v)
+		}
+
+		// Marshal must equal the model marshaled as a plain sorted slice.
+		got, err := json.Marshal(list)
+		if err != nil {
+			t.Fatalf("step %d: %v", step, err)
+		}
+		want, err := json.Marshal(model())
+		if err != nil {
+			t.Fatalf("step %d: %v", step, err)
+		}
+		if string(got) != string(want) {
+			t.Fatalf("step %d: marshal mismatch, want %s got %s", step, want, got)
+		}
+
+		// Unmarshal of the encoding into a fresh list reproduces the model.
+		back := NewSkipList[int]()
+		if err := json.Unmarshal(got, back); err != nil {
+			t.Fatalf("step %d: unmarshal: %v", step, err)
+		}
+		again, err := json.Marshal(back)
+		if err != nil {
+			t.Fatalf("step %d: re-marshal: %v", step, err)
+		}
+		if string(again) != string(want) {
+			t.Fatalf("step %d: round trip mismatch, want %s got %s", step, want, again)
+		}
 	}
 }

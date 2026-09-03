@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package stream_test
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/pschlump/pluto/stream"
@@ -109,4 +110,36 @@ func ExampleParseID() {
 	// 1234-56 -> 1234-56 <nil>
 	// 1234 -> 1234-0 <nil>
 	// 1234-* -> 1234-* <nil>
+}
+
+// MarshalJSON encodes the stream as a JSON array of its entries in
+// ascending ID order, each ID in its canonical "ms-seq" string form.
+func ExampleStream_MarshalJSON() {
+	var s stream.Stream
+	for i := range 2 {
+		_, _ = s.Add(stream.ID{Ms: 100, Seq: stream.AutoSeq}, [][2]string{{"sensor", fmt.Sprintf("%d", i*7)}})
+	}
+
+	b, err := json.Marshal(&s)
+	fmt.Println(string(b), err)
+	// Output:
+	// [{"id":"100-0","fields":[["sensor","0"]]},{"id":"100-1","fields":[["sensor","7"]]}] <nil>
+}
+
+// UnmarshalJSON replaces the entry log from a JSON array; entries must
+// carry strictly increasing IDs, the same rule Add enforces.
+func ExampleStream_UnmarshalJSON() {
+	var s stream.Stream // the zero value is ready to use
+	if err := json.Unmarshal([]byte(`[{"id":"1-0","fields":[["job","a"]]},{"id":"1-1","fields":[["job","b"]]}]`), &s); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for e := range s.Range(stream.MinID, stream.MaxID, 0) {
+		fmt.Println(e.ID, e.Fields[0][1])
+	}
+	fmt.Println("last:", s.LastID())
+	// Output:
+	// 1-0 a
+	// 1-1 b
+	// last: 1-1
 }

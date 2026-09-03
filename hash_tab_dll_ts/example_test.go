@@ -14,6 +14,7 @@ BSD 3 Clause Licensed.
 package hash_tab_dll_ts_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"sort"
@@ -174,4 +175,49 @@ func ExampleHashTab_Walk() {
 	fmt.Println("total:", total, "completed:", completed)
 	// Output:
 	// total: 11 completed: true
+}
+
+// MarshalJSON encodes the table as a JSON array of its elements.  The array
+// is in bucket order (hash-dependent), so this example decodes and sorts it
+// before printing.
+func ExampleHashTab_MarshalJSON() {
+	ht := hash_tab_dll_ts.NewHashTab[string](8)
+	ht.Insert("red")
+	ht.Insert("green")
+	ht.Insert("blue")
+
+	b, err := json.Marshal(ht)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	var elems []string
+	if err := json.Unmarshal(b, &elems); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	sort.Strings(elems)
+	fmt.Println(strings.Join(elems, ","))
+	// Output:
+	// blue,green,red
+}
+
+// UnmarshalJSON replaces the contents of the table from a JSON array.  The
+// table must be created first, so the equality and hash functions survive.
+func ExampleHashTab_UnmarshalJSON() {
+	ht := hash_tab_dll_ts.NewHashTab[string](8)
+	if err := json.Unmarshal([]byte(`["c","a","b"]`), ht); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	var elems []string
+	for v := range ht.Values() { // bucket order — sort when order matters
+		elems = append(elems, v)
+	}
+	sort.Strings(elems)
+	fmt.Println(strings.Join(elems, ","))
+	fmt.Println("len:", ht.Len())
+	// Output:
+	// a,b,c
+	// len: 3
 }

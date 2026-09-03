@@ -201,10 +201,10 @@ func TestUnmarshalJSON(t *testing.T) {
 	keep := lru_ts.NewLru[string, int](3)
 	keep.Put("k", 1)
 	for _, data := range []string{
-		`{`,                          // malformed
-		`{"key":"k"}`,                // not an array
-		`[{"key":"k","value":"v"}]`,  // wrong value type
-		`[{"key":1,"value":1}]`,      // wrong key type
+		`{`,                         // malformed
+		`{"key":"k"}`,               // not an array
+		`[{"key":"k","value":"v"}]`, // wrong value type
+		`[{"key":1,"value":1}]`,     // wrong key type
 	} {
 		if err := keep.UnmarshalJSON([]byte(data)); err == nil {
 			t.Errorf("Expected an error decoding %s", data)

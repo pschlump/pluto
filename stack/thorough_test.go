@@ -12,10 +12,13 @@ BSD 3 Clause Licensed.
 // reference model.
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"math/rand/v2"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -327,4 +330,299 @@ func TestRandomizedAgainstModel(t *testing.T) {
 		}
 	}
 	checkModel(t, &stk, model)
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+// upperString is a string with its own JSON representation, to verify
+// that element-level marshalers are honored through the stack.
+type upperString string
+
+func (u upperString) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + strings.ToUpper(string(u)) + `"`), nil
+}
+
+func (u *upperString) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	*u = upperString(s)
+	return nil
+}
+
+func TestMarshalJSON(t *testing.T) {
+	// Exact array output, top to bottom: pushing 1, 2, 3 leaves 3 on
+	// top, so it is element 0.
+	var stk Stack[int]
+	for _, v := range []int{1, 2, 3} {
+		stk.Push(v)
+	}
+	b, err := json.Marshal(&stk)
+	if err != nil {
+		t.Fatalf("json.Marshal(&stk): %v", err)
+	}
+	if string(b) != "[3,2,1]" {
+		t.Errorf("Expected [3,2,1], got %s", b)
+	}
+
+	// Struct elements use their normal JSON encoding.
+	type item struct {
+		S string
+	}
+	var items Stack[item]
+	items.Push(item{S: "a"})
+	items.Push(item{S: "b"})
+	if b, err := json.Marshal(&items); err != nil || string(b) != `[{"S":"b"},{"S":"a"}]` {
+		t.Errorf(`Expected [{"S":"b"},{"S":"a"}], got (%s, %v)`, b, err)
+	}
+
+	// An empty stack encodes as [].
+	var empty Stack[int]
+	if b, err := json.Marshal(&empty); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for an empty stack, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil stack encodes as []; json.Marshal on a nil
+	// *Stack never reaches the method — the json package writes null
+	// for nil pointers itself.
+	var nilStack *Stack[int]
+	if b, err := nilStack.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] from a direct nil-stack call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilStack); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil stack, got (%s, %v)", b, err)
+	}
+
+	// Element-level marshalers are honored.
+	var custom Stack[upperString]
+	custom.Push("x")
+	custom.Push("y")
+	if b, err := json.Marshal(&custom); err != nil || string(b) != `["Y","X"]` {
+		t.Errorf(`Expected ["Y","X"], got (%s, %v)`, b, err)
+	}
+
+	// Encoding errors pass through unchanged.
+	var bad Stack[chan int]
+	bad.Push(make(chan int))
+	if _, err := json.Marshal(&bad); err == nil {
+		t.Errorf("Expected an error marshaling a stack of channels.")
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	// Decoded order is preserved: element 0 becomes the top.
+	var stk Stack[int]
+	if err := json.Unmarshal([]byte("[3,1,2]"), &stk); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	checkModel(t, &stk, []int{2, 1, 3})
+	if top, err := stk.Peek(); err != nil || top != 3 {
+		t.Errorf("Expected top 3, got (%v, %v)", top, err)
+	}
+
+	// A round trip rebuilds an equivalent stack.
+	var items Stack[string]
+	for _, s := range []string{"a", "b", "c"} {
+		items.Push(s)
+	}
+	b, err := json.Marshal(&items)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	var again Stack[string]
+	if err := json.Unmarshal(b, &again); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	checkModel(t, &again, []string{"a", "b", "c"})
+
+	// Unmarshaling replaces the contents; it does not push on top.
+	if err := json.Unmarshal([]byte("[7]"), &stk); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got, want := stk.Len(), 1; got != want {
+		t.Errorf("Expected replacement, got length %d, want %d", got, want)
+	}
+
+	// An empty array and null clear the stack.
+	var full Stack[string]
+	full.Push("z")
+	if err := json.Unmarshal([]byte("[]"), &full); err != nil {
+		t.Fatalf("json.Unmarshal([]): %v", err)
+	}
+	if !full.IsEmpty() {
+		t.Errorf("Expected [] to clear the stack.")
+	}
+	full.Push("z")
+	if err := json.Unmarshal([]byte("null"), &full); err != nil {
+		t.Fatalf("json.Unmarshal(null): %v", err)
+	}
+	if !full.IsEmpty() {
+		t.Errorf("Expected null to clear the stack.")
+	}
+	checkModel(t, &full, nil)
+
+	// Element-level unmarshalers are honored.
+	var custom Stack[upperString]
+	if err := json.Unmarshal([]byte(`["X","Y"]`), &custom); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	var cs []string
+	for _, v := range custom.All() {
+		cs = append(cs, string(v))
+	}
+	if fmt.Sprint(cs) != "[X Y]" {
+		t.Errorf("Expected [X Y], got %v", cs)
+	}
+
+	// Decode errors are returned and leave the stack untouched.
+	var keep Stack[string]
+	keep.Push("keep")
+	for _, badData := range []string{"[1,", `[1]`, `{"S":"a"}`, "7", `["a",3]`} {
+		if err := json.Unmarshal([]byte(badData), &keep); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", badData)
+		}
+		checkModel(t, &keep, []string{"keep"})
+	}
+}
+
+// TestUnmarshalJSONPanics verifies that UnmarshalJSON follows the Push
+// contract: storing elements into a nil stack panics with a message
+// naming the method, while [] and null — which store nothing — are
+// tolerated everywhere.  Unlike most pluto containers the zero value of
+// Stack is fully usable, so unmarshaling into one works.
+func TestUnmarshalJSONPanics(t *testing.T) {
+	var zero Stack[string]
+	for _, data := range []string{"[]", "null", `["a","b"]`} {
+		if err := zero.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a zero-value stack to work, got %v", data, err)
+		}
+	}
+	checkModel(t, &zero, []string{"b", "a"}) // element 0 ("a") is the top
+
+	var nilStack *Stack[string]
+	for _, data := range []string{"[]", "null"} {
+		if err := nilStack.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a nil stack to be tolerated, got %v", data, err)
+		}
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with elements to panic on a nil stack.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "nil stack") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = nilStack.UnmarshalJSON([]byte(`["a"]`))
+	}()
+}
+
+// TestJSONStructField marshals and unmarshals a Stack nested in a struct
+// through the encoding/json package.
+func TestJSONStructField(t *testing.T) {
+	type Doc struct {
+		Title string         `json:"title"`
+		Tags  *Stack[string] `json:"tags"`
+	}
+
+	d := Doc{Title: "pluto", Tags: &Stack[string]{}}
+	d.Tags.Push("ds")
+	d.Tags.Push("go")
+
+	b, err := json.Marshal(d)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if string(b) != `{"title":"pluto","tags":["go","ds"]}` {
+		t.Errorf("Unexpected document: %s", b)
+	}
+
+	var out Doc
+	if err := json.Unmarshal(b, &out); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	var tags []string
+	for _, v := range out.Tags.All() {
+		tags = append(tags, v)
+	}
+	if fmt.Sprint(tags) != "[go ds]" {
+		t.Errorf("Expected [go ds], got %v", tags)
+	}
+
+	// A nil stack field marshals as null (the json package's own nil
+	// pointer rule); null clears a pre-existing stack.  Non-empty data
+	// into a nil *Stack field works too: the json package allocates a
+	// zero-value Stack, and the zero value is ready to use.
+	if b, err := json.Marshal(Doc{Title: "x"}); err != nil || string(b) != `{"title":"x","tags":null}` {
+		t.Errorf("Unexpected null document: (%s, %v)", b, err)
+	}
+	clearDoc := Doc{Title: "x", Tags: &Stack[string]{}}
+	clearDoc.Tags.Push("gone")
+	if err := json.Unmarshal([]byte(`{"title":"x","tags":null}`), &clearDoc); err != nil {
+		t.Fatalf("json.Unmarshal with null tags: %v", err)
+	}
+	if !clearDoc.Tags.IsEmpty() {
+		t.Errorf("Expected null tags to clear the stack.")
+	}
+	var grown Doc
+	if err := json.Unmarshal([]byte(`{"title":"x","tags":["a"]}`), &grown); err != nil {
+		t.Fatalf("json.Unmarshal into an uncreated stack field: %v", err)
+	}
+	if got, err := grown.Tags.Peek(); err != nil || got != "a" {
+		t.Errorf("Expected the allocated stack to hold a, got (%q, %v)", got, err)
+	}
+}
+
+// TestJSONRandomizedModel cross-checks marshaling and unmarshaling
+// against a slice reference model at fixed seed.
+func TestJSONRandomizedModel(t *testing.T) {
+	rng := rand.New(rand.NewPCG(20260903, 42))
+	const ops = 500
+
+	var stk Stack[int]
+	model := []int{} // non-nil, so an emptied model marshals as [] like the stack
+
+	for step := range ops {
+		switch rng.IntN(2) {
+		case 0:
+			v := rng.IntN(100)
+			stk.Push(v)
+			model = append(model, v)
+		case 1:
+			if len(model) > 0 {
+				v, err := stk.Pop()
+				if err != nil || v != model[len(model)-1] {
+					t.Fatalf("step %d: Pop = (%v, %v), model top %d", step, v, err, model[len(model)-1])
+				}
+				model = model[:len(model)-1]
+			}
+		}
+
+		// Marshal must equal the model marshaled top to bottom.
+		topDown := []int{}
+		for _, v := range slices.Backward(model) {
+			topDown = append(topDown, v)
+		}
+		got, err := json.Marshal(&stk)
+		if err != nil {
+			t.Fatalf("step %d: %v", step, err)
+		}
+		want, _ := json.Marshal(topDown)
+		if string(got) != string(want) {
+			t.Fatalf("step %d: marshaled %s, model %s", step, got, want)
+		}
+
+		// Unmarshaling into a fresh stack must reproduce the model.
+		var fresh Stack[int]
+		if err := json.Unmarshal(got, &fresh); err != nil {
+			t.Fatalf("step %d: %v", step, err)
+		}
+		checkModel(t, &fresh, model)
+	}
 }

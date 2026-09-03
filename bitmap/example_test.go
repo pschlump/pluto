@@ -6,7 +6,10 @@ BSD 3 Clause Licensed.
 
 package bitmap
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // SETBIT grows a nil buffer zero-filled and returns the previous bit;
 // GETBIT reads MSB-first (bit 7 is the last bit of byte 0).
@@ -74,4 +77,30 @@ func ExampleExecuteFieldOps() {
 	})
 	fmt.Println(results, failed, err)
 	// Output: [0 99 127 0 127] [false false false true false] <nil>
+}
+
+// MarshalJSON encodes the bitmap as a JSON array of its set bit
+// offsets, ascending — bit 0 is the MSB of byte 0.
+func ExampleBitmap_MarshalJSON() {
+	buf, _, _ := SetBit(nil, 9, 1)
+	buf, _, _ = SetBit(buf, 0, 1)
+	buf, _, _ = SetBit(buf, 3, 1)
+
+	b, err := json.Marshal(Bitmap(buf))
+	fmt.Println(string(b), err)
+	// Output:
+	// [0,3,9] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the bitmap from a JSON array
+// of bit offsets: the buffer is cleared, then each listed bit is set.
+func ExampleBitmap_UnmarshalJSON() {
+	var b Bitmap
+	if err := json.Unmarshal([]byte("[0,7,8]"), &b); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println(GetBit(b, 0), GetBit(b, 1), GetBit(b, 7), GetBit(b, 8), len(b))
+	// Output:
+	// 1 0 1 1 2
 }

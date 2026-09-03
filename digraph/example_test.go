@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package digraph_test
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/pschlump/pluto/digraph"
@@ -149,4 +150,40 @@ func ExampleNewKosarajuSCC() {
 	// component 2: 0 1 2
 	// 0 strongly connected to 2: true
 	// 0 strongly connected to 3: false
+}
+
+// MarshalJSON encodes the digraph as a JSON object with the vertex count
+// and the edge list, in natural iteration order.
+func ExampleDigraph_MarshalJSON() {
+	g := digraph.NewDigraph(4)
+	for _, e := range [][2]int{{0, 1}, {0, 2}, {1, 3}} {
+		g.AddEdge(e[0], e[1])
+	}
+
+	b, err := json.Marshal(g)
+	fmt.Println(string(b), err)
+	// Output:
+	// {"vertices":4,"edges":[[0,1],[0,2],[1,3]]} <nil>
+}
+
+// UnmarshalJSON replaces the contents of the digraph from a JSON object;
+// the vertex set becomes 0..vertices-1 and the edges are added in
+// document order.
+func ExampleDigraph_UnmarshalJSON() {
+	g := digraph.NewDigraph(1)
+	if err := json.Unmarshal([]byte(`{"vertices":3,"edges":[[0,1],[0,2],[1,2]]}`), g); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println("vertices:", g.V(), "edges:", g.E())
+	for v := 0; v < g.V(); v++ {
+		for w := range g.Adj(v) {
+			fmt.Println(v, "->", w)
+		}
+	}
+	// Output:
+	// vertices: 3 edges: 3
+	// 0 -> 1
+	// 0 -> 2
+	// 1 -> 2
 }

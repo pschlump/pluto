@@ -7,8 +7,11 @@ BSD 3 Clause Licensed.
 */
 
 import (
+	"encoding/json"
+	"fmt"
 	"math"
 	"math/rand"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -248,4 +251,236 @@ func TestConcurrentCompound(t *testing.T) {
 		t.Errorf("expected Query(0,%d)=%d, got %d", writers-1, 100*writers, s)
 	}
 	checkInvariants(t, st)
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+// upperString is a string with its own JSON representation, to verify
+// that element-level marshalers are honored through the tree.
+type upperString string
+
+func (u upperString) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + strings.ToUpper(string(u)) + `"`), nil
+}
+
+func (u *upperString) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	*u = upperString(s)
+	return nil
+}
+
+// slotValues returns the values at slots 0..Len()-1 in order.
+func slotValues(st *SegmentTree[int]) []int {
+	var got []int
+	for i := 0; i < st.Len(); i++ {
+		v, _ := st.Value(i)
+		got = append(got, v)
+	}
+	return got
+}
+
+func TestMarshalJSON(t *testing.T) {
+	// Exact array output, slot 0 first.
+	st := NewSegmentTree([]int{3, 1, 2})
+	b, err := json.Marshal(st)
+	if err != nil {
+		t.Fatalf("json.Marshal(st): %v", err)
+	}
+	if string(b) != "[3,1,2]" {
+		t.Errorf("Expected [3,1,2], got %s", b)
+	}
+
+	// Struct elements use their normal JSON encoding.
+	type pair struct {
+		S string
+	}
+	pts := NewSegmentTreeFunc([]pair{{"a"}, {"b"}},
+		func(a, b pair) pair { return pair{a.S + b.S} }, pair{})
+	if b, err := json.Marshal(pts); err != nil || string(b) != `[{"S":"a"},{"S":"b"}]` {
+		t.Errorf(`Expected [{"S":"a"},{"S":"b"}], got (%s, %v)`, b, err)
+	}
+
+	// A zero-value tree is a tolerated read: [].
+	var zero SegmentTree[int]
+	if b, err := zero.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for a zero-value tree, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil tree encodes as []; json.Marshal on a nil
+	// *SegmentTree never reaches the method — the json package writes
+	// null for nil pointers itself.
+	var nilST *SegmentTree[int]
+	if b, err := nilST.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] from a direct nil-tree call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilST); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil tree, got (%s, %v)", b, err)
+	}
+
+	// Element-level marshalers are honored.
+	custom := NewSegmentTreeFunc([]upperString{"x", "y"},
+		func(a, b upperString) upperString { return a + b }, upperString(""))
+	if b, err := json.Marshal(custom); err != nil || string(b) != `["X","Y"]` {
+		t.Errorf(`Expected ["X","Y"], got (%s, %v)`, b, err)
+	}
+
+	// Encoding errors pass through unchanged.
+	bad := NewSegmentTreeFunc([]chan int{make(chan int)},
+		func(a, b chan int) chan int { return a }, nil)
+	if _, err := json.Marshal(bad); err == nil {
+		t.Errorf("Expected an error marshaling a tree of channels.")
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	// Decoded order is preserved: element 0 becomes the value at slot 0.
+	st := NewSegmentTree([]int{0, 0, 0})
+	if err := json.Unmarshal([]byte("[3,1,2]"), st); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got := fmt.Sprint(slotValues(st)); got != "[3 1 2]" {
+		t.Errorf("Expected [3 1 2], got %v", got)
+	}
+	if s, ok := st.Query(0, 2); !ok || s != 6 {
+		t.Errorf("Expected Query(0,2)=(6, true) after unmarshal, got (%d, %v)", s, ok)
+	}
+	checkInvariants(t, st)
+
+	// A round trip rebuilds a structurally sound tree — resized to the
+	// decoded length — and keeps the combine function (a min tree stays
+	// a min tree).
+	min := func(a, b int) int {
+		if a < b {
+			return a
+		}
+		return b
+	}
+	src := NewSegmentTreeFunc([]int{3, 1, 4, 1, 5, 9, 2, 6}, min, math.MaxInt)
+	b, err := json.Marshal(src)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	again := NewSegmentTreeFunc([]int{0, 0}, min, math.MaxInt) // a different size
+	if err := json.Unmarshal(b, again); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got, want := fmt.Sprint(slotValues(again)), "[3 1 4 1 5 9 2 6]"; got != want {
+		t.Errorf("Expected %s after round trip, got %s", want, got)
+	}
+	if again.Len() != 8 {
+		t.Errorf("Expected the tree to be resized to 8 slots, got %d", again.Len())
+	}
+	if v, ok := again.Query(0, 7); !ok || v != 1 {
+		t.Errorf("Expected the kept min combine to give Query(0,7)=(1, true), got (%d, %v)", v, ok)
+	}
+	checkInvariants(t, again)
+
+	// Unmarshaling replaces the contents; it does not append.
+	if err := json.Unmarshal([]byte("[7]"), st); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got, want := st.Len(), 1; got != want {
+		t.Errorf("Expected replacement, got length %d, want %d", got, want)
+	}
+	if v, ok := st.Value(0); !ok || v != 7 {
+		t.Errorf("Expected Value(0)=(7, true) after replacement, got (%d, %v)", v, ok)
+	}
+
+	// An empty array and null clear the tree to empty, keeping the
+	// combine function so the tree stays usable.
+	if err := json.Unmarshal([]byte("[]"), st); err != nil {
+		t.Fatalf("json.Unmarshal([]): %v", err)
+	}
+	if !st.IsEmpty() {
+		t.Errorf("Expected [] to clear the tree.")
+	}
+	if err := json.Unmarshal([]byte("[4,5]"), st); err != nil {
+		t.Fatalf("json.Unmarshal after clearing: %v", err)
+	}
+	if got := fmt.Sprint(slotValues(st)); got != "[4 5]" {
+		t.Errorf("Expected [4 5] after clearing and refilling, got %v", got)
+	}
+	if err := json.Unmarshal([]byte("null"), st); err != nil {
+		t.Fatalf("json.Unmarshal(null): %v", err)
+	}
+	if !st.IsEmpty() {
+		t.Errorf("Expected null to clear the tree.")
+	}
+	checkInvariants(t, st)
+
+	// Element-level unmarshalers are honored.
+	custom := NewSegmentTreeFunc([]upperString{"?"},
+		func(a, b upperString) upperString { return a + b }, upperString(""))
+	if err := json.Unmarshal([]byte(`["X","Y"]`), custom); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	var cs []string
+	for i := 0; i < custom.Len(); i++ {
+		v, _ := custom.Value(i)
+		cs = append(cs, string(v))
+	}
+	if fmt.Sprint(cs) != "[X Y]" {
+		t.Errorf("Expected [X Y], got %v", cs)
+	}
+
+	// Decode errors are returned and leave the tree untouched.
+	keep := NewSegmentTree([]int{1, 2, 3})
+	for _, badData := range []string{"[1,", `["x"]`, `{"S":"a"}`, "7", `[1,"a"]`} {
+		if err := json.Unmarshal([]byte(badData), keep); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", badData)
+		}
+		if got, want := fmt.Sprint(slotValues(keep)), "[1 2 3]"; got != want {
+			t.Errorf("Tree changed after the error on %s: %s", badData, got)
+		}
+	}
+	checkInvariants(t, keep)
+}
+
+// TestUnmarshalJSONPanics verifies that UnmarshalJSON joins the insert
+// family: storing elements into a nil or zero-value tree panics with a
+// message naming the method and the fix, while [] and null — which
+// store nothing — are tolerated everywhere.
+func TestUnmarshalJSONPanics(t *testing.T) {
+	var zero SegmentTree[int]
+	for _, data := range []string{"[]", "null"} {
+		if err := zero.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a zero-value tree to be tolerated, got %v", data, err)
+		}
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with elements to panic on a zero-value tree.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "NewSegmentTree") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = zero.UnmarshalJSON([]byte("[1]"))
+	}()
+
+	var nilST *SegmentTree[int]
+	if err := nilST.UnmarshalJSON([]byte("[]")); err != nil {
+		t.Errorf("Expected [] on a nil tree to be tolerated, got %v", err)
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with elements to panic on a nil tree.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "nil SegmentTree") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = nilST.UnmarshalJSON([]byte("[1]"))
+	}()
 }

@@ -127,6 +127,12 @@ func (q *Deque[T]) PushBack(t T) {
 	}
 	q.lock.Lock()
 	defer q.lock.Unlock()
+	q.noLockPushBack(t)
+}
+
+// noLockPushBack pushes t onto the back of the deque.  The caller must
+// hold the write lock.
+func (q *Deque[T]) noLockPushBack(t T) {
 	e := &dequeElement[T]{data: t, prev: q.tail}
 	if q.head == nil {
 		q.head = e

@@ -360,6 +360,12 @@ func (tt *SkipList[T]) Insert(item T) (added bool) {
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
 
+	return tt.insertLocked(item)
+}
+
+// insertLocked is the lock-free body of Insert; the caller must hold the
+// write lock.
+func (tt *SkipList[T]) insertLocked(item T) (added bool) {
 	tt.ensureHead()
 	var update [maxLevel]*SkipListNode[T]
 	var rank [maxLevel]int

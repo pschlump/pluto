@@ -12,16 +12,19 @@ BSD 3 Clause Licensed.
 // fixed-seed randomized property test.
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"math/rand/v2"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 )
 
 // checkModel verifies the deque's observable state against a reference
 // model (a plain slice where the front is element 0).
-func checkModel(t *testing.T, q *Deque[int], model []int) {
+func checkModel[T comparable](t *testing.T, q *Deque[T], model []T) {
 	t.Helper()
 	if got, want := q.Length(), len(model); got != want {
 		t.Fatalf("Length: expected %d, got %d", want, got)
@@ -35,19 +38,19 @@ func checkModel(t *testing.T, q *Deque[int], model []int) {
 			t.Fatalf("PeekFront on non-empty deque returned error: %v", err)
 		}
 		if front != model[0] {
-			t.Fatalf("PeekFront: expected %d, got %d", model[0], front)
+			t.Fatalf("PeekFront: expected %v, got %v", model[0], front)
 		}
 		back, err := q.PeekBack()
 		if err != nil {
 			t.Fatalf("PeekBack on non-empty deque returned error: %v", err)
 		}
 		if back != model[len(model)-1] {
-			t.Fatalf("PeekBack: expected %d, got %d", model[len(model)-1], back)
+			t.Fatalf("PeekBack: expected %v, got %v", model[len(model)-1], back)
 		}
 	}
 	// All must iterate front to back.  slices.Equal (not reflect.DeepEqual)
 	// so that a nil result and an emptied model compare equal.
-	var fwd []int
+	var fwd []T
 	for _, v := range q.All() {
 		fwd = append(fwd, v)
 	}
@@ -55,11 +58,11 @@ func checkModel(t *testing.T, q *Deque[int], model []int) {
 		t.Fatalf("All: expected %v, got %v", model, fwd)
 	}
 	// Backward must iterate back to front.
-	var bwd []int
+	var bwd []T
 	for _, v := range q.Backward() {
 		bwd = append(bwd, v)
 	}
-	var wantBwd []int
+	var wantBwd []T
 	for _, m := range slices.Backward(model) {
 		wantBwd = append(wantBwd, m)
 	}
@@ -383,4 +386,237 @@ func TestRandomizedAgainstModel(t *testing.T) {
 	}
 	checkModel(t, &q, model)
 	checkLinks(t, &q)
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+// upperString is a string with its own JSON representation, to verify
+// that element-level marshalers are honored through the deque.
+type upperString string
+
+func (u upperString) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + strings.ToUpper(string(u)) + `"`), nil
+}
+
+func (u *upperString) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	*u = upperString(s)
+	return nil
+}
+
+func TestMarshalJSON(t *testing.T) {
+	// Exact array output, front to back.
+	var q Deque[int]
+	q.PushBack(1)
+	q.PushFront(3)
+	q.PushBack(2)
+	b, err := json.Marshal(&q)
+	if err != nil {
+		t.Fatalf("json.Marshal(&q): %v", err)
+	}
+	if string(b) != "[3,1,2]" {
+		t.Errorf("Expected [3,1,2], got %s", b)
+	}
+
+	// Struct elements use their normal JSON encoding.
+	type item struct {
+		S string
+	}
+	var items Deque[item]
+	items.PushBack(item{S: "a"})
+	items.PushBack(item{S: "b"})
+	if b, err := json.Marshal(&items); err != nil || string(b) != `[{"S":"a"},{"S":"b"}]` {
+		t.Errorf(`Expected [{"S":"a"},{"S":"b"}], got (%s, %v)`, b, err)
+	}
+
+	// An empty (zero-value) deque encodes as [].
+	var zero Deque[int]
+	if b, err := json.Marshal(&zero); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for an empty deque, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil deque encodes as []; json.Marshal on a nil
+	// *Deque never reaches the method — the json package writes null for
+	// nil pointers itself.
+	var nilDeque *Deque[int]
+	if b, err := nilDeque.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] from a direct nil-deque call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilDeque); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil deque, got (%s, %v)", b, err)
+	}
+
+	// Element-level marshalers are honored.
+	var custom Deque[upperString]
+	custom.PushBack("x")
+	custom.PushBack("y")
+	if b, err := json.Marshal(&custom); err != nil || string(b) != `["X","Y"]` {
+		t.Errorf(`Expected ["X","Y"], got (%s, %v)`, b, err)
+	}
+
+	// Encoding errors pass through unchanged.
+	var bad Deque[chan int]
+	bad.PushBack(make(chan int))
+	if _, err := json.Marshal(&bad); err == nil {
+		t.Errorf("Expected an error marshaling a deque of channels.")
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	// Decoded order is preserved: element 0 becomes the front.
+	var q Deque[int]
+	if err := json.Unmarshal([]byte("[3,1,2]"), &q); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	checkModel(t, &q, []int{3, 1, 2})
+	checkLinks(t, &q)
+	if front, err := q.PeekFront(); err != nil || front != 3 {
+		t.Errorf("Expected front 3, got (%v, %v)", front, err)
+	}
+
+	// A round trip rebuilds a structurally sound deque that stays fully
+	// usable from both ends.
+	var orig Deque[int]
+	for _, v := range []int{1, 2, 3} {
+		orig.PushBack(v)
+	}
+	b, err := json.Marshal(&orig)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	var again Deque[int]
+	if err := json.Unmarshal(b, &again); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	checkModel(t, &again, []int{1, 2, 3})
+	checkLinks(t, &again)
+	again.PushFront(0)
+	again.PushBack(4)
+	if v, err := again.PopBack(); err != nil || v != 4 {
+		t.Errorf("PopBack after round trip = (%v, %v), expected 4", v, err)
+	}
+	checkModel(t, &again, []int{0, 1, 2, 3})
+	checkLinks(t, &again)
+
+	// Unmarshaling replaces the current contents, and [] / null clear.
+	var full Deque[int]
+	for _, v := range []int{8, 9} {
+		full.PushBack(v)
+	}
+	for _, data := range []string{"[]", "null"} {
+		if err := json.Unmarshal([]byte(data), &full); err != nil {
+			t.Errorf("Expected %s to clear the deque, got %v", data, err)
+		}
+		checkModel(t, &full, nil)
+		checkLinks(t, &full)
+		full.PushBack(8)
+		full.PushBack(9)
+	}
+
+	// Element-level unmarshalers are honored.
+	var custom Deque[upperString]
+	if err := json.Unmarshal([]byte(`["X","Y"]`), &custom); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	var cs []string
+	for _, v := range custom.All() {
+		cs = append(cs, string(v))
+	}
+	if fmt.Sprint(cs) != "[X Y]" {
+		t.Errorf("Expected [X Y], got %v", cs)
+	}
+
+	// Decode errors are returned and leave the deque untouched.
+	var keep Deque[string]
+	keep.PushBack("keep")
+	for _, badData := range []string{"[1,", `[1]`, `{"S":"a"}`, "7", `["a",3]`} {
+		if err := json.Unmarshal([]byte(badData), &keep); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", badData)
+		}
+		var got []string
+		for _, v := range keep.All() {
+			got = append(got, v)
+		}
+		if fmt.Sprint(got) != "[keep]" {
+			t.Errorf("Deque changed after the error on %s: %s", badData, got)
+		}
+	}
+	checkModel(t, &keep, []string{"keep"})
+	checkLinks(t, &keep)
+}
+
+// TestUnmarshalJSONPanics verifies that UnmarshalJSON joins the push
+// family: storing elements into a nil deque panics with a message naming
+// the method, while [] and null — which store nothing — are tolerated
+// everywhere.  Unlike dll, the zero value is a ready-to-use deque, so
+// storing into one works without a panic.
+func TestUnmarshalJSONPanics(t *testing.T) {
+	var zero Deque[int]
+	for _, data := range []string{"[]", "null", "[1,2]"} {
+		if err := zero.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a zero-value deque to be tolerated, got %v", data, err)
+		}
+	}
+	checkModel(t, &zero, []int{1, 2})
+	checkLinks(t, &zero)
+
+	var nilDeque *Deque[int]
+	for _, data := range []string{"[]", "null"} {
+		if err := nilDeque.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a nil deque to be tolerated, got %v", data, err)
+		}
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with elements to panic on a nil deque.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "nil deque") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = nilDeque.UnmarshalJSON([]byte("[1]"))
+	}()
+}
+
+// TestJSONStructField marshals and unmarshals a Deque nested in a struct
+// through the encoding/json package.  The zero value is usable, so the
+// field needs no initialization before unmarshaling.
+func TestJSONStructField(t *testing.T) {
+	type Doc struct {
+		Title string        `json:"title"`
+		Tags  Deque[string] `json:"tags"`
+	}
+
+	var d Doc
+	d.Title = "pluto"
+	d.Tags.PushBack("ds")
+	d.Tags.PushBack("go")
+
+	b, err := json.Marshal(&d) // &d so the Deque's pointer-receiver marshaler applies (and no lock is copied)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if string(b) != `{"title":"pluto","tags":["ds","go"]}` {
+		t.Errorf("Unexpected document: %s", b)
+	}
+
+	var out Doc
+	if err := json.Unmarshal(b, &out); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	var tags []string
+	for _, v := range out.Tags.All() {
+		tags = append(tags, v)
+	}
+	if fmt.Sprint(tags) != "[ds go]" {
+		t.Errorf("Expected [ds go], got %v", tags)
+	}
 }

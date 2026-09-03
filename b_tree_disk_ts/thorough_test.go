@@ -691,13 +691,13 @@ func TestJSONUnmarshal(t *testing.T) {
 		t.Fatalf("Insert: %v", err)
 	}
 	for _, badData := range []string{
-		`[{"key":1,`,                  // malformed
-		`{"key":1,"value":2}`,         // not an array
-		`[{"key":"a","value":1}]`,     // wrong key type
-		`[{"key":1,"value":"x"}]`,     // wrong value type
-		`7`,                           // not an array
-		`[{"key":1,"value":1},`,       // truncated
-		`[{"key":1,"value":1.5}]`,     // fractional uint64
+		`[{"key":1,`,              // malformed
+		`{"key":1,"value":2}`,     // not an array
+		`[{"key":"a","value":1}]`, // wrong key type
+		`[{"key":1,"value":"x"}]`, // wrong value type
+		`7`,                       // not an array
+		`[{"key":1,"value":1},`,   // truncated
+		`[{"key":1,"value":1.5}]`, // fractional uint64
 	} {
 		if err := json.Unmarshal([]byte(badData), tr); err == nil {
 			t.Errorf("Expected an error unmarshaling %s.", badData)

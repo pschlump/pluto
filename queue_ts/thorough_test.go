@@ -11,9 +11,12 @@ BSD 3 Clause Licensed.
 // FIFO property test cross-checked against a slice reference model.
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"math/rand/v2"
 	"reflect"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -236,6 +239,394 @@ func TestQueuePropertyRandomized(t *testing.T) {
 		if bwd[len(model)-1-i] != model[i] {
 			t.Fatalf("Final Backward mismatch at %d", i)
 		}
+	}
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+// upperString is a string with its own JSON representation, to verify
+// that element-level marshalers are honored through the queue.
+type upperString string
+
+func (u upperString) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + strings.ToUpper(string(u)) + `"`), nil
+}
+
+func (u *upperString) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	*u = upperString(s)
+	return nil
+}
+
+func TestMarshalJSON(t *testing.T) {
+	// Exact array output, head to tail.
+	var q Queue[int]
+	for _, v := range []int{3, 1, 2} {
+		q.Push(v)
+	}
+	b, err := json.Marshal(&q)
+	if err != nil {
+		t.Fatalf("json.Marshal(&q): %v", err)
+	}
+	if string(b) != "[3,1,2]" {
+		t.Errorf("Expected [3,1,2], got %s", b)
+	}
+
+	// Struct elements use their normal JSON encoding.
+	type item struct {
+		S string
+	}
+	var items Queue[item]
+	for _, s := range []string{"a", "b"} {
+		items.Push(item{S: s})
+	}
+	if b, err := json.Marshal(&items); err != nil || string(b) != `[{"S":"a"},{"S":"b"}]` {
+		t.Errorf(`Expected [{"S":"a"},{"S":"b"}], got (%s, %v)`, b, err)
+	}
+
+	// An empty queue encodes as [].
+	if b, err := json.Marshal(&Queue[int]{}); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for an empty queue, got (%s, %v)", b, err)
+	}
+
+	// A zero-value queue is a tolerated read: [].
+	var zero Queue[int]
+	if b, err := zero.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for a zero-value queue, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil queue encodes as []; json.Marshal on a nil
+	// *Queue never reaches the method — the json package writes null for
+	// nil pointers itself.
+	var nilQueue *Queue[int]
+	if b, err := nilQueue.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] from a direct nil-queue call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilQueue); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil queue, got (%s, %v)", b, err)
+	}
+
+	// Element-level marshalers are honored.
+	var custom Queue[upperString]
+	custom.Push("x")
+	custom.Push("y")
+	if b, err := json.Marshal(&custom); err != nil || string(b) != `["X","Y"]` {
+		t.Errorf(`Expected ["X","Y"], got (%s, %v)`, b, err)
+	}
+
+	// Encoding errors pass through unchanged.
+	var bad Queue[chan int]
+	bad.Push(make(chan int))
+	if _, err := json.Marshal(&bad); err == nil {
+		t.Errorf("Expected an error marshaling a queue of channels.")
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	// Decoded order is preserved: element 0 becomes the head.
+	var q Queue[int]
+	if err := json.Unmarshal([]byte("[3,1,2]"), &q); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got := contents(&q); !reflect.DeepEqual(got, []int{3, 1, 2}) {
+		t.Errorf("Expected [3 1 2], got %v", got)
+	}
+	if head, err := q.Peek(); err != nil || head != 3 {
+		t.Errorf("Expected head 3, got (%v, %v)", head, err)
+	}
+
+	// A round trip rebuilds the queue, which stays fully usable
+	// afterward (Push works on the rebuilt queue).
+	type item struct {
+		S string
+	}
+	var items Queue[item]
+	for _, s := range []string{"a", "b", "c"} {
+		items.Push(item{S: s})
+	}
+	b, err := json.Marshal(&items)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	var again Queue[item]
+	if err := json.Unmarshal(b, &again); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got := contents(&again); !reflect.DeepEqual(got, []item{{S: "a"}, {S: "b"}, {S: "c"}}) {
+		t.Errorf("Expected [a b c] after round trip, got %v", got)
+	}
+	again.Push(item{S: "d"})
+	if v, err := again.Dequeue(); err != nil || v.S != "a" {
+		t.Errorf("Expected the rebuilt queue to stay usable, Dequeue = (%v, %v)", v, err)
+	}
+
+	// Unmarshaling replaces the contents; it does not append.
+	if err := json.Unmarshal([]byte("[7]"), &q); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got, want := q.Len(), 1; got != want {
+		t.Errorf("Expected replacement, got length %d, want %d", got, want)
+	}
+
+	// An empty array and null clear the queue.
+	var full Queue[string]
+	full.Push("z")
+	if err := json.Unmarshal([]byte("[]"), &full); err != nil {
+		t.Fatalf("json.Unmarshal([]): %v", err)
+	}
+	if !full.IsEmpty() {
+		t.Errorf("Expected [] to clear the queue.")
+	}
+	full.Push("z")
+	if err := json.Unmarshal([]byte("null"), &full); err != nil {
+		t.Fatalf("json.Unmarshal(null): %v", err)
+	}
+	if !full.IsEmpty() {
+		t.Errorf("Expected null to clear the queue.")
+	}
+
+	// Element-level unmarshalers are honored.
+	var custom Queue[upperString]
+	if err := json.Unmarshal([]byte(`["X","Y"]`), &custom); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	var cs []string
+	for _, v := range custom.All() {
+		cs = append(cs, string(v))
+	}
+	if fmt.Sprint(cs) != "[X Y]" {
+		t.Errorf("Expected [X Y], got %v", cs)
+	}
+
+	// Decode errors are returned and leave the queue untouched.
+	var keep Queue[string]
+	keep.Push("keep")
+	for _, badData := range []string{"[1,", `[1]`, `{"S":"a"}`, "7", `["a",3]`} {
+		if err := json.Unmarshal([]byte(badData), &keep); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", badData)
+		}
+		if got := contents(&keep); !reflect.DeepEqual(got, []string{"keep"}) {
+			t.Errorf("Queue changed after the error on %s: %v", badData, got)
+		}
+	}
+}
+
+// TestUnmarshalJSONPanics verifies that UnmarshalJSON joins the insert
+// family: storing elements into a nil queue panics with a message naming
+// the method, while [] and null — which store nothing — are tolerated
+// everywhere.  The zero value of Queue needs no constructor, so
+// unmarshaling elements into it works.
+func TestUnmarshalJSONPanics(t *testing.T) {
+	var zero Queue[string]
+	if err := zero.UnmarshalJSON([]byte(`["a"]`)); err != nil {
+		t.Errorf("Expected unmarshaling into a zero-value queue to work, got %v", err)
+	}
+	if got := contents(&zero); !reflect.DeepEqual(got, []string{"a"}) {
+		t.Errorf("Expected [a] in the zero-value queue, got %v", got)
+	}
+
+	var nilQueue *Queue[string]
+	for _, data := range []string{"[]", "null"} {
+		if err := nilQueue.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a nil queue to be tolerated, got %v", data, err)
+		}
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with elements to panic on a nil queue.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "nil queue") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = nilQueue.UnmarshalJSON([]byte(`["a"]`))
+	}()
+}
+
+// TestJSONStructField marshals and unmarshals a Queue nested in a struct
+// through the encoding/json package.  The zero value of Queue is ready
+// to use, so the queue the json package allocates for a nil *Queue field
+// accepts non-empty data without any constructor.
+func TestJSONStructField(t *testing.T) {
+	type Doc struct {
+		Title string         `json:"title"`
+		Tags  *Queue[string] `json:"tags"`
+	}
+
+	var tags Queue[string]
+	tags.Push("ds")
+	tags.Push("go")
+	d := Doc{Title: "pluto", Tags: &tags}
+
+	b, err := json.Marshal(d)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if string(b) != `{"title":"pluto","tags":["ds","go"]}` {
+		t.Errorf("Unexpected document: %s", b)
+	}
+
+	var out Doc
+	if err := json.Unmarshal(b, &out); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got := contents(out.Tags); !reflect.DeepEqual(got, []string{"ds", "go"}) {
+		t.Errorf("Expected [ds go], got %v", got)
+	}
+
+	// A nil queue field marshals as null (the json package's own nil
+	// pointer rule); null clears a pre-filled queue and never allocates.
+	if b, err := json.Marshal(Doc{Title: "x"}); err != nil || string(b) != `{"title":"x","tags":null}` {
+		t.Errorf("Unexpected null document: (%s, %v)", b, err)
+	}
+	var clearTags Queue[string]
+	clearTags.Push("gone")
+	clearDoc := Doc{Title: "x", Tags: &clearTags}
+	if err := json.Unmarshal([]byte(`{"title":"x","tags":null}`), &clearDoc); err != nil {
+		t.Fatalf("json.Unmarshal with null tags: %v", err)
+	}
+	if !clearDoc.Tags.IsEmpty() {
+		t.Errorf("Expected null tags to clear the queue.")
+	}
+
+	// Non-empty data into a nil *Queue field: the json package allocates
+	// a zero-value queue, which needs no constructor and accepts the data.
+	var bad Doc
+	if err := json.Unmarshal([]byte(`{"title":"x","tags":["a"]}`), &bad); err != nil {
+		t.Fatalf("json.Unmarshal into an uncreated queue field: %v", err)
+	}
+	if got := contents(bad.Tags); !reflect.DeepEqual(got, []string{"a"}) {
+		t.Errorf("Expected [a] in the allocated queue field, got %v", got)
+	}
+}
+
+// TestJSONRandomizedModel cross-checks marshaling and unmarshaling
+// against a slice reference model at fixed seed.
+func TestJSONRandomizedModel(t *testing.T) {
+	rng := rand.New(rand.NewPCG(20260903, 42))
+	const ops = 500
+
+	var q Queue[int]
+	model := []int{} // non-nil, so an emptied model marshals as [] like the queue
+
+	for step := range ops {
+		switch rng.IntN(3) {
+		case 0:
+			v := rng.IntN(100)
+			q.Push(v)
+			model = append(model, v)
+		case 1:
+			if len(model) > 0 {
+				v, err := q.Dequeue()
+				if err != nil || v != model[0] {
+					t.Fatalf("step %d: Dequeue = (%v, %v), model %d", step, v, err, model[0])
+				}
+				model = model[1:]
+			}
+		case 2:
+			if len(model) > 0 {
+				if err := q.Pop(); err != nil {
+					t.Fatalf("step %d: Pop: %v", step, err)
+				}
+				model = model[1:]
+			}
+		}
+
+		// Marshal must equal the model marshaled as a plain slice.
+		got, err := json.Marshal(&q)
+		if err != nil {
+			t.Fatalf("step %d: %v", step, err)
+		}
+		want, _ := json.Marshal(model)
+		if string(got) != string(want) {
+			t.Fatalf("step %d: marshaled %s, model %s", step, got, want)
+		}
+
+		// Unmarshaling into a fresh queue must reproduce the model.
+		var fresh Queue[int]
+		if err := json.Unmarshal(got, &fresh); err != nil {
+			t.Fatalf("step %d: %v", step, err)
+		}
+		if vals := contents(&fresh); !reflect.DeepEqual(vals, model) {
+			t.Fatalf("step %d: round trip got %v, model %v", step, vals, model)
+		}
+	}
+}
+
+// TestJSONConcurrent hammers MarshalJSON and UnmarshalJSON concurrently
+// with writers and a marshaling reader; every output must be a valid
+// JSON array.  Run under -race (make race).
+func TestJSONConcurrent(t *testing.T) {
+	type item struct {
+		S string
+	}
+	var q Queue[item]
+
+	const workers = 8
+	const perWorker = 100
+
+	stop := make(chan struct{})
+	var writers sync.WaitGroup
+	var readers sync.WaitGroup
+
+	// A marshaling reader: MarshalJSON snapshots under the read lock, so
+	// it is safe while the writers replace the contents.
+	readers.Add(1)
+	go func() {
+		defer readers.Done()
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			b, err := q.MarshalJSON()
+			if err != nil {
+				t.Errorf("MarshalJSON: %v", err)
+				return
+			}
+			var probe []item
+			if err := json.Unmarshal(b, &probe); err != nil {
+				t.Errorf("MarshalJSON produced invalid JSON %s: %v", b, err)
+				return
+			}
+		}
+	}()
+
+	// Concurrent replacers: each replaces the whole contents with one
+	// element of its own.
+	for w := range workers {
+		writers.Add(1)
+		go func(w int) {
+			defer writers.Done()
+			for i := range perWorker {
+				it := item{S: fmt.Sprintf("%02d-%03d", w, i)}
+				b, err := json.Marshal([]item{it})
+				if err != nil {
+					t.Errorf("worker %d: %v", w, err)
+					return
+				}
+				if err := q.UnmarshalJSON(b); err != nil {
+					t.Errorf("worker %d: UnmarshalJSON: %v", w, err)
+					return
+				}
+			}
+		}(w)
+	}
+
+	writers.Wait()
+	close(stop)
+	readers.Wait()
+	if got := q.Len(); got != 1 {
+		t.Errorf("Expected one element after concurrent JSON, got %d", got)
 	}
 }
 

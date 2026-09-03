@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package segment_tree_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 
@@ -64,4 +65,37 @@ func ExampleNewSegmentTreeFunc() {
 	// min(0..7): 1
 	// min(4..7): 2
 	// min(0..7): -2
+}
+
+// MarshalJSON encodes the tree as a JSON array of the per-slot values:
+// element i is Value(i).
+func ExampleSegmentTree_MarshalJSON() {
+	st := segment_tree.NewSegmentTree([]int{3, 1, 2})
+
+	b, err := json.Marshal(st)
+	fmt.Println(string(b), err)
+	// Output:
+	// [3,1,2] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the tree from a JSON array;
+// element i becomes the new Value(i) and the slot count follows the
+// array length.  The combine function is kept, so Query still works.
+func ExampleSegmentTree_UnmarshalJSON() {
+	st := segment_tree.NewSegmentTree([]int{0})
+	if err := json.Unmarshal([]byte(`[4,1,5]`), st); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for i := 0; i < st.Len(); i++ {
+		v, _ := st.Value(i)
+		fmt.Println(i, v)
+	}
+	s, _ := st.Query(0, 2)
+	fmt.Println("Query(0..2):", s)
+	// Output:
+	// 0 4
+	// 1 1
+	// 2 5
+	// Query(0..2): 10
 }

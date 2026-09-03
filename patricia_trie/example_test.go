@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package patricia_trie_test
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/pschlump/pluto/patricia_trie"
@@ -138,4 +139,34 @@ func ExamplePatriciaTrie_Insert_panic() {
 	// 0
 	// false
 	// recovered: patricia_trie: Insert called on a nil PatriciaTrie
+}
+
+// MarshalJSON encodes the trie as a JSON object mapping each key to its
+// value; the json package emits the members in sorted key order, the
+// trie's natural iteration order.
+func ExamplePatriciaTrie_MarshalJSON() {
+	var pt patricia_trie.PatriciaTrie[int]
+	pt.Insert("she", 0)
+	pt.Insert("by", 1)
+	pt.Insert("sea", 2)
+
+	b, err := json.Marshal(&pt)
+	fmt.Println(string(b), err)
+	// Output:
+	// {"by":1,"sea":2,"she":0} <nil>
+}
+
+// UnmarshalJSON replaces the contents of the trie from a JSON object.
+func ExamplePatriciaTrie_UnmarshalJSON() {
+	var pt patricia_trie.PatriciaTrie[int] // the zero value is ready to use
+	if err := json.Unmarshal([]byte(`{"she":0,"sea":2}`), &pt); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for key, value := range pt.All() {
+		fmt.Println(key, value)
+	}
+	// Output:
+	// sea 2
+	// she 0
 }

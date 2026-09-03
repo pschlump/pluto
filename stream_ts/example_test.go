@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package stream_ts_test
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/pschlump/pluto/stream_ts"
@@ -48,4 +49,36 @@ func Example() {
 	// 100-0 0
 	// 100-1 1
 	// pending: 1
+}
+
+// MarshalJSON encodes the stream as a JSON array of its entries in
+// ascending ID order, each entry an object with its "id" in the canonical
+// "ms-seq" string form and its "fields" as an array of name/value pairs.
+func ExampleStream_MarshalJSON() {
+	var s stream_ts.Stream
+	_, _ = s.Add(stream_ts.ID{Ms: 100, Seq: stream_ts.AutoSeq}, [][2]string{{"sensor", "0"}})
+	_, _ = s.Add(stream_ts.ID{Ms: 100, Seq: stream_ts.AutoSeq}, [][2]string{{"sensor", "7"}})
+
+	b, err := json.Marshal(&s)
+	fmt.Println(string(b), err)
+	// Output:
+	// [{"id":"100-0","fields":[["sensor","0"]]},{"id":"100-1","fields":[["sensor","7"]]}] <nil>
+}
+
+// UnmarshalJSON replaces the whole stream state from a JSON array of
+// entries; afterwards the last assigned ID is the newest entry's ID.
+func ExampleStream_UnmarshalJSON() {
+	var s stream_ts.Stream
+	if err := json.Unmarshal([]byte(`[{"id":"1-0","fields":[["job","a"]]},{"id":"1-1","fields":[["job","b"]]}]`), &s); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for e := range s.Range(stream_ts.MinID, stream_ts.MaxID, 0) {
+		fmt.Println(e.ID, e.Fields[0][1])
+	}
+	fmt.Println("last:", s.LastID())
+	// Output:
+	// 1-0 a
+	// 1-1 b
+	// last: 1-1
 }

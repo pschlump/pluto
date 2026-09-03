@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package binary_tree_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -244,4 +245,36 @@ func ExampleBinaryTree_Truncate() {
 	// Output:
 	// 0 true
 	// 1
+}
+
+// MarshalJSON encodes the tree as a JSON array of its elements in
+// in-order (ascending) order, regardless of insertion order.
+func ExampleBinaryTree_MarshalJSON() {
+	tree := binary_tree.NewBinaryTree[int]()
+	tree.Insert(3)
+	tree.Insert(1)
+	tree.Insert(2)
+
+	b, err := json.Marshal(tree)
+	fmt.Println(string(b), err)
+	// Output:
+	// [1,2,3] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the tree from a JSON array; the
+// tree iterates in ascending order regardless of the array's order.
+func ExampleBinaryTree_UnmarshalJSON() {
+	tree := binary_tree.NewBinaryTree[string]()
+	if err := json.Unmarshal([]byte(`["c","a"]`), tree); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	i := 0
+	for v := range tree.All() {
+		fmt.Println(i, v)
+		i++
+	}
+	// Output:
+	// 0 a
+	// 1 c
 }

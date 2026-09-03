@@ -7,6 +7,8 @@ BSD 3 Clause Licensed.
 */
 
 import (
+	"encoding/json"
+	"fmt"
 	"math/rand"
 	"reflect"
 	"strconv"
@@ -548,4 +550,236 @@ func TestDigraphRandomizedModel(t *testing.T) {
 		}
 	}
 	verify(800)
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+func TestMarshalJSON(t *testing.T) {
+	// Exact object output: vertex count, then edges in natural iteration
+	// order (source ascending, out-neighbors in insertion order).
+	g := buildDigraph(t, 5, [][2]int{{0, 1}, {0, 2}, {1, 3}, {2, 3}, {3, 4}})
+	b, err := json.Marshal(g)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if want := `{"vertices":5,"edges":[[0,1],[0,2],[1,3],[2,3],[3,4]]}`; string(b) != want {
+		t.Errorf("Expected %s, got %s", want, b)
+	}
+
+	// Self-loops and parallel edges survive the encoding.
+	g2 := buildDigraph(t, 2, [][2]int{{0, 0}, {1, 0}, {1, 0}})
+	if b, err := json.Marshal(g2); err != nil || string(b) != `{"vertices":2,"edges":[[0,0],[1,0],[1,0]]}` {
+		t.Errorf("Unexpected encoding of self-loop/parallel edges: (%s, %v)", b, err)
+	}
+
+	// An edgeless digraph encodes with an empty edge list.
+	if b, err := json.Marshal(NewDigraph(3)); err != nil || string(b) != `{"vertices":3,"edges":[]}` {
+		t.Errorf("Expected edgeless digraph to encode with [], got (%s, %v)", b, err)
+	}
+
+	// A zero-value digraph is a tolerated read: no vertices, no edges.
+	var zero Digraph
+	if b, err := zero.MarshalJSON(); err != nil || string(b) != `{"vertices":0,"edges":[]}` {
+		t.Errorf("Expected zero-value digraph to encode as empty, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil digraph encodes as {}; json.Marshal on a
+	// nil *Digraph never reaches the method — the json package writes
+	// null for nil pointers itself.
+	var nilG *Digraph
+	if b, err := nilG.MarshalJSON(); err != nil || string(b) != `{}` {
+		t.Errorf("Expected {} from a direct nil-digraph call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilG); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil digraph, got (%s, %v)", b, err)
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	// A round trip through JSON rebuilds an identical digraph: adjacency
+	// insertion order and the in-degree bookkeeping included.
+	g := newTinyDG(t)
+	b, err := json.Marshal(g)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	again := NewDigraph(1)
+	if err := json.Unmarshal(b, again); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	model := make([][]int, g.V())
+	for v := 0; v < g.V(); v++ {
+		model[v] = adjOf(g, v)
+	}
+	checkInvariants(t, again, model, g.E())
+
+	// A second round trip of the rebuilt digraph is byte-identical.
+	b2, err := json.Marshal(again)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if string(b) != string(b2) {
+		t.Errorf("Round trip not stable: %s vs %s", b, b2)
+	}
+
+	// Unmarshaling replaces the contents; it does not merge.
+	if err := json.Unmarshal([]byte(`{"vertices":2,"edges":[[0,1]]}`), again); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	checkInvariants(t, again, [][]int{{1}, nil}, 1)
+
+	// null, {}, and an empty document clear the digraph.
+	for _, data := range []string{"null", "{}", `{"vertices":0,"edges":[]}`} {
+		full := buildDigraph(t, 2, [][2]int{{0, 1}})
+		if err := json.Unmarshal([]byte(data), full); err != nil {
+			t.Fatalf("json.Unmarshal(%s): %v", data, err)
+		}
+		if full.V() != 0 || full.E() != 0 {
+			t.Errorf("Expected %s to clear the digraph, got V=%d E=%d", data, full.V(), full.E())
+		}
+	}
+
+	// Decode and validation errors are returned and leave the digraph
+	// untouched.
+	keep := buildDigraph(t, 3, [][2]int{{0, 1}, {1, 2}})
+	keepModel := [][]int{{1}, {2}, nil}
+	for _, badData := range []string{
+		`{"vertices":3,`,                  // truncated
+		`[0,1]`,                           // not an object
+		`{"vertices":"3"}`,                // wrong field type
+		`{"vertices":-1}`,                 // negative vertex count
+		`{"vertices":2,"edges":[[0,2]]}`,  // endpoint out of range
+		`{"vertices":2,"edges":[[-1,0]]}`, // negative endpoint
+		`{"vertices":0,"edges":[[0,0]]}`,  // edge with no vertices
+	} {
+		if err := json.Unmarshal([]byte(badData), keep); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", badData)
+		}
+		checkInvariants(t, keep, keepModel, 2)
+	}
+}
+
+// TestUnmarshalJSONPanics verifies that UnmarshalJSON joins the insert
+// family: storing into a nil digraph panics with a message naming the
+// method, while null/{}/{"vertices":0} — which store nothing — are
+// tolerated even on a nil digraph.  A zero-value digraph is replaced
+// wholesale (there is no constructor-set function to lose), so storing
+// into one works.
+func TestUnmarshalJSONPanics(t *testing.T) {
+	var nilG *Digraph
+	for _, data := range []string{"null", "{}", `{"vertices":0,"edges":[]}`} {
+		if err := nilG.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a nil digraph to be tolerated, got %v", data, err)
+		}
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with vertices to panic on a nil digraph.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "digraph") || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "nil digraph") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = nilG.UnmarshalJSON([]byte(`{"vertices":2,"edges":[[0,1]]}`))
+	}()
+	// Vertices alone (no edges) are still a store.
+	expectPanic(t, "UnmarshalJSON on a nil digraph with vertices only", func() {
+		_ = nilG.UnmarshalJSON([]byte(`{"vertices":3,"edges":[]}`))
+	})
+
+	// A zero-value digraph accepts a full replacement.
+	var zero Digraph
+	if err := json.Unmarshal([]byte(`{"vertices":2,"edges":[[0,1]]}`), &zero); err != nil {
+		t.Fatalf("json.Unmarshal into a zero-value digraph: %v", err)
+	}
+	checkInvariants(t, &zero, [][]int{{1}, nil}, 1)
+}
+
+// TestJSONStructField marshals and unmarshals a Digraph nested in a
+// struct through the encoding/json package.
+func TestJSONStructField(t *testing.T) {
+	type Doc struct {
+		Name string   `json:"name"`
+		Net  *Digraph `json:"net"`
+	}
+
+	doc := Doc{Name: "web", Net: buildDigraph(t, 3, [][2]int{{0, 1}, {1, 2}})}
+	b, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if want := `{"name":"web","net":{"vertices":3,"edges":[[0,1],[1,2]]}}`; string(b) != want {
+		t.Errorf("Expected %s, got %s", want, b)
+	}
+
+	var back Doc
+	if err := json.Unmarshal(b, &back); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	checkInvariants(t, back.Net, [][]int{{1}, {2}, nil}, 2)
+
+	// For a nil *Digraph field the json package allocates a zero-value
+	// digraph itself; that is fine here because the replacement needs no
+	// constructor-set function.
+	var fresh Doc
+	if err := json.Unmarshal([]byte(`{"name":"x","net":{"vertices":2,"edges":[[1,0]]}}`), &fresh); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	checkInvariants(t, fresh.Net, [][]int{nil, {0}}, 1)
+}
+
+// TestJSONRandomizedModel cross-checks marshaling and unmarshaling
+// against the adjacency-list reference model at fixed seed.
+func TestJSONRandomizedModel(t *testing.T) {
+	rng := rand.New(rand.NewSource(20260903)) // fixed seed: deterministic run
+
+	const n = 25
+	g := NewDigraph(n)
+	model := make([][]int, n)
+	edgeCount := 0
+
+	for step := range 400 {
+		switch rng.Intn(4) {
+		case 0, 1, 2: // AddEdge (incl. possible self-loops/parallel edges)
+			v, w := rng.Intn(n), rng.Intn(n)
+			if !g.AddEdge(v, w) {
+				t.Fatalf("step %d: AddEdge(%d, %d) returned false on in-range vertices", step, v, w)
+			}
+			model[v] = append(model[v], w)
+			edgeCount++
+		case 3: // JSON round trip must reproduce the model exactly
+			b, err := json.Marshal(g)
+			if err != nil {
+				t.Fatalf("step %d: json.Marshal: %v", step, err)
+			}
+			again := NewDigraph(1)
+			if err := json.Unmarshal(b, again); err != nil {
+				t.Fatalf("step %d: json.Unmarshal: %v", step, err)
+			}
+			checkInvariants(t, again, model, edgeCount)
+			// The rebuilt digraph re-encodes byte-identically.
+			if b2, err := json.Marshal(again); err != nil || string(b2) != string(b) {
+				t.Fatalf("step %d: re-encode mismatch: (%s, %v) vs %s", step, b2, err, b)
+			}
+		}
+	}
+	checkInvariants(t, g, model, edgeCount)
+}
+
+// TestJSONFormatIsDocumented pins the wire format so a change to it is a
+// deliberate act: fmt prints the exact document for a known digraph.
+func TestJSONFormatIsDocumented(t *testing.T) {
+	g := buildDigraph(t, 4, [][2]int{{0, 1}, {0, 2}, {1, 3}})
+	b, err := json.Marshal(g)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if got, want := fmt.Sprintf("%s", b), `{"vertices":4,"edges":[[0,1],[0,2],[1,3]]}`; got != want {
+		t.Errorf("Wire format changed: expected %s, got %s", want, got)
+	}
 }

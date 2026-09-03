@@ -16,9 +16,12 @@ package bitmap
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"math/rand/v2"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -908,5 +911,257 @@ func TestNilVsEmpty(t *testing.T) {
 	// BitCount cannot tell them apart — both count 0.
 	if BitCount(nil, 0, -1, ByteUnit) != 0 || BitCount([]byte{}, 0, -1, ByteUnit) != 0 {
 		t.Errorf("BitCount nil vs empty mismatch")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// ---------------------------------------------------------------------------
+
+// setBits builds a Bitmap with the given offsets set, in the order given.
+func setBits(t *testing.T, offsets ...uint64) Bitmap {
+	t.Helper()
+	var b Bitmap
+	for _, p := range offsets {
+		nb, _, err := SetBit(b, p, 1)
+		if err != nil {
+			t.Fatalf("SetBit(%d): %v", p, err)
+		}
+		b = Bitmap(nb)
+	}
+	return b
+}
+
+func TestMarshalJSON(t *testing.T) {
+	// Set positions come out ascending regardless of insertion order.
+	b := setBits(t, 9, 0, 3)
+	out, err := json.Marshal(b)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if string(out) != "[0,3,9]" {
+		t.Errorf("Expected [0,3,9], got %s", out)
+	}
+
+	// MSB-first bit order: {0x81, 0x01} sets bits 0, 7 and 15.
+	if out, err := json.Marshal(Bitmap{0x81, 0x01}); err != nil || string(out) != "[0,7,15]" {
+		t.Errorf("Expected [0,7,15], got (%s, %v)", out, err)
+	}
+
+	// A bitmap with no set bits encodes as [] — both the zero value
+	// (nil) and an empty non-nil buffer.
+	var zero Bitmap
+	if out, err := zero.MarshalJSON(); err != nil || string(out) != "[]" {
+		t.Errorf("Expected [] for a zero-value bitmap, got (%s, %v)", out, err)
+	}
+	if out, err := json.Marshal(Bitmap{}); err != nil || string(out) != "[]" {
+		t.Errorf("Expected [] for an empty bitmap, got (%s, %v)", out, err)
+	}
+
+	// json.Marshal on a nil *Bitmap never reaches the method — the json
+	// package writes null for nil pointers itself.
+	var nilPtr *Bitmap
+	if out, err := json.Marshal(nilPtr); err != nil || string(out) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil *Bitmap, got (%s, %v)", out, err)
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	// Decoded offsets are set; the buffer is exactly long enough to
+	// hold the highest offset.
+	var b Bitmap
+	if err := json.Unmarshal([]byte("[0,7,8]"), &b); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if len(b) != 2 || !bytes.Equal(b, []byte{0x81, 0x80}) {
+		t.Errorf("Expected {0x81, 0x80}, got % x", []byte(b))
+	}
+	if GetBit(b, 0) != 1 || GetBit(b, 1) != 0 || GetBit(b, 7) != 1 || GetBit(b, 8) != 1 {
+		t.Errorf("Wrong bits after unmarshal: % x", []byte(b))
+	}
+
+	// Unmarshaling replaces the contents; it does not merge.
+	if err := json.Unmarshal([]byte("[5]"), &b); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if len(b) != 1 || GetBit(b, 5) != 1 {
+		t.Errorf("Expected replacement with only bit 5, got % x", []byte(b))
+	}
+
+	// The result stays usable: SetBit on it grows it as usual.
+	nb, old, err := SetBit(b, 20, 1)
+	if err != nil || old != 0 || GetBit(nb, 20) != 1 || GetBit(nb, 5) != 1 {
+		t.Errorf("SetBit after unmarshal = (% x, %d, %v)", nb, old, err)
+	}
+
+	// A round trip reproduces the buffer.
+	src := setBits(t, 2, 65, 40)
+	out, err := json.Marshal(src)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	var again Bitmap
+	if err := json.Unmarshal(out, &again); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if !bytes.Equal(again, src) {
+		t.Errorf("Round trip got % x, want % x", []byte(again), []byte(src))
+	}
+
+	// Duplicate offsets are harmless.
+	var dup Bitmap
+	if err := json.Unmarshal([]byte("[3,3]"), &dup); err != nil {
+		t.Fatalf("json.Unmarshal with duplicates: %v", err)
+	}
+	if len(dup) != 1 || GetBit(dup, 3) != 1 {
+		t.Errorf("Expected only bit 3, got % x", []byte(dup))
+	}
+
+	// An empty array and null clear the bitmap.
+	for _, data := range []string{"[]", "null"} {
+		full := setBits(t, 1, 2, 3)
+		if err := json.Unmarshal([]byte(data), &full); err != nil {
+			t.Fatalf("json.Unmarshal(%s): %v", data, err)
+		}
+		if len(full) != 0 {
+			t.Errorf("Expected %s to clear the bitmap, got % x", data, []byte(full))
+		}
+	}
+
+	// Decode errors are returned and leave the bitmap untouched.
+	keep := setBits(t, 4)
+	for _, badData := range []string{"[1,", `["x"]`, `{"a":1}`, "7", "[-1]", "[1.5]"} {
+		if err := json.Unmarshal([]byte(badData), &keep); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", badData)
+		}
+		if !bytes.Equal(keep, setBits(t, 4)) {
+			t.Errorf("Bitmap changed after the error on %s: % x", badData, []byte(keep))
+		}
+	}
+
+	// An offset past MaxBitOffset is the SetBit range rule: ErrBitOffset,
+	// with the bitmap untouched.
+	big := fmt.Sprintf("[%d]", uint64(MaxBitOffset)+1)
+	if err := json.Unmarshal([]byte(big), &keep); err == nil || !errors.Is(err, ErrBitOffset) {
+		t.Errorf("Expected an ErrBitOffset error unmarshaling %s, got %v", big, err)
+	}
+	if !bytes.Equal(keep, setBits(t, 4)) {
+		t.Errorf("Bitmap changed after the range error: % x", []byte(keep))
+	}
+}
+
+// TestUnmarshalJSONPanics verifies that UnmarshalJSON follows the write
+// contract: setting bits through a nil *Bitmap panics with a message
+// naming the package and the method, while [] and null — which store
+// nothing — are tolerated everywhere.
+func TestUnmarshalJSONPanics(t *testing.T) {
+	var nilPtr *Bitmap
+	for _, data := range []string{"[]", "null"} {
+		if err := nilPtr.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a nil bitmap to be tolerated, got %v", data, err)
+		}
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with elements to panic on a nil bitmap.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "bitmap:") ||
+				!strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "nil bitmap") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = nilPtr.UnmarshalJSON([]byte("[3]"))
+	}()
+}
+
+// TestJSONStructField marshals and unmarshals a Bitmap nested in a
+// struct through the encoding/json package.
+func TestJSONStructField(t *testing.T) {
+	type Doc struct {
+		Name string `json:"name"`
+		Bits Bitmap `json:"bits"`
+	}
+
+	d := Doc{Name: "pluto", Bits: setBits(t, 0, 3)}
+	b, err := json.Marshal(d)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if string(b) != `{"name":"pluto","bits":[0,3]}` {
+		t.Errorf("Unexpected document: %s", b)
+	}
+
+	var out Doc
+	if err := json.Unmarshal(b, &out); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if out.Name != "pluto" || !bytes.Equal(out.Bits, setBits(t, 0, 3)) {
+		t.Errorf("Round trip got %+v", out)
+	}
+
+	// null clears a bitmap field.
+	if err := json.Unmarshal([]byte(`{"name":"x","bits":null}`), &out); err != nil {
+		t.Fatalf("json.Unmarshal with null bits: %v", err)
+	}
+	if len(out.Bits) != 0 {
+		t.Errorf("Expected null bits to clear the field, got % x", []byte(out.Bits))
+	}
+}
+
+// TestJSONRandomizedModel cross-checks marshaling and unmarshaling
+// against a set-of-positions reference model at fixed seed.
+func TestJSONRandomizedModel(t *testing.T) {
+	rng := rand.New(rand.NewPCG(20260903, 42))
+	const ops = 500
+
+	bits := Bitmap(nil)
+	model := make(map[uint64]bool)
+
+	for step := range ops {
+		p := uint64(rng.IntN(200))
+		if rng.IntN(2) == 0 {
+			nb, _, err := SetBit(bits, p, 1)
+			if err != nil {
+				t.Fatalf("step %d: SetBit: %v", step, err)
+			}
+			bits = Bitmap(nb)
+			model[p] = true
+		} else {
+			nb, _, err := SetBit(bits, p, 0)
+			if err != nil {
+				t.Fatalf("step %d: SetBit: %v", step, err)
+			}
+			bits = Bitmap(nb)
+			delete(model, p)
+		}
+
+		// Marshal must equal the model's positions marshaled ascending.
+		positions := make([]uint64, 0, len(model))
+		for q := range model {
+			positions = append(positions, q)
+		}
+		sort.Slice(positions, func(i, j int) bool { return positions[i] < positions[j] })
+		want, _ := json.Marshal(positions)
+		got, err := json.Marshal(bits)
+		if err != nil {
+			t.Fatalf("step %d: %v", step, err)
+		}
+		if string(got) != string(want) {
+			t.Fatalf("step %d: marshaled %s, model %s", step, got, want)
+		}
+
+		// Unmarshaling into a fresh bitmap must reproduce the buffer, up
+		// to trailing zero bytes (the rebuild is exactly long enough to
+		// hold the highest set bit).
+		var fresh Bitmap
+		if err := json.Unmarshal(got, &fresh); err != nil {
+			t.Fatalf("step %d: %v", step, err)
+		}
+		if trimmed := bytes.TrimRight(bits, "\x00"); !bytes.Equal(fresh, trimmed) {
+			t.Fatalf("step %d: round trip got % x, want % x", step, []byte(fresh), trimmed)
+		}
 	}
 }

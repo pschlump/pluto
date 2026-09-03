@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package segment_tree_ts_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 
@@ -84,4 +85,30 @@ func ExampleSegmentTree_Lock() {
 	// Output:
 	// read slot 2: 3
 	// total: 42
+}
+
+// MarshalJSON encodes the tree as a JSON array of its slot values,
+// slot 0 first.
+func ExampleSegmentTree_MarshalJSON() {
+	st := segment_tree_ts.NewSegmentTree([]int{3, 1, 2})
+
+	b, err := json.Marshal(st)
+	fmt.Println(string(b), err)
+	// Output:
+	// [3,1,2] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the tree from a JSON array;
+// element 0 becomes the value at slot 0, and the internal nodes are
+// rebuilt so queries work immediately.
+func ExampleSegmentTree_UnmarshalJSON() {
+	st := segment_tree_ts.NewSegmentTree([]int{0})
+	if err := json.Unmarshal([]byte(`[4,1,5]`), st); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	s, _ := st.Query(0, st.Len()-1)
+	fmt.Println("sum:", s)
+	// Output:
+	// sum: 10
 }

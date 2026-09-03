@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package rb_tree_test
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/pschlump/pluto/rb_tree"
@@ -162,4 +163,34 @@ func ExampleRbTree_Truncate() {
 	// Output:
 	// 0 true
 	// 1
+}
+
+// MarshalJSON encodes the tree as a JSON array of its elements in
+// ascending (in-order) sequence.
+func ExampleRbTree_MarshalJSON() {
+	tree := rb_tree.NewRbTree[int]()
+	tree.Insert(3)
+	tree.Insert(1)
+	tree.Insert(2)
+
+	b, err := json.Marshal(tree)
+	fmt.Println(string(b), err)
+	// Output:
+	// [1,2,3] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the tree from a JSON array;
+// the elements are stored by tree order, not array order.
+func ExampleRbTree_UnmarshalJSON() {
+	tree := rb_tree.NewRbTree[string]()
+	if err := json.Unmarshal([]byte(`["c","a"]`), tree); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for v := range tree.All() {
+		fmt.Println(v)
+	}
+	// Output:
+	// a
+	// c
 }

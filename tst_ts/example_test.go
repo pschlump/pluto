@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package tst_ts_test
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/pschlump/pluto/tst_ts"
@@ -156,4 +157,35 @@ func ExampleTst_Lock() {
 	fmt.Println(v)
 	// Output:
 	// 7
+}
+
+// MarshalJSON encodes the trie as a JSON object mapping each key to its
+// value, with the keys in ascending order.
+func ExampleTst_MarshalJSON() {
+	var tt tst_ts.Tst[int]
+	tt.Insert("shells", 3)
+	tt.Insert("she", 0)
+	tt.Insert("sea", 6)
+
+	b, err := json.Marshal(&tt)
+	fmt.Println(string(b), err)
+	// Output:
+	// {"sea":6,"she":0,"shells":3} <nil>
+}
+
+// UnmarshalJSON replaces the contents of the trie from a JSON object.
+func ExampleTst_UnmarshalJSON() {
+	var tt tst_ts.Tst[int] // the zero value is ready to use
+	if err := json.Unmarshal([]byte(`{"she":0,"sea":6,"by":4}`), &tt); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+
+	for key, value := range tt.All() {
+		fmt.Println(key, value)
+	}
+	// Output:
+	// by 4
+	// sea 6
+	// she 0
 }

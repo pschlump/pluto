@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package dqueue_ts_test
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -151,4 +152,34 @@ func ExampleDeque_Truncate() {
 	// Output:
 	// 0 true
 	// 1
+}
+
+// MarshalJSON encodes the deque as a JSON array of its elements, front
+// to back.
+func ExampleDeque_MarshalJSON() {
+	var q dqueue_ts.Deque[int]
+	q.PushBack(1)
+	q.PushFront(3)
+	q.PushBack(2)
+
+	b, err := json.Marshal(&q)
+	fmt.Println(string(b), err)
+	// Output:
+	// [3,1,2] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the deque from a JSON array;
+// element 0 becomes the new front.
+func ExampleDeque_UnmarshalJSON() {
+	var q dqueue_ts.Deque[string]
+	if err := json.Unmarshal([]byte(`["c","a"]`), &q); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for i, v := range q.All() {
+		fmt.Println(i, v)
+	}
+	// Output:
+	// 0 c
+	// 1 a
 }

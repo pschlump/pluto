@@ -675,7 +675,7 @@ func TestUnmarshalJSONPanics(t *testing.T) {
 // function), so non-empty data panics with the insert-family message.
 func TestJSONStructField(t *testing.T) {
 	type Doc struct {
-		Title string           `json:"title"`
+		Title string          `json:"title"`
 		Tags  *RbTree[string] `json:"tags"`
 	}
 

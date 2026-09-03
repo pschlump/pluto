@@ -12,6 +12,7 @@ BSD 3 Clause Licensed.
 package skip_list_ts_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -230,4 +231,37 @@ func ExampleSkipList_Range() {
 	// 4 55
 	// count: 3
 	// removed: 3 leaving 3
+}
+
+// MarshalJSON encodes the list as a JSON array of its elements in
+// ascending order.
+func ExampleSkipList_MarshalJSON() {
+	list := skip_list_ts.NewSkipList[int]()
+	list.Insert(3)
+	list.Insert(1)
+	list.Insert(2)
+
+	b, err := json.Marshal(list)
+	fmt.Println(string(b), err)
+	// Output:
+	// [1,2,3] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the list from a JSON array;
+// the result is the set of decoded elements in ascending order.
+func ExampleSkipList_UnmarshalJSON() {
+	list := skip_list_ts.NewSkipList[string]()
+	if err := json.Unmarshal([]byte(`["pear","fig","apple"]`), list); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	i := 0
+	for v := range list.All() {
+		fmt.Println(i, v)
+		i++
+	}
+	// Output:
+	// 0 apple
+	// 1 fig
+	// 2 pear
 }
