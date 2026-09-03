@@ -1,0 +1,159 @@
+= bloom
+
+A *Bloom filter* (Burton Bloom, "Space/Time Trade-offs in Hash Coding
+with Allowable Errors", CACM 1970): a fixed-shape bit array that
+approximates set membership with one-sided error. `Add` sets k probe
+bits derived from the element; `MayContain` reports whether all k are
+set. An added element *always* reports present — false negatives cannot
+happen, structurally (both operations derive the exact same probe
+positions). An absent element reports present with probability ≈
+(1 − e^(−kn/m))^k, the false-positive rate p the constructor sizes for.
+Elements are never stored, compared or iterated, and deletion is not
+possible (clearing bits would break other elements' probes; counting
+filters are a different structure).
+
+This is the pluto-standard port of the author's 2016 `bloom-filter`
+library: the same hash pair — *MurmurHash2* (Austin Appleby) under a
+fixed seed and *SuperFastHash* (Paul Hsieh) — generalized from its
+fixed two probes to the *Kirsch–Mitzenmacher double-hashing*
+construction (h1 + i·h2) mod m, which derives any probe count from the
+pair. The 2016 API survives as `MayContain`/`Add`/`TestAndSet`
+(`Found` also returned the two raw hashes; that leak is dropped).
+
+* Non-generic over the element type (elements are `[]byte` hashed on
+the way in) — the hyperloglog / union_find / suffix_array precedent: a
+membership sketch never stores, compares or boxes an element.
+* The hash pair is a *frozen constant*, pinned by vectors generated
+from the compiled C sources themselves (a 37-vector frozen subset
+covering every code path — empty input, each tail case, tail bytes
+≥ 0x80 for SuperFastHash's signed-char casts, long buffers) and
+cross-checked against structurally different second ports over 20k
+random inputs. Changing either hash breaks compatibility with every
+previously serialized filter.
+* The 2016 Go port of both hashes had a silent bug this port fixes:
+`uint32(data[1] << 8)` shifts *inside the byte type*, so every odd
+byte contributed zero (Go discards bits shifted past a type's width;
+C promotes to int first), and SuperFastHash's tail bytes are
+sign-extended here as the published C's `(signed char)` casts demand.
+The fixed hashes match the C bit-for-bit — and differ from every value
+the 2016 library produced (its test vectors had pinned the crippled
+forms).
+* A degenerate-step guard: an element whose second hash is congruent
+to 0 mod m (always true of the empty element, whose SuperFastHash is
+0) probes with step 1 instead of collapsing onto its first position.
+
+== Accuracy
+
+|===
+| Quantity | Formula / behavior
+
+| false-positive rate at load n | p ≈ (1 − e^(−kn/m))^k
+| optimal bits | m = −n·ln(p)/(ln 2)²  (`NewBloom` computes it)
+| optimal probes | k = ln(2)·m/n, clamped to [1, 64]  (`NewBloom` computes it)
+| saturation at design load | ≈ 0.5 — optimal k sets half the bits
+| false negatives | none, ever (structural)
+| `Count` estimate | n̂ = −(m/k)·ln(1 − X/m), X = set bits; m at full saturation
+|===
+
+Measured at the design load (deterministic — fixed seeds, frozen
+hashes): observed false-positive rates 0.5×–1.6× of p across (n, p)
+points from (1k, 10%) to (100k, 1%), saturation 0.47–0.52 (lowest at
+p=0.1, where k=3), and the `Count` estimate within ~1% of n (the
+sweep's gate is ±10%; the frozen examples show 1006 at n=1000 and
+6506 at n=6500).
+
+== Operations
+
+[options="header"]
+|===
+
+| Operation | Description | Complexity
+
+| `Add` | Set the element's k probe bits; true if any was clear (exactly the inverse of the pre-call `MayContain` — a duplicate always reports false) | O(len(v)+k)
+| `MayContain` | All k probe bits set (never false for an added element) | O(len(v)+k)
+| `TestAndSet` | `MayContain` answered and recorded in one pass (the 2016 operation — false marks the first sighting) | O(len(v)+k)
+| `Merge` | Bitwise OR union with same-shape filters; `added` sums | O(k·m/64)
+| `Count` | ML estimate of distinct elements from the fill ratio | O(1)
+| `Added` | Exact number of `Add`/`TestAndSet` calls (duplicates counted — indetectable) | O(1)
+| `Saturation` | Fraction of bits set (the load signal) | O(1)
+| `BitCount` / `HashCount` | The shape m and k | O(1)
+| `Bytes` / `BloomFromBytes` | Serialize / validate-and-decode | O(m/64)
+| `Clone` / `Reset` / `IsEmpty` | Snapshot copy / empty / no bits set | O(m/64) / O(1)
+|===
+
+== Usage
+
+[source,go]
+----
+f := bloom.NewBloom(1_000_000, 0.01) // ~1.2 MB for a million elements at 1%
+
+for _, id := range seenIds {
+    if !f.TestAndSet(id) {
+        // first sighting (probably) — the 2016 library's dedupe signal
+    }
+}
+fmt.Println(f.MayContain([]byte("maybe-seen")), f.Count(), f.Saturation())
+
+// Union of two same-shape filters (shards, accumulated batches).
+total := bloom.NewBloom(10_000, 0.01)
+total.Merge(shardA, shardB)
+
+// Hand a filter across a process boundary; the form is frozen.
+restored, err := bloom.BloomFromBytes(f.Bytes())
+----
+
+Benchmarks (M4 Max): `Add` ≈ 24 ns/op for 16-byte elements (zero
+allocations — the probe buffer is stack-allocated), `MayContain` ≈ 23 ns
+on a hit, 34 ns on a miss (early exit partway through the probes),
+`TestAndSet` ≈ 24 ns; the two hashes cost ≈ 3.4 ns each over a 16-byte
+element, so a query is hash-bound at short keys.
+
+== Panics and errors
+
+The zero value tolerates every read but cannot be written (the `lru`
+capacity precedent — no shape, no sane answer). Panics, each naming the
+method or constructor and the fix:
+
+* `NewBloom`: `n < 1`, `p` outside (0,1) (NaN included), or an optimal
+m above `maxBits` (2^32 — the two 32-bit hashes cannot address more).
+* `NewBloomBits`: bits outside [1, maxBits] or hashes outside [1, 64].
+* `Add`/`TestAndSet` on a nil or zero-value filter.
+* `Merge`: a non-empty operand whose (m, k) differs from the
+destination's, or a non-empty operand into a nil/zero-value filter.
+Nil operands, empty operands (any shape) and self-merges are skipped.
+
+Corrupt serialized data is an *error*, checked with `errors.Is`:
+
+* `ErrBadLength` — data too short for the 24-byte header, not exactly
+the word count its m implies, or m itself outside [1, maxBits].
+* `ErrBadHashes` — k outside [1, 64].
+* `ErrBadBits` — a set bit at or above m (the final word's padding,
+which no `Add` can touch).
+
+The structure is *not safe for concurrent use*; link:../bloom_ts/[`bloom_ts`]
+is the twin with the identical API behind a `sync.RWMutex` (the plain
+package keeps no-op `Lock`/`Unlock` so code compiles against both).
+
+== Serialized form
+
+`Bytes` returns a 24-byte header — m, k and added, 8 bytes each,
+little-endian — followed by the bit words in array order (8 bytes each,
+little-endian). The form is versionless (no magic) because the hash
+pair is a frozen constant; only m, k and the bits vary, and they travel
+in the header. `BloomFromBytes` validates the shape and the padding
+bits, never panics, and restores the counters.
+
+== Testing
+
+`vectors_test.go` freezes the C-generated hash vectors (both hashes
+were checked against the full 269-vector corpus at generation time; the
+representative 37 travel with the source). `thorough_test.go`
+cross-checks against an exact set oracle over a 4000-step randomized
+run (fixed seed 42) — the exact laws gated there: no false negatives,
+`Add`'s return is the inverse of the pre-call `MayContain`, duplicates
+never report a change, `Added` counts every call — plus the
+false-positive-rate sweep, the bit-exact merge-of-a-partition check
+(merging k shards equals adding everything to one filter, byte for
+byte), serialization fuzz (random filters round-trip byte-stable;
+random single-byte mutations report only the three sentinels), the
+probe-range/guard checks, and the second-oracle hash cross-check.

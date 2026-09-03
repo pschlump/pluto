@@ -1,0 +1,176 @@
+= bitmap
+
+The Redis bit-operation family as stateless functions over byte slices:
+GETBIT/SETBIT, BITCOUNT, BITPOS, BITOP AND|OR|XOR|NOT, and the BITFIELD
+GET/SET/INCRBY subcommands with the WRAP/SAT/FAIL overflow policies
+(request `note/09-bitmap-bitfield.md`, built for Ultima's SETBIT, GETBIT,
+BITCOUNT, BITPOS, BITOP, BITFIELD and BITFIELD_RO).  A bitmap is nothing
+but a `[]byte`; nothing is stored between calls.  The mirrored C is
+`note/redis/src/bitops.c` (Redis 8.9.241 — this Redis keeps all the bit
+commands there; the note's `bitfield.c` pointer predates that layout),
+and the semantics are ported line-for-line: the range clamps, the edge
+masks, the word-skipping scans, and the two overflow checkers including
+their strict inequalities.
+
+* Bit order is Redis's: bit 0 is the most significant bit of byte 0, bit
+7 the least significant bit of byte 0, bit 8 the MSB of byte 1 — the
+buffer reads as a big-endian bit stream.  Byte-aligned fields are plain
+big-endian; the C's worked example (a 5-bit field 23 at offset 7
+producing `0x01 0x70`) is pinned in the tests.
+* Non-generic over the element type — the hyperloglog / union_find /
+suffix_array precedent: the buffer *is* the value.  Pure functions, the
+geo/substring/quick_sort precedent — no state, and **no `_ts` twin**
+(Ultima calls these under its shard locks; everything is safe for
+concurrent use as-is, like geo).
+* A **nil buffer and an empty non-nil buffer mean different things**,
+because they mean different things to Redis: a missing key is an
+infinite array of 0 bits (`BitPos(nil, 0, …)` reports bit 0) while an
+empty string is a zero-length range (`BitPos([]byte{}, 0, …)` reports
+not-found).  `BitCount` cannot tell them apart — both count 0.
+* `SetBit` and `ExecuteFieldOps` are `append()`-shaped: they write in
+place when no growth is needed (returning the same slice) and return a
+new zero-extended slice when growth is needed (leaving the input
+untouched) — always keep the returned buffer.  Reads never mutate.
+* Word-wise throughout, never bit loops in the hot paths: `BitCount`
+popcounts 32 bytes per iteration through four `math/bits.OnesCount64`
+accumulators (the dependency-breaking shape of `redisPopcount`), the
+BitOp family folds 8-byte words, and `BitPos` skips full words that are
+all ones or all zeros in one comparison each (`redisBitpos`'s fast
+path).
+
+== Operations
+
+[options="header"]
+|===
+
+| Operation | Description | complexity
+
+| `GetBit(buf, offset)` | The bit at offset (0 past the end — the GETBIT read of a short key).  This pure read applies no offset limit; the 512 MiB rule is a write-side rule. | O(1)
+| `SetBit(buf, offset, bit)` | Set the bit, return the buffer to use and the previous bit; growth is zero-filled to `MaxBytes`.  ErrBitValue if bit ∉ {0,1}, ErrBitOffset past `MaxBitOffset` (2³²−1). | O(1)+alloc
+| `BitCount(buf, start, end, unit)` | Set bits in the range — BITCOUNT.  Negative indexes from the end in the unit; sub-byte BIT ranges mask the edge bytes. | O(n)
+| `BitPos(buf, bit, start, end, unit, endGiven)` | First bit equal to bit in the range — BITPOS.  Returns `(pos, found)`; found=false is exactly Redis's -1 reply. | O(n)
+| `BitOpAnd / BitOpOr / BitOpXor(srcs…)` | Bitwise fold into a new slice as long as the longest source; shorter sources read as zero (a single source copies itself). | O(k·n)
+| `BitOpNot(src)` | Bitwise complement, one source (BITOP NOT takes exactly one). | O(n)
+| `ExecuteFieldOps(buf, ops)` | BITFIELD: apply `FieldOp`s left-to-right (GET / SET / INCRBY, each with its sign, width, bit offset, value and overflow policy).  Returns the buffer, one result per op and a parallel failed slice. | O(Σ bits)+alloc
+| `MaxBitOffset` / `MaxBytes` | 2³²−1 / 512 MiB — Redis's proto-max-bulk-len-derived bounds the write paths enforce. | —
+|===
+
+The `Unit` constants are `ByteUnit` (default) and `BitUnit`; the
+`FieldOp` fields (`Kind`, `Signed`, `Bits`, `Offset`, `Value`,
+`Overflow`) carry what the BITFIELD subcommand words carry — the `#<idx>`
+offset form (the index times the type width) and the sticky
+OVERFLOW-WRAP/SAT/FAIL prefix state are resolved by the caller when
+building the ops, exactly as the note specifies.
+
+== Usage
+
+[source,go]
+----
+buf, old, _ := bitmap.SetBit(nil, 7, 1)        // SETBIT key 7 1 → 0, buf = 01
+fmt.Println(bitmap.GetBit(buf, 7))             // GETBIT → 1
+
+s := []byte("foobar")
+n := bitmap.BitCount(s, 0, -1, bitmap.ByteUnit) // BITCOUNT → 26
+n = bitmap.BitCount(s, 10, 14, bitmap.BitUnit)  // 5 bits of the first 'o' → 4
+
+pos, found := bitmap.BitPos(s, 1, 0, 0, bitmap.ByteUnit, false) // first set bit → (8, true)
+
+and := bitmap.BitOpAnd([]byte{0x0F, 0xFF, 0xFF}, []byte{0xF0}) // 00 00 00
+
+buf, results, failed, err := bitmap.ExecuteFieldOps(nil, []bitmap.FieldOp{
+    {Kind: bitmap.FieldSet, Bits: 8, Value: 255},
+    {Kind: bitmap.FieldIncrBy, Bits: 8, Value: 100},                    // wraps to 99
+    {Kind: bitmap.FieldIncrBy, Signed: true, Bits: 8, Value: 100, Overflow: bitmap.OverflowSat},
+    {Kind: bitmap.FieldIncrBy, Bits: 8, Value: 200, Overflow: bitmap.OverflowFail}, // 127+200 > 255
+})
+// results [0 99 127 0], failed [false false false true]
+----
+
+Benchmarks (M4 Max, `bench_test.go`): `BitCount` ≈ 26 µs over 1 MB and
+2.7 ms over 100 MB — ~39 GB/s, memory-bound, zero allocations;
+`BitOpOr` over two ragged sources ≈ 134 µs at 1 MB (~7.8 GB/s) and
+10.2 ms at 100 MB (~10.3 GB/s), one allocation (the result);
+`BitOpAnd` (3 sources, 1 MB) ≈ 200 µs; `BitOpNot` 1 MB ≈ 116 µs;
+`BitPos` worst case (match in the last byte) 1 MB ≈ 49 µs;
+`GetBit` ≈ 0.25 ns, in-place `SetBit` ≈ 1.6 ns; `ExecuteFieldOps` with
+eight mixed ops ≈ 198 ns (72 B — the results and failed slices).
+
+== Panics and errors
+
+The package's whole panic surface is two argument shapes with no sane
+answer, each panic naming the method and the fix:
+
+* `BitPos` with a bit argument that is not 0 or 1.
+* `BitCount` / `BitPos` with a Unit that is neither ByteUnit nor BitUnit.
+
+Everything else is data, reported as sentinel errors compared with
+`errors.Is` (the caller's command layer maps them to Redis's reply
+strings):
+
+* `ErrBitValue` — SetBit's bit is not 0 or 1.
+* `ErrBitOffset` — a write offset past `MaxBitOffset`, or a FieldOp
+offset that is negative or past the limit.  The limit applies to every
+FieldOp (reads included) exactly as `getBitOffsetFromArgument` does;
+plain `GetBit` never errors (a pure read past the end is 0).
+* `ErrBitfieldType` — a FieldOp width outside 1..64 signed / 1..63
+unsigned.  **u64 is rejected and i64 is not**, like Redis — the results
+are int64 and cannot carry an unsigned 64-bit value (the note's sketch
+reversed the two ranges; the C is followed).
+* `ErrInvalidFieldOp` — a Kind or OverflowPolicy outside the defined
+constants.
+
+On any error `ExecuteFieldOps` returns the buffer unchanged with nil
+results — the whole op list is validated before anything runs, as the
+command parses every subcommand before executing one.
+
+== Semantics pinned from the C
+
+* **BITPOS's `endGiven` flag is load-bearing** — the parameter exists
+because the two forms differ: `BITPOS key 0 0` on an all-ones string
+answers the first bit past the buffer (24 for 3 bytes — the right side
+reads as zero-padded), while `BITPOS key 0 0 -1` answers not-found.
+With `endGiven=false` the end argument is ignored and the range reaches
+the last element.
+* **BitCount's both-negative-inverted early return is not redundant**:
+for start and end both negative with start > end the answer is 0 even
+when the clamps would select a nonempty range (`BitCount(\xff, -1, -4,
+ByteUnit)` = 0 on a one-byte buffer, where clamping alone would count
+byte 0).  bitposCommand has no such check — the models encode the
+difference.
+* **A failed SET/INCRBY still leaves the growth** — the buffer is
+pre-grown to the furthest bit any write op touches before the first op
+runs, and OverflowFail refuses only the field write, exactly the C's
+strGrowSize behavior.
+* **Overflow boundaries are strict**: a result landing exactly on a
+field limit is not an overflow (i8 126+1 → 127 succeeds under FAIL) —
+`checkSigned/UnsignedBitfieldOverflow`'s inequalities, kept verbatim.
+WRAP is two's-complement for signed (i8 127+1 → −128), a mask for
+unsigned; SAT clamps to the field's limits, which differ between signed
+and unsigned.
+* **BITOP result length is the longest source** (for NOT, its only
+source); shorter sources read as zero, so AND clears the tail and a
+single source copies itself.  The Redis 8 BITOP DIFF/DIFF1/ANDOR/ONE
+additions are out of scope — the note asks for the classic four.
+
+== Testing
+
+`vectors_test.go` freezes the Redis corpus: the BITCOUNT vector and
+range tables, the misaligned-prefix/word/remainder cases (74), the whole
+BITPOS interval/unaligned/word-skip tables including the end-given
+distinction, the BITOP known-string/zero-stream/zero-pad tables, and the
+bitfield.tcl command sequences (signed/unsigned basics, the four
+overflow sequences, `#3221`, `#3564`).  `thorough_test.go` cross-checks
+against structurally different models — the ranges against a bit-per-bit
+oracle in the bit domain (4000 seeded cases each), the joint
+BITPOS/BITCOUNT sweep of bitops.tcl (the 10-byte one-special-bit buffer
+over both units and four range shapes), the BitOp family against a
+per-bit fold (800 seeded multi-source cases plus word-edge lengths and
+the associativity/distributivity laws), and the two bitfield.tcl fuzz
+loops (FAIL must refuse exactly when exact big.Int arithmetic leaves the
+field range; WRAP must land the field on the exact sum reduced into
+range — 1000 seeded cases each).  The panic contract, the error
+contracts, the in-place/growth buffer idiom, and the 512 MiB boundary
+(short-mode skipped) are gated too.
+
+Concurrency: pure functions over their arguments — safe for concurrent
+use as-is; no `_ts` twin (the geo/substring precedent).

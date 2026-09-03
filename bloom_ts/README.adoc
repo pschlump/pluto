@@ -1,0 +1,69 @@
+= bloom_ts
+
+The thread-safe Bloom filter: link:../bloom/[`bloom`]'s fixed-shape
+probabilistic membership sketch behind one `sync.RWMutex`, with the
+identical public API plus the real `Lock`/`Unlock` and the `Nl`-prefixed
+(no-lock) methods for compound operations — the `lfu_ts`/`lru_ts`
+composition pattern (the plain filter is borrowed whole; no locks live
+inside it). The serialized-data errors are aliases of the plain
+package's, so twin-switching is an import change and a filter
+serialized by either twin decodes in both.
+
+== Concurrency model
+
+* Writes (`Add`, `TestAndSet`, `Merge`, `Reset`) take the write lock.
+Every read — `MayContain`, `Count`, `Added`, `Saturation`, `IsEmpty`,
+`BitCount`, `HashCount`, `Bytes`, `String` — takes the read lock; even
+`Count` is O(1) under it (the plain package maintains its counters
+incrementally).
+* `Merge` snapshots every operand (a `Clone` under the operand's own
+read lock, released again) before taking this filter's write lock —
+no nested locks, so concurrent merges in opposite directions cannot
+deadlock, and an operand may alias the destination (OR with itself is
+a no-op; it is skipped). An operand mutated concurrently is merged as
+its snapshot.
+* The zero value, unlike the constructor-free twins, is not writable:
+a filter's shape (m, k) must exist before the first write, so `Add`,
+`TestAndSet` and a `Merge` folding in a non-empty operand panic with a
+`bloom_ts:`-prefixed message naming the constructors (the
+`lru_ts`/`lfu_ts` precedent). Every read tolerates nil and the zero
+value; the nil guards run before any lock acquisition. A shape
+mismatch in `Merge` panics with the plain core's message.
+
+== The Nl* compound surface
+
+`Lock` + the `Nl*` methods make answer-then-record sequences atomic —
+`TestAndSet` already is, for one element; the compounds compose it:
+
+* batch insert-if-absent (admit a whole batch on one `NlSaturation`
+view),
+* admission control (consult `NlSaturation`/`NlCount` and add under
+one lock hold).
+
+[source,go]
+----
+f.Lock()
+if f.NlSaturation() < 0.9 { // room in the filter: check and adds are one view
+    for _, k := range batch {
+        f.NlAdd(k)
+    }
+}
+f.Unlock()
+----
+
+`Nl*` set: `NlAdd`, `NlMayContain`, `NlTestAndSet`, `NlCount`,
+`NlAdded`, `NlSaturation`, `NlIsEmpty`, `NlReset`, `NlBytes`,
+`NlMerge` (operands must be quiet for its duration — clone shared ones
+first). Calling a regular method while `Lock` is held deadlocks; the
+write-form `Nl*` methods carry the zero-value panic.
+
+== Testing
+
+`bloom_ts_test.go` ports the plain package's behavioral suite (the
+panic-message checks against the `bloom_ts:` prefix included);
+`thorough_test.go` is the race trio — `TestConcurrent` (writers and
+readers over one filter; afterwards `Added` equals the exact total
+write count and every element reports present), `TestConcurrentMerge`
+(opposite-direction merges racing writers — the no-nested-locks
+proof), and `TestConcurrentCompound` (`Lock`+`Nl*` batches racing
+plain writers, exact total afterwards). Run with `-race`.

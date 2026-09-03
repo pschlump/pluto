@@ -94,10 +94,13 @@ with an identical public API.
 | link:stream_ts/[stream_ts]                 | Thread-safe stream (RWMutex, snapshot iterators, Lock+Nl* compound ops).
 | link:hyperloglog/[hyperloglog]             | HyperLogLog cardinality estimator, dense 6-bit registers (Redis PFADD/PFCOUNT/PFMERGE behavior; LinearCounting + Ertl estimator, ~0.8% error).
 | link:hyperloglog_ts/[hyperloglog_ts]       | Thread-safe HyperLogLog (RWMutex, snapshot merging, Lock+Nl* compound ops).
+| link:bloom/[bloom]                         | Classic Bloom filter (Bloom 1970): fixed-shape membership sketch, one-sided error, Kirsch–Mitzenmacher probes from a frozen MurmurHash2/SuperFastHash pair; optimal sizing from (n, p).
+| link:bloom_ts/[bloom_ts]                   | Thread-safe Bloom filter (RWMutex, snapshot merging, Lock+Nl* compound ops).
 | link:lfu/[lfu]                             | LFU frequency counters for eviction (8-bit Morris counter + 16-bit minute clock per key, Redis allkeys-lfu/OBJECT FREQ semantics; on hash_grow).
 | link:lfu_ts/[lfu_ts]                       | Thread-safe LFU frequency counters (RWMutex, Lock+Nl* compound ops).
 | link:lru/[lru]                             | Generic capacity-bounded LRU cache (eviction veto callback, soft cap).
 | link:lru_ts/[lru_ts]                       | Thread-safe capacity-bounded LRU cache (RWMutex; Get takes the write lock, snapshot iterators, Lock+Nl* compound ops).
+| link:bitmap/[bitmap]                       | Redis bit operations on byte slices: GETBIT/SETBIT, BITCOUNT, BITPOS (end-given semantics), BITOP AND/OR/XOR/NOT, BITFIELD GET/SET/INCRBY with WRAP/SAT/FAIL overflow (Redis-exact, word-wise; pure functions, concurrent-use safe).
 | link:crc/[crc]                             | Table-driven CRC-32/CRC-64 checksums (IEEE, Castagnoli, Koopman, ECMA, ISO; pure functions, concurrent-use safe).
 | link:geo/[geo]                             | Redis GEO geohash math: 52-bit Encode/Decode (bit-compatible with Redis), Neighbors, radius/box score ranges, haversine Distance, m/km/ft/mi units (pure functions, concurrent-use safe).
 | link:g_lib/[g_lib]                         | Generic utility functions (min/max, slice ops, set/map conversion, numeric constraints).
@@ -155,7 +158,8 @@ per-call read lock.
 (`hash_grow_ts`, `hash_tab_ts`, `hash_tab_bt_ts`, `hash_tab_dll_ts`,
 `cuckoo_ts`, `cuckoo_grow15_ts`, `sharded_hash_ts`), `skip_list_ts`,
 `index_pq_ts`, `fenwick_tree_ts`, `segment_tree_ts`, `trie_ts`,
-`tst_ts`, `stream_ts`, `hyperloglog_ts`, `lfu_ts` and `lru_ts` — expose the
+`tst_ts`, `stream_ts`, `hyperloglog_ts`, `lfu_ts`, `lru_ts` and
+`bloom_ts` — expose the
 *real `Lock`/`Unlock`* plus `Nl`-prefixed no-lock methods
 (`NlLen`, `NlSearch`, `NlInsert`, ...) so a search-then-update
 sequence can run atomically (and `dll_ts` exposes `Lock`/`Unlock`).
@@ -488,6 +492,49 @@ lock, `Merge` snapshots operands under their own read locks before
 taking the destination's write lock (no nested locks, so opposite-way
 merges cannot deadlock), plus the real `Lock`/`Unlock` and `Nl*`
 methods for atomic add-batch-then-count compounds.
+
+== Bloom Filter — `bloom/`, `bloom_ts/`
+
+The classic Bloom filter (Bloom 1970) as the pluto-standard port of
+the author's 2016 `bloom-filter` library: a fixed-shape bit array that
+approximates set membership with one-sided error — `Add` sets k probe
+bits, `MayContain` checks them all, an added element *always* reports
+present (false negatives are structurally impossible) and an absent
+one reports present at rate ≈ p. `NewBloom(n, p)` sizes the filter
+from the workload (m = −n·ln(p)/(ln 2)² bits, k = ln(2)·m/n probes,
+the classic optima); `NewBloomBits(m, k)` takes the shape directly;
+`TestAndSet` is the 2016 library's atomic insert-if-absent signal.
+The hash pair is frozen — MurmurHash2 under a fixed seed plus
+SuperFastHash, both now faithful to their C originals (the 2016 port's
+`uint32(data[1] << 8)` shifts inside the byte type and silently
+dropped every odd byte; the fixed hashes are pinned by vectors
+generated from the compiled C) — and generalized to any k via
+Kirsch–Mitzenmacher double hashing. `Merge` is the bitwise OR (the
+lossless union; merging k shards is bit-identical to adding everything
+to one filter — the tests assert it), `Count` estimates distinct
+elements from the fill ratio, `Added` counts insertions exactly.
+Elements are `[]byte` hashed and forgotten (the hyperloglog precedent);
+deletion is not possible. Panics: constructor validation, writes on a
+nil/zero-value filter (the shape must exist first — the lru capacity
+precedent), and `Merge` shape mismatches; serialized corruption is
+errors (`ErrBadLength`/`ErrBadHashes`/`ErrBadBits`).
+
+* Good: ~24 ns/op zero-alloc `Add` for 16-byte elements (hash-bound —
+the two hashes cost ~3.4 ns each); measured false-positive rates
+0.5×–1.6× of p at the design load; mergeable, serializable, and
+`Count`/`Saturation` are O(1) (incrementally maintained counters).
+* Bad: an *approximation* — false positives at rate p, no deletion, no
+iteration (membership is the only query); the shape is fixed at
+construction (past the design load the false-positive rate climbs —
+watch `Saturation`); no removal means unbounded workloads need a
+rebuild.
+
+`bloom_ts` is the twin with the RWMutex: reads under the read lock,
+`Merge` snapshots operands under their own read locks before the
+destination's write lock (the hyperloglog_ts pattern — no nested
+locks, opposite-way merges deadlock-free), plus the real
+`Lock`/`Unlock` and `Nl*` methods — batch insert-if-absent under one
+`NlSaturation` view is the canonical compound.
 
 == LFU Frequency Counters — `lfu/`, `lfu_ts/`
 
