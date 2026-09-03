@@ -42,6 +42,8 @@ with an identical public API.
 | link:stack_sll_ts/[stack_sll_ts]           | Thread-safe LIFO stack on a singly linked list (RWMutex, snapshot iterators).
 | link:dqueue/[dqueue]                       | Generic double-ended queue on a doubly linked list.
 | link:dqueue_ts/[dqueue_ts]                 | Thread-safe double-ended queue on a doubly linked list (RWMutex, snapshot iterators).
+| link:quicklist/[quicklist]                 | Segmented deque (Redis-quicklist equivalent): linked list of packed segments, seek-based indexing, optional LZW compression of interior segments.
+| link:quicklist_ts/[quicklist_ts]           | Thread-safe segmented deque (RWMutex, snapshot iterators, Lock+Nl* compound ops).
 | link:heap/[heap]                           | Generic min-heap (max-heap via reversed comparator).
 | link:heap_ts/[heap_ts]                     | Thread-safe min-heap (RWMutex, snapshot All, Lock+Nl* compound ops).
 | link:priority_queue/[priority_queue]       | Generic priority queue on pluto/heap (min-first, or max via reversed).

@@ -1,0 +1,60 @@
+= quicklist_ts
+
+The thread-safe twin of link:../quicklist/[`quicklist`] — the generic
+*segmented deque* (Redis-quicklist equivalent) with the *identical API*
+guarded by one `sync.RWMutex`, plus the `Lock`/`Unlock` pair and the
+`Nl`-prefixed (no-lock) methods for compound operations.
+
+See the plain package's link:../quicklist/README.adoc[README] for the
+data structure itself: the segment split/merge policy, the seek-based
+indexing, the options (`NewQuickList` takes the plain package's
+`quicklist.Option[T]` values straight through) and the compression
+semantics.  This twin changes only the concurrency.
+
+== Which method takes which lock
+
+[options="header"]
+|===
+| Methods | Lock
+
+| `Len`, `PeekHead`, `PeekTail` | read lock (true reads — the end segments are never stored compressed)
+| `PushHead`/`PushTail`, `PopHead`/`PopTail`, `Set`, `InsertBefore`/`InsertAfter`, `Delete`, `DeleteRange`, `Trim` | write lock
+| `At` | *write* lock — a hit can materialize a compressed segment, which mutates
+| `All` / `Backward` / `Range` | write lock held only while the snapshot is materialized; the returned iterator then walks the snapshot
+|===
+
+Unlike the plain package's live-walk iterators, the twin's iterators
+operate on a *snapshot* taken when they are called (one O(n) copy), so
+they are safe to use concurrently with any operation — including
+mutating the list from inside the loop — and never observe later
+modifications.
+
+== Compound operations
+
+`Lock` takes the real write lock; the `Nl*` methods (`NlAt`, `NlSet`,
+`NlPushTail`, `NlDeleteRange`, … — one per operation) run unlocked
+while it is held.  Calling a regular method while the lock is held
+deadlocks — use the `Nl*` forms inside:
+
+[source,go]
+----
+q.Lock()
+for i := 0; i < q.NlLen(); i++ {
+    v, _ := q.NlAt(i)
+    q.NlSet(i, 2*v)
+}
+q.Unlock()
+----
+
+`MoveHeadToTail(src, dst)` locks both lists in pointer order, so
+concurrent moves in opposite directions cannot deadlock; with
+`src == dst` it rotates the list under a single lock.
+
+== Nil and panics
+
+A nil `*QuickList` behaves as an empty list for every operation with a
+sane answer, exactly as in the plain package.  The package panics only
+on `PushHead`/`PushTail` with a nil receiver, with a message naming the
+method.
+
+Run the tests with `-race`.

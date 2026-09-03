@@ -1,0 +1,103 @@
+= quicklist
+
+A generic *segmented deque* — the Go equivalent of a Redis quicklist —
+that is *not safe for concurrent use*.  A mutex-guarded version with the
+*identical interface* lives alongside it
+(link:../quicklist_ts/[`quicklist_ts`]); point shared-list callers
+there.
+
+The list is a doubly-linked list of *segments*, each a packed `[]T`
+holding up to a configurable fill target (default 128, the Redis
+`list-max-listpack-size` default) instead of one heap node per element.
+Against link:../dll/[`dll`] and link:../dqueue/[`dqueue`] this removes
+the per-element pointer overhead: a 1M-element list of small strings
+costs within ~1.5x of a plain packed `[]string`, several times less
+than the linked structures (measured in `bench_test.go`).
+
+The element type needs *no constraints at all*, elements are stored and
+returned *by value*, and the zero value of `QuickList` is an empty list
+with the default fill target, ready to use — `NewQuickList` exists to
+install options.
+
+== Operations
+
+[options="header"]
+|===
+| Operation                    | Description                                          | Complexity
+
+| `PushHead` / `PushTail`      | Insert at the head / tail (LPUSH/RPUSH)              | amortized O(1)
+| `PopHead` / `PopTail`        | Remove and return from the head / tail (LPOP/RPOP)   | amortized O(1)
+| `PeekHead` / `PeekTail`      | Look at an end without removing                      | O(1)
+| `Len`                        | Number of elements                                   | O(1)
+| `At` / `Set`                 | Index access; negative index counts from the tail    | O(S + fill)
+| `InsertBefore` / `InsertAfter` | Insert relative to an index (LINSERT-style)        | O(S + fill)
+| `Delete`                     | Remove the element at an index                       | O(S + fill)
+| `DeleteRange(start, stop)`   | Remove the inclusive range, return the count         | O(S removed + fill)
+| `Trim(start, stop)`          | Keep only the inclusive range (LTRIM)                | O(S removed + fill)
+| `Range` / `All` / `Backward` | Range-over-func iterators over the live list         | O(S + m)
+| `MoveHeadToTail(src, dst)`   | Move src's head to dst's tail (RPOPLPUSH/LMOVE)      | amortized O(1)
+|===
+
+S is the number of segments; `fill` is the (constant) segment capacity.
+Index operations are *seek-based*: they walk whole segments from
+whichever end is closer (O(S)) and then operate inside the segment —
+they never hop element-by-element.  Range bounds everywhere follow
+Redis semantics: negative bounds count back from the tail and
+out-of-range bounds clamp to the list; an inverted range is empty.
+
+== Segment behavior
+
+A segment *splits* in half when an insertion pushes it past capacity,
+and two adjacent segments *merge* when their combined count falls to
+half the capacity — so repeated insert/delete at one position cannot
+degenerate into many tiny segments.  No segment is ever empty while
+linked into the list.  Both end segments keep push slack in their
+backing array (front slack in the head segment, back slack in the tail
+segment), which is what makes the end operations amortized O(1).
+
+== Options
+
+[options="header"]
+|===
+| Option | Effect
+
+| `WithSegmentFill[T](n)`    | Target entries per segment; default 128
+| `WithSegmentBytes[T](n)`   | Payload-bytes cap per segment (the Redis ~8 KiB listpack cap; element size is `unsafe.Sizeof(T)`).  Alone it replaces the count cap; combined with `WithSegmentFill` both caps apply
+| `WithCompression[T](codec, depth, enc, dec)` | Redis `list-compress-depth` semantics — see below
+|===
+
+== Compression
+
+With `WithCompression` installed, segments deeper than `depth` from
+*both* ends are stored compressed and decompressed transparently on
+access; the first and last `depth` segments are always plain (depth <=
+0 disables compression, the Redis depth-0 convention).  Because `T` is
+unconstrained the caller supplies the segment wire format (`enc`/`dec`)
+alongside the byte-level `Codec`; `LZWCodec()` adapts
+link:../lzw/[`lzw`] and `EncodeStringSegment`/`DecodeStringSegment`
+cover string lists.
+
+Re-establishing the compression windows costs O(S) after every
+operation, and every interior access pays a decompress/recompress pair —
+compression trades CPU for memory, so leave it off (the default) for
+hot lists.
+
+== Iterators walk the live list
+
+`All`, `Backward` and `Range` do *not* copy a snapshot: they walk the
+segment links, materializing compressed segments as they reach them
+(and re-packing when the iterator ends, including on an early break).
+Mutating the list from inside the loop is at the caller's risk, as with
+the other plain pluto packages; the `quicklist_ts` twin iterates a
+snapshot instead.
+
+== Nil and panics
+
+A nil `*QuickList` behaves as an empty list for every operation that
+has a sane answer (`Len`, `At`, the peeks and pops, `Set`, `Delete`,
+`DeleteRange`, `Trim`, the iterators, `MoveHeadToTail`).  The package
+panics in exactly two situations, each with a message naming the
+method:
+
+* `PushHead` on a nil list
+* `PushTail` on a nil list
