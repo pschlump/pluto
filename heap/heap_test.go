@@ -8,8 +8,11 @@ BSD 3 Clause Licensed.
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"math/rand/v2"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -850,6 +853,374 @@ func TestHeapifyRebuildWithDuplicates(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, expect) {
 		t.Errorf("Drain after rebuild mismatch (len %d vs %d)", len(got), len(expect))
+	}
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+// upperString is a string with its own JSON representation, to verify
+// that element-level marshalers are honored through the heap.
+type upperString string
+
+func (u upperString) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + strings.ToUpper(string(u)) + `"`), nil
+}
+
+func (u *upperString) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	*u = upperString(s)
+	return nil
+}
+
+func TestMarshalJSON(t *testing.T) {
+	// Exact array output, internal heap order: pushing 3, 1, 2 leaves
+	// the internal slice as [1 3 2].
+	hp := NewHeap[int]()
+	for _, v := range []int{3, 1, 2} {
+		hp.Push(v)
+	}
+	b, err := json.Marshal(hp)
+	if err != nil {
+		t.Fatalf("json.Marshal(heap): %v", err)
+	}
+	if string(b) != "[1,3,2]" {
+		t.Errorf("Expected [1,3,2], got %s", b)
+	}
+
+	// Struct elements use their normal JSON encoding.
+	items := newTestHeap()
+	items.Push(TestHeapItem{S: "b"})
+	items.Push(TestHeapItem{S: "a"})
+	if b, err := json.Marshal(items); err != nil || string(b) != `[{"S":"a"},{"S":"b"}]` {
+		t.Errorf(`Expected [{"S":"a"},{"S":"b"}], got (%s, %v)`, b, err)
+	}
+
+	// An empty heap encodes as [].
+	if b, err := json.Marshal(NewHeap[int]()); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for an empty heap, got (%s, %v)", b, err)
+	}
+
+	// A zero-value heap is a tolerated read: [].
+	var zero Heap[int]
+	if b, err := zero.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for a zero-value heap, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil heap encodes as []; json.Marshal on a nil
+	// *Heap never reaches the method — the json package writes null for
+	// nil pointers itself.
+	var nilHeap *Heap[int]
+	if b, err := nilHeap.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] from a direct nil-heap call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilHeap); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil heap, got (%s, %v)", b, err)
+	}
+
+	// Element-level marshalers are honored.
+	custom := NewHeap[upperString]()
+	custom.Push("y")
+	custom.Push("x")
+	if b, err := json.Marshal(custom); err != nil || string(b) != `["X","Y"]` {
+		t.Errorf(`Expected ["X","Y"], got (%s, %v)`, b, err)
+	}
+
+	// Encoding errors pass through unchanged.
+	bad := NewHeapFunc(func(a, b chan int) int { return 0 })
+	bad.Push(make(chan int))
+	if _, err := json.Marshal(bad); err == nil {
+		t.Errorf("Expected an error marshaling a heap of channels.")
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	// Decoded elements form a valid heap that pops in sorted order.
+	hp := NewHeap[int]()
+	if err := json.Unmarshal([]byte("[3,1,2]"), hp); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	checkHeapInvariant(t, hp, Compare[int])
+	var got []int
+	for {
+		v, found := hp.Pop()
+		if !found {
+			break
+		}
+		got = append(got, v)
+	}
+	if fmt.Sprint(got) != "[1 2 3]" {
+		t.Errorf("Expected [1 2 3], got %v", got)
+	}
+
+	// A round trip rebuilds a structurally sound heap and keeps the
+	// comparison function (Search works on the rebuilt heap).
+	items := newTestHeap()
+	for _, s := range []string{"c", "a", "b"} {
+		items.Push(TestHeapItem{S: s})
+	}
+	b, err := json.Marshal(items)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	again := newTestHeap()
+	if err := json.Unmarshal(b, again); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	checkHeapInvariant(t, again, cmpTestHeapItem)
+	if v, found := again.Peek(); !found || v.S != "a" {
+		t.Errorf("Expected min a after round trip, got (%v, %v)", v, found)
+	}
+	if _, pos, found := again.Search(TestHeapItem{S: "b"}); !found || pos < 0 {
+		t.Errorf("Expected Search to work after unmarshal, got pos %d", pos)
+	}
+
+	// Unmarshaling replaces the contents; it does not append.
+	hp = NewHeap[int]()
+	hp.Push(1)
+	hp.Push(2)
+	if err := json.Unmarshal([]byte("[7]"), hp); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got, want := hp.Len(), 1; got != want {
+		t.Errorf("Expected replacement, got length %d, want %d", got, want)
+	}
+
+	// An empty array and null clear the heap.
+	full := newTestHeap()
+	full.Push(TestHeapItem{S: "z"})
+	if err := json.Unmarshal([]byte("[]"), full); err != nil {
+		t.Fatalf("json.Unmarshal([]): %v", err)
+	}
+	if !full.IsEmpty() {
+		t.Errorf("Expected [] to clear the heap.")
+	}
+	full.Push(TestHeapItem{S: "z"})
+	if err := json.Unmarshal([]byte("null"), full); err != nil {
+		t.Fatalf("json.Unmarshal(null): %v", err)
+	}
+	if !full.IsEmpty() {
+		t.Errorf("Expected null to clear the heap.")
+	}
+	if full.data != nil {
+		t.Errorf("Expected nil backing array after clearing with null.")
+	}
+
+	// Element-level unmarshalers are honored.
+	custom := NewHeap[upperString]()
+	if err := json.Unmarshal([]byte(`["Y","X"]`), custom); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	var cs []string
+	for {
+		v, found := custom.Pop()
+		if !found {
+			break
+		}
+		cs = append(cs, string(v))
+	}
+	if fmt.Sprint(cs) != "[X Y]" {
+		t.Errorf("Expected [X Y], got %v", cs)
+	}
+
+	// Decode errors are returned and leave the heap untouched.
+	keep := newTestHeap()
+	keep.Push(TestHeapItem{S: "keep"})
+	for _, badData := range []string{"[1,", `[1]`, `{"S":"a"}`, "7", `[{"S":"a"},3]`} {
+		if err := json.Unmarshal([]byte(badData), keep); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", badData)
+		}
+		if got, want := keep.Len(), 1; got != want {
+			t.Errorf("Heap changed after the error on %s: length %d, want %d", badData, got, want)
+		}
+		if v, found := keep.Peek(); !found || v.S != "keep" {
+			t.Errorf("Heap changed after the error on %s: Peek = (%v, %v)", badData, v, found)
+		}
+	}
+}
+
+// TestUnmarshalJSONPanics verifies that UnmarshalJSON joins the insert
+// family: storing elements into a nil or zero-value heap panics with a
+// message naming the method and the fix, while [] and null — which
+// store nothing — are tolerated everywhere.
+func TestUnmarshalJSONPanics(t *testing.T) {
+	var zero Heap[TestHeapItem]
+	for _, data := range []string{"[]", "null"} {
+		if err := zero.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a zero-value heap to be tolerated, got %v", data, err)
+		}
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with elements to panic on a zero-value heap.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "NewHeap") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = zero.UnmarshalJSON([]byte(`[{"S":"a"}]`))
+	}()
+
+	var nilHeap *Heap[TestHeapItem]
+	if err := nilHeap.UnmarshalJSON([]byte("[]")); err != nil {
+		t.Errorf("Expected [] on a nil heap to be tolerated, got %v", err)
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with elements to panic on a nil heap.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "nil heap") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = nilHeap.UnmarshalJSON([]byte(`[{"S":"a"}]`))
+	}()
+}
+
+// TestJSONStructField marshals and unmarshals a Heap nested in a struct
+// through the encoding/json package.  The heap must be created with
+// NewHeap/NewHeapFunc before unmarshaling: for a nil *Heap field the json
+// package allocates a zero-value heap itself (no comparison function), so
+// non-empty data panics with the insert-family message.
+func TestJSONStructField(t *testing.T) {
+	type Doc struct {
+		Title string        `json:"title"`
+		Tags  *Heap[string] `json:"tags"`
+	}
+
+	d := Doc{Title: "pluto", Tags: NewHeap[string]()}
+	d.Tags.Push("go")
+	d.Tags.Push("ds")
+
+	b, err := json.Marshal(d)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if string(b) != `{"title":"pluto","tags":["ds","go"]}` {
+		t.Errorf("Unexpected document: %s", b)
+	}
+
+	// Unmarshal into a pre-created heap field.
+	var out Doc
+	out.Tags = NewHeap[string]()
+	if err := json.Unmarshal(b, &out); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got, want := out.Tags.Len(), 2; got != want {
+		t.Fatalf("Expected 2 tags, got %d", got)
+	}
+	if v, found := out.Tags.Peek(); !found || v != "ds" {
+		t.Errorf("Expected min tag ds, got (%q, %v)", v, found)
+	}
+
+	// A nil heap field marshals as null (the json package's own nil
+	// pointer rule); null clears a pre-created heap and never allocates.
+	if b, err := json.Marshal(Doc{Title: "x"}); err != nil || string(b) != `{"title":"x","tags":null}` {
+		t.Errorf("Unexpected null document: (%s, %v)", b, err)
+	}
+	clearDoc := Doc{Title: "x", Tags: NewHeap[string]()}
+	clearDoc.Tags.Push("gone")
+	if err := json.Unmarshal([]byte(`{"title":"x","tags":null}`), &clearDoc); err != nil {
+		t.Fatalf("json.Unmarshal with null tags: %v", err)
+	}
+	if !clearDoc.Tags.IsEmpty() {
+		t.Errorf("Expected null tags to clear the heap.")
+	}
+
+	// Non-empty data into a nil *Heap field: the json package allocates a
+	// zero-value heap, and the insert contract panics through
+	// json.Unmarshal (it does not recover panics).
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected unmarshaling into an uncreated heap field to panic.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "NewHeap") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		var bad Doc
+		_ = json.Unmarshal([]byte(`{"title":"x","tags":["a"]}`), &bad)
+	}()
+}
+
+// TestJSONRandomizedModel cross-checks marshaling and unmarshaling
+// against a multiset reference model at fixed seed: a round trip must
+// preserve the multiset exactly and produce a valid heap.
+func TestJSONRandomizedModel(t *testing.T) {
+	rng := rand.New(rand.NewPCG(20260902, 42))
+	const ops = 500
+	const keySpace = 100
+
+	hp := NewHeap[int]()
+	model := map[int]int{} // value -> count
+
+	for step := range ops {
+		switch rng.IntN(3) {
+		case 0, 1: // Push
+			v := rng.IntN(keySpace)
+			hp.Push(v)
+			model[v]++
+		case 2: // Pop
+			got, found := hp.Pop()
+			if len(model) == 0 {
+				if found {
+					t.Fatalf("step %d: Pop on empty reported true", step)
+				}
+			} else {
+				min := minKey(model)
+				if !found || got != min {
+					t.Fatalf("step %d: Pop = (%v, %v), model min %d", step, got, found, min)
+				}
+				model[min]--
+				if model[min] == 0 {
+					delete(model, min)
+				}
+			}
+		}
+
+		// Unmarshaling the marshaled heap into a fresh heap must preserve
+		// the multiset and the heap invariant.
+		gotJSON, err := json.Marshal(hp)
+		if err != nil {
+			t.Fatalf("step %d: %v", step, err)
+		}
+		if len(model) == 0 && string(gotJSON) != "[]" {
+			t.Fatalf("step %d: an empty heap must marshal as [], got %s", step, gotJSON)
+		}
+		fresh := NewHeap[int]()
+		if err := json.Unmarshal(gotJSON, fresh); err != nil {
+			t.Fatalf("step %d: %v", step, err)
+		}
+		checkHeapInvariant(t, fresh, Compare[int])
+		seen := map[int]int{}
+		var drained []int
+		for {
+			v, found := fresh.Pop()
+			if !found {
+				break
+			}
+			seen[v]++
+			drained = append(drained, v)
+		}
+		if !reflect.DeepEqual(seen, model) {
+			t.Fatalf("step %d: round-tripped multiset %v != model %v", step, seen, model)
+		}
+		if !sort.IntsAreSorted(drained) {
+			t.Fatalf("step %d: round-tripped heap drained out of order: %v", step, drained)
+		}
 	}
 }
 

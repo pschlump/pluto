@@ -14,7 +14,10 @@ BSD 3 Clause Licensed.
 package hash_tab_bt_ts_test
 
 import (
+	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/pschlump/pluto/hash_tab_bt_ts"
 )
@@ -104,4 +107,48 @@ func ExampleHashTab_Walk() {
 	fmt.Println("total:", total, "completed:", completed)
 	// Output:
 	// total: 11 completed: true
+}
+
+// MarshalJSON encodes the table as a JSON array of its elements in bucket
+// order — ascending within each bucket.  This example uses a constant hash
+// function so every element lands in one bucket and the output is the
+// deterministic ascending order; with NewHashTab the array order depends on
+// the per-table random seed.
+func ExampleHashTab_MarshalJSON() {
+	ht := hash_tab_bt_ts.NewHashTabFunc(
+		func(a, b string) int { return strings.Compare(a, b) },
+		func(s string) uint64 { return 7 }, // every key lands in one bucket
+		5,
+	)
+	ht.Insert("mid")
+	ht.Insert("head-old")
+	ht.Insert("tail-new")
+
+	b, err := json.Marshal(ht)
+	fmt.Println(string(b), err)
+	// Output:
+	// ["head-old","mid","tail-new"] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the table from a JSON array; the
+// comparison and hash functions are kept, so the table stays usable.  The
+// output is sorted for printing because bucket order is never asserted.
+func ExampleHashTab_UnmarshalJSON() {
+	ht := hash_tab_bt_ts.NewHashTab[string](8)
+	ht.Insert("stale")
+	if err := json.Unmarshal([]byte(`["gamma","alpha","beta"]`), ht); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	var got []string
+	for v := range ht.Values() {
+		got = append(got, v)
+	}
+	sort.Strings(got)
+	fmt.Println(got, "stale found:", func() bool {
+		_, found := ht.Search("stale")
+		return found
+	}())
+	// Output:
+	// [alpha beta gamma] stale found: false
 }

@@ -12,6 +12,7 @@ BSD 3 Clause Licensed.
 package skip_list_test
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/pschlump/pluto/skip_list"
@@ -216,4 +217,36 @@ func ExampleSkipList_Range() {
 	// 4 55
 	// count: 3
 	// removed: 3 leaving 3
+}
+
+// MarshalJSON encodes the list as a JSON array of its elements in
+// ascending order.
+func ExampleSkipList_MarshalJSON() {
+	list := skip_list.NewSkipList[int]()
+	list.Insert(3)
+	list.Insert(1)
+	list.Insert(2)
+
+	b, err := json.Marshal(list)
+	fmt.Println(string(b), err)
+	// Output:
+	// [1,2,3] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the list from a JSON array;
+// the list orders the decoded elements itself.
+func ExampleSkipList_UnmarshalJSON() {
+	list := skip_list.NewSkipList[string]()
+	if err := json.Unmarshal([]byte(`["c","a"]`), list); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	i := 0
+	for v := range list.All() {
+		fmt.Println(i, v)
+		i++
+	}
+	// Output:
+	// 0 a
+	// 1 c
 }

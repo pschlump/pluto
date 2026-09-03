@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package avl_tree_ts_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -283,4 +284,36 @@ func ExampleAvlTree_Minus() {
 	fmt.Println(got)
 	// Output:
 	// [1]
+}
+
+// MarshalJSON encodes the tree as a JSON array of its elements in
+// in-order (sorted) sequence, whatever the insertion order was.
+func ExampleAvlTree_MarshalJSON() {
+	tree := avl_tree_ts.NewAvlTree[int]()
+	tree.Insert(3)
+	tree.Insert(1)
+	tree.Insert(2)
+
+	b, err := json.Marshal(tree)
+	fmt.Println(string(b), err)
+	// Output:
+	// [1,2,3] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the tree from a JSON array;
+// the elements land in in-order (sorted) sequence.
+func ExampleAvlTree_UnmarshalJSON() {
+	tree := avl_tree_ts.NewAvlTree[string]()
+	if err := json.Unmarshal([]byte(`["pear","apple","fig"]`), tree); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for i := 0; i < tree.Len(); i++ {
+		v, _ := tree.Index(i)
+		fmt.Println(i, v)
+	}
+	// Output:
+	// 0 apple
+	// 1 fig
+	// 2 pear
 }

@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package binomial_queue_test
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/pschlump/pluto/binomial_queue"
@@ -120,4 +121,36 @@ func ExampleBinomialQueue_Truncate() {
 	// Output:
 	// 0 true
 	// 1
+}
+
+// MarshalJSON encodes the queue as a JSON array of its elements in
+// internal forest order (the order of All) — this is NOT sorted order.
+func ExampleBinomialQueue_MarshalJSON() {
+	q := binomial_queue.NewBinomialQueue[int]()
+	q.Insert(1)
+	q.Insert(2)
+	q.Insert(3)
+
+	b, err := json.Marshal(q)
+	fmt.Println(string(b), err)
+	// Output:
+	// [3,1,2] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the queue from a JSON array;
+// the comparison function is kept, so the rebuilt queue drains in sorted
+// order as usual.
+func ExampleBinomialQueue_UnmarshalJSON() {
+	q := binomial_queue.NewBinomialQueue[string]()
+	if err := json.Unmarshal([]byte(`["c","a","b"]`), q); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for q.Len() > 0 {
+		v, _ := q.DeleteMin()
+		fmt.Print(v, " ")
+	}
+	fmt.Println()
+	// Output:
+	// a b c
 }

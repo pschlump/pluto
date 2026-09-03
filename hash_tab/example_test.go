@@ -14,6 +14,7 @@ BSD 3 Clause Licensed.
 package hash_tab_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"sort"
@@ -118,4 +119,37 @@ func ExampleHashTab_Walk() {
 	fmt.Println("total:", total, "completed:", completed)
 	// Output:
 	// total: 11 completed: true
+}
+
+// MarshalJSON encodes the table as a JSON array of its elements in bucket
+// order.  Bucket order depends on the per-table hash seed, so it varies
+// from process to process — a hash table is a set and the array order
+// carries no meaning.  With a single element the output is fixed.
+func ExampleHashTab_MarshalJSON() {
+	ht := hash_tab.NewHashTab[string](8)
+	ht.Insert("alpha")
+
+	b, err := json.Marshal(ht)
+	fmt.Println(string(b), err)
+	// Output:
+	// ["alpha"] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the table from a JSON array; the
+// equality and hash functions are kept, so the table stays usable.  The
+// printed elements are sorted because bucket order is not stable.
+func ExampleHashTab_UnmarshalJSON() {
+	ht := hash_tab.NewHashTab[int](8)
+	if err := json.Unmarshal([]byte(`[3,1,2]`), ht); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	items := []int{}
+	for v := range ht.Values() {
+		items = append(items, v)
+	}
+	sort.Ints(items)
+	fmt.Println(items)
+	// Output:
+	// [1 2 3]
 }

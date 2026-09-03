@@ -218,6 +218,13 @@ func (tt *BinaryTree[T]) Insert(item T) (vv bool) {
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
 
+	return tt.nlInsert(item)
+}
+
+// nlInsert is Insert without locking and without the nil/cmp guards; the
+// caller must hold the write lock and the tree must have a comparison
+// function.
+func (tt *BinaryTree[T]) nlInsert(item T) (vv bool) {
 	node := &BinaryTreeElement[T]{data: item}
 	if tt.nlIsEmpty() {
 		tt.root = node

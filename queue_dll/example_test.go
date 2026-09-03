@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package queue_dll_test
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -126,4 +127,34 @@ func ExampleQueue_Truncate() {
 	// Output:
 	// 0 true
 	// 1
+}
+
+// MarshalJSON encodes the queue as a JSON array of its elements, head
+// (next to be dequeued) to tail.
+func ExampleQueue_MarshalJSON() {
+	var q queue_dll.Queue[int]
+	q.Push(3)
+	q.Push(1)
+	q.Push(2)
+
+	b, err := json.Marshal(&q)
+	fmt.Println(string(b), err)
+	// Output:
+	// [3,1,2] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the queue from a JSON array;
+// element 0 becomes the new head, the next element Dequeue returns.
+func ExampleQueue_UnmarshalJSON() {
+	var q queue_dll.Queue[string]
+	if err := json.Unmarshal([]byte(`["c","a"]`), &q); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for i, v := range q.All() {
+		fmt.Println(i, v)
+	}
+	// Output:
+	// 0 c
+	// 1 a
 }

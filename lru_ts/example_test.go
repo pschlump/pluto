@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package lru_ts_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -77,6 +78,36 @@ func ExampleNewLruFunc() {
 	fmt.Println()
 	// Output:
 	// z pinned
+}
+
+// MarshalJSON encodes the cache as a JSON array of key/value objects,
+// most recently used first.
+func ExampleLru_MarshalJSON() {
+	c := lru_ts.NewLru[string, int](4)
+	c.Put("a", 1)
+	c.Put("b", 2)
+	c.Get("a") // a hit marks "a" most-recently-used
+
+	b, err := json.Marshal(c)
+	fmt.Println(string(b), err)
+	// Output:
+	// [{"key":"a","value":1},{"key":"b","value":2}] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the cache from a JSON array of
+// key/value objects; element 0 becomes the most recently used entry.
+func ExampleLru_UnmarshalJSON() {
+	c := lru_ts.NewLru[string, int](4)
+	if err := json.Unmarshal([]byte(`[{"key":"c","value":3},{"key":"a","value":1}]`), c); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for k, v := range c.All() {
+		fmt.Println(k, v)
+	}
+	// Output:
+	// c 3
+	// a 1
 }
 
 // ExampleLru_Lock demonstrates the compound surface: a held Lock plus

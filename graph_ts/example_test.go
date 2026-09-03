@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package graph_ts_test
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/pschlump/pluto/graph_ts"
@@ -109,4 +110,41 @@ func ExampleNewCC() {
 	// component 3: 6 7
 	// 0 connected to 2: true
 	// 0 connected to 3: false
+}
+
+// MarshalJSON encodes the graph as a JSON object with the vertex list
+// and the edge list (each edge once, in canonical order).
+func ExampleGraph_MarshalJSON() {
+	g := graph_ts.NewGraph(3)
+	g.AddEdge(0, 2)
+	g.AddEdge(1, 2)
+
+	b, err := json.Marshal(g)
+	fmt.Println(string(b), err)
+	// Output:
+	// {"vertices":[0,1,2],"edges":[[0,2],[1,2]]} <nil>
+}
+
+// UnmarshalJSON replaces the contents of the graph from a JSON document,
+// resizing the vertex set to the vertex list.
+func ExampleGraph_UnmarshalJSON() {
+	g := graph_ts.NewGraph(2)
+	if err := json.Unmarshal([]byte(`{"vertices":[0,1,2,3],"edges":[[0,1],[1,2],[2,3]]}`), g); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println(g.V(), "vertices,", g.E(), "edges")
+	for v := 0; v < g.V(); v++ {
+		fmt.Printf("%d:", v)
+		for w := range g.Adj(v) {
+			fmt.Printf(" %d", w)
+		}
+		fmt.Println()
+	}
+	// Output:
+	// 4 vertices, 3 edges
+	// 0: 1
+	// 1: 0 2
+	// 2: 1 3
+	// 3: 2
 }

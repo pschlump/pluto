@@ -7,6 +7,7 @@ BSD 3 Clause Licensed.
 */
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand/v2"
 	"reflect"
@@ -788,6 +789,242 @@ func TestPQUpdatePriorityBothDirections(t *testing.T) {
 	if expect := []int{5, 20, 30, 90}; !reflect.DeepEqual(got, expect) {
 		t.Errorf("Drain got %v, want %v", got, expect)
 	}
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+// PqJSONItem is the JSON test element type; its fields are exported so
+// the encoding/json package can round-trip them.
+type PqJSONItem struct {
+	Value    string
+	Priority int
+}
+
+// cmpPqJSONItem orders PqJSONItem by its Priority field.
+func cmpPqJSONItem(a, b PqJSONItem) int {
+	return a.Priority - b.Priority
+}
+
+// pqAllInts collects an int queue's elements via All (priority order).
+func pqAllInts(pq *PriorityQueue[int]) []int {
+	var got []int
+	for v := range pq.All() {
+		got = append(got, v)
+	}
+	return got
+}
+
+func TestMarshalJSON(t *testing.T) {
+	// Exact array output in priority order, minimum first — the
+	// insertion order does not survive the heap.
+	pq := NewPriorityQueue[int]()
+	for _, v := range []int{3, 1, 2} {
+		pq.Insert(v)
+	}
+	b, err := json.Marshal(pq)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if string(b) != "[1,2,3]" {
+		t.Errorf("Expected [1,2,3], got %s", b)
+	}
+
+	// Struct elements use their normal JSON encoding.
+	items := NewPriorityQueueFunc(cmpPqJSONItem)
+	items.Insert(PqJSONItem{Value: "b", Priority: 2})
+	items.Insert(PqJSONItem{Value: "a", Priority: 1})
+	if b, err := json.Marshal(items); err != nil || string(b) != `[{"Value":"a","Priority":1},{"Value":"b","Priority":2}]` {
+		t.Errorf("Unexpected struct encoding: (%s, %v)", b, err)
+	}
+
+	// An empty queue encodes as [].
+	if b, err := json.Marshal(NewPriorityQueue[int]()); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for an empty queue, got (%s, %v)", b, err)
+	}
+
+	// A zero-value queue is a tolerated read: [].
+	var zero PriorityQueue[int]
+	if b, err := zero.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for a zero-value queue, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil queue encodes as []; json.Marshal on a nil
+	// *PriorityQueue never reaches the method — the json package writes
+	// null for nil pointers itself.
+	var nilPQ *PriorityQueue[int]
+	if b, err := nilPQ.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] from a direct nil-queue call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilPQ); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil queue, got (%s, %v)", b, err)
+	}
+
+	// Marshaling must not drain the queue.
+	if pq.Len() != 3 {
+		t.Errorf("MarshalJSON changed the length to %d.", pq.Len())
+	}
+
+	// Element-level marshaling errors propagate unchanged.
+	bad := NewPriorityQueueFunc(func(a, b chan int) int { return 0 })
+	bad.Insert(make(chan int))
+	if _, err := json.Marshal(bad); err == nil {
+		t.Errorf("Expected an error marshaling a queue of channels.")
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	// The decoded elements replace the contents; they come back out in
+	// priority order regardless of the array order.
+	pq := NewPriorityQueue[int]()
+	if err := json.Unmarshal([]byte("[3,1,2]"), pq); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got, expect := pqAllInts(pq), []int{1, 2, 3}; !reflect.DeepEqual(got, expect) {
+		t.Errorf("All got %v, want %v", got, expect)
+	}
+
+	// Round-trip: marshal, unmarshal into a fresh queue, same order.
+	b, err := json.Marshal(pq)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	rt := NewPriorityQueue[int]()
+	if err := json.Unmarshal(b, rt); err != nil {
+		t.Fatalf("json.Unmarshal round-trip: %v", err)
+	}
+	if got, expect := pqAllInts(rt), []int{1, 2, 3}; !reflect.DeepEqual(got, expect) {
+		t.Errorf("Round-trip All got %v, want %v", got, expect)
+	}
+
+	// Unmarshaling replaces, not appends.
+	if err := json.Unmarshal([]byte("[9,7]"), pq); err != nil {
+		t.Fatalf("json.Unmarshal replace: %v", err)
+	}
+	if got, expect := pqAllInts(pq), []int{7, 9}; !reflect.DeepEqual(got, expect) {
+		t.Errorf("After replace All got %v, want %v", got, expect)
+	}
+
+	// The comparison function is kept: the queue stays usable.
+	pq.Insert(5)
+	if got, expect := pqAllInts(pq), []int{5, 7, 9}; !reflect.DeepEqual(got, expect) {
+		t.Errorf("After Insert All got %v, want %v", got, expect)
+	}
+
+	// null and [] clear the queue.
+	for _, data := range []string{"null", "[]"} {
+		if err := json.Unmarshal([]byte(data), pq); err != nil {
+			t.Fatalf("json.Unmarshal(%s): %v", data, err)
+		}
+		if !pq.IsEmpty() {
+			t.Errorf("Expected empty queue after unmarshaling %s.", data)
+		}
+	}
+
+	// Struct elements round-trip through their normal JSON encoding.
+	items := NewPriorityQueueFunc(cmpPqJSONItem)
+	if err := json.Unmarshal([]byte(`[{"Value":"b","Priority":2},{"Value":"a","Priority":1}]`), items); err != nil {
+		t.Fatalf("json.Unmarshal struct: %v", err)
+	}
+	if v, found := items.Peek(); !found || v.Value != "a" || v.Priority != 1 {
+		t.Errorf("Peek after struct unmarshal = (%v, %v), want {a 1}", v, found)
+	}
+}
+
+// TestUnmarshalJSONDecodeError verifies that a decode error is returned
+// with the queue untouched.
+func TestUnmarshalJSONDecodeError(t *testing.T) {
+	pq := NewPriorityQueue[int]()
+	for _, v := range []int{1, 2, 3} {
+		pq.Insert(v)
+	}
+	for _, data := range []string{
+		"not json",  // malformed
+		`{"a":1}`,   // not an array
+		`[1,"x",3]`, // wrong element type
+		`[1,2`,      // truncated
+	} {
+		if err := json.Unmarshal([]byte(data), pq); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", data)
+		}
+	}
+	if got, expect := pqAllInts(pq), []int{1, 2, 3}; !reflect.DeepEqual(got, expect) {
+		t.Errorf("Queue changed by decode errors: All got %v, want %v", got, expect)
+	}
+}
+
+// TestUnmarshalJSONPanics verifies that UnmarshalJSON joins the insert
+// family: storing elements into a nil or zero-value queue panics with a
+// message naming the method and the fix, while [] and null — which
+// store nothing — are tolerated everywhere.
+func TestUnmarshalJSONPanics(t *testing.T) {
+	var zero PriorityQueue[int]
+	for _, data := range []string{"[]", "null"} {
+		if err := zero.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a zero-value queue to be tolerated, got %v", data, err)
+		}
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with elements to panic on a zero-value queue.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "NewPriorityQueue") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = zero.UnmarshalJSON([]byte("[1]"))
+	}()
+
+	var nilPQ *PriorityQueue[int]
+	if err := nilPQ.UnmarshalJSON([]byte("[]")); err != nil {
+		t.Errorf("Expected [] on a nil queue to be tolerated, got %v", err)
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with elements to panic on a nil queue.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "nil or zero-value queue") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = nilPQ.UnmarshalJSON([]byte("[1]"))
+	}()
+}
+
+// TestJSONConcurrent exercises MarshalJSON/UnmarshalJSON alongside
+// concurrent queue operations; run with the race detector (`make race`).
+func TestJSONConcurrent(t *testing.T) {
+	pq := NewPriorityQueue[int]()
+	for i := range 100 {
+		pq.Insert(i)
+	}
+
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Go(func() {
+			for range 100 {
+				if _, err := json.Marshal(pq); err != nil {
+					t.Errorf("json.Marshal: %v", err)
+				}
+			}
+		})
+	}
+	for range 2 {
+		wg.Go(func() {
+			for range 50 {
+				pq.Insert(7)
+				pq.Pop()
+			}
+		})
+	}
+	wg.Wait()
 }
 
 // -------------------------------------------------------------------------------------------------------

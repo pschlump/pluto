@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package avl_tree_test
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/pschlump/pluto/avl_tree"
@@ -259,4 +260,37 @@ func ExampleAvlTree_Minus() {
 	fmt.Println(got)
 	// Output:
 	// [1]
+}
+
+// MarshalJSON encodes the tree as a JSON array of its elements in
+// in-order (ascending) order, whatever the insertion order was.
+func ExampleAvlTree_MarshalJSON() {
+	tree := avl_tree.NewAvlTree[int]()
+	tree.Insert(3)
+	tree.Insert(1)
+	tree.Insert(2)
+
+	b, err := json.Marshal(tree)
+	fmt.Println(string(b), err)
+	// Output:
+	// [1,2,3] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the tree from a JSON array; the
+// elements end up sorted in in-order order regardless of the array order.
+func ExampleAvlTree_UnmarshalJSON() {
+	tree := avl_tree.NewAvlTree[string]()
+	if err := json.Unmarshal([]byte(`["c","a","b"]`), tree); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	i := 0
+	for v := range tree.All() {
+		fmt.Println(i, v)
+		i++
+	}
+	// Output:
+	// 0 a
+	// 1 b
+	// 2 c
 }

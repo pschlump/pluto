@@ -14,6 +14,7 @@ BSD 3 Clause Licensed.
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -483,6 +484,369 @@ func TestRandomizedModel(t *testing.T) {
 	}
 	if !ht.IsEmpty() || ht.Len() != 0 {
 		t.Fatalf("Table should be empty after drain, got length %d", ht.Len())
+	}
+	checkInvariants(t, ht)
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+// upperString is a string with its own JSON representation, to verify
+// that element-level marshalers are honored through the table.
+type upperString string
+
+func (u upperString) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + strings.ToUpper(string(u)) + `"`), nil
+}
+
+func (u *upperString) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	*u = upperString(s)
+	return nil
+}
+
+// keysOf returns the set of keys currently in the table, for
+// order-independent comparison (bucket order is hash dependent).
+func keysOf(ht *HashTab[TestData]) map[string]TestData {
+	got := make(map[string]TestData, ht.Len())
+	for item := range ht.Values() {
+		got[item.S] = item
+	}
+	return got
+}
+
+func TestMarshalJSON(t *testing.T) {
+	// Exact array output with a constant hash: every element chains in one
+	// bucket, newest first (the bucket lists run head-newest to
+	// tail-oldest).
+	oneBucket := NewHashTabFunc(
+		func(a, b string) bool { return a == b },
+		func(s string) uint64 { return 7 },
+		5,
+	)
+	for _, v := range []string{"a", "b", "c"} {
+		oneBucket.Insert(v)
+	}
+	b, err := json.Marshal(oneBucket)
+	if err != nil {
+		t.Fatalf("json.Marshal(oneBucket): %v", err)
+	}
+	if string(b) != `["c","b","a"]` {
+		t.Errorf(`Expected ["c","b","a"], got %s`, b)
+	}
+
+	// Struct elements use their normal JSON encoding.
+	structs := NewHashTabFunc(
+		func(a, b TestData) bool { return a.S == b.S },
+		func(v TestData) uint64 { return 7 },
+		5,
+	)
+	structs.Insert(TestData{S: "a", N: 1})
+	structs.Insert(TestData{S: "b", N: 2})
+	if b, err := json.Marshal(structs); err != nil || string(b) != `[{"S":"b","N":2},{"S":"a","N":1}]` {
+		t.Errorf(`Expected [{"S":"b","N":2},{"S":"a","N":1}], got (%s, %v)`, b, err)
+	}
+
+	// A general table marshals as the set of its elements (order varies).
+	tab := newTestTab(7)
+	for _, s := range []string{"x", "y", "z"} {
+		tab.Insert(TestData{S: s, N: len(s)})
+	}
+	var decoded []TestData
+	b, err = json.Marshal(tab)
+	if err != nil {
+		t.Fatalf("json.Marshal(tab): %v", err)
+	}
+	if err := json.Unmarshal(b, &decoded); err != nil {
+		t.Fatalf("json.Unmarshal of the table encoding: %v", err)
+	}
+	if len(decoded) != 3 {
+		t.Errorf("Expected 3 elements in the encoding, got %d", len(decoded))
+	}
+
+	// An empty table encodes as [].
+	if b, err := json.Marshal(newTestTab(7)); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for an empty table, got (%s, %v)", b, err)
+	}
+
+	// A zero-value table is a tolerated read: [].
+	var zero HashTab[int]
+	if b, err := zero.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for a zero-value table, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil table encodes as []; json.Marshal on a nil
+	// *HashTab never reaches the method — the json package writes null for
+	// nil pointers itself.
+	var nilTable *HashTab[int]
+	if b, err := nilTable.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] from a direct nil-table call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilTable); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil table, got (%s, %v)", b, err)
+	}
+
+	// Element-level marshalers are honored.
+	custom := NewHashTab[upperString](7)
+	custom.Insert("x")
+	custom.Insert("y")
+	var customDecoded []string
+	cb, err := json.Marshal(custom)
+	if err != nil {
+		t.Fatalf("json.Marshal(custom): %v", err)
+	}
+	if err := json.Unmarshal(cb, &customDecoded); err != nil {
+		t.Fatalf("json.Unmarshal of the custom encoding: %v", err)
+	}
+	upper := map[string]bool{}
+	for _, s := range customDecoded {
+		upper[s] = true
+	}
+	if len(customDecoded) != 2 || !upper["X"] || !upper["Y"] {
+		t.Errorf(`Expected the custom encoding to hold "X" and "Y", got %s`, cb)
+	}
+
+	// Encoding errors pass through unchanged.
+	bad := NewHashTab[chan int](7)
+	bad.Insert(make(chan int))
+	if _, err := json.Marshal(bad); err == nil {
+		t.Errorf("Expected an error marshaling a table of channels.")
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	// Decoded elements replace the contents; Search works on the rebuilt
+	// table (the equality/hash functions are kept).
+	tab := newTestTab(7)
+	tab.Insert(TestData{S: "stale", N: -1})
+	if err := json.Unmarshal([]byte(`[{"S":"a","N":1},{"S":"b","N":2},{"S":"c","N":3}]`), tab); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got, want := tab.Len(), 3; got != want {
+		t.Errorf("Expected replacement with 3 elements, got length %d", got)
+	}
+	if _, found := tab.Search(TestData{S: "stale"}); found {
+		t.Errorf("Unmarshal should replace the contents, stale is still present")
+	}
+	for _, want := range []TestData{{S: "a", N: 1}, {S: "b", N: 2}, {S: "c", N: 3}} {
+		el, found := tab.Search(TestData{S: want.S})
+		if !found || el.GetData() != want {
+			t.Errorf("Expected Search to find %v after unmarshal, got found=%v", want, found)
+		}
+	}
+	checkInvariants(t, tab)
+
+	// A round trip preserves the set.
+	full := newTestTab(7)
+	for i := range 25 {
+		full.Insert(TestData{S: fmt.Sprintf("rt%03d", i), N: i})
+	}
+	b, err := json.Marshal(full)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	again := newTestTab(7)
+	if err := json.Unmarshal(b, again); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got, want := fmt.Sprint(keysOf(again)), fmt.Sprint(keysOf(full)); got != want {
+		t.Errorf("Round trip mismatch: got %s, want %s", got, want)
+	}
+	checkInvariants(t, again)
+
+	// Elements equal under the equality function collapse; the last one in
+	// the array wins (the Insert replacement rule).
+	dup := newTestTab(7)
+	if err := json.Unmarshal([]byte(`[{"S":"k","N":1},{"S":"k","N":2}]`), dup); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if el, found := dup.Search(TestData{S: "k"}); !found || dup.Len() != 1 || el.GetData().N != 2 {
+		t.Errorf("Expected the duplicate to collapse to N=2, got len=%d found=%v", dup.Len(), found)
+	}
+
+	// An empty array and null clear the table.
+	clearTab := newTestTab(7)
+	clearTab.Insert(TestData{S: "z"})
+	if err := json.Unmarshal([]byte("[]"), clearTab); err != nil {
+		t.Fatalf("json.Unmarshal([]): %v", err)
+	}
+	if !clearTab.IsEmpty() {
+		t.Errorf("Expected [] to clear the table.")
+	}
+	clearTab.Insert(TestData{S: "z"})
+	if err := json.Unmarshal([]byte("null"), clearTab); err != nil {
+		t.Fatalf("json.Unmarshal(null): %v", err)
+	}
+	if !clearTab.IsEmpty() {
+		t.Errorf("Expected null to clear the table.")
+	}
+	checkInvariants(t, clearTab)
+
+	// Element-level unmarshalers are honored.
+	custom := NewHashTab[upperString](7)
+	if err := json.Unmarshal([]byte(`["X","Y"]`), custom); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if _, found := custom.Search("X"); !found {
+		t.Errorf(`Expected to find "X" after unmarshal`)
+	}
+	if _, found := custom.Search("Y"); !found {
+		t.Errorf(`Expected to find "Y" after unmarshal`)
+	}
+
+	// Decode errors are returned and leave the table untouched.
+	keep := newTestTab(7)
+	keep.Insert(TestData{S: "keep"})
+	for _, badData := range []string{"[1,", `["x"]`, `{"S":"a"}`, "7", `[{"S":"a"},3]`} {
+		if err := json.Unmarshal([]byte(badData), keep); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", badData)
+		}
+		if el, found := keep.Search(TestData{S: "keep"}); !found || keep.Len() != 1 || el.GetData().S != "keep" {
+			t.Errorf("Table changed after the error on %s", badData)
+		}
+	}
+	checkInvariants(t, keep)
+}
+
+// TestUnmarshalJSONPanics verifies that UnmarshalJSON joins the insert
+// family: storing elements into a nil or zero-value table panics with a
+// message naming the method and the fix, while [] and null — which store
+// nothing — are tolerated everywhere.
+func TestUnmarshalJSONPanics(t *testing.T) {
+	var zero HashTab[TestData]
+	for _, data := range []string{"[]", "null"} {
+		if err := zero.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a zero-value table to be tolerated, got %v", data, err)
+		}
+	}
+	expectPanicMessage(t, "UnmarshalJSON on zero value", "UnmarshalJSON",
+		func() { _ = zero.UnmarshalJSON([]byte(`[{"S":"a"}]`)) })
+	expectPanicMessage(t, "UnmarshalJSON on zero value", "NewHashTab",
+		func() { _ = zero.UnmarshalJSON([]byte(`[{"S":"a"}]`)) })
+
+	var nilTable *HashTab[TestData]
+	if err := nilTable.UnmarshalJSON([]byte("[]")); err != nil {
+		t.Errorf("Expected [] on a nil table to be tolerated, got %v", err)
+	}
+	expectPanicMessage(t, "UnmarshalJSON on nil table", "UnmarshalJSON",
+		func() { _ = nilTable.UnmarshalJSON([]byte(`[{"S":"a"}]`)) })
+	expectPanicMessage(t, "UnmarshalJSON on nil table", "nil table",
+		func() { _ = nilTable.UnmarshalJSON([]byte(`[{"S":"a"}]`)) })
+}
+
+// TestJSONStructField marshals and unmarshals a HashTab nested in a struct
+// through the encoding/json package.  The table must be created with
+// NewHashTab/NewHashTabFunc before unmarshaling: for a nil *HashTab field
+// the json package allocates a zero-value table itself (no equality/hash
+// functions), so non-empty data panics with the insert-family message.
+func TestJSONStructField(t *testing.T) {
+	type Doc struct {
+		Title string             `json:"title"`
+		Tags  *HashTab[TestData] `json:"tags"`
+	}
+
+	d := Doc{Title: "pluto", Tags: newTestTab(7)}
+	d.Tags.Insert(TestData{S: "ds"})
+	d.Tags.Insert(TestData{S: "go"})
+
+	b, err := json.Marshal(d)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	var raw struct {
+		Title string     `json:"title"`
+		Tags  []TestData `json:"tags"`
+	}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		t.Fatalf("json.Unmarshal of the document: %v", err)
+	}
+	if raw.Title != "pluto" || len(raw.Tags) != 2 {
+		t.Errorf("Unexpected document: %s", b)
+	}
+
+	// Unmarshal into a pre-created table field.
+	var out Doc
+	out.Tags = newTestTab(7)
+	if err := json.Unmarshal(b, &out); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if _, found := out.Tags.Search(TestData{S: "ds"}); !found {
+		t.Errorf(`Expected to find "ds" after unmarshal`)
+	}
+	if _, found := out.Tags.Search(TestData{S: "go"}); !found {
+		t.Errorf(`Expected to find "go" after unmarshal`)
+	}
+
+	// A nil table field marshals as null (the json package's own nil
+	// pointer rule); null clears a pre-created table and never allocates.
+	if b, err := json.Marshal(Doc{Title: "x"}); err != nil || string(b) != `{"title":"x","tags":null}` {
+		t.Errorf("Unexpected null document: (%s, %v)", b, err)
+	}
+	clearDoc := Doc{Title: "x", Tags: newTestTab(7)}
+	clearDoc.Tags.Insert(TestData{S: "gone"})
+	if err := json.Unmarshal([]byte(`{"title":"x","tags":null}`), &clearDoc); err != nil {
+		t.Fatalf("json.Unmarshal with null tags: %v", err)
+	}
+	if !clearDoc.Tags.IsEmpty() {
+		t.Errorf("Expected null tags to clear the table.")
+	}
+
+	// Non-empty data into a nil *HashTab field: the json package allocates
+	// a zero-value table, and the insert contract panics through
+	// json.Unmarshal (it does not recover panics).
+	expectPanicMessage(t, "Unmarshal into an uncreated table field", "NewHashTab",
+		func() {
+			var bad Doc
+			_ = json.Unmarshal([]byte(`{"title":"x","tags":[{"S":"a"}]}`), &bad)
+		})
+}
+
+// TestJSONRandomizedModel cross-checks marshaling and unmarshaling against
+// a map reference model at fixed seed: after every operation the table is
+// marshaled, decoded into a fresh table, and the fresh table must hold
+// exactly the model's key set with the latest satellite values.
+func TestJSONRandomizedModel(t *testing.T) {
+	rng := rand.New(rand.NewSource(12345)) // fixed seed: deterministic run
+	ht := newTestTab(7)
+	model := make(map[string]int) // key -> satellite value of the latest insert
+
+	key := func(i int) string { return fmt.Sprintf("j%05d", i) }
+
+	for op := range 2000 {
+		k := key(rng.Intn(300))
+		switch rng.Intn(4) {
+		case 0, 1, 2: // insert (weighted heavier)
+			model[k] = op
+			ht.Insert(TestData{S: k, N: op})
+		case 3: // delete
+			delete(model, k)
+			ht.Delete(TestData{S: k})
+		}
+
+		data, err := json.Marshal(ht)
+		if err != nil {
+			t.Fatalf("op %d: json.Marshal: %v", op, err)
+		}
+		fresh := newTestTab(7)
+		if err := json.Unmarshal(data, fresh); err != nil {
+			t.Fatalf("op %d: json.Unmarshal: %v", op, err)
+		}
+		if fresh.Len() != len(model) {
+			t.Fatalf("op %d: round-tripped table has %d elements, model has %d", op, fresh.Len(), len(model))
+		}
+		for mk, mn := range model {
+			el, found := fresh.Search(TestData{S: mk})
+			if !found {
+				t.Fatalf("op %d: round-tripped table missing %q", op, mk)
+			}
+			if el.GetData().N != mn {
+				t.Fatalf("op %d: round-tripped %q has satellite %d, want %d", op, mk, el.GetData().N, mn)
+			}
+		}
 	}
 	checkInvariants(t, ht)
 }

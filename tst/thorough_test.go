@@ -7,6 +7,7 @@ BSD 3 Clause Licensed.
 */
 
 import (
+	"encoding/json"
 	"math/rand"
 	"slices"
 	"strings"
@@ -261,6 +262,278 @@ func TestTstRandomizedModel(t *testing.T) {
 	}
 	if !tt.IsEmpty() || tt.root != nil {
 		t.Fatalf("Expected an empty, fully pruned trie after the drain, IsEmpty()=%v root=%v", tt.IsEmpty(), tt.root != nil)
+	}
+	checkInvariants(t, &tt)
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+// upperString is a string with its own JSON representation, to verify
+// that value-level marshalers are honored through the trie.
+type upperString string
+
+func (u upperString) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + strings.ToUpper(string(u)) + `"`), nil
+}
+
+func (u *upperString) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	*u = upperString(s)
+	return nil
+}
+
+func TestMarshalJSON(t *testing.T) {
+	// Exact object output, keys ascending regardless of insert order.
+	var tt Tst[int]
+	for i, key := range []string{"shells", "she", "sea", "by"} {
+		tt.Insert(key, i)
+	}
+	b, err := json.Marshal(&tt)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if string(b) != `{"by":3,"sea":2,"she":1,"shells":0}` {
+		t.Errorf("Expected ascending-key object, got %s", b)
+	}
+
+	// Values use their normal JSON encoding, including a value type
+	// with its own MarshalJSON.
+	var custom Tst[upperString]
+	custom.Insert("k", upperString("ab"))
+	if b, err := json.Marshal(&custom); err != nil || string(b) != `{"k":"AB"}` {
+		t.Errorf("Expected value-level MarshalJSON to be honored, got (%s, %v)", b, err)
+	}
+
+	// An empty trie is {}.
+	var empty Tst[int]
+	if b, err := json.Marshal(&empty); err != nil || string(b) != "{}" {
+		t.Errorf("Expected {} for an empty trie, got (%s, %v)", b, err)
+	}
+
+	// A zero-value trie is a tolerated read: {}.
+	var zero Tst[int]
+	if b, err := zero.MarshalJSON(); err != nil || string(b) != "{}" {
+		t.Errorf("Expected {} for a zero-value trie, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil trie encodes as {}; json.Marshal on a nil
+	// *Tst never reaches the method — the json package writes null for
+	// nil pointers itself.
+	var nilTst *Tst[int]
+	if b, err := nilTst.MarshalJSON(); err != nil || string(b) != "{}" {
+		t.Errorf("Expected {} from a direct nil-trie call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilTst); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil trie, got (%s, %v)", b, err)
+	}
+
+	// A value the json package cannot encode surfaces its error.
+	var bad Tst[chan int]
+	bad.Insert("k", make(chan int))
+	if _, err := json.Marshal(&bad); err == nil {
+		t.Errorf("Expected an error marshaling a trie of channels.")
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	// Decoded pairs become the trie's contents.
+	var tt Tst[int]
+	if err := json.Unmarshal([]byte(`{"she":1,"sea":6,"by":4}`), &tt); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if tt.Length() != 3 {
+		t.Fatalf("Expected Length()=3, got %d", tt.Length())
+	}
+	for key, want := range map[string]int{"she": 1, "sea": 6, "by": 4} {
+		if got, ok := tt.Search(key); !ok || got != want {
+			t.Errorf("Expected Search(%q)=(%d, true), got (%d, %v)", key, want, got, ok)
+		}
+	}
+	checkInvariants(t, &tt)
+
+	// Unmarshaling replaces the current contents rather than merging.
+	if err := json.Unmarshal([]byte(`{"new":9}`), &tt); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if tt.Length() != 1 || tt.Contains("she") {
+		t.Errorf("Expected the contents to be replaced, Length()=%d Contains(\"she\")=%v", tt.Length(), tt.Contains("she"))
+	}
+	if got, ok := tt.Search("new"); !ok || got != 9 {
+		t.Errorf("Expected Search(\"new\")=(9, true), got (%d, %v)", got, ok)
+	}
+
+	// The zero value unmarshals directly — there are no constructors.
+	var zero Tst[int]
+	if err := json.Unmarshal([]byte(`{"go":1}`), &zero); err != nil {
+		t.Fatalf("json.Unmarshal into the zero value: %v", err)
+	}
+	if got, ok := zero.Search("go"); !ok || got != 1 {
+		t.Errorf("Expected Search(\"go\")=(1, true) on the zero value, got (%d, %v)", got, ok)
+	}
+
+	// Value-level UnmarshalJSON is honored.
+	var custom Tst[upperString]
+	if err := json.Unmarshal([]byte(`{"k":"ab"}`), &custom); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got, ok := custom.Search("k"); !ok || got != upperString("ab") {
+		t.Errorf("Expected Search(\"k\")=(\"ab\", true), got (%q, %v)", got, ok)
+	}
+
+	// {} and null clear the trie and store nothing.
+	for _, data := range []string{"{}", "null"} {
+		if err := json.Unmarshal([]byte(data), &tt); err != nil {
+			t.Fatalf("json.Unmarshal(%s): %v", data, err)
+		}
+		if !tt.IsEmpty() || tt.Length() != 0 || tt.root != nil {
+			t.Errorf("Expected %s to clear the trie, Length()=%d root=%v", data, tt.Length(), tt.root != nil)
+		}
+	}
+
+	// The empty key is dropped, matching Insert's rejection of it.
+	var ek Tst[int]
+	if err := json.Unmarshal([]byte(`{"":7,"a":1}`), &ek); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if ek.Length() != 1 || !ek.Contains("a") {
+		t.Errorf("Expected the empty key to be dropped and \"a\" kept, Length()=%d", ek.Length())
+	}
+	checkInvariants(t, &ek)
+
+	// Decode errors leave the trie untouched.
+	var keep Tst[int]
+	keep.Insert("she", 1)
+	keep.Insert("sea", 6)
+	for _, data := range []string{
+		`{`,                   // malformed
+		`[1,2]`,               // not an object
+		`{"she":"x"}`,         // wrong value type
+		`{"she":1,"sea":"y"}`, // partially wrong value type
+		`{"she":1`,            // truncated
+	} {
+		if err := json.Unmarshal([]byte(data), &keep); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", data)
+		}
+	}
+	if keep.Length() != 2 {
+		t.Fatalf("Decode errors changed Length(): expected 2, got %d", keep.Length())
+	}
+	for key, want := range map[string]int{"she": 1, "sea": 6} {
+		if got, ok := keep.Search(key); !ok || got != want {
+			t.Errorf("After decode errors: expected Search(%q)=(%d, true), got (%d, %v)", key, want, got, ok)
+		}
+	}
+	checkInvariants(t, &keep)
+}
+
+// TestUnmarshalJSONPanics verifies that UnmarshalJSON joins the insert
+// family: storing values into a nil trie panics with the package's
+// insert-contract wording, while {} and null — which store nothing —
+// are tolerated even on a nil trie.  The zero value never panics: it is
+// fully usable, so storing into it works.
+func TestUnmarshalJSONPanics(t *testing.T) {
+	var nilTst *Tst[int]
+	for _, data := range []string{"{}", "null"} {
+		if err := nilTst.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a nil trie to be tolerated, got %v", data, err)
+		}
+	}
+	expectPanic(t, "UnmarshalJSON on a nil *Tst", "tst: UnmarshalJSON called on a nil Tst", func() {
+		_ = nilTst.UnmarshalJSON([]byte(`{"a":1}`))
+	})
+
+	var zero Tst[int]
+	if err := zero.UnmarshalJSON([]byte(`{"a":1}`)); err != nil {
+		t.Errorf("Expected unmarshaling into the zero value to work, got %v", err)
+	}
+	if !zero.Contains("a") {
+		t.Errorf("Expected the zero value to hold \"a\" after unmarshaling.")
+	}
+}
+
+// TestJSONRandomizedModel cross-checks marshaling and unmarshaling
+// against a map[string]int reference model at fixed seed: after random
+// edits the trie's JSON must decode to exactly the model, and decoding
+// a random object into the trie must give the trie exactly that object's
+// pairs.
+func TestJSONRandomizedModel(t *testing.T) {
+	rng := rand.New(rand.NewSource(42)) // fixed seed: deterministic run
+
+	const alphabet = "abcd"
+	randKey := func() string {
+		n := 1 + rng.Intn(6)
+		var sb strings.Builder
+		for range n {
+			sb.WriteByte(alphabet[rng.Intn(len(alphabet))])
+		}
+		return sb.String()
+	}
+
+	var tt Tst[int]
+	model := make(map[string]int)
+
+	for step := range 200 {
+		key := randKey()
+		if rng.Intn(3) == 0 {
+			delete(model, key)
+			tt.Delete(key)
+		} else {
+			value := rng.Intn(10000)
+			model[key] = value
+			tt.Insert(key, value)
+		}
+
+		if step%17 != 0 {
+			continue
+		}
+
+		// Marshal and decode with the plain json package: the result
+		// must be exactly the model.
+		b, err := json.Marshal(&tt)
+		if err != nil {
+			t.Fatalf("step %d: json.Marshal: %v", step, err)
+		}
+		got := make(map[string]int)
+		if err := json.Unmarshal(b, &got); err != nil {
+			t.Fatalf("step %d: json.Unmarshal of the marshaled trie: %v", step, err)
+		}
+		if len(got) != len(model) {
+			t.Fatalf("step %d: marshaled trie has %d keys, model has %d", step, len(got), len(model))
+		}
+		for key, want := range model {
+			if v, ok := got[key]; !ok || v != want {
+				t.Fatalf("step %d: marshaled trie has %q=(%d, %v), model has (%d, true)", step, key, v, ok, want)
+			}
+		}
+
+		// Decode a random object into a fresh zero-value trie: the trie
+		// must hold exactly the object's pairs.
+		fresh := make(map[string]int, 1+rng.Intn(8))
+		for range len(fresh) + rng.Intn(4) {
+			fresh[randKey()] = rng.Intn(10000)
+		}
+		b, err = json.Marshal(fresh)
+		if err != nil {
+			t.Fatalf("step %d: json.Marshal of the model: %v", step, err)
+		}
+		var decoded Tst[int]
+		if err := json.Unmarshal(b, &decoded); err != nil {
+			t.Fatalf("step %d: json.Unmarshal into a fresh trie: %v", step, err)
+		}
+		if decoded.Length() != len(fresh) {
+			t.Fatalf("step %d: decoded Length()=%d, object has %d keys", step, decoded.Length(), len(fresh))
+		}
+		for key, want := range fresh {
+			if v, ok := decoded.Search(key); !ok || v != want {
+				t.Fatalf("step %d: decoded Search(%q)=(%d, %v), object has (%d, true)", step, key, v, ok, want)
+			}
+		}
+		checkInvariants(t, &decoded)
 	}
 	checkInvariants(t, &tt)
 }

@@ -12,6 +12,7 @@ BSD 3 Clause Licensed.
 // sorted-slice model.
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand/v2"
 	"reflect"
@@ -776,5 +777,367 @@ func TestTreeConcurrentSetOps(t *testing.T) {
 
 	if a.Length() != 50 || b.Length() != 50 {
 		t.Errorf("Sources changed by concurrent set operations: a=%d b=%d", a.Length(), b.Length())
+	}
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+// upperString is a string with its own JSON representation, to verify
+// that element-level marshalers are honored through the tree.
+type upperString string
+
+func (u upperString) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + strings.ToUpper(string(u)) + `"`), nil
+}
+
+func (u *upperString) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	*u = upperString(s)
+	return nil
+}
+
+func TestMarshalJSON(t *testing.T) {
+	// Exact array output in in-order (sorted) sequence, whatever the
+	// insertion order was.
+	tree := NewAvlTree[int]()
+	for _, v := range []int{3, 1, 2} {
+		tree.Insert(v)
+	}
+	b, err := json.Marshal(tree)
+	if err != nil {
+		t.Fatalf("json.Marshal(tree): %v", err)
+	}
+	if string(b) != "[1,2,3]" {
+		t.Errorf("Expected [1,2,3], got %s", b)
+	}
+
+	// Struct elements use their normal JSON encoding.
+	items := newTestTree()
+	for _, s := range []string{"b", "a"} {
+		items.Insert(TestTreeNode{S: s})
+	}
+	if b, err := json.Marshal(items); err != nil || string(b) != `[{"S":"a","N":0},{"S":"b","N":0}]` {
+		t.Errorf(`Expected [{"S":"a","N":0},{"S":"b","N":0}], got (%s, %v)`, b, err)
+	}
+
+	// An empty tree encodes as [].
+	if b, err := json.Marshal(NewAvlTree[int]()); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for an empty tree, got (%s, %v)", b, err)
+	}
+
+	// A zero-value tree is a tolerated read: [].
+	var zero AvlTree[int]
+	if b, err := zero.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for a zero-value tree, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil tree encodes as []; json.Marshal on a nil
+	// *AvlTree never reaches the method — the json package writes null for
+	// nil pointers itself.
+	var nilTree *AvlTree[int]
+	if b, err := nilTree.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] from a direct nil-tree call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilTree); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil tree, got (%s, %v)", b, err)
+	}
+
+	// Element-level marshalers are honored.
+	custom := NewAvlTree[upperString]()
+	custom.Insert("x")
+	custom.Insert("y")
+	if b, err := json.Marshal(custom); err != nil || string(b) != `["X","Y"]` {
+		t.Errorf(`Expected ["X","Y"], got (%s, %v)`, b, err)
+	}
+
+	// Encoding errors pass through unchanged.
+	bad := NewAvlTreeFunc(func(a, b chan int) int { return 0 })
+	bad.Insert(make(chan int))
+	if _, err := json.Marshal(bad); err == nil {
+		t.Errorf("Expected an error marshaling a tree of channels.")
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	// The decoded elements land in the tree in sorted sequence, whatever
+	// the order of the array.
+	tree := NewAvlTree[int]()
+	if err := json.Unmarshal([]byte("[3,1,2]"), tree); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	var got []int
+	for v := range tree.All() {
+		got = append(got, v)
+	}
+	if fmt.Sprint(got) != "[1 2 3]" {
+		t.Errorf("Expected [1 2 3], got %v", got)
+	}
+	if min, found := tree.FindMin(); !found || min != 1 {
+		t.Errorf("Expected min 1, got (%v, %v)", min, found)
+	}
+
+	// A round trip rebuilds a structurally sound tree and keeps the
+	// comparison function (Search works on the rebuilt tree).
+	items := newTestTree()
+	for _, v := range []int{3, 1, 2} {
+		items.Insert(mkKey(v))
+	}
+	b, err := json.Marshal(items)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	again := newTestTree()
+	if err := json.Unmarshal(b, again); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	validateAVLNode(t, again.root)
+	var keys []string
+	for v := range again.All() {
+		keys = append(keys, v.S)
+	}
+	if got, want := fmt.Sprint(keys), fmt.Sprint([]string{mkKey(1).S, mkKey(2).S, mkKey(3).S}); got != want {
+		t.Errorf("Expected %s after round trip, got %s", want, got)
+	}
+	if _, found := again.Search(mkKey(2)); !found {
+		t.Errorf("Expected Search to work after unmarshal.")
+	}
+
+	// Unmarshaling replaces the contents; it does not add to them.
+	if err := json.Unmarshal([]byte("[7]"), tree); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got, want := tree.Len(), 1; got != want {
+		t.Errorf("Expected replacement, got length %d, want %d", got, want)
+	}
+
+	// An empty array and null clear the tree.
+	full := newTestTree()
+	full.Insert(TestTreeNode{S: "z"})
+	if err := json.Unmarshal([]byte("[]"), full); err != nil {
+		t.Fatalf("json.Unmarshal([]): %v", err)
+	}
+	if !full.IsEmpty() {
+		t.Errorf("Expected [] to clear the tree.")
+	}
+	full.Insert(TestTreeNode{S: "z"})
+	if err := json.Unmarshal([]byte("null"), full); err != nil {
+		t.Fatalf("json.Unmarshal(null): %v", err)
+	}
+	if !full.IsEmpty() {
+		t.Errorf("Expected null to clear the tree.")
+	}
+
+	// Element-level unmarshalers are honored.
+	custom := NewAvlTree[upperString]()
+	if err := json.Unmarshal([]byte(`["X","Y"]`), custom); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	var cs []string
+	for v := range custom.All() {
+		cs = append(cs, string(v))
+	}
+	if fmt.Sprint(cs) != "[X Y]" {
+		t.Errorf("Expected [X Y], got %v", cs)
+	}
+
+	// Decode errors are returned and leave the tree untouched.
+	keep := newTestTree()
+	keep.Insert(TestTreeNode{S: "keep"})
+	for _, badData := range []string{"[1,", `[1]`, `{"S":"a"}`, "7", `["a",3]`} {
+		if err := json.Unmarshal([]byte(badData), keep); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", badData)
+		}
+		if got := keep.Length(); got != 1 {
+			t.Errorf("Tree changed after the error on %s: length %d", badData, got)
+		}
+		if v, found := keep.FindMin(); !found || v.S != "keep" {
+			t.Errorf("Tree changed after the error on %s: min %v", badData, v)
+		}
+	}
+	validateAVLNode(t, keep.root)
+}
+
+// TestUnmarshalJSONPanics verifies that UnmarshalJSON joins the insert
+// family: storing elements into a nil or zero-value tree panics with a
+// message naming the method and the fix, while [] and null — which
+// store nothing — are tolerated everywhere.
+func TestUnmarshalJSONPanics(t *testing.T) {
+	var zero AvlTree[TestTreeNode]
+	for _, data := range []string{"[]", "null"} {
+		if err := zero.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a zero-value tree to be tolerated, got %v", data, err)
+		}
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with elements to panic on a zero-value tree.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "NewAvlTree") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = zero.UnmarshalJSON([]byte(`[{"S":"a"}]`))
+	}()
+
+	var nilTree *AvlTree[TestTreeNode]
+	if err := nilTree.UnmarshalJSON([]byte("[]")); err != nil {
+		t.Errorf("Expected [] on a nil tree to be tolerated, got %v", err)
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with elements to panic on a nil tree.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "nil tree") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = nilTree.UnmarshalJSON([]byte(`[{"S":"a"}]`))
+	}()
+}
+
+// TestJSONStructField marshals and unmarshals an AvlTree nested in a
+// struct through the encoding/json package.  The tree must be created
+// with NewAvlTree/NewAvlTreeFunc before unmarshaling: for a nil *AvlTree
+// field the json package allocates a zero-value tree itself (no
+// comparison function), so non-empty data panics with the insert-family
+// message.
+func TestJSONStructField(t *testing.T) {
+	type Doc struct {
+		Title string           `json:"title"`
+		Tags  *AvlTree[string] `json:"tags"`
+	}
+
+	d := Doc{Title: "pluto", Tags: NewAvlTree[string]()}
+	d.Tags.Insert("go")
+	d.Tags.Insert("ds")
+
+	b, err := json.Marshal(d)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if string(b) != `{"title":"pluto","tags":["ds","go"]}` {
+		t.Errorf("Unexpected document: %s", b)
+	}
+
+	// Unmarshal into a pre-created tree field.
+	var out Doc
+	out.Tags = NewAvlTree[string]()
+	if err := json.Unmarshal(b, &out); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	var tags []string
+	for v := range out.Tags.All() {
+		tags = append(tags, v)
+	}
+	if fmt.Sprint(tags) != "[ds go]" {
+		t.Errorf("Expected [ds go], got %v", tags)
+	}
+
+	// A nil tree field marshals as null (the json package's own nil
+	// pointer rule); null clears a pre-created tree and never allocates.
+	if b, err := json.Marshal(Doc{Title: "x"}); err != nil || string(b) != `{"title":"x","tags":null}` {
+		t.Errorf("Unexpected null document: (%s, %v)", b, err)
+	}
+	clearDoc := Doc{Title: "x", Tags: NewAvlTree[string]()}
+	clearDoc.Tags.Insert("gone")
+	if err := json.Unmarshal([]byte(`{"title":"x","tags":null}`), &clearDoc); err != nil {
+		t.Fatalf("json.Unmarshal with null tags: %v", err)
+	}
+	if !clearDoc.Tags.IsEmpty() {
+		t.Errorf("Expected null tags to clear the tree.")
+	}
+
+	// Non-empty data into a nil *AvlTree field: the json package allocates
+	// a zero-value tree, and the insert contract panics through
+	// json.Unmarshal (it does not recover panics).
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected unmarshaling into an uncreated tree field to panic.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "NewAvlTree") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		var bad Doc
+		_ = json.Unmarshal([]byte(`{"title":"x","tags":["a"]}`), &bad)
+	}()
+}
+
+// TestJSONRandomizedModel cross-checks marshaling and unmarshaling
+// against a sorted-slice reference model at fixed seed.
+func TestJSONRandomizedModel(t *testing.T) {
+	rng := rand.New(rand.NewPCG(20260903, 42))
+	const ops = 500
+
+	tree := NewAvlTree[int]()
+	model := []int{} // sorted, unique; non-nil so an emptied model marshals as [] like the tree
+
+	contains := func(v int) bool {
+		i := sort.SearchInts(model, v)
+		return i < len(model) && model[i] == v
+	}
+	modelInsert := func(v int) {
+		if !contains(v) {
+			i := sort.SearchInts(model, v)
+			model = append(model, 0)
+			copy(model[i+1:], model[i:])
+			model[i] = v
+		}
+	}
+	modelDelete := func(v int) {
+		i := sort.SearchInts(model, v)
+		if i < len(model) && model[i] == v {
+			model = append(model[:i], model[i+1:]...)
+		}
+	}
+
+	for step := range ops {
+		v := rng.IntN(100)
+		switch rng.IntN(2) {
+		case 0:
+			tree.Insert(v)
+			modelInsert(v)
+		case 1:
+			tree.Delete(v)
+			modelDelete(v)
+		}
+
+		// Marshal must equal the model marshaled as a plain slice (the
+		// tree marshals in in-order, which is the sorted order).
+		got, err := json.Marshal(tree)
+		if err != nil {
+			t.Fatalf("step %d: %v", step, err)
+		}
+		want, _ := json.Marshal(model)
+		if string(got) != string(want) {
+			t.Fatalf("step %d: marshaled %s, model %s", step, got, want)
+		}
+
+		// Unmarshaling into a fresh tree must reproduce the model.
+		fresh := NewAvlTree[int]()
+		if err := json.Unmarshal(got, fresh); err != nil {
+			t.Fatalf("step %d: %v", step, err)
+		}
+		var vals []int
+		for v := range fresh.All() {
+			vals = append(vals, v)
+		}
+		if fmt.Sprint(vals) != fmt.Sprint(model) {
+			t.Fatalf("step %d: round trip got %v, model %v", step, vals, model)
+		}
 	}
 }

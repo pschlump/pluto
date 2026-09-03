@@ -29,10 +29,15 @@ BSD 3 Clause Licensed.
 // A nil *Lfu and the zero value behave as an empty table for every
 // read (Counter and IdleMinutes report not-found, Delete returns
 // false, Len is 0, Truncate does nothing); the nil guards run before
-// any lock acquisition.  Touch and Add have no sane answer on a nil or
-// zero-value table — those panic naming the method; the zero value
-// cannot fabricate the configuration the constructors carry.  These
-// are the package's only panics.
+// any lock acquisition.  Touch and Add — and an UnmarshalJSON that
+// would store a key — have no sane answer on a nil or zero-value
+// table: those panic naming the method; the zero value cannot
+// fabricate the configuration the constructors carry.  These are the
+// package's only panics.
+//
+// Alongside the borrowed table the twin tracks the keys in
+// first-insert order (the borrowed table has no key iterator), which
+// MarshalJSON enumerates and Len-cost reads never touch.
 //
 // See the lfu package documentation for the counter contracts (the
 // LFULogIncr math, decay-from-elapsed-time, the 16-bit minute clock
@@ -65,11 +70,16 @@ const (
 
 // Lfu is a table of per-key LFU frequency counters guarded by one
 // sync.RWMutex: the plain package's table behind a pointer plus the
-// lock.  Create it with NewLfu or NewLfuWithClock; the zero value
-// reads as an empty table but cannot be written into.  Do not copy an
-// Lfu (the mutex must not be duplicated) — always use *Lfu.
+// lock, and a first-insert-order key list (with a position index, so
+// Delete stays O(1)) that MarshalJSON enumerates — the borrowed table
+// has no key iterator.  Create it with NewLfu or NewLfuWithClock; the
+// zero value reads as an empty table but cannot be written into.  Do
+// not copy an Lfu (the mutex must not be duplicated) — always use
+// *Lfu.
 type Lfu[K comparable] struct {
 	inner *lfu.Lfu[K]
+	keys  []K       // inner's keys in first-insert order, for MarshalJSON
+	kpos  map[K]int // key -> index in keys
 	lock  sync.RWMutex
 }
 
@@ -79,7 +89,7 @@ type Lfu[K comparable] struct {
 // DefaultDecayTime for Redis's own settings.
 // Complexity is O(1) plus the initial table allocation.
 func NewLfu[K comparable](logFactor, decayTimeMinutes int) *Lfu[K] {
-	return &Lfu[K]{inner: lfu.NewLfu[K](logFactor, decayTimeMinutes)}
+	return &Lfu[K]{inner: lfu.NewLfu[K](logFactor, decayTimeMinutes), kpos: make(map[K]int)}
 }
 
 // NewLfuWithClock creates a table with an explicit lfu-log-factor,
@@ -88,7 +98,45 @@ func NewLfu[K comparable](logFactor, decayTimeMinutes int) *Lfu[K] {
 // clock makes the table deterministic in tests).
 // Complexity is O(1) plus the initial table allocation.
 func NewLfuWithClock[K comparable](logFactor, decayTimeMinutes int, clock func() time.Time) *Lfu[K] {
-	return &Lfu[K]{inner: lfu.NewLfuWithClock[K](logFactor, decayTimeMinutes, clock)}
+	return &Lfu[K]{inner: lfu.NewLfuWithClock[K](logFactor, decayTimeMinutes, clock), kpos: make(map[K]int)}
+}
+
+// noteKey records key in the first-insert order list if it is new.
+// The caller holds the write lock (or runs in a Nl* method under Lock).
+// Complexity is O(1) average.
+func (l *Lfu[K]) noteKey(key K) {
+	if _, ok := l.kpos[key]; !ok {
+		l.kpos[key] = len(l.keys)
+		l.keys = append(l.keys, key)
+	}
+}
+
+// dropKey removes key from the order list by swap-removal, keeping the
+// position index exact.  The caller holds the write lock (or runs in a
+// Nl* method under Lock).
+// Complexity is O(1).
+func (l *Lfu[K]) dropKey(key K) {
+	i, ok := l.kpos[key]
+	if !ok {
+		return
+	}
+	last := len(l.keys) - 1
+	if i != last {
+		l.keys[i] = l.keys[last]
+		l.kpos[l.keys[i]] = i
+	}
+	var zero K
+	l.keys[last] = zero
+	l.keys = l.keys[:last]
+	delete(l.kpos, key)
+}
+
+// clearKeys empties the order list.  The caller holds the write lock
+// (or runs in a Nl* method under Lock).
+// Complexity is O(n).
+func (l *Lfu[K]) clearKeys() {
+	clear(l.kpos)
+	l.keys = nil
 }
 
 // Touch records one access of key — decay by elapsed periods, then the
@@ -108,7 +156,9 @@ func (l *Lfu[K]) Touch(key K) uint8 {
 	}
 	l.lock.Lock()
 	defer l.lock.Unlock()
-	return l.inner.Touch(key)
+	v := l.inner.Touch(key)
+	l.noteKey(key)
+	return v
 }
 
 // Add inserts key with a fresh counter at InitVal and the current
@@ -127,6 +177,7 @@ func (l *Lfu[K]) Add(key K) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
 	l.inner.Add(key)
+	l.noteKey(key)
 }
 
 // Counter returns the decay-adjusted frequency of key — the OBJECT
@@ -164,7 +215,11 @@ func (l *Lfu[K]) Delete(key K) bool {
 	}
 	l.lock.Lock()
 	defer l.lock.Unlock()
-	return l.inner.Delete(key)
+	if l.inner.Delete(key) {
+		l.dropKey(key)
+		return true
+	}
+	return false
 }
 
 // Len returns the number of keys with counters, under the read lock.

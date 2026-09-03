@@ -7,8 +7,11 @@ BSD 3 Clause Licensed.
 */
 
 import (
+	"encoding/json"
 	"math/rand"
 	"reflect"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -248,4 +251,237 @@ func TestGraphRandomizedModel(t *testing.T) {
 		}
 	}
 	verify(800)
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+func TestGraphMarshalJSON(t *testing.T) {
+	// Exact output on the tinyG trace graph: the vertex list is 0..n-1
+	// and each edge appears once as [v, w] with v <= w, sorted.
+	g := newTinyG()
+	b, err := json.Marshal(g)
+	if err != nil {
+		t.Fatalf("json.Marshal(g): %v", err)
+	}
+	want := `{"vertices":[0,1,2,3,4,5],"edges":[[0,1],[0,2],[0,5],[1,2],[2,3],[2,4],[3,4],[3,5]]}`
+	if string(b) != want {
+		t.Errorf("Expected %s, got %s", want, b)
+	}
+
+	// A self-loop counts once; parallel edges each appear.
+	g2 := NewGraph(3)
+	g2.AddEdge(2, 2)
+	g2.AddEdge(1, 2)
+	g2.AddEdge(1, 2)
+	if b, err := json.Marshal(g2); err != nil || string(b) != `{"vertices":[0,1,2],"edges":[[1,2],[1,2],[2,2]]}` {
+		t.Errorf(`Expected {"vertices":[0,1,2],"edges":[[1,2],[1,2],[2,2]]}, got (%s, %v)`, b, err)
+	}
+
+	// An edgeless graph still lists every vertex.
+	if b, err := json.Marshal(NewGraph(2)); err != nil || string(b) != `{"vertices":[0,1],"edges":[]}` {
+		t.Errorf(`Expected {"vertices":[0,1],"edges":[]} for an edgeless graph, got (%s, %v)`, b, err)
+	}
+
+	// A zero-value graph is a tolerated read: empty lists.
+	var zero Graph
+	if b, err := zero.MarshalJSON(); err != nil || string(b) != `{"vertices":[],"edges":[]}` {
+		t.Errorf(`Expected {"vertices":[],"edges":[]} for a zero-value graph, got (%s, %v)`, b, err)
+	}
+
+	// A direct call on a nil graph encodes as {}; json.Marshal on a nil
+	// *Graph never reaches the method — the json package writes null for
+	// nil pointers itself.
+	var nilGraph *Graph
+	if b, err := nilGraph.MarshalJSON(); err != nil || string(b) != "{}" {
+		t.Errorf("Expected {} from a direct nil-graph call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilGraph); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil graph, got (%s, %v)", b, err)
+	}
+}
+
+func TestGraphUnmarshalJSON(t *testing.T) {
+	// Round-trip: the decoded graph has the same vertices and the same
+	// edge multiset, whatever the previous size; the adjacency lists come
+	// back in the canonical sorted order of the edge list.
+	g := newTinyG()
+	b, err := json.Marshal(g)
+	if err != nil {
+		t.Fatalf("json.Marshal(g): %v", err)
+	}
+	back := NewGraph(1)
+	if err := json.Unmarshal(b, back); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if back.V() != 6 || back.E() != 8 {
+		t.Fatalf("Expected V=6 E=8 after round-trip, got V=%d E=%d", back.V(), back.E())
+	}
+	wantAdj := [][]int{{1, 2, 5}, {0, 2}, {0, 1, 3, 4}, {2, 4, 5}, {2, 3}, {0, 3}}
+	for v, want := range wantAdj {
+		if got := adjOf(back, v); !reflect.DeepEqual(got, want) {
+			t.Errorf("Adj(%d) mismatch after round-trip, expected %v got %v", v, want, got)
+		}
+	}
+	// The encoding is a fixed point: re-marshaling is byte-identical.
+	if b2, err := json.Marshal(back); err != nil || string(b2) != string(b) {
+		t.Errorf("Expected re-marshal to be byte-identical, got (%s, %v) want %s", b2, err, b)
+	}
+
+	// Self-loops and parallel edges survive the round-trip.
+	g2 := NewGraph(3)
+	g2.AddEdge(2, 2)
+	g2.AddEdge(1, 2)
+	g2.AddEdge(1, 2)
+	b2, err := json.Marshal(g2)
+	if err != nil {
+		t.Fatalf("json.Marshal(g2): %v", err)
+	}
+	back2 := NewGraph(3)
+	if err := json.Unmarshal(b2, back2); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if back2.E() != 3 {
+		t.Errorf("Expected E 3 after round-trip, got %d", back2.E())
+	}
+	if d, _ := back2.Degree(2); d != 4 { // self-loop twice + two parallel edges
+		t.Errorf("Expected degree 4 for vertex 2, got %d", d)
+	}
+	if got := adjOf(back2, 2); !reflect.DeepEqual(got, []int{1, 1, 2, 2}) {
+		t.Errorf("Expected Adj(2) = [1 1 2 2] after round-trip, got %v", got)
+	}
+
+	// The unmarshaled graph stays fully usable.
+	back.AddEdge(0, 5)
+	if !back.HasEdge(5, 0) {
+		t.Errorf("Expected the unmarshaled graph to accept AddEdge.")
+	}
+
+	// A zero-value graph is rebuilt in place — there is no
+	// constructor-set state to preserve.
+	var zero Graph
+	if err := json.Unmarshal([]byte(`{"vertices":[0,1],"edges":[[0,1]]}`), &zero); err != nil {
+		t.Fatalf("json.Unmarshal on a zero-value graph: %v", err)
+	}
+	if zero.V() != 2 || zero.E() != 1 || !zero.HasEdge(0, 1) {
+		t.Errorf("Expected the zero-value graph rebuilt with V=2 E=1, got V=%d E=%d", zero.V(), zero.E())
+	}
+
+	// An empty object, empty lists, and null clear the graph to the zero
+	// value and are tolerated everywhere.
+	for _, data := range []string{"{}", `{"vertices":[],"edges":[]}`, "null"} {
+		clearMe := newTinyG()
+		if err := json.Unmarshal([]byte(data), clearMe); err != nil {
+			t.Errorf("Expected %s to clear the graph, got error %v", data, err)
+		}
+		if clearMe.V() != 0 || clearMe.E() != 0 {
+			t.Errorf("Expected %s to clear the graph, got V=%d E=%d", data, clearMe.V(), clearMe.E())
+		}
+		var zeroG Graph
+		if err := zeroG.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a zero-value graph to be tolerated, got %v", data, err)
+		}
+		var nilG *Graph
+		if err := nilG.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a nil graph to be tolerated, got %v", data, err)
+		}
+	}
+}
+
+func TestGraphUnmarshalJSONErrors(t *testing.T) {
+	for _, badData := range []string{
+		"[",                                    // malformed JSON
+		"[1,2]",                                // not an object
+		`{"vertices":"x"}`,                     // wrong field type
+		`{"vertices":[0,2]}`,                   // vertices not the range 0..n-1
+		`{"vertices":[0,1],"edges":[[0,2]]}`,   // edge endpoint out of range
+		`{"vertices":[0,1],"edges":[[-1,0]]}`,  // negative edge endpoint
+		`{"edges":[[0,0]]}`,                    // edges with no vertices
+		`{"vertices":[0,1],"edges":[[0,1],1]}`, // wrong edge type
+	} {
+		keep := newTinyG()
+		if err := json.Unmarshal([]byte(badData), keep); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", badData)
+		}
+		if keep.V() != 6 || keep.E() != 8 {
+			t.Errorf("Graph changed after the error on %s: V=%d E=%d", badData, keep.V(), keep.E())
+		}
+	}
+}
+
+// TestGraphUnmarshalJSONPanics verifies that UnmarshalJSON joins the
+// insert family: storing vertices or edges into a nil graph panics with a
+// message naming the method and the problem, while the empty documents —
+// which store nothing — are tolerated everywhere.
+func TestGraphUnmarshalJSONPanics(t *testing.T) {
+	var nilGraph *Graph
+	if err := nilGraph.UnmarshalJSON([]byte("{}")); err != nil {
+		t.Errorf("Expected {} on a nil graph to be tolerated, got %v", err)
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with vertices to panic on a nil graph.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "nil graph") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = nilGraph.UnmarshalJSON([]byte(`{"vertices":[0],"edges":[]}`))
+	}()
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with edges to panic on a nil graph.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "nil graph") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = nilGraph.UnmarshalJSON([]byte(`{"vertices":[0],"edges":[[0,0]]}`))
+	}()
+}
+
+// TestGraphJSONStructField marshals and unmarshals a Graph nested in a
+// struct through the encoding/json package.  A graph has no
+// constructor-set state, so even a nil *Graph field round-trips: the
+// json package allocates a zero-value graph and UnmarshalJSON rebuilds
+// it in place.
+func TestGraphJSONStructField(t *testing.T) {
+	type Doc struct {
+		Name string `json:"name"`
+		G    *Graph `json:"graph"`
+	}
+
+	d := Doc{Name: "tinyG", G: newTinyG()}
+	b, err := json.Marshal(d)
+	if err != nil {
+		t.Fatalf("json.Marshal(Doc): %v", err)
+	}
+
+	var back Doc
+	if err := json.Unmarshal(b, &back); err != nil {
+		t.Fatalf("json.Unmarshal(Doc): %v", err)
+	}
+	if back.Name != "tinyG" || back.G == nil || back.G.V() != 6 || back.G.E() != 8 {
+		t.Fatalf("Round-trip through a struct field failed: name=%q V=%d E=%d",
+			back.Name, back.G.V(), back.G.E())
+	}
+	for v := 0; v < 6; v++ {
+		got, want := adjOf(back.G, v), adjOf(d.G, v)
+		slices.Sort(got)
+		slices.Sort(want)
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("Adj(%d) mismatch after struct round-trip, expected %v got %v", v, want, got)
+		}
+	}
+	// The nested graph re-marshals byte-identically.
+	if b2, err := json.Marshal(back); err != nil || string(b2) != string(b) {
+		t.Errorf("Expected re-marshal to be byte-identical, got (%s, %v) want %s", b2, err, b)
+	}
 }

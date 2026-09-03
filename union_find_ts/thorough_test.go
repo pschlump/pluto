@@ -7,7 +7,9 @@ BSD 3 Clause Licensed.
 */
 
 import (
+	"encoding/json"
 	"math/rand"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -240,4 +242,252 @@ func TestConcurrentUnionFind(t *testing.T) {
 	if !uf.Connected(0, n-1) {
 		t.Errorf("expected 0 and %d to be connected in the single remaining set", n-1)
 	}
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+// checkSamePartition verifies that two same-sized union-finds agree on
+// the connectivity of every pair of elements (and on Count).
+func checkSamePartition(t *testing.T, context string, a, b *UnionFind) {
+	t.Helper()
+	n := a.Len()
+	if b.Len() != n {
+		t.Fatalf("%s: sizes differ: %d vs %d", context, n, b.Len())
+	}
+	if a.Count() != b.Count() {
+		t.Errorf("%s: Count()=%d but the other union-find reports %d", context, a.Count(), b.Count())
+	}
+	for p := 0; p < n; p++ {
+		for q := 0; q < n; q++ {
+			if a.Connected(p, q) != b.Connected(p, q) {
+				t.Fatalf("%s: Connected(%d,%d) differs between the two union-finds", context, p, q)
+			}
+		}
+	}
+}
+
+func TestMarshalJSON(t *testing.T) {
+	// A fresh union-find is n singleton sets.
+	fresh := NewUnionFind(4)
+	b, err := json.Marshal(fresh)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if string(b) != "[[0],[1],[2],[3]]" {
+		t.Errorf("Expected [[0],[1],[2],[3]], got %s", b)
+	}
+
+	// Sets are ordered by smallest member, members ascending: the
+	// encoding of a partition is deterministic regardless of the order
+	// the unions ran in.
+	uf := NewUnionFind(6)
+	uf.Union(4, 5)
+	uf.Union(0, 1)
+	uf.Union(1, 2)
+	b, err = json.Marshal(uf)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if string(b) != "[[0,1,2],[3],[4,5]]" {
+		t.Errorf("Expected [[0,1,2],[3],[4,5]], got %s", b)
+	}
+
+	// A zero-value union-find is a tolerated read: [].
+	var zero UnionFind
+	if b, err := zero.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for a zero-value union-find, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil union-find encodes as []; json.Marshal on
+	// a nil *UnionFind never reaches the method — the json package
+	// writes null for nil pointers itself.
+	var nilUF *UnionFind
+	if b, err := nilUF.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] from a direct nil union-find call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilUF); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil union-find, got (%s, %v)", b, err)
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	// Decoded sets replace the current partition.
+	uf := NewUnionFind(6)
+	if err := json.Unmarshal([]byte("[[0,1,2],[3],[4,5]]"), uf); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if uf.Count() != 3 {
+		t.Errorf("Expected Count()=3, got %d", uf.Count())
+	}
+	if !uf.Connected(0, 2) || !uf.Connected(4, 5) {
+		t.Errorf("Expected the decoded sets to be merged.")
+	}
+	if uf.Connected(0, 3) || uf.Connected(2, 4) {
+		t.Errorf("Expected distinct decoded sets to stay disconnected.")
+	}
+	checkInvariants(t, uf)
+
+	// The set order in the document is irrelevant; so is member order
+	// within a set.
+	uf2 := NewUnionFind(6)
+	if err := json.Unmarshal([]byte("[[5,4],[3],[1,2,0]]"), uf2); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	checkSamePartition(t, "same partition, different encoding order", uf, uf2)
+
+	// A second unmarshal replaces the first partition.
+	if err := json.Unmarshal([]byte("[[0,5],[1],[2],[3],[4]]"), uf); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if uf.Count() != 5 || !uf.Connected(0, 5) || uf.Connected(0, 1) {
+		t.Errorf("Expected the second unmarshal to replace the partition.")
+	}
+	checkInvariants(t, uf)
+
+	// An empty array resets to singletons; null is tolerated too.
+	if err := json.Unmarshal([]byte("[]"), uf); err != nil {
+		t.Fatalf("json.Unmarshal([]): %v", err)
+	}
+	if uf.Count() != 6 {
+		t.Errorf("Expected Count()=6 after unmarshaling [], got %d", uf.Count())
+	}
+	for p := range 6 {
+		if root, ok := uf.Find(p); !ok || root != p {
+			t.Errorf("Expected element %d to be a singleton after [], got root %d", p, root)
+		}
+	}
+	if err := json.Unmarshal([]byte("null"), uf); err != nil {
+		t.Errorf("Expected null to be tolerated, got %v", err)
+	}
+}
+
+// TestUnmarshalJSONErrors verifies that malformed JSON and invalid
+// partitions are reported and leave the union-find untouched.
+func TestUnmarshalJSONErrors(t *testing.T) {
+	uf := NewUnionFind(5)
+	uf.Union(0, 1)
+	uf.Union(2, 3)
+
+	before, err := json.Marshal(uf)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+
+	for _, data := range []string{
+		`[[0,1],`,                  // malformed JSON
+		`{"sets":[[0,1]]}`,         // not an array
+		`[0,1,2,3,4]`,              // not an array of arrays
+		`[[0,1],[2],[3]]`,          // element 4 missing
+		`[[0,1],[2],[3],[4],[4]]`,  // too many elements / duplicate
+		`[[0,0],[1],[2],[3],[4]]`,  // duplicate element
+		`[[0,1],[2],[3],[4],[5]]`,  // 5 out of range
+		`[[-1,0],[1],[2],[3],[4]]`, // -1 out of range
+	} {
+		if err := json.Unmarshal([]byte(data), uf); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", data)
+		}
+		after, err := json.Marshal(uf)
+		if err != nil {
+			t.Fatalf("json.Marshal: %v", err)
+		}
+		if string(after) != string(before) {
+			t.Errorf("Unmarshal of %s changed the union-find: %s -> %s", data, before, after)
+		}
+	}
+	if uf.Count() != 3 {
+		t.Errorf("Expected Count()=3 after the decode errors, got %d", uf.Count())
+	}
+	checkInvariants(t, uf)
+}
+
+// TestUnmarshalJSONPanics verifies that UnmarshalJSON joins the insert
+// family: storing elements into a nil or zero-value union-find panics
+// with a message naming the method, while [] and null — which store
+// nothing — are tolerated everywhere.
+func TestUnmarshalJSONPanics(t *testing.T) {
+	var zero UnionFind
+	for _, data := range []string{"[]", "null"} {
+		if err := zero.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a zero-value union-find to be tolerated, got %v", data, err)
+		}
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with elements to panic on a zero-value union-find.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "NewUnionFind") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = zero.UnmarshalJSON([]byte(`[[0,1]]`))
+	}()
+
+	var nilUF *UnionFind
+	for _, data := range []string{"[]", "null"} {
+		if err := nilUF.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a nil union-find to be tolerated, got %v", data, err)
+		}
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with elements to panic on a nil union-find.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "nil UnionFind") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = nilUF.UnmarshalJSON([]byte(`[[0,1]]`))
+	}()
+}
+
+// TestJSONRoundTrip cross-checks marshal/unmarshal round-trips against
+// the naive reference model at a fixed seed.
+func TestJSONRoundTrip(t *testing.T) {
+	rng := rand.New(rand.NewSource(20260902)) // fixed seed: deterministic run
+
+	const n = 20
+	uf := NewUnionFind(n)
+	model := newNaiveUF(n)
+	for range 100 {
+		p, q := rng.Intn(n), rng.Intn(n)
+		if got, want := uf.Union(p, q), model.union(p, q); got != want {
+			t.Fatalf("Union(%d,%d)=%v, model says %v", p, q, got, want)
+		}
+	}
+
+	b, err := json.Marshal(uf)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+
+	// The decoded copy must compute exactly the same partition.
+	copy := NewUnionFind(n)
+	if err := json.Unmarshal(b, copy); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	checkSamePartition(t, "round-trip", uf, copy)
+	checkInvariants(t, copy)
+
+	// Marshaling the copy must reproduce the same document byte for
+	// byte (deterministic encoding), and decoding into the copy again
+	// must be a no-op.
+	b2, err := json.Marshal(copy)
+	if err != nil {
+		t.Fatalf("json.Marshal of the copy: %v", err)
+	}
+	if string(b) != string(b2) {
+		t.Errorf("Expected a stable encoding, got %s then %s", b, b2)
+	}
+	if err := json.Unmarshal(b2, copy); err != nil {
+		t.Fatalf("second json.Unmarshal: %v", err)
+	}
+	checkSamePartition(t, "second round-trip", uf, copy)
 }

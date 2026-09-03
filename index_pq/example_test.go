@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package index_pq_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -123,4 +124,37 @@ func ExampleIndexPQ_All() {
 	// Output:
 	// 1:10 3:20 2:30 0:40
 	// still 4 in the queue
+}
+
+// MarshalJSON encodes the queue as a JSON array of {"k":index,"v":value}
+// objects in priority order, minimum value first.
+func ExampleIndexPQ_MarshalJSON() {
+	q := index_pq.NewIndexPQ[int](4)
+	q.Insert(0, 30)
+	q.Insert(1, 10)
+	q.Insert(2, 50)
+	q.Insert(3, 20)
+
+	b, err := json.Marshal(q)
+	fmt.Println(string(b), err)
+	// Output:
+	// [{"k":1,"v":10},{"k":3,"v":20},{"k":0,"v":30},{"k":2,"v":50}] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the queue from a JSON array of
+// {"k":index,"v":value} objects; the document order does not matter —
+// the queue re-orders by value.
+func ExampleIndexPQ_UnmarshalJSON() {
+	q := index_pq.NewIndexPQ[string](3)
+	if err := json.Unmarshal([]byte(`[{"k":0,"v":"pear"},{"k":1,"v":"fig"},{"k":2,"v":"apple"}]`), q); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for k, v := range q.All() {
+		fmt.Println(k, v)
+	}
+	// Output:
+	// 2 apple
+	// 1 fig
+	// 0 pear
 }

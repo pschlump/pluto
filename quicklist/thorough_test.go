@@ -14,9 +14,11 @@ BSD 3 Clause Licensed.
 // and the compression depth windows when compression is enabled.
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand/v2"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -378,4 +380,232 @@ func TestRepeatedInsertDeleteAtOnePosition(t *testing.T) {
 	if m > 3*ideal+2 {
 		t.Fatalf("fragmented into %d segments for %d elements (ideal %d)", m, q.Len(), ideal)
 	}
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+// upperString is a string with its own JSON representation, to verify
+// that element-level marshalers are honored through the list.
+type upperString string
+
+func (u upperString) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + strings.ToUpper(string(u)) + `"`), nil
+}
+
+func (u *upperString) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	*u = upperString(s)
+	return nil
+}
+
+func TestMarshalJSON(t *testing.T) {
+	// Exact array output, head to tail, spanning several segments.
+	q := NewQuickList(WithSegmentFill[int](4))
+	for _, v := range []int{3, 1, 2, 9, 7, 5} {
+		q.PushTail(v)
+	}
+	b, err := json.Marshal(q)
+	if err != nil {
+		t.Fatalf("json.Marshal(q): %v", err)
+	}
+	if string(b) != "[3,1,2,9,7,5]" {
+		t.Errorf("Expected [3,1,2,9,7,5], got %s", b)
+	}
+
+	// Struct elements use their normal JSON encoding.
+	type item struct {
+		S string
+	}
+	items := NewQuickList[item]()
+	items.PushTail(item{S: "a"})
+	items.PushTail(item{S: "b"})
+	if b, err := json.Marshal(items); err != nil || string(b) != `[{"S":"a"},{"S":"b"}]` {
+		t.Errorf(`Expected [{"S":"a"},{"S":"b"}], got (%s, %v)`, b, err)
+	}
+
+	// An empty list encodes as [].
+	if b, err := json.Marshal(NewQuickList[int]()); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for an empty list, got (%s, %v)", b, err)
+	}
+
+	// A zero-value list is a tolerated read: [].
+	var zero QuickList[int]
+	if b, err := zero.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for a zero-value list, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil list encodes as []; json.Marshal on a nil
+	// *QuickList never reaches the method — the json package writes null
+	// for nil pointers itself.
+	var nilList *QuickList[int]
+	if b, err := nilList.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] from a direct nil-list call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilList); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil list, got (%s, %v)", b, err)
+	}
+
+	// Element-level marshalers are honored.
+	custom := NewQuickList[upperString]()
+	custom.PushTail("x")
+	custom.PushTail("y")
+	if b, err := json.Marshal(custom); err != nil || string(b) != `["X","Y"]` {
+		t.Errorf(`Expected ["X","Y"], got (%s, %v)`, b, err)
+	}
+
+	// Packed segments encode transparently.
+	compressed := strBuild(20,
+		WithSegmentFill[string](4),
+		WithCompression[string](LZWCodec(), 1, EncodeStringSegment, DecodeStringSegment))
+	b, err = json.Marshal(compressed)
+	if err != nil {
+		t.Fatalf("json.Marshal(compressed): %v", err)
+	}
+	var decoded []string
+	if err := json.Unmarshal(b, &decoded); err != nil {
+		t.Fatalf("json.Unmarshal of the encoded form: %v", err)
+	}
+	if !slices.Equal(decoded, collect(compressed.All())) {
+		t.Errorf("Compressed list did not marshal to its contents.")
+	}
+	checkDepthWindow(t, compressed)
+
+	// Encoding errors pass through unchanged.
+	bad := NewQuickList[chan int]()
+	bad.PushTail(make(chan int))
+	if _, err := json.Marshal(bad); err == nil {
+		t.Errorf("Expected an error marshaling a list of channels.")
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	// Decoded order is preserved: element 0 becomes the head.
+	q := NewQuickList[int]()
+	if err := json.Unmarshal([]byte("[3,1,2]"), q); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got := collect(q.All()); !slices.Equal(got, []int{3, 1, 2}) {
+		t.Errorf("Expected [3 1 2], got %v", got)
+	}
+	if head, ok := q.PeekHead(); !ok || head != 3 {
+		t.Errorf("Expected head 3, got (%v, %v)", head, ok)
+	}
+
+	// A round trip rebuilds a structurally sound list across segments.
+	full := build(50, WithSegmentFill[int](7))
+	b, err := json.Marshal(full)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	again := NewQuickList(WithSegmentFill[int](7))
+	if err := json.Unmarshal(b, again); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	checkInvariants(t, again)
+	if got := collect(again.All()); !slices.Equal(got, collect(full.All())) {
+		t.Errorf("Round trip changed the contents.")
+	}
+	if again.Len() != 50 {
+		t.Errorf("Round trip Len: got %d", again.Len())
+	}
+
+	// The zero value is a ready-to-use list — no constructor functions
+	// to keep — so it unmarshals elements directly.
+	var zero QuickList[int]
+	if err := json.Unmarshal([]byte("[1,2,3]"), &zero); err != nil {
+		t.Fatalf("json.Unmarshal into a zero-value list: %v", err)
+	}
+	if got := collect(zero.All()); !slices.Equal(got, []int{1, 2, 3}) {
+		t.Errorf("Zero-value list contents: got %v", got)
+	}
+
+	// An empty array and null clear the list and are tolerated.
+	for _, data := range []string{"[]", "null"} {
+		if err := json.Unmarshal([]byte(data), full); err != nil {
+			t.Fatalf("json.Unmarshal(%s): %v", data, err)
+		}
+		if full.Len() != 0 {
+			t.Errorf("Expected %s to clear the list, Len %d", data, full.Len())
+		}
+	}
+
+	// Element-level unmarshalers are honored.
+	custom := NewQuickList[upperString]()
+	if err := json.Unmarshal([]byte(`["X","Y"]`), custom); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	var cs []string
+	for _, v := range custom.All() {
+		cs = append(cs, string(v))
+	}
+	if fmt.Sprint(cs) != "[X Y]" {
+		t.Errorf("Expected [X Y], got %v", cs)
+	}
+
+	// Decode errors are returned and leave the list untouched.
+	keep := NewQuickList[string]()
+	keep.PushTail("keep")
+	for _, badData := range []string{"[1,", `[1]`, `{"S":"a"}`, "7", `["a",3]`} {
+		if err := json.Unmarshal([]byte(badData), keep); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", badData)
+		}
+		if got := collect(keep.All()); !slices.Equal(got, []string{"keep"}) {
+			t.Errorf("List changed after the error on %s: %v", badData, got)
+		}
+	}
+}
+
+// TestJSONCompressedRoundTrip unmarshals into a list that keeps its
+// compression configuration: the rebuilt list re-packs its interior.
+func TestJSONCompressedRoundTrip(t *testing.T) {
+	opts := []Option[string]{
+		WithSegmentFill[string](4),
+		WithCompression[string](LZWCodec(), 1, EncodeStringSegment, DecodeStringSegment),
+	}
+	src := strBuild(40, opts...)
+	b, err := json.Marshal(src)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	dst := NewQuickList(opts...)
+	dst.PushTail("old") // replaced by the unmarshal
+	if err := json.Unmarshal(b, dst); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	checkInvariants(t, dst)
+	if got, want := collect(dst.All()), collect(src.All()); !slices.Equal(got, want) {
+		t.Errorf("Compressed round trip mismatch:\n got %v\nwant %v", got, want)
+	}
+}
+
+// TestUnmarshalJSONPanics verifies that UnmarshalJSON joins the insert
+// family: storing elements into a nil list panics with a message naming
+// the method, while [] and null — which store nothing — are tolerated
+// everywhere.  A zero-value list needs no constructor, so storing into
+// one is fine.
+func TestUnmarshalJSONPanics(t *testing.T) {
+	var nilList *QuickList[int]
+	for _, data := range []string{"[]", "null"} {
+		if err := nilList.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a nil list to be tolerated, got %v", data, err)
+		}
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with elements to panic on a nil list.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "nil QuickList") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = nilList.UnmarshalJSON([]byte("[1]"))
+	}()
 }

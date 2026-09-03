@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package union_find_test
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/pschlump/pluto/union_find"
@@ -73,4 +74,37 @@ func ExampleNewUnionFind() {
 	// 3 true
 	// true 4
 	// 5 is out of range
+}
+
+// MarshalJSON encodes the partition as a JSON array of arrays — one
+// inner array per disjoint set, members ascending, sets ordered by
+// their smallest member.
+func ExampleUnionFind_MarshalJSON() {
+	uf := union_find.NewUnionFind(6)
+	uf.Union(4, 3)
+	uf.Union(3, 2)
+	uf.Union(1, 0)
+
+	b, err := json.Marshal(uf)
+	fmt.Println(string(b), err)
+	// Output:
+	// [[0,1],[2,3,4],[5]] <nil>
+}
+
+// UnmarshalJSON replaces the partition from a JSON array of arrays; the
+// union-find keeps its size n, and every element 0..n-1 must appear
+// exactly once.
+func ExampleUnionFind_UnmarshalJSON() {
+	uf := union_find.NewUnionFind(6)
+	if err := json.Unmarshal([]byte(`[[0,1],[2,3,4],[5]]`), uf); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println("0 and 1 connected:", uf.Connected(0, 1))
+	fmt.Println("0 and 2 connected:", uf.Connected(0, 2))
+	fmt.Println("sets:", uf.Count())
+	// Output:
+	// 0 and 1 connected: true
+	// 0 and 2 connected: false
+	// sets: 3
 }

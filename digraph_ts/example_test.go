@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package digraph_ts_test
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/pschlump/pluto/digraph_ts"
@@ -149,4 +150,43 @@ func ExampleNewKosarajuSCC() {
 	// component 2: 0 1 2
 	// 0 strongly connected to 2: true
 	// 0 strongly connected to 3: false
+}
+
+// MarshalJSON encodes the digraph as a JSON object with the vertex list
+// and the edge list.
+func ExampleDigraph_MarshalJSON() {
+	g := digraph_ts.NewDigraph(4)
+	for _, e := range [][2]int{{0, 1}, {0, 2}, {1, 3}, {2, 3}} {
+		g.AddEdge(e[0], e[1])
+	}
+
+	b, err := json.Marshal(g)
+	fmt.Println(string(b), err)
+	// Output:
+	// {"vertices":[0,1,2,3],"edges":[[0,1],[0,2],[1,3],[2,3]]} <nil>
+}
+
+// UnmarshalJSON replaces the contents of the digraph from the JSON
+// document MarshalJSON produces, reproducing the original adjacency
+// insertion order.
+func ExampleDigraph_UnmarshalJSON() {
+	var g digraph_ts.Digraph // a zero-value digraph is rebuilt in place
+	if err := json.Unmarshal([]byte(`{"vertices":[0,1,2],"edges":[[0,2],[1,2]]}`), &g); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+
+	fmt.Println(g.V(), "vertices,", g.E(), "edges")
+	for v := 0; v < g.V(); v++ {
+		fmt.Printf("%d:", v)
+		for w := range g.Adj(v) {
+			fmt.Printf(" %d", w)
+		}
+		fmt.Println()
+	}
+	// Output:
+	// 3 vertices, 2 edges
+	// 0: 2
+	// 1: 2
+	// 2:
 }

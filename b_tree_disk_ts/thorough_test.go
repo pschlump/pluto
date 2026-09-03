@@ -14,9 +14,12 @@ BSD 3 Clause Licensed.
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 )
 
@@ -539,4 +542,256 @@ func TestTornJournal(t *testing.T) {
 		f.Close()
 		verify(t, path)
 	})
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+// jsonTreePairs collects All into a printable "k=v" list.
+func jsonTreePairs(tr *Tree[uint64]) []string {
+	var out []string
+	for k, v := range tr.All() {
+		out = append(out, fmt.Sprintf("%d=%d", k, v))
+	}
+	return out
+}
+
+func TestJSONMarshal(t *testing.T) {
+	s := openTempStore(t, StoreConfig{})
+	tr := newU64Tree(t, s)
+
+	// Exact array output, ascending key order regardless of insert order.
+	for _, kv := range [][2]uint64{{3, 30}, {1, 10}, {2, 20}} {
+		if _, err := tr.Insert(kv[0], kv[1]); err != nil {
+			t.Fatalf("Insert(%d): %v", kv[0], err)
+		}
+	}
+	b, err := json.Marshal(tr)
+	if err != nil {
+		t.Fatalf("json.Marshal(tree): %v", err)
+	}
+	want := `[{"key":1,"value":10},{"key":2,"value":20},{"key":3,"value":30}]`
+	if string(b) != want {
+		t.Errorf("Expected %s, got %s", want, b)
+	}
+
+	// An empty tree encodes as [].
+	empty := newU64Tree(t, openTempStore(t, StoreConfig{}))
+	if b, err := json.Marshal(empty); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for an empty tree, got (%s, %v)", b, err)
+	}
+
+	// A zero-value tree is a tolerated read: [].
+	var zero Tree[uint64]
+	if b, err := zero.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for a zero-value tree, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil tree encodes as []; json.Marshal on a nil
+	// *Tree never reaches the method — the json package writes null for
+	// nil pointers itself.
+	var nilTree *Tree[uint64]
+	if b, err := nilTree.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] from a direct nil-tree call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilTree); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil tree, got (%s, %v)", b, err)
+	}
+
+	// A tree on a closed store encodes as [] (the All contract).
+	cs := openTempStore(t, StoreConfig{})
+	ctr := newU64Tree(t, cs)
+	if _, err := ctr.Insert(1, 1); err != nil {
+		t.Fatalf("Insert: %v", err)
+	}
+	if err := cs.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if b, err := json.Marshal(ctr); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for a tree on a closed store, got (%s, %v)", b, err)
+	}
+}
+
+func TestJSONUnmarshal(t *testing.T) {
+	s := openTempStore(t, StoreConfig{})
+	tr := newU64Tree(t, s)
+
+	// Decoded entries are stored; iteration is ascending key order.
+	if err := json.Unmarshal([]byte(`[{"key":3,"value":30},{"key":1,"value":10}]`), tr); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got, want := fmt.Sprint(jsonTreePairs(tr)), "[1=10 3=30]"; got != want {
+		t.Errorf("Expected %s, got %s", want, got)
+	}
+	if v, found, err := tr.Search(3); err != nil || !found || v != 30 {
+		t.Errorf("Expected Search(3) = (30, true), got (%d, %v, %v)", v, found, err)
+	}
+
+	// A round trip through a second named tree in the same store
+	// rebuilds the contents and keeps the functions (Search works).
+	if _, err := tr.Insert(2, 20); err != nil {
+		t.Fatalf("Insert: %v", err)
+	}
+	b, err := json.Marshal(tr)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	copyCfg := u64TreeConfig
+	copyCfg.Name = "json-copy"
+	again, err := NewTree[uint64](s, copyCfg)
+	if err != nil {
+		t.Fatalf("NewTree: %v", err)
+	}
+	if err := json.Unmarshal(b, again); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got, want := fmt.Sprint(jsonTreePairs(again)), "[1=10 2=20 3=30]"; got != want {
+		t.Errorf("Expected %s after round trip, got %s", want, got)
+	}
+	if v, found, err := again.Search(2); err != nil || !found || v != 20 {
+		t.Errorf("Expected Search(2) = (20, true) after unmarshal, got (%d, %v, %v)", v, found, err)
+	}
+	checkInvariants(t, tr)
+	checkInvariants(t, again)
+
+	// Unmarshaling replaces the contents; it does not merge.
+	if err := json.Unmarshal([]byte(`[{"key":7,"value":70}]`), tr); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got := tr.Length(); got != 1 {
+		t.Errorf("Expected replacement, got length %d, want 1", got)
+	}
+	if got, want := fmt.Sprint(jsonTreePairs(tr)), "[7=70]"; got != want {
+		t.Errorf("Expected %s after replacement, got %s", want, got)
+	}
+	checkInvariants(t, tr)
+
+	// A duplicate key in the array keeps the last value, as Insert does.
+	if err := json.Unmarshal([]byte(`[{"key":5,"value":1},{"key":5,"value":2}]`), tr); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if v, found, _ := tr.Search(5); !found || v != 2 || tr.Length() != 1 {
+		t.Errorf("Expected duplicate key to keep the last value, got (%d, %v), length %d", v, found, tr.Length())
+	}
+
+	// An empty array and null clear the tree.
+	for _, data := range []string{"[]", "null"} {
+		if err := json.Unmarshal([]byte(data), tr); err != nil {
+			t.Fatalf("json.Unmarshal(%s): %v", data, err)
+		}
+		if tr.Length() != 0 {
+			t.Errorf("Expected %s to clear the tree, length %d", data, tr.Length())
+		}
+	}
+	checkInvariants(t, tr)
+
+	// Decode errors are returned and leave the tree untouched.
+	if _, err := tr.Insert(9, 90); err != nil {
+		t.Fatalf("Insert: %v", err)
+	}
+	for _, badData := range []string{
+		`[{"key":1,`,                  // malformed
+		`{"key":1,"value":2}`,         // not an array
+		`[{"key":"a","value":1}]`,     // wrong key type
+		`[{"key":1,"value":"x"}]`,     // wrong value type
+		`7`,                           // not an array
+		`[{"key":1,"value":1},`,       // truncated
+		`[{"key":1,"value":1.5}]`,     // fractional uint64
+	} {
+		if err := json.Unmarshal([]byte(badData), tr); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", badData)
+		}
+		if got, want := fmt.Sprint(jsonTreePairs(tr)), "[9=90]"; got != want {
+			t.Errorf("Tree changed after the error on %s: %s", badData, got)
+		}
+	}
+	checkInvariants(t, tr)
+}
+
+// TestJSONUnmarshalPanics verifies that UnmarshalJSON joins the insert
+// family: storing entries into a nil or zero-value tree panics with a
+// message naming the method and the fix, while [] and null — which store
+// nothing — are tolerated everywhere.
+func TestJSONUnmarshalPanics(t *testing.T) {
+	var zero Tree[uint64]
+	for _, data := range []string{"[]", "null"} {
+		if err := zero.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a zero-value tree to be tolerated, got %v", data, err)
+		}
+	}
+	expectPanic(t, "UnmarshalJSON on a zero-value tree", "NewTree", func() {
+		_ = zero.UnmarshalJSON([]byte(`[{"key":1,"value":1}]`))
+	})
+
+	var nilTree *Tree[uint64]
+	if err := nilTree.UnmarshalJSON([]byte("[]")); err != nil {
+		t.Errorf("Expected [] on a nil tree to be tolerated, got %v", err)
+	}
+	expectPanic(t, "UnmarshalJSON on a nil tree", "nil tree", func() {
+		_ = nilTree.UnmarshalJSON([]byte(`[{"key":1,"value":1}]`))
+	})
+}
+
+// TestJSONRandomizedModel cross-checks marshaling and unmarshaling
+// against a map[uint64]uint64 reference model at fixed seed: the
+// marshaled tree must equal the model marshaled as a sorted slice of
+// pairs, and unmarshaling into a second tree must reproduce the model.
+func TestJSONRandomizedModel(t *testing.T) {
+	rng := rand.New(rand.NewPCG(20260903, 42))
+	const ops = 80
+	const keySpace = 300
+
+	s := openTempStore(t, StoreConfig{BlockSize: 512, CacheBlocks: 64})
+	tr := newU64Tree(t, s)
+	copyCfg := u64TreeConfig
+	copyCfg.Name = "json-copy"
+	fresh, err := NewTree[uint64](s, copyCfg)
+	if err != nil {
+		t.Fatalf("NewTree: %v", err)
+	}
+	model := make(map[uint64]uint64)
+
+	for step := range ops {
+		k := rng.Uint64N(keySpace)
+		if rng.IntN(100) < 55 {
+			v := rng.Uint64()
+			if _, err := tr.Insert(k, v); err != nil {
+				t.Fatalf("step %d: Insert(%d): %v", step, k, err)
+			}
+			model[k] = v
+		} else {
+			if _, err := tr.Delete(k); err != nil {
+				t.Fatalf("step %d: Delete(%d): %v", step, k, err)
+			}
+			delete(model, k)
+		}
+
+		// Marshal must equal the model marshaled as a sorted pair slice.
+		keys := make([]uint64, 0, len(model))
+		for mk := range model {
+			keys = append(keys, mk)
+		}
+		sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+		pairs := make([]jsonKV[uint64], 0, len(keys))
+		for _, mk := range keys {
+			pairs = append(pairs, jsonKV[uint64]{Key: mk, Value: model[mk]})
+		}
+		want, _ := json.Marshal(pairs)
+		got, err := json.Marshal(tr)
+		if err != nil {
+			t.Fatalf("step %d: json.Marshal: %v", step, err)
+		}
+		if string(got) != string(want) {
+			t.Fatalf("step %d: marshaled %s, model %s", step, got, want)
+		}
+
+		// Unmarshaling into the second tree must reproduce the model.
+		if err := json.Unmarshal(got, fresh); err != nil {
+			t.Fatalf("step %d: json.Unmarshal: %v", step, err)
+		}
+		assertModel(t, fresh, model)
+	}
+	checkInvariants(t, tr)
+	checkInvariants(t, fresh)
 }

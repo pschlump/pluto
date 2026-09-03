@@ -457,6 +457,13 @@ func (tt *RbTree[T]) Insert(item T) (added bool) {
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
 
+	return tt.nlInsert(item)
+}
+
+// nlInsert is Insert without locking and without the nil/cmp guards; the
+// caller must hold the write lock and the tree must have a comparison
+// function.
+func (tt *RbTree[T]) nlInsert(item T) (added bool) {
 	// Standard BST insert; the new node starts out red.
 	var parent *RbTreeNode[T]
 	cur := tt.root

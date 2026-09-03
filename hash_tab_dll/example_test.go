@@ -14,6 +14,7 @@ BSD 3 Clause Licensed.
 package hash_tab_dll_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"sort"
@@ -141,4 +142,46 @@ func ExampleHashTab_Walk() {
 	fmt.Println("total:", total, "completed:", completed)
 	// Output:
 	// total: 11 completed: true
+}
+
+// MarshalJSON encodes the table as a JSON array of its elements, in bucket
+// order — which depends on the hash function, so the order is normally not
+// fixed.  With a constant hash every element chains in a single bucket,
+// newest first, making the output deterministic for this example.
+func ExampleHashTab_MarshalJSON() {
+	ht := hash_tab_dll.NewHashTabFunc(
+		func(a, b string) bool { return a == b },
+		func(s string) uint64 { return 7 }, // constant hash: one chain
+		5,
+	)
+	ht.Insert("alpha")
+	ht.Insert("beta")
+
+	b, err := json.Marshal(ht)
+	fmt.Println(string(b), err)
+	// Output:
+	// ["beta","alpha"] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the table from a JSON array; the
+// table keeps its equality and hash functions, so it stays fully usable
+// afterwards.  Element order in the table is bucket order (hash
+// dependent), so the decoded set is sorted for printing here.
+func ExampleHashTab_UnmarshalJSON() {
+	ht := hash_tab_dll.NewHashTab[string](8)
+	if err := json.Unmarshal([]byte(`["c","a","b"]`), ht); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println("len:", ht.Len())
+
+	got := []string{}
+	for v := range ht.Values() {
+		got = append(got, v)
+	}
+	sort.Strings(got)
+	fmt.Println(got)
+	// Output:
+	// len: 3
+	// [a b c]
 }

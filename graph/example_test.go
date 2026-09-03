@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package graph_test
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/pschlump/pluto/graph"
@@ -109,4 +110,42 @@ func ExampleNewCC() {
 	// component 3: 6 7
 	// 0 connected to 2: true
 	// 0 connected to 3: false
+}
+
+// MarshalJSON encodes the graph as a JSON object with the vertex list and
+// the edge list; each edge appears once, by ascending vertex then
+// insertion order.
+func ExampleGraph_MarshalJSON() {
+	g := graph.NewGraph(4)
+	g.AddEdge(0, 1)
+	g.AddEdge(1, 2)
+	g.AddEdge(2, 3)
+
+	b, err := json.Marshal(g)
+	fmt.Println(string(b), err)
+	// Output:
+	// {"vertices":[0,1,2,3],"edges":[[0,1],[1,2],[2,3]]} <nil>
+}
+
+// UnmarshalJSON replaces the contents of the graph from a JSON document,
+// rebuilding the vertices and re-adding the edges in document order.
+func ExampleGraph_UnmarshalJSON() {
+	g := graph.NewGraph(4)
+	if err := json.Unmarshal([]byte(`{"vertices":[0,1,2],"edges":[[0,2],[1,2]]}`), g); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println(g.V(), "vertices,", g.E(), "edges")
+	for v := 0; v < g.V(); v++ {
+		fmt.Printf("%d:", v)
+		for w := range g.Adj(v) {
+			fmt.Printf(" %d", w)
+		}
+		fmt.Println()
+	}
+	// Output:
+	// 3 vertices, 2 edges
+	// 0: 2
+	// 1: 2
+	// 2: 0 1
 }

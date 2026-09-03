@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package index_pq_ts_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -65,4 +66,35 @@ func ExampleIndexPQ_Lock() {
 	fmt.Println(k, v)
 	// Output:
 	// 0 5
+}
+
+// MarshalJSON encodes the queue as a JSON array of {"index":k,"value":v}
+// pair objects in priority order, minimum value first.
+func ExampleIndexPQ_MarshalJSON() {
+	q := index_pq_ts.NewIndexPQ[int](4)
+	q.Insert(0, 30)
+	q.Insert(1, 10)
+	q.Insert(2, 20)
+
+	b, err := json.Marshal(q)
+	fmt.Println(string(b), err)
+	// Output:
+	// [{"index":1,"value":10},{"index":2,"value":20},{"index":0,"value":30}] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the queue from a JSON array of
+// {"index":k,"value":v} pair objects; the pairs come back out in
+// priority order.
+func ExampleIndexPQ_UnmarshalJSON() {
+	q := index_pq_ts.NewIndexPQ[string](4)
+	if err := json.Unmarshal([]byte(`[{"index":0,"value":"c"},{"index":1,"value":"a"}]`), q); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for k, v := range q.All() {
+		fmt.Println(k, v)
+	}
+	// Output:
+	// 1 a
+	// 0 c
 }

@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package priority_queue_test
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/pschlump/pluto/priority_queue"
@@ -159,4 +160,35 @@ func ExamplePriorityQueue_Truncate() {
 	// Output:
 	// 0 true
 	// 1
+}
+
+// MarshalJSON encodes the queue as a JSON array of its elements in
+// priority order, minimum first — the insertion order does not survive
+// the heap.
+func ExamplePriorityQueue_MarshalJSON() {
+	pq := priority_queue.NewPriorityQueue[int]()
+	pq.Insert(3)
+	pq.Insert(1)
+	pq.Insert(2)
+
+	b, err := json.Marshal(pq)
+	fmt.Println(string(b), err)
+	// Output:
+	// [1,2,3] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the queue from a JSON array;
+// the elements come back out in priority order.
+func ExamplePriorityQueue_UnmarshalJSON() {
+	pq := priority_queue.NewPriorityQueue[string]()
+	if err := json.Unmarshal([]byte(`["c","a"]`), pq); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for v := range pq.All() {
+		fmt.Println(v)
+	}
+	// Output:
+	// a
+	// c
 }

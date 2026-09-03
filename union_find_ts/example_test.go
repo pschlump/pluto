@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package union_find_ts_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -81,4 +82,36 @@ func ExampleNewUnionFind() {
 	// Output:
 	// 4
 	// 1 true
+}
+
+// MarshalJSON encodes the union-find as a JSON array of arrays — one
+// array per disjoint set, sets ordered by their smallest member.
+func ExampleUnionFind_MarshalJSON() {
+	uf := union_find_ts.NewUnionFind(6)
+	uf.Union(4, 5)
+	uf.Union(0, 1)
+	uf.Union(1, 2)
+
+	b, err := json.Marshal(uf)
+	fmt.Println(string(b), err)
+	// Output:
+	// [[0,1,2],[3],[4,5]] <nil>
+}
+
+// UnmarshalJSON replaces the partition from a JSON array of arrays; the
+// receiver must have the same number of elements as the decoded
+// partition.
+func ExampleUnionFind_UnmarshalJSON() {
+	uf := union_find_ts.NewUnionFind(6)
+	if err := json.Unmarshal([]byte(`[[0,1,2],[3],[4,5]]`), uf); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println(uf.Count(), "components")
+	fmt.Println("0 and 2 connected:", uf.Connected(0, 2))
+	fmt.Println("0 and 3 connected:", uf.Connected(0, 3))
+	// Output:
+	// 3 components
+	// 0 and 2 connected: true
+	// 0 and 3 connected: false
 }

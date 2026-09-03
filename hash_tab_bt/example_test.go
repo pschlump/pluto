@@ -14,6 +14,7 @@ BSD 3 Clause Licensed.
 package hash_tab_bt_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"sort"
@@ -119,4 +120,47 @@ func ExampleHashTab_Walk() {
 	fmt.Println("total:", total, "completed:", completed)
 	// Output:
 	// total: 11 completed: true
+}
+
+// MarshalJSON encodes the table as a JSON array of its elements.  The
+// element order follows bucket order, so with the default NewHashTab
+// hashing it varies from process to process; this example uses a constant
+// hash function — every element lands in one bucket and the tree's
+// in-order walk makes the output deterministic.
+func ExampleHashTab_MarshalJSON() {
+	ht := hash_tab_bt.NewHashTabFunc(
+		func(a, b string) int { return strings.Compare(a, b) },
+		func(s string) uint64 { return 7 }, // constant hash: one bucket
+		5,
+	)
+	ht.Insert("beta")
+	ht.Insert("alpha")
+	ht.Insert("gamma")
+
+	b, err := json.Marshal(ht)
+	fmt.Println(string(b), err)
+	// Output:
+	// ["alpha","beta","gamma"] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the table from a JSON array; the
+// comparison and hash functions are kept, so the table stays usable.  The
+// constant hash function keeps the printed iteration order deterministic.
+func ExampleHashTab_UnmarshalJSON() {
+	ht := hash_tab_bt.NewHashTabFunc(
+		func(a, b string) int { return strings.Compare(a, b) },
+		func(s string) uint64 { return 7 }, // constant hash: one bucket
+		5,
+	)
+	if err := json.Unmarshal([]byte(`["gamma","alpha","beta"]`), ht); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for v := range ht.Values() {
+		fmt.Println(v)
+	}
+	// Output:
+	// alpha
+	// beta
+	// gamma
 }

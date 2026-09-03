@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package trie_ts_test
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/pschlump/pluto/trie_ts"
@@ -162,4 +163,34 @@ func ExampleTrie_Insert_panic() {
 	// 0
 	// false
 	// recovered: trie_ts: Insert called on a nil Trie
+}
+
+// MarshalJSON encodes the trie as a JSON object with its (key, value)
+// pairs as members in ascending key order.
+func ExampleTrie_MarshalJSON() {
+	var tr trie_ts.Trie[int]
+	tr.Insert("shells", 3)
+	tr.Insert("she", 0)
+	tr.Insert("sea", 2)
+
+	b, err := json.Marshal(&tr)
+	fmt.Println(string(b), err)
+	// Output:
+	// {"sea":2,"she":0,"shells":3} <nil>
+}
+
+// UnmarshalJSON replaces the contents of the trie from a JSON object.
+func ExampleTrie_UnmarshalJSON() {
+	var tr trie_ts.Trie[string]
+	if err := json.Unmarshal([]byte(`{"she":"a","by":"c","sea":"b"}`), &tr); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for key, value := range tr.All() {
+		fmt.Println(key, value)
+	}
+	// Output:
+	// by c
+	// sea b
+	// she a
 }

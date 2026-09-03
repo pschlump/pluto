@@ -13,6 +13,7 @@ BSD 3 Clause Licensed.
 package splay_tree_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -214,4 +215,33 @@ func ExampleSplayTree_Truncate() {
 	// Output:
 	// 0 true
 	// 1
+}
+
+// MarshalJSON encodes the tree as a JSON array of its elements in in-order
+// (ascending) order.
+func ExampleSplayTree_MarshalJSON() {
+	tree := splay_tree.NewSplayTree[int]()
+	tree.Insert(3)
+	tree.Insert(1)
+	tree.Insert(2)
+
+	b, err := json.Marshal(tree)
+	fmt.Println(string(b), err)
+	// Output:
+	// [1,2,3] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the tree from a JSON array.
+func ExampleSplayTree_UnmarshalJSON() {
+	tree := splay_tree.NewSplayTree[string]()
+	if err := json.Unmarshal([]byte(`["c","a"]`), tree); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for i, v := range tree.All() {
+		fmt.Println(i, v)
+	}
+	// Output:
+	// 0 a
+	// 1 c
 }

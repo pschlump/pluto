@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package stack_sll_ts_test
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -143,4 +144,34 @@ func ExampleStack_Truncate() {
 	// Output:
 	// 0 true
 	// 1
+}
+
+// MarshalJSON encodes the stack as a JSON array of its elements, top to
+// bottom: element 0 is the most recently pushed.
+func ExampleStack_MarshalJSON() {
+	var stk stack_sll_ts.Stack[int]
+	stk.Push(1)
+	stk.Push(2)
+	stk.Push(3) // the top
+
+	b, err := json.Marshal(&stk)
+	fmt.Println(string(b), err)
+	// Output:
+	// [3,2,1] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the stack from a JSON array;
+// element 0 becomes the new top.
+func ExampleStack_UnmarshalJSON() {
+	var stk stack_sll_ts.Stack[string]
+	if err := json.Unmarshal([]byte(`["c","a"]`), &stk); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for i, v := range stk.All() {
+		fmt.Println(i, v)
+	}
+	// Output:
+	// 0 c
+	// 1 a
 }

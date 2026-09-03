@@ -7,7 +7,9 @@ BSD 3 Clause Licensed.
 */
 
 import (
+	"encoding/json"
 	"math/rand"
+	"strings"
 	"sync"
 	"testing"
 
@@ -215,4 +217,165 @@ func TestConcurrentCompound(t *testing.T) {
 		t.Errorf("expected Sum(%d)=%d, got %d", writers-1, 100*writers, s)
 	}
 	checkInvariants(t, ft)
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+func TestMarshalJSON(t *testing.T) {
+	// Exact array output: element i is Value(i), in index order.
+	ft := NewFenwickTreeFrom([]int{3, 1, 2})
+	b, err := json.Marshal(ft)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if string(b) != "[3,1,2]" {
+		t.Errorf("Expected [3,1,2], got %s", b)
+	}
+
+	// The encoding carries the per-index values, not the internal
+	// prefix-sum array: after Add/Set the values are still exact.
+	if !ft.Add(0, 10) || !ft.Set(2, 30) {
+		t.Fatalf("Add/Set returned false for in-range slots.")
+	}
+	if b, err := json.Marshal(ft); err != nil || string(b) != "[13,1,30]" {
+		t.Errorf("Expected [13,1,30] after Add/Set, got (%s, %v)", b, err)
+	}
+
+	// A zero-value tree is a tolerated read: [].
+	var zero FenwickTree[int]
+	if b, err := zero.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for a zero-value tree, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil tree encodes as []; json.Marshal on a nil
+	// *FenwickTree never reaches the method — the json package writes
+	// null for nil pointers itself.
+	var nilFT *FenwickTree[int]
+	if b, err := nilFT.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] from a direct nil-tree call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilFT); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil tree, got (%s, %v)", b, err)
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	// Decoded order is preserved: element i becomes Value(i), and the
+	// prefix sums work on the rebuilt tree.
+	ft := NewFenwickTree[int](1)
+	if err := json.Unmarshal([]byte("[3,1,2]"), ft); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if ft.Len() != 3 {
+		t.Errorf("Expected Len()=3 after unmarshal, got %d", ft.Len())
+	}
+	for i, want := range []int{3, 1, 2} {
+		if v, ok := ft.Value(i); !ok || v != want {
+			t.Errorf("Expected Value(%d)=%d, got (%d, %v)", i, want, v, ok)
+		}
+	}
+	if s := ft.Sum(2); s != 6 {
+		t.Errorf("Expected Sum(2)=6 after unmarshal, got %d", s)
+	}
+	checkInvariants(t, ft)
+
+	// A round trip rebuilds a structurally sound tree.
+	src := NewFenwickTreeFrom([]int{4, -1, 7, 0, 5})
+	b, err := json.Marshal(src)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	again := NewFenwickTree[int](8)
+	if err := json.Unmarshal(b, again); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if again.Len() != 5 {
+		t.Errorf("Expected Len()=5 after round trip, got %d", again.Len())
+	}
+	if s, ok := again.RangeSum(1, 3); !ok || s != 6 {
+		t.Errorf("Expected RangeSum(1,3)=(6, true) after round trip, got (%d, %v)", s, ok)
+	}
+	checkInvariants(t, again)
+
+	// Unmarshaling replaces the contents — including the size; it does
+	// not add deltas.
+	if err := json.Unmarshal([]byte("[7]"), ft); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if ft.Len() != 1 {
+		t.Errorf("Expected replacement, got Len()=%d, want 1", ft.Len())
+	}
+	if v, ok := ft.Value(0); !ok || v != 7 {
+		t.Errorf("Expected Value(0)=7 after replacement, got (%d, %v)", v, ok)
+	}
+
+	// An empty array and null clear the tree.
+	full := NewFenwickTreeFrom([]int{1, 2, 3})
+	for _, data := range []string{"[]", "null"} {
+		if err := json.Unmarshal([]byte(data), full); err != nil {
+			t.Fatalf("json.Unmarshal(%s): %v", data, err)
+		}
+		if !full.IsEmpty() || full.Len() != 0 {
+			t.Errorf("Expected %s to clear the tree, got Len()=%d", data, full.Len())
+		}
+		if s := full.Sum(0); s != 0 {
+			t.Errorf("Expected Sum(0)=0 on the cleared tree, got %d", s)
+		}
+	}
+
+	// A zero-value tree can be unmarshaled into: a Fenwick tree has no
+	// constructor-set functions, so a rebuilt tree is fully usable.
+	var zero FenwickTree[int]
+	if err := json.Unmarshal([]byte("[1,2,3]"), &zero); err != nil {
+		t.Fatalf("json.Unmarshal into a zero value: %v", err)
+	}
+	if s := zero.Sum(2); s != 6 {
+		t.Errorf("Expected Sum(2)=6 on a tree built from the zero value, got %d", s)
+	}
+	if !zero.Add(0, 1) {
+		t.Errorf("Expected Add to work on a tree built from the zero value.")
+	}
+
+	// Decode errors are returned and leave the tree untouched.
+	keep := NewFenwickTreeFrom([]int{9, 8})
+	for _, badData := range []string{"[1,", `["x"]`, `{"0":1}`, "7", `[1,"a"]`} {
+		if err := json.Unmarshal([]byte(badData), keep); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", badData)
+		}
+		if keep.Len() != 2 {
+			t.Errorf("Len changed after the error on %s: %d", badData, keep.Len())
+		}
+		if s := keep.Sum(1); s != 17 {
+			t.Errorf("Tree changed after the error on %s: Sum(1)=%d", badData, s)
+		}
+	}
+	checkInvariants(t, keep)
+}
+
+// TestUnmarshalJSONPanics verifies that UnmarshalJSON joins the
+// insert family: storing values into a nil tree panics with a message
+// naming the method, while [] and null — which store nothing — are
+// tolerated everywhere.
+func TestUnmarshalJSONPanics(t *testing.T) {
+	var nilFT *FenwickTree[int]
+	for _, data := range []string{"[]", "null"} {
+		if err := nilFT.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a nil tree to be tolerated, got %v", data, err)
+		}
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with values to panic on a nil tree.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "fenwick_tree_ts: UnmarshalJSON") || !strings.Contains(msg, "nil FenwickTree") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = nilFT.UnmarshalJSON([]byte("[1]"))
+	}()
 }

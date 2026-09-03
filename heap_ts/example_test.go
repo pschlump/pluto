@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package heap_ts_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -231,4 +232,36 @@ func ExampleHeap_Truncate() {
 	// Output:
 	// 0 true
 	// 1
+}
+
+// MarshalJSON encodes the heap as a JSON array of its elements in
+// internal (breadth-first) order — not sorted order.
+func ExampleHeap_MarshalJSON() {
+	hp := heap_ts.NewHeap[int]()
+	hp.Push(3)
+	hp.Push(1)
+	hp.Push(2)
+
+	b, err := json.Marshal(hp)
+	fmt.Println(string(b), err)
+	// Output:
+	// [1,3,2] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the heap from a JSON array,
+// re-heapifying the elements; pops then come out in sorted order.
+func ExampleHeap_UnmarshalJSON() {
+	hp := heap_ts.NewHeap[string]()
+	if err := json.Unmarshal([]byte(`["c","a","b"]`), hp); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for hp.Len() > 0 {
+		v, _ := hp.Pop()
+		fmt.Println(v)
+	}
+	// Output:
+	// a
+	// b
+	// c
 }

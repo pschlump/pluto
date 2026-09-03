@@ -10,6 +10,7 @@ BSD 3 Clause Licensed.
 package fenwick_tree_ts_test
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/pschlump/pluto/fenwick_tree_ts"
@@ -56,4 +57,35 @@ func ExampleFenwickTree_Lock() {
 	// Output:
 	// doubled-and-then-some slot 2: 3
 	// total: 42
+}
+
+// MarshalJSON encodes the tree as a JSON array of its per-index values:
+// element i is Value(i).
+func ExampleFenwickTree_MarshalJSON() {
+	ft := fenwick_tree_ts.NewFenwickTreeFrom([]int{3, 1, 2})
+
+	b, err := json.Marshal(ft)
+	fmt.Println(string(b), err)
+	// Output:
+	// [3,1,2] <nil>
+}
+
+// UnmarshalJSON replaces the contents of the tree from a JSON array;
+// element i becomes Value(i), and the tree resizes to the array length.
+func ExampleFenwickTree_UnmarshalJSON() {
+	ft := fenwick_tree_ts.NewFenwickTree[int](1)
+	if err := json.Unmarshal([]byte(`[3,1,2]`), ft); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for i := 0; i < ft.Len(); i++ {
+		v, _ := ft.Value(i)
+		fmt.Println(i, v)
+	}
+	fmt.Println("Sum(0..2):", ft.Sum(2))
+	// Output:
+	// 0 3
+	// 1 1
+	// 2 2
+	// Sum(0..2): 6
 }

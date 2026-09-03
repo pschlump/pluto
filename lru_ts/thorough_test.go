@@ -7,6 +7,7 @@ BSD 3 Clause Licensed.
 package lru_ts_test
 
 import (
+	"encoding/json"
 	"math/rand"
 	"reflect"
 	"sync"
@@ -72,6 +73,232 @@ func (m *model) delete(k int) bool {
 		}
 	}
 	return true
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+// Exact output: an array of key/value objects, most recently used first
+// (the All order), with the recency restored by a round trip.
+func TestMarshalJSON(t *testing.T) {
+	c := lru_ts.NewLru[string, int](4)
+	c.Put("a", 1)
+	c.Put("b", 2)
+	c.Put("c", 3)
+	b, err := json.Marshal(c)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	want := `[{"key":"c","value":3},{"key":"b","value":2},{"key":"a","value":1}]`
+	if string(b) != want {
+		t.Errorf("Expected %s, got %s", want, b)
+	}
+
+	// Round trip: contents AND the recency order come back.
+	back := lru_ts.NewLru[string, int](4)
+	if err := json.Unmarshal(b, back); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got := mruOrder(back); !reflect.DeepEqual(got, []string{"c", "b", "a"}) {
+		t.Errorf("recency after round trip = %v, want [c b a]", got)
+	}
+	for _, k := range []string{"a", "b", "c"} {
+		v, ok := back.Peek(k)
+		want := map[string]int{"a": 1, "b": 2, "c": 3}[k]
+		if !ok || v != want {
+			t.Errorf("Peek(%s) after round trip = (%d, %v), want (%d, true)", k, v, ok, want)
+		}
+	}
+
+	// An empty cache encodes as [].
+	empty := lru_ts.NewLru[int, int](2)
+	if b, err := empty.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for an empty cache, got (%s, %v)", b, err)
+	}
+
+	// A zero-value cache is a tolerated read: [].
+	var zero lru_ts.Lru[int, int]
+	if b, err := zero.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for a zero-value cache, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil cache encodes as []; json.Marshal on a nil
+	// *Lru never reaches the method — the json package writes null for
+	// nil pointers itself.
+	var nilCache *lru_ts.Lru[int, int]
+	if b, err := nilCache.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] from a direct nil-cache call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilCache); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil cache, got (%s, %v)", b, err)
+	}
+
+	// Values that cannot be encoded return the json package's error.
+	bad := lru_ts.NewLru[int, chan int](1)
+	bad.Put(1, make(chan int))
+	if _, err := bad.MarshalJSON(); err == nil {
+		t.Errorf("Expected an error marshaling a cache of channels.")
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	// Decoded order is restored as the recency order: array element 0
+	// becomes the most recently used entry.
+	c := lru_ts.NewLru[string, int](4)
+	if err := json.Unmarshal([]byte(`[{"key":"c","value":3},{"key":"a","value":1}]`), c); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got := mruOrder(c); !reflect.DeepEqual(got, []string{"c", "a"}) {
+		t.Fatalf("recency after decode = %v, want [c a]", got)
+	}
+
+	// The decoded entries REPLACE the previous contents; capacity and
+	// the veto callback are kept.
+	c.Put("x", 9)
+	if err := json.Unmarshal([]byte(`[{"key":"n","value":5}]`), c); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if c.Len() != 1 {
+		t.Errorf("Len after replace = %d, want 1", c.Len())
+	}
+	if _, ok := c.Peek("x"); ok {
+		t.Error("old entry x survived a decode that replaces the contents")
+	}
+	if c.Capacity() != 4 {
+		t.Errorf("Capacity after decode = %d, want 4 (kept)", c.Capacity())
+	}
+
+	// An array with more entries than the capacity is evicted down as
+	// usual, keeping the most recently used entries.
+	small := lru_ts.NewLru[int, int](2)
+	if err := json.Unmarshal([]byte(`[{"key":1,"value":10},{"key":2,"value":20},{"key":3,"value":30}]`), small); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got := mruOrder(small); !reflect.DeepEqual(got, []int{1, 2}) {
+		t.Errorf("over-capacity decode kept %v, want [1 2] (the MRU entries)", got)
+	}
+
+	// [] and null clear the cache and are tolerated everywhere.
+	var nilCache *lru_ts.Lru[string, int]
+	var zeroCache lru_ts.Lru[string, int]
+	for _, data := range []string{"[]", "null"} {
+		if err := nilCache.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a nil cache to be tolerated, got %v", data, err)
+		}
+		if err := zeroCache.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a zero-value cache to be tolerated, got %v", data, err)
+		}
+		if err := c.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("UnmarshalJSON(%s): %v", data, err)
+		}
+		if c.Len() != 0 {
+			t.Errorf("Len after %s = %d, want 0 (cleared)", data, c.Len())
+		}
+	}
+
+	// Decode errors leave the cache untouched.
+	keep := lru_ts.NewLru[string, int](3)
+	keep.Put("k", 1)
+	for _, data := range []string{
+		`{`,                          // malformed
+		`{"key":"k"}`,                // not an array
+		`[{"key":"k","value":"v"}]`,  // wrong value type
+		`[{"key":1,"value":1}]`,      // wrong key type
+	} {
+		if err := keep.UnmarshalJSON([]byte(data)); err == nil {
+			t.Errorf("Expected an error decoding %s", data)
+		}
+	}
+	if keep.Len() != 1 {
+		t.Fatalf("Len after decode errors = %d, want 1 (untouched)", keep.Len())
+	}
+	if v, ok := keep.Peek("k"); !ok || v != 1 {
+		t.Errorf("Peek(k) after decode errors = (%d, %v), want (1, true)", v, ok)
+	}
+}
+
+// TestUnmarshalJSONPanics verifies that UnmarshalJSON joins the insert
+// family: storing entries into a nil or zero-value cache panics with a
+// message naming the method and the fix, while [] and null — which
+// store nothing — are tolerated everywhere.
+func TestUnmarshalJSONPanics(t *testing.T) {
+	var nilCache *lru_ts.Lru[string, int]
+	expectPanicMsg(t, "UnmarshalJSON on a nil cache",
+		func() { _ = nilCache.UnmarshalJSON([]byte(`[{"key":"k","value":1}]`)) },
+		"lru_ts:", "UnmarshalJSON", "nil cache", "NewLru")
+
+	var zeroCache lru_ts.Lru[string, int]
+	expectPanicMsg(t, "UnmarshalJSON on a zero-value cache",
+		func() { _ = zeroCache.UnmarshalJSON([]byte(`[{"key":"k","value":1}]`)) },
+		"lru_ts:", "UnmarshalJSON", "zero-value", "NewLru")
+}
+
+// TestJSONConcurrent hammers MarshalJSON and UnmarshalJSON concurrently
+// with writers and a marshaling reader; every output must be a valid
+// JSON array.  Run under -race.
+func TestJSONConcurrent(t *testing.T) {
+	c := lru_ts.NewLru[int, int](50)
+
+	const workers = 8
+	const perWorker = 100
+	stop := make(chan struct{})
+	var writers sync.WaitGroup
+	var readers sync.WaitGroup
+
+	// A marshaling reader: MarshalJSON snapshots under the read lock,
+	// so it is safe while the writers replace the contents.
+	readers.Add(1)
+	go func() {
+		defer readers.Done()
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			b, err := c.MarshalJSON()
+			if err != nil {
+				t.Errorf("MarshalJSON: %v", err)
+				return
+			}
+			var probe []struct {
+				Key   int `json:"key"`
+				Value int `json:"value"`
+			}
+			if err := json.Unmarshal(b, &probe); err != nil {
+				t.Errorf("MarshalJSON produced invalid JSON %s: %v", b, err)
+				return
+			}
+		}
+	}()
+
+	// Writers replace the contents wholesale via UnmarshalJSON.
+	for w := 0; w < workers; w++ {
+		writers.Add(1)
+		go func(w int) {
+			defer writers.Done()
+			for i := 0; i < perWorker; i++ {
+				b, err := json.Marshal(map[string]int{"key": w*perWorker + i, "value": i})
+				if err != nil {
+					t.Errorf("worker %d: %v", w, err)
+					return
+				}
+				doc := []byte("[" + string(b) + "]")
+				if err := c.UnmarshalJSON(doc); err != nil {
+					t.Errorf("worker %d: UnmarshalJSON: %v", w, err)
+					return
+				}
+			}
+		}(w)
+	}
+
+	writers.Wait()
+	close(stop)
+	readers.Wait()
+	if c.Len() != 1 {
+		t.Errorf("Len after concurrent JSON = %d, want 1 (the last single-entry decode)", c.Len())
+	}
 }
 
 // TestLruRandomizedModel is the port of the plain package's model test

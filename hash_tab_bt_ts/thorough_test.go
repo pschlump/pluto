@@ -15,6 +15,7 @@ BSD 3 Clause Licensed.
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -710,4 +711,259 @@ func TestConcurrentCompound(t *testing.T) {
 		t.Fatalf("Expected length 150, got %d", ht.Len())
 	}
 	checkInvariants(t, ht)
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+// oneBucketTab builds a table whose constant hash lands every element in
+// bucket 2 (7 % 5), so iteration — and therefore the JSON encoding — runs
+// purely in the tree's ascending in-order and is deterministic.
+func oneBucketTab() *HashTab[string] {
+	return NewHashTabFunc(
+		func(a, b string) int { return strings.Compare(a, b) },
+		func(s string) uint64 { return 7 },
+		5,
+	)
+}
+
+// collectSet drains Values into a key -> satellite map for order-independent
+// comparison (bucket order is deterministic only for oneBucketTab tables).
+func collectSet(ht *HashTab[TestData]) map[string]int {
+	set := make(map[string]int, ht.Len())
+	for item := range ht.Values() {
+		set[item.S] = item.N
+	}
+	return set
+}
+
+func TestMarshalJSON(t *testing.T) {
+	// Exact array output: one bucket, ascending in-order.
+	ht := oneBucketTab()
+	for _, v := range []string{"mid", "head-old", "tail-new"} {
+		ht.Insert(v)
+	}
+	b, err := json.Marshal(ht)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if string(b) != `["head-old","mid","tail-new"]` {
+		t.Errorf("Expected [\"head-old\",\"mid\",\"tail-new\"], got %s", b)
+	}
+
+	// Struct elements use their normal JSON encoding.
+	tab := newTestTab(7)
+	tab.Insert(TestData{S: "a", N: 1})
+	if b, err := json.Marshal(tab); err != nil || string(b) != `[{"S":"a","N":1}]` {
+		t.Errorf("Expected [{\"S\":\"a\",\"N\":1}], got (%s, %v)", b, err)
+	}
+
+	// An empty table encodes as [].
+	if b, err := json.Marshal(newTestTab(7)); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for an empty table, got (%s, %v)", b, err)
+	}
+
+	// A zero-value table is a tolerated read: [].
+	var zero HashTab[int]
+	if b, err := zero.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for a zero-value table, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil table encodes as []; json.Marshal on a nil
+	// *HashTab never reaches the method — the json package writes null for
+	// nil pointers itself.
+	var nilTab *HashTab[int]
+	if b, err := nilTab.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] from a direct nil-table call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilTab); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil table, got (%s, %v)", b, err)
+	}
+
+	// Element-level encode errors are returned unchanged.
+	bad := NewHashTabFunc(
+		func(a, b chan int) int { return 0 },
+		func(a chan int) uint64 { return 3 },
+		5,
+	)
+	bad.Insert(make(chan int))
+	if _, err := json.Marshal(bad); err == nil {
+		t.Errorf("Expected an error marshaling a table of channels.")
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	// Decoded elements replace the contents; every one is searchable
+	// afterwards (the comparison/hash functions are kept).
+	ht := oneBucketTab()
+	ht.Insert("stale")
+	if err := json.Unmarshal([]byte(`["mid","head-old","tail-new"]`), ht); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if ht.Len() != 3 {
+		t.Fatalf("Expected length 3, got %d", ht.Len())
+	}
+	if _, found := ht.Search("stale"); found {
+		t.Errorf("The old contents should have been replaced")
+	}
+	for _, k := range []string{"head-old", "mid", "tail-new"} {
+		if _, found := ht.Search(k); !found {
+			t.Errorf("Expected to find %q after unmarshal, did not", k)
+		}
+	}
+	checkInvariants(t, ht)
+
+	// An empty array and null clear the table and store nothing.
+	for _, data := range []string{"[]", "null"} {
+		if err := json.Unmarshal([]byte(data), ht); err != nil {
+			t.Fatalf("json.Unmarshal(%s): %v", data, err)
+		}
+		if !ht.IsEmpty() || ht.Len() != 0 {
+			t.Errorf("Expected an empty table after %s, got length %d", data, ht.Len())
+		}
+	}
+	checkInvariants(t, ht)
+
+	// Duplicate keys in the array follow Insert semantics: the last one wins.
+	dup := newTestTab(7)
+	if err := json.Unmarshal([]byte(`[{"S":"k","N":1},{"S":"k","N":2}]`), dup); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if dup.Len() != 1 {
+		t.Fatalf("Duplicate key should collapse to one element, got %d", dup.Len())
+	}
+	if v, found := dup.Search(TestData{S: "k"}); !found || v.N != 2 {
+		t.Errorf("Last duplicate should win, got %v found=%v", v, found)
+	}
+
+	// A decode error — malformed JSON, a non-array document, wrong element
+	// types — is returned with the table untouched.
+	keep := newTestTab(7)
+	for _, s := range []string{"a", "b"} {
+		keep.Insert(TestData{S: s, N: len(s)})
+	}
+	for _, data := range []string{`[`, `{"S":"a"}`, `[{"S":"a"},"x"]`, `[{"S":7}]`} {
+		if err := json.Unmarshal([]byte(data), keep); err == nil {
+			t.Errorf("Expected a decode error for %s", data)
+		}
+	}
+	want := collectSet(keep)
+	if len(want) != 2 || want["a"] != 1 || want["b"] != 1 {
+		t.Errorf("Table changed after decode errors: %v", want)
+	}
+	checkInvariants(t, keep)
+}
+
+// TestUnmarshalJSONPanics verifies that UnmarshalJSON joins the insert
+// family: storing elements into a nil or zero-value table panics with a
+// message naming the method and the fix, while [] and null — which store
+// nothing — are tolerated everywhere.
+func TestUnmarshalJSONPanics(t *testing.T) {
+	var zero HashTab[TestData]
+	for _, data := range []string{"[]", "null"} {
+		if err := zero.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a zero-value table to be tolerated, got %v", data, err)
+		}
+	}
+	expectPanicMessage(t, "UnmarshalJSON with elements on a zero-value table", "NewHashTab",
+		func() { _ = zero.UnmarshalJSON([]byte(`[{"S":"a"}]`)) })
+
+	var nilTab *HashTab[TestData]
+	if err := nilTab.UnmarshalJSON([]byte("[]")); err != nil {
+		t.Errorf("Expected [] on a nil table to be tolerated, got %v", err)
+	}
+	expectPanicMessage(t, "UnmarshalJSON with elements on a nil table", "nil table",
+		func() { _ = nilTab.UnmarshalJSON([]byte(`[{"S":"a"}]`)) })
+}
+
+// TestJSONStructField marshals and unmarshals a HashTab nested in a struct
+// through the encoding/json package.  The table must be created with
+// NewHashTab/NewHashTabFunc before unmarshaling: for a nil *HashTab field
+// the json package allocates a zero-value table itself (no comparison/hash
+// functions), so non-empty data panics with the insert-family message.
+func TestJSONStructField(t *testing.T) {
+	type Doc struct {
+		Title string           `json:"title"`
+		Tags  *HashTab[string] `json:"tags"`
+	}
+
+	doc := Doc{Title: "x", Tags: oneBucketTab()}
+	doc.Tags.Insert("beta")
+	doc.Tags.Insert("alpha")
+	b, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if string(b) != `{"title":"x","tags":["alpha","beta"]}` {
+		t.Errorf("Unexpected encoding: %s", b)
+	}
+
+	var back Doc
+	back.Tags = oneBucketTab()
+	if err := json.Unmarshal(b, &back); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if back.Title != "x" || back.Tags.Len() != 2 {
+		t.Errorf("Round trip mismatch: %+v (tags len %d)", back, back.Tags.Len())
+	}
+	for _, k := range []string{"alpha", "beta"} {
+		if _, found := back.Tags.Search(k); !found {
+			t.Errorf("Expected to find %q after the round trip, did not", k)
+		}
+	}
+
+	// A nil *HashTab field decodes as a json-allocated zero-value table:
+	// non-empty data panics with the insert-family message.
+	expectPanicMessage(t, "struct field with nil table", "NewHashTab",
+		func() {
+			var bad Doc
+			_ = json.Unmarshal([]byte(`{"title":"x","tags":["a"]}`), &bad)
+		})
+}
+
+// TestJSONRandomizedModel round-trips a table built by a fixed-seed
+// pseudo-random mix of inserts and deletes through JSON and cross-checks
+// the result against a map model — order-independently, since bucket order
+// is not asserted.
+func TestJSONRandomizedModel(t *testing.T) {
+	rng := rand.New(rand.NewSource(424242)) // fixed seed: deterministic run
+	ht := newTestTab(7)
+	model := make(map[string]int) // key -> satellite value of the latest insert
+
+	key := func(i int) string { return fmt.Sprintf("j%05d", i) }
+
+	for op := range 2000 {
+		k := key(rng.Intn(300))
+		if rng.Intn(4) == 3 {
+			ht.Delete(TestData{S: k})
+			delete(model, k)
+		} else {
+			ht.Insert(TestData{S: k, N: op})
+			model[k] = op
+		}
+	}
+
+	b, err := json.Marshal(ht)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	back := newTestTab(7)
+	if err := json.Unmarshal(b, back); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+
+	if back.Len() != len(model) {
+		t.Fatalf("Round trip length = %d, model has %d", back.Len(), len(model))
+	}
+	for k, wantN := range model {
+		v, found := back.Search(TestData{S: k})
+		if !found {
+			t.Fatalf("Expected to find %q after the round trip, did not", k)
+		}
+		if v.N != wantN {
+			t.Fatalf("Round trip returned stale satellite for %q: %d, want %d", k, v.N, wantN)
+		}
+	}
+	checkInvariants(t, back)
 }

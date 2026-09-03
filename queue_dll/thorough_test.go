@@ -12,10 +12,13 @@ BSD 3 Clause Licensed.
 // randomized property test.
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"math/rand/v2"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -332,4 +335,260 @@ func TestRandomizedAgainstModel(t *testing.T) {
 	}
 	checkModel(t, &q, model)
 	checkLinks(t, &q)
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+// jsonUpperString is a string with its own JSON representation, to
+// verify that element-level marshalers are honored through the queue.
+type jsonUpperString string
+
+func (u jsonUpperString) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + strings.ToUpper(string(u)) + `"`), nil
+}
+
+func (u *jsonUpperString) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	*u = jsonUpperString(s)
+	return nil
+}
+
+// jsonTestItem is a plain struct element, to verify that struct field
+// encoding is honored through the queue.
+type jsonTestItem struct {
+	S string
+}
+
+func TestMarshalJSON(t *testing.T) {
+	// Exact array output, head (next to be dequeued) to tail.
+	var q Queue[int]
+	for _, v := range []int{3, 1, 2} {
+		q.Push(v)
+	}
+	b, err := json.Marshal(&q)
+	if err != nil {
+		t.Fatalf("json.Marshal(queue): %v", err)
+	}
+	if string(b) != "[3,1,2]" {
+		t.Errorf("Expected [3,1,2], got %s", b)
+	}
+
+	// Struct elements use their normal JSON encoding.
+	var items Queue[jsonTestItem]
+	items.Push(jsonTestItem{S: "a"})
+	items.Push(jsonTestItem{S: "b"})
+	if b, err := json.Marshal(&items); err != nil || string(b) != `[{"S":"a"},{"S":"b"}]` {
+		t.Errorf(`Expected [{"S":"a"},{"S":"b"}], got (%s, %v)`, b, err)
+	}
+
+	// An empty queue encodes as [].
+	var empty Queue[int]
+	if b, err := json.Marshal(&empty); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for an empty queue, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil queue encodes as []; json.Marshal on a nil
+	// *Queue never reaches the method — the json package writes null for
+	// nil pointers itself.
+	var nilQueue *Queue[int]
+	if b, err := nilQueue.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] from a direct nil-queue call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilQueue); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil queue, got (%s, %v)", b, err)
+	}
+
+	// Element-level marshalers are honored.
+	var custom Queue[jsonUpperString]
+	custom.Push("x")
+	custom.Push("y")
+	if b, err := json.Marshal(&custom); err != nil || string(b) != `["X","Y"]` {
+		t.Errorf(`Expected ["X","Y"], got (%s, %v)`, b, err)
+	}
+
+	// Encoding errors pass through unchanged.
+	var bad Queue[chan int]
+	bad.Push(make(chan int))
+	if _, err := json.Marshal(&bad); err == nil {
+		t.Errorf("Expected an error marshaling a queue of channels.")
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	// Decoded order is preserved: element 0 becomes the head, the next
+	// element returned by Dequeue.
+	var q Queue[int]
+	if err := json.Unmarshal([]byte("[3,1,2]"), &q); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	var got []int
+	for _, v := range q.All() {
+		got = append(got, v)
+	}
+	if fmt.Sprint(got) != "[3 1 2]" {
+		t.Errorf("Expected [3 1 2], got %v", got)
+	}
+	if head, err := q.Peek(); err != nil || head != 3 {
+		t.Errorf("Expected head 3, got (%v, %v)", head, err)
+	}
+
+	// A round trip rebuilds a structurally sound queue.
+	var items Queue[jsonTestItem]
+	for _, s := range []string{"a", "b", "c"} {
+		items.Push(jsonTestItem{S: s})
+	}
+	b, err := json.Marshal(&items)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	var again Queue[jsonTestItem]
+	if err := json.Unmarshal(b, &again); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	checkLinks(t, &again)
+	var values []string
+	for _, v := range again.All() {
+		values = append(values, v.S)
+	}
+	if got, want := fmt.Sprint(values), "[a b c]"; got != want {
+		t.Errorf("Expected %s after round trip, got %s", want, got)
+	}
+
+	// Unmarshaling replaces the contents; it does not append.
+	if err := json.Unmarshal([]byte("[7]"), &q); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got, want := q.Len(), 1; got != want {
+		t.Errorf("Expected replacement, got length %d, want %d", got, want)
+	}
+
+	// An empty array and null clear the queue.
+	var full Queue[jsonTestItem]
+	full.Push(jsonTestItem{S: "z"})
+	if err := json.Unmarshal([]byte("[]"), &full); err != nil {
+		t.Fatalf("json.Unmarshal([]): %v", err)
+	}
+	if !full.IsEmpty() {
+		t.Errorf("Expected [] to clear the queue.")
+	}
+	full.Push(jsonTestItem{S: "z"})
+	if err := json.Unmarshal([]byte("null"), &full); err != nil {
+		t.Fatalf("json.Unmarshal(null): %v", err)
+	}
+	if !full.IsEmpty() {
+		t.Errorf("Expected null to clear the queue.")
+	}
+	checkLinks(t, &full)
+
+	// Element-level unmarshalers are honored.
+	var custom Queue[jsonUpperString]
+	if err := json.Unmarshal([]byte(`["X","Y"]`), &custom); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	var cs []string
+	for _, v := range custom.All() {
+		cs = append(cs, string(v))
+	}
+	if fmt.Sprint(cs) != "[X Y]" {
+		t.Errorf("Expected [X Y], got %v", cs)
+	}
+
+	// Decode errors are returned and leave the queue untouched.
+	var keep Queue[jsonTestItem]
+	keep.Push(jsonTestItem{S: "keep"})
+	for _, badData := range []string{"[1,", `["x"]`, `{"S":"a"}`, "7", `["a",3]`} {
+		if err := json.Unmarshal([]byte(badData), &keep); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", badData)
+		}
+		var vals []string
+		for _, v := range keep.All() {
+			vals = append(vals, v.S)
+		}
+		if got, want := fmt.Sprint(vals), "[keep]"; got != want {
+			t.Errorf("Queue changed after the error on %s: %s", badData, got)
+		}
+	}
+	checkLinks(t, &keep)
+}
+
+// TestUnmarshalJSONPanics verifies that UnmarshalJSON joins the insert
+// family: storing elements into a nil queue panics with a message naming
+// the method, while [] and null — which store nothing — are tolerated
+// everywhere.  Unlike dll, the zero value is a usable queue (there is no
+// equality function to be missing), so storing into a zero-value queue
+// works.
+func TestUnmarshalJSONPanics(t *testing.T) {
+	// A zero-value queue is usable: unmarshaling elements into it works.
+	var zero Queue[jsonTestItem]
+	if err := zero.UnmarshalJSON([]byte(`[{"S":"a"}]`)); err != nil {
+		t.Errorf("Expected a zero-value queue to accept elements, got %v", err)
+	}
+	if got, want := zero.Len(), 1; got != want {
+		t.Errorf("Expected length %d on the zero-value queue, got %d", want, got)
+	}
+	checkLinks(t, &zero)
+
+	var nilQueue *Queue[jsonTestItem]
+	for _, data := range []string{"[]", "null"} {
+		if err := nilQueue.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a nil queue to be tolerated, got %v", data, err)
+		}
+	}
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Errorf("Expected UnmarshalJSON with elements to panic on a nil queue.")
+				return
+			}
+			if msg, ok := r.(string); !ok || !strings.Contains(msg, "UnmarshalJSON") || !strings.Contains(msg, "nil queue") {
+				t.Errorf("Unexpected panic message: %v", r)
+			}
+		}()
+		_ = nilQueue.UnmarshalJSON([]byte(`[{"S":"a"}]`))
+	}()
+}
+
+// TestJSONStructField marshals and unmarshals a Queue nested in a struct
+// through the encoding/json package.  Because the zero value of Queue is
+// usable, even a nil *Queue field — which the json package allocates as
+// a zero-value queue itself — unmarshals without any constructor.
+func TestJSONStructField(t *testing.T) {
+	type Doc struct {
+		Title string      `json:"title"`
+		Jobs  *Queue[int] `json:"jobs"`
+	}
+
+	doc := Doc{Title: "run", Jobs: &Queue[int]{}}
+	doc.Jobs.Push(10)
+	doc.Jobs.Push(20)
+
+	b, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if got, want := string(b), `{"title":"run","jobs":[10,20]}`; got != want {
+		t.Errorf("Expected %s, got %s", want, got)
+	}
+
+	var back Doc
+	if err := json.Unmarshal(b, &back); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if back.Jobs == nil {
+		t.Fatalf("Expected the json package to allocate the queue field.")
+	}
+	var got []int
+	for _, v := range back.Jobs.All() {
+		got = append(got, v)
+	}
+	if fmt.Sprint(got) != "[10 20]" {
+		t.Errorf("Expected [10 20], got %v", got)
+	}
+	checkLinks(t, back.Jobs)
 }

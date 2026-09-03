@@ -7,7 +7,10 @@ BSD 3 Clause Licensed.
 */
 
 import (
+	"encoding/json"
+	"fmt"
 	"math/rand"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -358,4 +361,280 @@ func TestConcurrentCompound(t *testing.T) {
 	if total != n {
 		t.Errorf("Expected %d popped indices via NlPop, got %d", n, total)
 	}
+}
+
+// -------------------------------------------------------------------------------------------------------
+// JSON — encoding/json integration (MarshalJSON/UnmarshalJSON in json.go).
+// -------------------------------------------------------------------------------------------------------
+
+// jsonItem is a struct value type, to verify that element-level JSON
+// encoding is honored through the queue.
+type jsonItem struct {
+	S string
+}
+
+func jsonItemCmp(a, b jsonItem) int { return Compare(a.S, b.S) }
+
+// jsonUpperString is a string with its own JSON representation, to
+// verify that value-level marshalers are honored through the queue.
+type jsonUpperString string
+
+func (u jsonUpperString) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + strings.ToUpper(string(u)) + `"`), nil
+}
+
+func (u *jsonUpperString) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	*u = jsonUpperString(s)
+	return nil
+}
+
+// jsonPairsOf drains the queue via All into "k:v" strings in priority
+// order — the wire order of MarshalJSON.
+func jsonPairsOf[T any](q *IndexPQ[T]) []string {
+	var out []string
+	for k, v := range q.All() {
+		out = append(out, fmt.Sprintf("%d:%v", k, v))
+	}
+	return out
+}
+
+func TestIndexPQMarshalJSON(t *testing.T) {
+	// Exact array output in priority order, minimum value first.
+	q := NewIndexPQ[int](4)
+	q.Insert(0, 30)
+	q.Insert(1, 10)
+	q.Insert(2, 20)
+	b, err := json.Marshal(q)
+	if err != nil {
+		t.Fatalf("json.Marshal(q): %v", err)
+	}
+	want := `[{"index":1,"value":10},{"index":2,"value":20},{"index":0,"value":30}]`
+	if string(b) != want {
+		t.Errorf("Expected %s, got %s", want, b)
+	}
+
+	// Struct values use their normal JSON encoding.
+	items := NewIndexPQFunc[jsonItem](4, jsonItemCmp)
+	items.Insert(0, jsonItem{S: "b"})
+	items.Insert(1, jsonItem{S: "a"})
+	if b, err := json.Marshal(items); err != nil || string(b) != `[{"index":1,"value":{"S":"a"}},{"index":0,"value":{"S":"b"}}]` {
+		t.Errorf(`Unexpected struct-value encoding: (%s, %v)`, b, err)
+	}
+
+	// An empty queue encodes as [].
+	if b, err := json.Marshal(NewIndexPQ[int](4)); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for an empty queue, got (%s, %v)", b, err)
+	}
+
+	// A zero-value queue is a tolerated read: [].
+	var zero IndexPQ[int]
+	if b, err := zero.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] for a zero-value queue, got (%s, %v)", b, err)
+	}
+
+	// A direct call on a nil queue encodes as []; json.Marshal on a nil
+	// *IndexPQ never reaches the method — the json package writes null
+	// for nil pointers itself.
+	var nilQ *IndexPQ[int]
+	if b, err := nilQ.MarshalJSON(); err != nil || string(b) != "[]" {
+		t.Errorf("Expected [] from a direct nil-queue call, got (%s, %v)", b, err)
+	}
+	if b, err := json.Marshal(nilQ); err != nil || string(b) != "null" {
+		t.Errorf("Expected null from json.Marshal on a nil queue, got (%s, %v)", b, err)
+	}
+
+	// Value-level marshalers are honored.
+	custom := NewIndexPQFunc[jsonUpperString](4, func(a, b jsonUpperString) int {
+		return Compare(string(a), string(b))
+	})
+	custom.Insert(0, "x")
+	custom.Insert(1, "y")
+	if b, err := json.Marshal(custom); err != nil || string(b) != `[{"index":0,"value":"X"},{"index":1,"value":"Y"}]` {
+		t.Errorf(`Unexpected custom-value encoding: (%s, %v)`, b, err)
+	}
+
+	// Encoding errors pass through unchanged.
+	bad := NewIndexPQFunc[chan int](2, func(a, b chan int) int { return 0 })
+	bad.Insert(0, make(chan int))
+	if _, err := json.Marshal(bad); err == nil {
+		t.Errorf("Expected an error marshaling a queue of channels.")
+	}
+}
+
+func TestIndexPQUnmarshalJSON(t *testing.T) {
+	// The decoded pairs rebuild the queue; priority order comes back out.
+	q := NewIndexPQ[int](4)
+	if err := json.Unmarshal([]byte(`[{"index":0,"value":30},{"index":1,"value":10},{"index":2,"value":20}]`), q); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	checkInvariants(t, q, Compare[int])
+	if got, want := fmt.Sprint(jsonPairsOf(q)), "[1:10 2:20 0:30]"; got != want {
+		t.Errorf("Expected %s after unmarshal, got %s", want, got)
+	}
+	if k, v, found := q.Peek(); !found || k != 1 || v != 10 {
+		t.Errorf("Expected Peek (1, 10), got (%d, %d, %v)", k, v, found)
+	}
+
+	// A round trip rebuilds a structurally sound queue and keeps the
+	// comparison function (Insert works on the rebuilt queue).
+	items := NewIndexPQFunc[jsonItem](4, jsonItemCmp)
+	items.Insert(0, jsonItem{S: "b"})
+	items.Insert(1, jsonItem{S: "a"})
+	items.Insert(2, jsonItem{S: "c"})
+	b, err := json.Marshal(items)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	again := NewIndexPQFunc[jsonItem](4, jsonItemCmp)
+	if err := json.Unmarshal(b, again); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	checkInvariants(t, again, jsonItemCmp)
+	if got, want := fmt.Sprint(jsonPairsOf(again)), "[1:{a} 0:{b} 2:{c}]"; got != want {
+		t.Errorf("Expected %s after round trip, got %s", want, got)
+	}
+	if !again.Insert(3, jsonItem{S: "d"}) {
+		t.Errorf("Expected Insert to work after unmarshal (comparison function kept).")
+	}
+
+	// Unmarshaling replaces the contents; it does not add to them.
+	if err := json.Unmarshal([]byte(`[{"index":3,"value":7}]`), q); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got, want := q.Len(), 1; got != want {
+		t.Errorf("Expected replacement, got length %d, want %d", got, want)
+	}
+	if q.Contains(0) || !q.Contains(3) {
+		t.Errorf("Expected only index 3 after replacement, pairs %v", jsonPairsOf(q))
+	}
+
+	// A repeated index keeps the last value (Insert semantics).
+	rep := NewIndexPQ[int](4)
+	if err := json.Unmarshal([]byte(`[{"index":1,"value":5},{"index":1,"value":2}]`), rep); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if v, _ := rep.Value(1); v != 2 || rep.Len() != 1 {
+		t.Errorf("Expected a repeated index to keep the last value, got value %d length %d", v, rep.Len())
+	}
+
+	// An empty array and null clear the queue.
+	full := NewIndexPQ[int](4)
+	full.Insert(0, 9)
+	if err := json.Unmarshal([]byte("[]"), full); err != nil {
+		t.Fatalf("json.Unmarshal([]): %v", err)
+	}
+	if !full.IsEmpty() {
+		t.Errorf("Expected [] to clear the queue.")
+	}
+	full.Insert(0, 9)
+	if err := json.Unmarshal([]byte("null"), full); err != nil {
+		t.Fatalf("json.Unmarshal(null): %v", err)
+	}
+	if !full.IsEmpty() {
+		t.Errorf("Expected null to clear the queue.")
+	}
+	checkInvariants(t, full, Compare[int])
+
+	// Value-level unmarshalers are honored.
+	custom := NewIndexPQFunc[jsonUpperString](4, func(a, b jsonUpperString) int {
+		return Compare(string(a), string(b))
+	})
+	if err := json.Unmarshal([]byte(`[{"index":0,"value":"x"},{"index":1,"value":"y"}]`), custom); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got, want := fmt.Sprint(jsonPairsOf(custom)), "[0:x 1:y]"; got != want {
+		t.Errorf("Expected %s, got %s", want, got)
+	}
+
+	// Decode errors are returned and leave the queue untouched.
+	keep := NewIndexPQ[int](4)
+	keep.Insert(0, 42)
+	for _, badData := range []string{"[1,", `[{"index":0,"value":"x"}]`, `{"index":0}`, "7"} {
+		if err := json.Unmarshal([]byte(badData), keep); err == nil {
+			t.Errorf("Expected an error unmarshaling %s.", badData)
+		}
+		if got, want := fmt.Sprint(jsonPairsOf(keep)), "[0:42]"; got != want {
+			t.Errorf("Queue changed after the error on %s: %s", badData, got)
+		}
+	}
+
+	// An index outside the queue's index space is rejected with an
+	// error, also with the queue untouched.
+	if err := json.Unmarshal([]byte(`[{"index":9,"value":1}]`), keep); err == nil {
+		t.Errorf("Expected an error for an out-of-range index.")
+	} else if !strings.Contains(err.Error(), "out of the queue's index space") {
+		t.Errorf("Unexpected out-of-range error: %v", err)
+	}
+	if got, want := fmt.Sprint(jsonPairsOf(keep)), "[0:42]"; got != want {
+		t.Errorf("Queue changed after the out-of-range error: %s", got)
+	}
+	if err := json.Unmarshal([]byte(`[{"index":-1,"value":1}]`), keep); err == nil {
+		t.Errorf("Expected an error for a negative index.")
+	}
+	checkInvariants(t, keep, Compare[int])
+}
+
+// TestIndexPQUnmarshalJSONPanics verifies that UnmarshalJSON joins the
+// insert family: storing values into a nil or zero-value queue panics
+// with a message naming the method and the fix, while [] and null —
+// which store nothing — are tolerated everywhere.
+func TestIndexPQUnmarshalJSONPanics(t *testing.T) {
+	var zero IndexPQ[int]
+	for _, data := range []string{"[]", "null"} {
+		if err := zero.UnmarshalJSON([]byte(data)); err != nil {
+			t.Errorf("Expected %s on a zero-value queue to be tolerated, got %v", data, err)
+		}
+	}
+	expectPanic(t, "UnmarshalJSON on a zero-value queue", "NewIndexPQ", func() {
+		_ = zero.UnmarshalJSON([]byte(`[{"index":0,"value":1}]`))
+	})
+
+	var nilQ *IndexPQ[int]
+	if err := nilQ.UnmarshalJSON([]byte("[]")); err != nil {
+		t.Errorf("Expected [] on a nil queue to be tolerated, got %v", err)
+	}
+	expectPanic(t, "UnmarshalJSON on a nil queue", "nil queue", func() {
+		_ = nilQ.UnmarshalJSON([]byte(`[{"index":0,"value":1}]`))
+	})
+}
+
+// TestIndexPQJSONStructField marshals and unmarshals an IndexPQ nested
+// in a struct through the encoding/json package.  The queue must be
+// created with NewIndexPQ/NewIndexPQFunc before unmarshaling: for a nil
+// *IndexPQ field the json package allocates a zero-value queue itself
+// (no comparison function), so non-empty data panics with the
+// insert-family message.
+func TestIndexPQJSONStructField(t *testing.T) {
+	type Doc struct {
+		Title string           `json:"title"`
+		Queue *IndexPQ[string] `json:"queue"`
+	}
+
+	d := Doc{Title: "pluto", Queue: NewIndexPQ[string](4)}
+	d.Queue.Insert(0, "ds")
+	d.Queue.Insert(1, "go")
+
+	b, err := json.Marshal(d)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	want := `{"title":"pluto","queue":[{"index":0,"value":"ds"},{"index":1,"value":"go"}]}`
+	if string(b) != want {
+		t.Errorf("Unexpected document: %s", b)
+	}
+
+	// Unmarshal into a pre-created queue field.
+	var out Doc
+	out.Queue = NewIndexPQ[string](4)
+	if err := json.Unmarshal(b, &out); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if got := fmt.Sprint(jsonPairsOf(out.Queue)); got != "[0:ds 1:go]" {
+		t.Errorf("Unexpected queue after unmarshal: %s", got)
+	}
+	checkInvariants(t, out.Queue, Compare[string])
 }
