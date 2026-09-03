@@ -55,6 +55,7 @@ on pkg.go.dev.
 | `IsEmpty`, `Len`, `Length`               | O(1)    | O(1)       |
 | `Truncate`                               | O(n)    | O(n)       | clears all buckets for GC
 | `Walk`, `Dump`, `All`, `Values`          | O(n)    | O(n)       |
+| `Scan` (per call)                        | O(count) | O(count)  | incremental cursor scan; O(size) for a full iteration
 |===
 
 Worst case occurs when many keys collide; the load factor is kept below the
@@ -115,6 +116,39 @@ randomization note above):
   returning *false stops the walk* (the tree-packages convention — dll and
   sll are the opposite) and the closure captures caller state; Walk returns
   true when the walk ran to completion.
+
+== Incremental Scan
+
+`Scan(cursor, count)` iterates the table a batch at a time against an
+opaque cursor — the Redis SCAN contract, for walking a huge table
+without one O(n) stall:
+
+[source,go]
+----
+cursor := uint64(0)
+for {
+    items, next := ht.Scan(cursor, 100)
+    for _, v := range items { use(v) }
+    if next == 0 { break }
+    cursor = next
+}
+----
+
+- A full iteration (0 → … → 0) returns every element present for the
+  *entire* iteration at least once; elements added or deleted
+  mid-iteration may or may not appear, and duplicates are allowed.
+  Qualification: a delete's backward-shift repair can move a present
+  element backward across the cursor, so under arbitrary insert/delete
+  churn the at-least-once property is best-effort — it is exact for a
+  frozen table and across growths.
+- `count` is a hint, not a limit; `count <= 0` selects a default of 10.
+- Resize-safety: the cursor stamps the table generation (bumped by every
+  growth and by `Truncate`); a stale generation restarts the walk at
+  bucket 0 — re-reporting is allowed, losing elements is not.  (Redis's
+  reverse-binary cursor does not apply here: a rebuild of an
+  open-addressing table has no clean twin-bucket split.)
+- Only 0 is meaningful in a cursor (start/done); a foreign cursor may
+  return arbitrary results but never corrupts the table.
 
 == Panics
 

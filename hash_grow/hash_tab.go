@@ -32,6 +32,7 @@ BSD 3 Clause Licensed.
 //	Walk — Call a callback for each element in bucket order.					O(n)
 //	Dump — Write a per-bucket listing of the table for debugging.				O(n)
 //	All / Values — Range-over-func iterators in bucket order.					O(n)
+//	Scan — Cursor-based incremental iteration (Redis SCAN contract).			O(count) per call
 //
 // The load factor is kept below the saturation threshold, so average probe
 // chains are short.  A saturation of 1.0 or more defers growth until the
@@ -70,6 +71,7 @@ type HashTab[T any] struct {
 	size                int      // number of buckets; doubled by each growth
 	length              int      // number of elements in the table
 	saturationThreshold float64  // load factor that triggers growth of the table (default 0.5)
+	generation          uint32   // bumped by every resize and Truncate; stamps Scan cursors
 
 	// eq reports whether two elements are considered the same, and hash
 	// returns a hash for an element.  Both are set by the constructors and
@@ -151,7 +153,9 @@ func (tt *HashTab[T]) nlIsEmpty() bool {
 // Truncate removes all data from the table.  All bucket and hash slots are
 // cleared so the garbage collector can reclaim the stored elements.  The
 // size and the equality/hash functions are kept, so the table remains
-// usable and can simply be refilled.
+// usable and can simply be refilled.  In-flight Scan cursors are
+// invalidated (the generation bumps): a Scan holding one restarts against
+// the emptied table and finishes.
 // Complexity is O(n).
 func (tt *HashTab[T]) Truncate() {
 	if tt == nil {
@@ -160,6 +164,7 @@ func (tt *HashTab[T]) Truncate() {
 	clear(tt.buckets)      // zero values of T, releasing references for GC
 	clear(tt.originalHash) // re-mark every slot empty
 	tt.length = 0
+	tt.generation++
 }
 
 // nextIndex returns the next position in the table, wrapping at the end.
@@ -242,7 +247,8 @@ func (tt *HashTab[T]) insertNewItem(rh uint64, item T) (placed, added bool) {
 
 // grow doubles the table and re-hashes every entry into the new bucket
 // array.  The stored raw hashes are reused — nothing is re-hashed with the
-// element hash function.
+// element hash function.  The generation bumps so in-flight Scan cursors
+// restart against the rebuilt table.
 func (tt *HashTab[T]) grow() {
 	oldBuckets, oldOriginal := tt.buckets, tt.originalHash
 	tt.size = tt.size * 2
@@ -254,6 +260,7 @@ func (tt *HashTab[T]) grow() {
 			tt.insertNewItem(oldOriginal[i], oldBuckets[i])
 		}
 	}
+	tt.generation++
 }
 
 // Len returns the number of elements in the table.

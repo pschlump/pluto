@@ -69,6 +69,7 @@ BSD 3 Clause Licensed.
 //	Walk — Call a callback for each element in slot order.					O(n)
 //	Dump — Write a per-slot listing of the table for debugging.				O(n)
 //	All / Values — Range-over-func iterators in slot order.					O(n)
+//	Scan — Cursor-based incremental iteration (Redis SCAN contract).			O(count) per call
 //
 // A nil *HashTab and the zero value both behave as an empty table for every
 // read: searches report not-found, Delete returns false, and the iterators
@@ -151,6 +152,10 @@ type HashTab[T any] struct {
 	grows   uint64
 	shrinks uint64
 	forced  uint64
+
+	// generation is bumped by every successful rebuild and by Truncate;
+	// it stamps Scan cursors.
+	generation uint32
 
 	// eq reports whether two elements are considered the same, and hash
 	// returns the 64-bit base hash for an element.  Both are set by the
@@ -379,6 +384,7 @@ func (tt *HashTab[T]) Truncate() {
 	}
 	clear(tt.slots) // zero values of T and zero hashes, releasing references for GC
 	tt.length = 0
+	tt.generation++
 }
 
 // Insert will add a new item to the table.  If it is a duplicate of an
@@ -467,6 +473,7 @@ func (tt *HashTab[T]) tryRebuild(newSize int) bool {
 	} else {
 		tt.shrinks++
 	}
+	tt.generation++
 	return true
 }
 

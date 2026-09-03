@@ -44,6 +44,7 @@ on pkg.go.dev.
 | `Truncate`                               | O(n)    | O(n)       | clears all buckets for GC
 | `Walk`, `Dump`                           | O(n)    | O(n)       | read lock held for the whole call
 | `All`, `Values`                          | O(n)    | O(n)       | snapshot copied under the read lock
+| `Scan` (per call)                        | O(count) | O(count)  | read lock per batch, none held across calls
 | `Lock` / `Unlock` + `Nl*`                | O(1)    | O(1)       | compound operations
 |===
 
@@ -100,6 +101,40 @@ from the loop body.  `Walk(fx)` is the callback alternative
 (`func(pos int, data T) bool`, returning *false stops the walk*); it holds
 the read lock for the whole traversal, so `fx` must not call methods on the
 same table.
+
+== Incremental Scan
+
+`Scan(cursor, count)` iterates the table a batch at a time against an
+opaque cursor — the Redis SCAN contract, for walking a huge table
+without one O(n) stall.  Each call takes the read lock for its
+batch only — no lock is held across calls:
+
+[source,go]
+----
+cursor := uint64(0)
+for {
+    items, next := ht.Scan(cursor, 100)
+    for _, v := range items { use(v) }
+    if next == 0 { break }
+    cursor = next
+}
+----
+
+- A full iteration (0 → … → 0) returns every element present for the
+  *entire* iteration at least once; elements added or deleted
+  mid-iteration may or may not appear, and duplicates are allowed.
+  Qualification: a delete's backward-shift repair can move a present
+  element backward across the cursor, so under arbitrary insert/delete
+  churn the at-least-once property is best-effort — it is exact for a
+  frozen table and across growths.
+- `count` is a hint, not a limit; `count <= 0` selects a default of 10.
+- Resize-safety: the cursor stamps the table generation (bumped by every
+  growth and by `Truncate`); a stale generation restarts the walk at
+  bucket 0 — re-reporting is allowed, losing elements is not.  (Redis's
+  reverse-binary cursor does not apply here: a rebuild of an
+  open-addressing table has no clean twin-bucket split.)
+- Only 0 is meaningful in a cursor (start/done); a foreign cursor may
+  return arbitrary results but never corrupts the table.
 
 == Panics
 

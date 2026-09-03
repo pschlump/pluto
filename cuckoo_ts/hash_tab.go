@@ -164,6 +164,11 @@ type HashTab[T any] struct {
 	shrinks uint64
 	forced  uint64
 
+	// generation is bumped by every successful rebuild and by Truncate;
+	// it stamps Scan cursors.  Written under the write lock, read by Scan
+	// under the read lock.
+	generation uint32
+
 	// eq reports whether two elements are considered the same, and hash
 	// returns the 64-bit base hash for an element.  Both are set by the
 	// constructors and are the only things that know how to compare and hash
@@ -431,6 +436,7 @@ func (tt *HashTab[T]) Truncate() {
 	defer tt.lock.Unlock()
 	clear(tt.slots) // zero values of T and zero hashes, releasing references for GC
 	tt.length = 0
+	tt.generation++
 }
 
 // Insert will add a new item to the table.  If it is a duplicate of an
@@ -528,6 +534,7 @@ func (tt *HashTab[T]) tryRebuild(newSize int) bool {
 	} else {
 		tt.shrinks++
 	}
+	tt.generation++
 	return true
 }
 

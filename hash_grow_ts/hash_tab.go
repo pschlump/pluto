@@ -69,6 +69,7 @@ type HashTab[T any] struct {
 	lock                sync.RWMutex
 	length              int     // number of elements in the table
 	saturationThreshold float64 // load factor that triggers growth of the table (default 0.5)
+	generation          uint32  // bumped by every resize and Truncate; stamps Scan cursors
 
 	// eq reports whether two elements are considered the same, and hash
 	// returns a hash for an element.  Both are set by the constructors and
@@ -198,6 +199,7 @@ func (tt *HashTab[T]) Truncate() {
 	clear(tt.buckets)      // zero values of T, releasing references for GC
 	clear(tt.originalHash) // re-mark every slot empty
 	tt.length = 0
+	tt.generation++
 }
 
 // nextIndex returns the next position in the table, wrapping at the end.
@@ -301,6 +303,7 @@ func (tt *HashTab[T]) grow() {
 			tt.insertNewItem(oldOriginal[i], oldBuckets[i])
 		}
 	}
+	tt.generation++
 }
 
 // Len returns the number of elements in the table.
