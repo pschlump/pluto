@@ -12,3 +12,9 @@ test: all
 setup:
 	go get golang.org/x/exp/constraints
 
+
+.PHONY: lint
+## lint: run golangci-lint
+lint:
+	golangci-lint run 
+

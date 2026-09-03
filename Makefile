@@ -22,6 +22,11 @@ race:
 cover:
 	go test -coverprofile=coverage.out ./...
 
+.PHONY: lint
+## lint: run golangci-lint
+lint:
+	golangci-lint run ./...
+
 .PHONY: bench
 bench:
 	go test -run='^$$' -bench=. -benchmem ./...
