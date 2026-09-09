@@ -475,3 +475,88 @@ func TestSampleStripe(t *testing.T) {
 	expectPanicMessage(t, "negative stripe", "out-of-range stripe index",
 		func() { h2.SampleStripe(-1, 1, nil) })
 }
+
+// StripeWalk visits exactly the elements routing to stripe i (membership
+// checked against the table's own routing: hash*fibMult >> stripeShift),
+// numbers them from 0 within the stripe, stops early on fx == false,
+// panics on an out-of-range index (the SampleStripe convention), and
+// tolerates a nil table as empty (the Walk convention).
+func TestStripeWalk(t *testing.T) {
+	h := newTestHash(8, 16, 0.75)
+	want := make([]map[string]bool, h.StripeCount())
+	for i := range want {
+		want[i] = map[string]bool{}
+	}
+	const nKeys = 400
+	for k := 0; k < nKeys; k++ {
+		it := TestData{S: fmt.Sprintf("key-%04d", k), N: k}
+		h.Insert(it)
+		want[(h.hash(it)*fibMult)>>h.stripeShift][it.S] = true
+	}
+
+	union := map[string]bool{}
+	for s := 0; s < h.StripeCount(); s++ {
+		got := map[string]bool{}
+		lastPos := -1
+		ok := h.StripeWalk(s, func(pos int, it TestData) bool {
+			if pos != lastPos+1 {
+				t.Errorf("StripeWalk(%d): pos = %d, want %d (counter must run 0,1,2,... within the stripe)", s, pos, lastPos+1)
+			}
+			lastPos = pos
+			if got[it.S] {
+				t.Errorf("StripeWalk(%d) visited %q twice", s, it.S)
+			}
+			got[it.S] = true
+			return true
+		})
+		if !ok {
+			t.Fatalf("StripeWalk(%d) returned false with an always-true fx", s)
+		}
+		if len(got) != len(want[s]) {
+			t.Fatalf("StripeWalk(%d) visited %d elements, stripe routes %d", s, len(got), len(want[s]))
+		}
+		for k := range got {
+			if !want[s][k] {
+				t.Fatalf("StripeWalk(%d) visited %q, which routes to another stripe", s, k)
+			}
+			if union[k] {
+				t.Fatalf("key %q visited by more than one stripe walk", k)
+			}
+			union[k] = true
+		}
+		if len(got) != h.StripeLen(s) {
+			t.Fatalf("StripeWalk(%d) visited %d elements, StripeLen reports %d", s, len(got), h.StripeLen(s))
+		}
+	}
+	if len(union) != nKeys {
+		t.Fatalf("union of all stripe walks = %d keys, want %d (walks must partition the table)", len(union), nKeys)
+	}
+
+	// Early stop: fx returning false ends the walk immediately and the
+	// return value reports it.
+	visits := 0
+	if h.StripeWalk(0, func(pos int, it TestData) bool {
+		visits++
+		return visits < 3
+	}) {
+		t.Fatalf("StripeWalk(0) returned true after fx returned false")
+	}
+	if visits != 3 {
+		t.Fatalf("StripeWalk(0) made %d calls after fx returned false on the 3rd, want 3", visits)
+	}
+
+	// Nil table: empty-table convention — visits nothing, completes.
+	var nh *ShardedHash[TestData]
+	called := false
+	if !nh.StripeWalk(0, func(pos int, it TestData) bool { called = true; return true }) {
+		t.Fatalf("StripeWalk on a nil table returned false, want true (the Walk convention)")
+	}
+	if called {
+		t.Fatalf("StripeWalk on a nil table called fx")
+	}
+
+	expectPanicMessage(t, "out-of-range stripe", "out-of-range stripe index",
+		func() { h.StripeWalk(h.StripeCount(), func(pos int, it TestData) bool { return true }) })
+	expectPanicMessage(t, "negative stripe", "out-of-range stripe index",
+		func() { h.StripeWalk(-1, func(pos int, it TestData) bool { return true }) })
+}

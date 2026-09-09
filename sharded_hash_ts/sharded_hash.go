@@ -63,19 +63,21 @@ BSD 3 Clause Licensed.
 //	LockKey + Nl* — atomic read-modify-write on one key's stripe.	O(1) to lock
 //	StripeCount / StripeLen — per-stripe load for metrics.		O(1) / O(1)
 //	Walk / All / Values — iterate stripe by stripe.				O(n)
+//	StripeWalk / SampleStripe — iterate/sample ONE stripe.			O(n_stripe) / O(n)
 //	Dump — per-stripe summary for debugging.					O(stripes)
 //
 // A nil *ShardedHash and the zero value both behave as an empty table for
 // every read: searches report not-found, Delete returns false, Scan returns
 // no elements and cursor 0, and the iterators visit nothing.
 //
-// The package panics in exactly four situations, all programmer errors that
+// The package panics in exactly five situations, all programmer errors that
 // cannot be handled where they occur — each message names the fix:
 //
 //	NewShardedHashFunc with a nil equality or hash function — caught at construction.
 //	NewShardedHash/NewShardedHashFunc with stripes < 1 — a stripe count is not a tuning hint.
 //	Insert on a nil table — a nil table cannot store an element.
 //	Insert on a zero-value table — no equality/hash functions; the message names the constructors.
+//	SampleStripe/StripeWalk with an out-of-range stripe index — StripeCount reports the fixed count.
 //
 // There is no plain (non-_ts) twin: the striping exists only for concurrent
 // use.  Single-goroutine callers want hash_grow or hash_tab.
