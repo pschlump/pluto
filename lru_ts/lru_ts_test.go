@@ -275,3 +275,43 @@ func TestPanics(t *testing.T) {
 	var zeroCache lru_ts.Lru[string, int]
 	expectPanicMsg(t, "Put on a zero-value cache", func() { zeroCache.Put("k", 1) }, "lru_ts:", "Put", "NewLru")
 }
+
+// Oldest/PopOldest twins (and their Nl forms) track the plain package.
+func TestOldestPopOldest(t *testing.T) {
+	c := lru_ts.NewLru[string, int](4)
+	if _, _, ok := c.Oldest(); ok {
+		t.Fatal("Oldest on empty cache = true, want false")
+	}
+	c.Put("a", 1)
+	c.Put("b", 2)
+	if k, v, ok := c.Oldest(); !ok || k != "a" || v != 1 {
+		t.Fatalf("Oldest = (%q, %d, %v), want (a, 1, true)", k, v, ok)
+	}
+	if k, v, ok := c.PopOldest(); !ok || k != "a" || v != 1 {
+		t.Fatalf("PopOldest = (%q, %d, %v), want (a, 1, true)", k, v, ok)
+	}
+	if _, ok := c.Peek("a"); ok {
+		t.Fatal("Peek(a) after PopOldest = true, want false")
+	}
+
+	// The Nl forms under a caller-held Lock, veto included.
+	v := lru_ts.NewLruFunc[string, int](4, func(k string, _ int) bool { return k != "x" })
+	v.Put("x", 1)
+	v.Put("y", 2)
+	v.Lock()
+	if k, _, ok := v.NlOldest(); !ok || k != "x" {
+		t.Errorf("NlOldest = (%q, %v), want (x, true)", k, ok)
+	}
+	if k, _, ok := v.NlPopOldest(); !ok || k != "y" {
+		t.Errorf("NlPopOldest with veto = (%q, %v), want (y, true)", k, ok)
+	}
+	v.Unlock()
+
+	var nilCache *lru_ts.Lru[string, int]
+	if _, _, ok := nilCache.Oldest(); ok {
+		t.Fatal("Oldest on nil cache = true, want false")
+	}
+	if _, _, ok := nilCache.PopOldest(); ok {
+		t.Fatal("PopOldest on nil cache = true, want false")
+	}
+}

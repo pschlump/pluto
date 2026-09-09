@@ -25,6 +25,8 @@ BSD 3 Clause Licensed.
 //	      and inserts evict least-recently-used entries (subject to the
 //	      veto) down to the capacity first.
 //	Delete — remove a key.
+//	Oldest / PopOldest — peek at / remove the least-recently-used entry
+//	      (PopOldest skips veto-protected entries, like Put's eviction).
 //	Len / Capacity — size queries.
 //	Clear — drop every entry, keeping the capacity and the veto.
 //	All / Backward — range-over-func iterators (MRU→LRU / LRU→MRU).
@@ -182,6 +184,47 @@ func (c *Lru[K, V]) Delete(key K) bool {
 		return true
 	}
 	return false
+}
+
+// Oldest returns the least-recently-used entry WITHOUT removing it and
+// without changing the recency order (the veto callback is not
+// consulted: this is a pure observation).  A nil or empty cache reports
+// not-found.
+// Complexity is O(1).
+func (c *Lru[K, V]) Oldest() (K, V, bool) {
+	var zeroK K
+	var zeroV V
+	if c == nil || c.ll == nil {
+		return zeroK, zeroV, false
+	}
+	if e := c.ll.Back(); e != nil {
+		ent := e.Value.(lruEntry[K, V])
+		return ent.key, ent.value, true
+	}
+	return zeroK, zeroV, false
+}
+
+// PopOldest removes and returns the least-recently-used entry the veto
+// allows (the scan skips veto-protected entries and tries the
+// next-older one, exactly like Put's eviction).  A nil or empty cache —
+// or a cache whose every entry is veto-protected — reports not-found.
+// Complexity is O(1), O(scan) with a vetoing callback.
+func (c *Lru[K, V]) PopOldest() (K, V, bool) {
+	var zeroK K
+	var zeroV V
+	if c == nil || c.byKey == nil {
+		return zeroK, zeroV, false
+	}
+	for e := c.ll.Back(); e != nil; e = e.Prev() {
+		ent := e.Value.(lruEntry[K, V])
+		if c.evictable != nil && !c.evictable(ent.key, ent.value) {
+			continue // vetoed: try the next-older entry
+		}
+		delete(c.byKey, ent.key)
+		c.ll.Remove(e)
+		return ent.key, ent.value, true
+	}
+	return zeroK, zeroV, false
 }
 
 // Len returns the number of entries in the cache — which may exceed

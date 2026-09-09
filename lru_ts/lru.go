@@ -20,7 +20,9 @@ BSD 3 Clause Licensed.
 //	            the recency list; a read lock would race with every
 //	            other Get.
 //	Peek, Len, Capacity — the read lock (true reads).
+//	Oldest     — the read lock (a peek at the LRU end; no re-marking).
 //	Put, Delete, Clear  — the write lock.
+//	PopOldest  — the write lock (it removes the entry).
 //	All / Backward      — the read lock held only while the snapshot
 //	                     is materialized; the returned iterator then
 //	                     walks the snapshot, so it is safe to mutate
@@ -169,6 +171,38 @@ func (c *Lru[K, V]) Delete(key K) bool {
 	return c.inner.Delete(key)
 }
 
+// Oldest returns the least-recently-used entry WITHOUT removing it and
+// without changing the recency order, under the read lock (the veto
+// callback is not consulted: this is a pure observation).  A nil,
+// zero-value, or empty cache reports not-found.
+// Complexity is O(1).
+func (c *Lru[K, V]) Oldest() (K, V, bool) {
+	var zeroK K
+	var zeroV V
+	if c == nil {
+		return zeroK, zeroV, false
+	}
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	return c.inner.Oldest()
+}
+
+// PopOldest removes and returns the least-recently-used entry the veto
+// allows (the scan skips veto-protected entries, like Put's eviction),
+// under the write lock.  A nil, zero-value, or empty cache — or a cache
+// whose every entry is veto-protected — reports not-found.
+// Complexity is O(1), O(scan) with a vetoing callback.
+func (c *Lru[K, V]) PopOldest() (K, V, bool) {
+	var zeroK K
+	var zeroV V
+	if c == nil {
+		return zeroK, zeroV, false
+	}
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	return c.inner.PopOldest()
+}
+
 // Len returns the number of entries in the cache — which may exceed
 // Capacity while every entry is veto-protected (the soft cap) — under
 // the read lock.  A nil or zero-value cache has length 0.
@@ -303,6 +337,16 @@ func (c *Lru[K, V]) NlPut(key K, value V) { c.inner.Put(key, value) }
 // NlDelete is the no-lock Delete — call it only while holding Lock.
 // Complexity is O(1).
 func (c *Lru[K, V]) NlDelete(key K) bool { return c.inner.Delete(key) }
+
+// NlOldest is the no-lock Oldest — call it only while holding Lock.
+// Complexity is O(1).
+func (c *Lru[K, V]) NlOldest() (K, V, bool) { return c.inner.Oldest() }
+
+// NlPopOldest is the no-lock PopOldest, veto callback included — call
+// it only while holding Lock (and the callback must still not call back
+// into this cache).  Complexity is O(1), O(scan) with a vetoing
+// callback.
+func (c *Lru[K, V]) NlPopOldest() (K, V, bool) { return c.inner.PopOldest() }
 
 // NlClear is the no-lock Clear — call it only while holding Lock.
 // Complexity is O(n).

@@ -409,3 +409,69 @@ func TestMapPattern(t *testing.T) {
 		t.Errorf("expected length 1, got %d", h.Len())
 	}
 }
+
+// SampleStripe draws only from the requested stripe (verified by the
+// stripe-length drop when the samples are deleted), respects n, returns
+// nil for an empty stripe, tolerates a nil rng, and over many draws
+// covers the stripe (no degenerate single-bucket sampling).
+func TestSampleStripe(t *testing.T) {
+	h := newTestHash(8, 16, 0.75)
+	for i := 0; i < 400; i++ {
+		h.Insert(TestData{S: fmt.Sprintf("key-%04d", i), N: i})
+	}
+	for s := 0; s < h.StripeCount(); s++ {
+		if got := h.SampleStripe(s, 0, nil); got != nil {
+			t.Fatalf("SampleStripe(%d, 0) = %v, want nil", s, got)
+		}
+		before := h.StripeLen(s)
+		if before == 0 {
+			if got := h.SampleStripe(s, 5, nil); got != nil {
+				t.Fatalf("SampleStripe on empty stripe = %v, want nil", got)
+			}
+			continue
+		}
+		n := 5
+		if before < n {
+			n = before
+		}
+		got := h.SampleStripe(s, n, nil)
+		if len(got) == 0 || len(got) > n {
+			t.Fatalf("SampleStripe(%d, %d) returned %d elements", s, n, len(got))
+		}
+		seen := map[string]bool{}
+		for _, it := range got {
+			if _, ok := h.Search(it); !ok {
+				t.Fatalf("SampleStripe(%d) returned %v, not in the table", s, it)
+			}
+			seen[it.S] = true
+		}
+		for k := range seen {
+			h.Delete(TestData{S: k})
+		}
+		if after := h.StripeLen(s); after != before-len(seen) {
+			t.Fatalf("StripeLen(%d) = %d after deleting %d samples from %d — a sample came from another stripe",
+				s, after, len(seen), before)
+		}
+	}
+
+	// Coverage: repeated single draws from a well-filled stripe should
+	// see many distinct elements.
+	h2 := newTestHash(1, 16, 0.75)
+	for i := 0; i < 200; i++ {
+		h2.Insert(TestData{S: fmt.Sprintf("cov-%04d", i), N: i})
+	}
+	distinct := map[string]bool{}
+	for i := 0; i < 2000; i++ {
+		for _, it := range h2.SampleStripe(0, 1, nil) {
+			distinct[it.S] = true
+		}
+	}
+	if len(distinct) < 100 {
+		t.Fatalf("SampleStripe covered %d of 200 elements over 2000 draws — sampling looks degenerate", len(distinct))
+	}
+
+	expectPanicMessage(t, "out-of-range stripe", "out-of-range stripe index",
+		func() { h2.SampleStripe(1, 1, nil) })
+	expectPanicMessage(t, "negative stripe", "out-of-range stripe index",
+		func() { h2.SampleStripe(-1, 1, nil) })
+}

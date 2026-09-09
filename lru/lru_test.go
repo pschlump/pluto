@@ -298,3 +298,53 @@ func BenchmarkGetMiss(b *testing.B) {
 		c.Get(1000 + i%1000)
 	}
 }
+
+// Oldest peeks without re-marking; PopOldest removes in LRU order and
+// skips veto-protected entries like Put's eviction does.
+func TestOldestPopOldest(t *testing.T) {
+	c := NewLru[string, int](4)
+	if _, _, ok := c.Oldest(); ok {
+		t.Fatal("Oldest on empty cache = true, want false")
+	}
+	if _, _, ok := c.PopOldest(); ok {
+		t.Fatal("PopOldest on empty cache = true, want false")
+	}
+	c.Put("a", 1)
+	c.Put("b", 2)
+	c.Put("c", 3)
+	if k, v, ok := c.Oldest(); !ok || k != "a" || v != 1 {
+		t.Fatalf("Oldest = (%q, %d, %v), want (a, 1, true)", k, v, ok)
+	}
+	// Oldest must not re-mark: "a" is still the LRU end.
+	if got := mruOrder(c); !reflect.DeepEqual(got, []string{"c", "b", "a"}) {
+		t.Fatalf("order after Oldest = %v, want [c b a]", got)
+	}
+	if k, v, ok := c.PopOldest(); !ok || k != "a" || v != 1 {
+		t.Fatalf("PopOldest = (%q, %d, %v), want (a, 1, true)", k, v, ok)
+	}
+	if got := mruOrder(c); !reflect.DeepEqual(got, []string{"c", "b"}) {
+		t.Fatalf("order after PopOldest = %v, want [c b]", got)
+	}
+
+	// The veto protects the LRU end: the pop takes the next-older entry.
+	v := NewLruFunc[string, int](4, func(k string, _ int) bool { return k != "b" })
+	v.Put("b", 2)
+	v.Put("c", 3)
+	if k, _, ok := v.PopOldest(); !ok || k != "c" {
+		t.Fatalf("PopOldest with veto = (%q, %v), want (c, true)", k, ok)
+	}
+	if _, _, ok := v.PopOldest(); ok {
+		t.Fatal("PopOldest with all entries vetoed = true, want false")
+	}
+	if v.Len() != 1 {
+		t.Fatalf("Len after vetoed pops = %d, want 1 (vetoed entry kept)", v.Len())
+	}
+
+	var nilCache *Lru[string, int]
+	if _, _, ok := nilCache.Oldest(); ok {
+		t.Fatal("Oldest on nil cache = true, want false")
+	}
+	if _, _, ok := nilCache.PopOldest(); ok {
+		t.Fatal("PopOldest on nil cache = true, want false")
+	}
+}
