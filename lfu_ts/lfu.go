@@ -47,6 +47,7 @@ BSD 3 Clause Licensed.
 package lfu_ts
 
 import (
+	"slices"
 	"sync"
 	"time"
 
@@ -234,6 +235,21 @@ func (l *Lfu[K]) Len() int {
 	return l.inner.Len()
 }
 
+// Keys returns the tracked keys in first-insert order — a snapshot copy
+// taken under the read lock, so the caller may Delete while ranging
+// over the result.  A nil or zero-value table reports nil.  Ultima's
+// FLUSHDB uses it to purge one logical DB's counters from a tracker
+// shared across DBs.
+// Complexity is O(n).
+func (l *Lfu[K]) Keys() []K {
+	if l == nil || l.inner == nil {
+		return nil
+	}
+	l.lock.RLock()
+	defer l.lock.RUnlock()
+	return slices.Clone(l.keys)
+}
+
 // Truncate drops every key's counter under the write lock, keeping the
 // configuration.  A nil or zero-value table does nothing.
 // Complexity is O(n).
@@ -292,6 +308,8 @@ func (l *Lfu[K]) NlDelete(key K) bool { return l.inner.Delete(key) }
 // Complexity is O(1).
 func (l *Lfu[K]) NlLen() int { return l.inner.Len() }
 
+// NlKeys is Keys without the lock — call it only under Lock.
+func (l *Lfu[K]) NlKeys() []K { return slices.Clone(l.keys) }
 // NlTruncate is the no-lock Truncate — call it only while holding
 // Lock.
 // Complexity is O(n).

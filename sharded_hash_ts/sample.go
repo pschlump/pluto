@@ -19,10 +19,10 @@ import "math/rand"
 // draw, so any live element can be returned and elements in longer
 // chains are not starved; the distribution is approximate, not uniform
 // (bucket lengths differ), and the same element may appear twice in one
-// call's result.  Probing is attempt-capped, so a sparse stripe can
-// return FEWER than n elements even when it holds n or more — callers
-// needing exactly n live elements must retry.  A nil or empty stripe
-// yields nil.
+// call's result.  The attempt budget scales with the stripe's sparsity
+// (heads/live): a stripe right after a growth doubling is half-empty, and
+// deletes never shrink heads, so a fixed cap starves sparse stripes.
+// A nil or empty stripe yields nil.
 //
 // rng may be nil, in which case the global math/rand source is used.
 // It panics if stripeIdx is out of range (a programmer error: the
@@ -48,7 +48,15 @@ func (tt *ShardedHash[T]) SampleStripe(stripeIdx, n int, rng *rand.Rand) []T {
 	}
 	heads := tab.heads
 	out := make([]T, 0, n)
-	for attempt := 0; len(out) < n && attempt < 4*n+8; attempt++ {
+	// Sparsity-aware attempt budget: a hit needs a non-nil bucket, and the
+	// non-nil fraction can be as low as live/heads, so scale the cap by
+	// heads/live (a dense stripe keeps the small 4n+32 budget).
+	sparse := 1
+	if tab.live > 0 && len(heads)/tab.live > 1 {
+		sparse = len(heads) / tab.live
+	}
+	maxAttempts := 4*n*sparse + 32
+	for attempt := 0; len(out) < n && attempt < maxAttempts; attempt++ {
 		node := heads[intn(len(heads))]
 		if node == nil {
 			continue

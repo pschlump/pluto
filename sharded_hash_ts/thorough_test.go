@@ -27,7 +27,7 @@ import (
 )
 
 // checkInvariants verifies the structural invariants of the table: every
-// node sits in the bucket its raw hash masks to, every stripe's live count
+// node sits in the bucket its mixed hash masks to, every stripe's live count
 // matches its chain length, the stripes sum to the atomic Len, and Search
 // finds every stored element.  Call it after structural changes — in
 // single-goroutine tests only (it reads the internals without the locks).
@@ -40,8 +40,8 @@ func checkInvariants(t *testing.T, h *ShardedHash[TestData]) {
 		for b, head := range s.tab.heads {
 			m := uint64(len(s.tab.heads) - 1)
 			for n := head; n != nil; n = n.next {
-				if n.h&m != uint64(b) {
-					t.Fatalf("stripe %d: node %q (h=%d) chained in bucket %d, want %d", i, n.data.S, n.h, b, n.h&m)
+				if want := mix64(n.h) & m; want != uint64(b) {
+					t.Fatalf("stripe %d: node %q (h=%d) chained in bucket %d, want %d", i, n.data.S, n.h, b, want)
 				}
 				if seen[n.data.S] {
 					t.Fatalf("stripe %d: key %q chained twice", i, n.data.S)

@@ -18,6 +18,8 @@ import (
 	"hash/fnv"
 	"strings"
 	"testing"
+
+	"github.com/pschlump/pluto/crc"
 )
 
 // TestData is the standard test element: S is the key that the equality and
@@ -474,6 +476,49 @@ func TestSampleStripe(t *testing.T) {
 		func() { h2.SampleStripe(1, 1, nil) })
 	expectPanicMessage(t, "negative stripe", "out-of-range stripe index",
 		func() { h2.SampleStripe(-1, 1, nil) })
+}
+
+// TestClusteredHashPlacement pins the bucket-diffusion fix: a caller hash
+// whose low bits are nearly constant for sequential keys (CRC-64/ISO on
+// decimal strings — Ultima's key hash) must still spread over a stripe's
+// buckets, keeping chains short and SampleStripe's random-bucket probes
+// productive. Before mix64 every such key chained in ONE bucket and
+// eviction sampling starved (Ultima M5d soak failure).
+func TestClusteredHashPlacement(t *testing.T) {
+	ct := crc.MakeTable64(crc.ISO)
+	h := NewShardedHashFunc(
+		func(a, b TestData) bool { return a.S == b.S },
+		func(a TestData) uint64 { return crc.Checksum64([]byte(a.S), ct) },
+		64, 0, 0.75,
+	)
+	for i := 0; i < 6400; i++ {
+		h.Insert(TestData{S: fmt.Sprintf("k%07d", i), N: i})
+	}
+	for s := 0; s < h.StripeCount(); s++ {
+		st := h.stripes[s]
+		st.lock.RLock()
+		live := st.tab.live
+		maxChain := 0
+		for _, head := range st.tab.heads {
+			n := 0
+			for node := head; node != nil; node = node.next {
+				n++
+			}
+			if n > maxChain {
+				maxChain = n
+			}
+		}
+		st.lock.RUnlock()
+		if live == 0 {
+			continue
+		}
+		if maxChain > live/4+8 {
+			t.Errorf("stripe %d: longest chain %d of %d live — bucket placement is clustered", s, maxChain, live)
+		}
+		if got := h.SampleStripe(s, 5, nil); len(got) < 5 {
+			t.Errorf("stripe %d: SampleStripe(5) = %d elements on a %d-live stripe — sampling starved", s, len(got), live)
+		}
+	}
 }
 
 // StripeWalk visits exactly the elements routing to stripe i (membership

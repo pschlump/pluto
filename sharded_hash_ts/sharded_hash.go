@@ -109,6 +109,26 @@ const (
 // decorrelates the routing bits from the low bits the bucket mask uses.
 const fibMult = uint64(0x9E3779B97F4A7C15)
 
+// mix64 is the murmur3 fmix64 finalizer, applied to the caller hash before
+// bucket indexing.  Routing tolerates a hash with clustered bits (the
+// multiply carries low-bit entropy upward), but bucket placement masks the
+// RAW low bits — and hashes like CRC-64/ISO hold their low ~28 bits nearly
+// constant for sequential decimal keys, so unmixed placement collapses
+// every such key into one bucket chain (found by Ultima's M5d maxmemory
+// soak: eviction sampling, which probes random buckets, starved on the
+// clustered stripe).  mix64 is a bijection, so growth still splits bucket v
+// into exactly {v, v+len(old)} by the next mixed bit — the rehash-safe Scan
+// guarantee is unchanged; node.h keeps the RAW hash for the equality
+// short-circuit.
+func mix64(h uint64) uint64 {
+	h ^= h >> 33
+	h *= 0xff51afd7ed558ccd
+	h ^= h >> 33
+	h *= 0xc4ceb9fe1a85ec53
+	h ^= h >> 33
+	return h
+}
+
 // defaultLoadFactor is the per-stripe growth threshold used when the
 // constructor's loadFactor is <= 0 or NaN.  0.75 is the classic chained-table
 // setting; chains stay short while memory overhead stays modest.
@@ -130,9 +150,9 @@ type node[T any] struct {
 
 // stripeTab is the lock-free chained table owned by one stripe.  heads is
 // always a power of two; heads grow by doubling under the stripe's write
-// lock, re-linking every node at h & newMask (the deterministic split Scan's
-// guarantee depends on — nodes are never re-hashed and never move except by
-// that split).
+// lock, re-linking every node at mix64(h) & newMask (the deterministic
+// split Scan's guarantee depends on — nodes are never re-hashed and never
+// move except by that split).
 type stripeTab[T any] struct {
 	heads     []*node[T]
 	live      int     // number of nodes chained in heads
@@ -162,7 +182,7 @@ func (tb *stripeTab[T]) computeThreshold() int {
 // hashes (the constructor contract), so a hash mismatch rules out equality
 // without calling eq.
 func (tb *stripeTab[T]) find(hh uint64, find T, eq func(a, b T) bool) *node[T] {
-	for n := tb.heads[hh&uint64(len(tb.heads)-1)]; n != nil; n = n.next {
+	for n := tb.heads[mix64(hh)&uint64(len(tb.heads)-1)]; n != nil; n = n.next {
 		if n.h == hh && eq(n.data, find) {
 			return n
 		}
@@ -175,7 +195,7 @@ func (tb *stripeTab[T]) find(hh uint64, find T, eq func(a, b T) bool) *node[T] {
 // bucket head (returning true).  Doubling the table when the threshold
 // passes is amortized O(1).
 func (tb *stripeTab[T]) insert(hh uint64, item T, eq func(a, b T) bool) (added bool) {
-	b := hh & uint64(len(tb.heads)-1)
+	b := mix64(hh) & uint64(len(tb.heads)-1)
 	for n := tb.heads[b]; n != nil; n = n.next {
 		if n.h == hh && eq(n.data, item) {
 			n.data = item // equal element: replace in place, no structural change
@@ -193,7 +213,7 @@ func (tb *stripeTab[T]) insert(hh uint64, item T, eq func(a, b T) bool) (added b
 // remove unlinks the node equal to `find` from the chain at h & mask.
 // Unlinking moves no other node — the property Scan's guarantee needs.
 func (tb *stripeTab[T]) remove(hh uint64, find T, eq func(a, b T) bool) (found bool) {
-	b := hh & uint64(len(tb.heads)-1)
+	b := mix64(hh) & uint64(len(tb.heads)-1)
 	var prev *node[T]
 	for n := tb.heads[b]; n != nil; prev, n = n, n.next {
 		if n.h == hh && eq(n.data, find) {
@@ -226,8 +246,9 @@ func (tb *stripeTab[T]) grow() {
 	for _, head := range old {
 		for n := head; n != nil; {
 			next := n.next
-			n.next = tb.heads[n.h&m]
-			tb.heads[n.h&m] = n
+			b := mix64(n.h) & m
+			n.next = tb.heads[b]
+			tb.heads[b] = n
 			n = next
 		}
 	}

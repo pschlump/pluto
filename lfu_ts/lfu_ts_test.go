@@ -101,7 +101,47 @@ func TestLfuTsNilAndZero(t *testing.T) {
 		l.Truncate()
 		l.Lock() // nil no-op form
 		l.Unlock()
+		if keys := l.Keys(); keys != nil {
+			t.Errorf("Keys on %T = %v, want nil", l, keys)
+		}
 	}
+}
+
+// TestLfuTsKeys checks the first-insert-order snapshot: Keys reflects
+// Adds and Deletes, and the snapshot tolerates Delete while ranging.
+func TestLfuTsKeys(t *testing.T) {
+	l := lfu_ts.NewLfu[string](lfu_ts.DefaultLogFactor, lfu_ts.DefaultDecayTime)
+	l.Add("a")
+	l.Add("b")
+	l.Touch("c")
+	l.Add("a") // re-add keeps first-insert position
+	got := l.Keys()
+	want := []string{"a", "b", "c"}
+	if len(got) != len(want) {
+		t.Fatalf("Keys = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("Keys = %v, want %v", got, want)
+		}
+	}
+	got[0] = "mutated" // the snapshot is a copy
+	if keys := l.Keys(); keys[0] != "a" {
+		t.Errorf("Keys after mutating the snapshot = %v, want a first", keys)
+	}
+	for _, k := range l.Keys() {
+		if k != "c" {
+			l.Delete(k)
+		}
+	}
+	if keys := l.Keys(); len(keys) != 1 || keys[0] != "c" {
+		t.Errorf("Keys after purge-during-range = %v, want [c]", keys)
+	}
+	l.Lock()
+	if keys := l.NlKeys(); len(keys) != 1 || keys[0] != "c" {
+		t.Errorf("NlKeys = %v, want [c]", keys)
+	}
+	l.Unlock()
 }
 
 // TestLfuTsPanics pins the twin's own panic contract — Touch/Add on a
