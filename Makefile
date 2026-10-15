@@ -31,10 +31,6 @@ lint:
 bench:
 	go test -run='^$$' -bench=. -benchmem ./...
 
-.PHONY: lint
-lint:
-	golangci-lint run ./...
-
 .PHONY: tidy
 tidy:
 	go mod tidy

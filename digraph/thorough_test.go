@@ -8,7 +8,6 @@ BSD 3 Clause Licensed.
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/rand"
 	"reflect"
 	"strconv"
@@ -779,7 +778,7 @@ func TestJSONFormatIsDocumented(t *testing.T) {
 	if err != nil {
 		t.Fatalf("json.Marshal: %v", err)
 	}
-	if got, want := fmt.Sprintf("%s", b), `{"vertices":4,"edges":[[0,1],[0,2],[1,3]]}`; got != want {
+	if got, want := string(b), `{"vertices":4,"edges":[[0,1],[0,2],[1,3]]}`; got != want {
 		t.Errorf("Wire format changed: expected %s, got %s", want, got)
 	}
 }

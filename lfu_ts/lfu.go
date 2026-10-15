@@ -310,6 +310,7 @@ func (l *Lfu[K]) NlLen() int { return l.inner.Len() }
 
 // NlKeys is Keys without the lock — call it only under Lock.
 func (l *Lfu[K]) NlKeys() []K { return slices.Clone(l.keys) }
+
 // NlTruncate is the no-lock Truncate — call it only while holding
 // Lock.
 // Complexity is O(n).
