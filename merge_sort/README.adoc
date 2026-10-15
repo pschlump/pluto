@@ -1,0 +1,103 @@
+= merge_sort
+
+A generic *mergesort* (John von Neumann, 1945) — Sedgwick's algs4 §2.2
+(`Merge` / `MergeBU` / `MergeX`) — as plain in-place slice-sort
+functions.  There is no sorter object, no constructor and no stored
+state: `Sort` orders naturally ordered element types (all integers,
+floats, strings — `cmp.Ordered`) by the built-in `<` / `>` operators,
+and the `*Func` forms order any type by a caller supplied comparison
+function — no boxing, no dynamic dispatch, no type assertions.
+
+Mergesort is the *stable* sort: elements that compare equal keep their
+relative order — the property neither link:../quick_sort/[`quick_sort`]
+nor link:../heap_sort/[`heap_sort`] provides.  Stability comes from the
+merge rule: on a tie the element from the LEFT run is taken first; the
+insertion-sort cutoff uses the same strictly-greater shift, so the
+small-array path is stable too.  And unlike quicksort there is *no
+adversarial input*: O(n log₂ n) compares in the best, average and worst
+case alike.  The price is an O(n) auxiliary slice (allocated once per
+call).
+
+== Operations
+
+[options="header"]
+|===
+| Operation                          | Description                                        | Complexity
+
+| `Sort(data)`                       | Stable sort `[]T` (`cmp.Ordered`), top-down        | O(n log₂ n) always, O(n) space
+| `SortFunc(data, fn)`               | Stable sort `[]T` (any type) by a comparison fn    | O(n log₂ n) always, O(n) space
+| `SortBottomUp(data)`               | Stable bottom-up variant (widths 1, 2, 4, ...)     | O(n log₂ n) always, O(n) space
+| `SortBottomUpFunc(data, fn)`       | The bottom-up variant with a comparison fn         | O(n log₂ n) always, O(n) space
+| `Inversions(data)`                 | Count out-of-order pairs (i < j, data[i] > data[j]) | O(n log₂ n), input unmodified
+| `InversionsFunc(data, fn)`         | The count with a comparison fn                     | O(n log₂ n), input unmodified
+|===
+
+`Inversions` is the classic mergesort rider: the count is computed by
+the merge (each element taken from the right run contributes the
+remaining left-run length) and equals the *minimum number of adjacent
+swaps* that would sort the slice — a sorted slice has 0, a
+reverse-sorted slice has n·(n−1)/2 (which is why the return type is
+`int64`).  The input is never modified: a private copy is sorted.
+
+Nil, empty and single-element slices are no-ops (0 for `Inversions`).
+
+== Usage
+
+[source,go]
+----
+data := []int{42, 7, 13, 7, 1}
+merge_sort.Sort(data) // [1 7 7 13 42]
+
+// Stable: equal-keyed records keep their relative order.
+type Finish struct { Time, Lane int }
+finishes := []Finish{{41, 1}, {39, 2}, {41, 3}, {39, 4}}
+merge_sort.SortFunc(finishes, func(a, b Finish) int { return a.Time - b.Time })
+// [{39 2} {39 4} {41 1} {41 3}] — lanes in order within each time
+
+// Out-of-order pair count, input untouched:
+n := merge_sort.Inversions([]int{4, 1, 3, 2}) // 4
+----
+
+== Panics
+
+The package panics in exactly one situation — a programmer error with
+no sane fallback:
+
+[options="header"]
+|===
+| Call | Why
+
+| `SortFunc(data, nil)` / `SortBottomUpFunc(data, nil)` / `InversionsFunc(data, nil)` | nil comparison function
+|===
+
+Each panic message names its function.  Everything else — including
+nil, empty and single-element slices — is tolerated as a no-op.
+
+== Thread safety
+
+All six functions are *stateless*: they keep no package state and
+touch only the slice they are given (plus their private workspace).
+They are safe for concurrent use on disjoint slices — two goroutines
+sorting two different slices need no synchronization.  Because there
+is no shared state to guard, *no `_ts` twin exists or is needed*.
+
+== Deviations from the algs4 reference
+
+The merge itself is exactly `Merge.merge` (copy the range to the
+workspace, merge back, ties to the left).  The differences are the
+documented algs4 `MergeX` improvements, adopted for the top-down path:
+
+* *Insertion-sort cutoff*: subarrays of ≤ 7 elements (the algs4
+  `MergeX` CUTOFF) are finished with a straight insertion sort written
+  in the stable hoisted-value form.
+* *Already-ordered skip*: when `data[mid] <= data[mid+1]` the merge is
+  skipped — it would move nothing; sorted input costs one linear scan
+  per recursion level.
+* Not adopted: `MergeX`'s swap-src/dst trick (merging alternately
+  between the two arrays to avoid the copy-back) — it complicates the
+  code for a constant factor the benchmarks do not demand.
+
+`SortBottomUp` keeps `MergeBU` plain — no cutoff, no skip — as the
+teaching variant, and `Inversions` follows `Inversions.java`'s
+count-during-merge but sorts a private copy where the algs4 client
+mutates its argument.

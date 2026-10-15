@@ -66,7 +66,7 @@ Ultima-driven and not reconsidered here.
 Ordered by priority; effort is *S* (<½ day), *M* (1–2 days), *L* (3+ days) at house
 quality (README + model tests + invariants).
 
-### 3.1 `merge_sort` — M
+### 3.1 `merge_sort` — M — **DONE 2026-10-15** (`merge_sort/`)
 
 * **algs4:** `Merge`, `MergeBU`, `MergeX` (§2.2), `Inversions`, `KendallTau` rider.
 * **Why first:** the most conspicuous gap in the library. Two of the three classic sorts exist (`quick_sort`, `heap_sort`); what is missing is not just another sort but the **stability** property, and the merge-based riders (inversion counting) that only a merge sort gives.
@@ -79,6 +79,7 @@ quality (README + model tests + invariants).
   func Inversions[T cmp.Ordered](a []T) int64              // counts via merge, returns permuted copy optional
   ```
 * **Verification:** `slices.SortStableFunc` oracle (sortedness + *stability* — verify with satellite-data keys), seeds 42/7, adversarial shapes (all-equal, sorted, reverse); `Inversions` vs brute-force O(n²) oracle.
+* **Shipped:** all of the sketch (Sort/SortFunc with MergeX cutoff-7 + ordered skip, SortBottomUp/SortBottomUpFunc, Inversions/InversionsFunc returning int64 over a private copy). The `KendallTau` rider was **not** built — it is a two-line composition of `InversionsFunc` over a rank permutation, left for when a caller needs it.
 
 ### 3.2 `bag` — S — **DONE 2026-10-15** (`bag/`, `bag_ts/`)
 
@@ -211,7 +212,7 @@ Small constructor-style query objects added to the existing packages (and mirror
 ## 6. Suggested order of work
 
 1. **Quick wins batch:** ~~`bag` + `bag_ts`, `shell_sort`, graph additions (Cycle/TwoColor/TransitiveClosure), `run_length`~~ — bag/bag_ts, shell_sort and run_length are done (2026-10-15); the graph additions (Cycle/TwoColor/TransitiveClosure) remain the cheapest next stop.
-2. **`merge_sort`** (+ `Inversions`) — closes the stability gap.
+2. ~~**`merge_sort`** (+ `Inversions`) — closes the stability gap.~~ — done (2026-10-15), with the stability oracle against `slices.SortStableFunc`.
 3. **`interval_tree` + `_ts`** — first genuinely new query family.
 4. **`string_sort`** — LSD → MSD → Quick3string.
 5. **`nfa`** — regexp query object.

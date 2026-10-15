@@ -54,6 +54,7 @@ with an identical public API.
 | link:heap_sort_ts/[heap_sort_ts]           | Thread-safe heap sort on pluto/heap_ts (atomic drain, Lock+Nl* compound ops).
 | link:quick_sort/[quick_sort]               | In-place 3-way quicksort on slices (median-of-3, insertion cutoff; Sedgwick §2.3).
 | link:shell_sort/[shell_sort]               | In-place shellsort on slices (3x+1 gap sequence 1,4,13,40,…; Sedgwick §2.1).
+| link:merge_sort/[merge_sort]               | Stable mergesort on slices (top-down with insertion cutoff, bottom-up, Inversions count; Sedgwick §2.2).
 | link:binomial_queue/[binomial_queue]       | Generic mergeable priority queue (forest of heap-ordered binomial trees, O(log n) Merge; Sedgwick §9).
 | link:hash_tab/[hash_tab]                   | Generic fixed-size hash table (separate chaining, == or eq+hash funcs).
 | link:hash_tab_ts/[hash_tab_ts]             | Thread-safe fixed-size hash table (RWMutex, snapshot iterators, Lock+Nl* compound ops).
@@ -1251,6 +1252,25 @@ for "insertion sort is almost fast enough").
 * Bad: O(n^{3/2}) worst case loses to quicksort's O(n log n) average
 on large arrays; not stable; the exact average for the 3x+1 sequence
 is an open problem (~O(n^{1.25}) empirically).
+
+== Mergesort — `merge_sort/`
+
+Sedgwick's §2.2 mergesort (algs4 `Merge`/`MergeBU`/`MergeX`) as
+stateless in-place slice sorts — the *stable* member of the family:
+elements that compare equal keep their relative order (the merge takes
+the LEFT run's element on ties), which neither `quick_sort` nor
+`heap_sort` nor `shell_sort` provides. `merge_sort.Sort[T
+cmp.Ordered](data)` / `SortFunc[T any](data, cmp)` are the top-down
+sort with the algs4 `MergeX` improvements (insertion cutoff 7,
+already-ordered merge skip); `SortBottomUp`/`SortBottomUpFunc` merge
+runs of width 1, 2, 4, ... without recursion; `Inversions` /
+`InversionsFunc` count the out-of-order pairs during the merge (the
+minimum adjacent swaps to sort; `int64` because 100k reverse-sorted
+already overflows int32) without modifying the input. O(n log₂ n)
+compares on every input — no adversarial shape — at the cost of an
+O(n) auxiliary slice. The single panic class is a nil comparison
+function in the `*Func` forms. Stateless functions — safe for
+concurrent use on disjoint slices; no `_ts` twin.
 
 == Substring Search — `substring/`
 
