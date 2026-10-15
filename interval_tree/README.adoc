@@ -1,0 +1,177 @@
+= interval_tree
+
+A generic *interval search tree* — a red-black binary search tree keyed
+by closed intervals and augmented so that intersection queries are
+logarithmic (CLRS §14.3; Sedgwick & Wayne algs4 exercise 3.3.43,
+`IntervalST.java`).  Each node holds an `Interval[K]` (a closed
+`[Lo, Hi]` range of any ordered type) with a satellite value `V`,
+ordered by `Lo` with `Hi` breaking ties, and carries one piece of
+augmentation: `maxHi`, the largest `Hi` in its subtree.  A subtree whose
+`maxHi` is below the query's `Lo` cannot contain an intersecting
+interval, so overlap queries prune whole subtrees and stay logarithmic
+even though an interval can span many tree positions.
+
+The red-black skeleton keeps the structure balanced — *O(log₂ n) in the
+worst case*, regardless of insertion order — so a calendar of a million
+bookings answers "is 2:30 free?" in about twenty comparisons.
+
+Intervals are *closed*: `[1,2]` and `[2,3]` intersect, at the point 2.
+A degenerate point interval (`Lo == Hi`) is a legal key, which is what
+makes `Stab(p)` (every interval containing `p`) simply `Overlaps` over
+`[p, p]`.
+
+Ordering never goes through an interface method, so element data is
+never boxed into an interface and never unboxed with a type assertion.
+
+* Intervals and values are stored and returned *by value*; find-style
+operations return `(T, bool)`.
+* Trees of ordered endpoint types (integers, floats, strings) are
+ordered by the built-in `<` / `>` operators:
+`interval_tree.NewIntervalTree[int, string]()`.
+* Trees of any other endpoint type — including structs ordered by a
+single field — take a plain comparison function, with no interface to
+implement: `interval_tree.NewIntervalTreeFunc(func(a, b Key) int { ... })`.
+
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and
+appear on pkg.go.dev.
+
+== Operations
+
+[options="header"]
+|===
+| Operation     | Description                                             | Complexity
+
+| `Insert`      | Add interval→value; an equal interval replaces its value | O(log₂ n)
+| `Search`      | Exact-match lookup by interval (same Lo and Hi)          | O(log₂ n)
+| `Delete`      | Remove an interval; reports whether it was found         | O(log₂ n)
+| `AnyOverlap`  | Any one stored interval intersecting the query           | O(log₂ n)
+| `Overlaps`    | Every stored interval intersecting the query, ascending  | O(log₂ n + k)*
+| `Stab`        | Every stored interval containing a point                 | O(log₂ n + k)*
+| `Min` / `Max` | Interval with the smallest / largest (Lo, Hi)            | O(log₂ n)
+| `IsEmpty` / `Len` / `Length` | Size queries                              | O(1)
+| `Truncate`    | Remove everything (the comparison function is kept)      | O(1)
+| `Depth`       | Longest root-to-leaf path, O(log₂ n) by balancing        | O(n)
+| `Dump`        | Indented picture with colors and maxHi, for debugging    | O(n)
+| `All` / `Backward` | Range-over-func iterators in (Lo, Hi) order         | O(n), O(1) space
+|===
+
+`Insert` returns `true` when a new node was added and `false` when an
+equal interval replaced the stored value.  `Len` is an alias for
+`Length`, matching the other pluto tree packages.
+
+(*) `Overlaps` / `Stab` are expected O(log₂ n + k) over k matches; like
+every maxHi-pruned walk, a query whose Lo is below much of the tree can
+visit non-matching nodes with high `Hi`s, degrading toward O(n).  The
+matches themselves are always yielded ascending by (Lo, Hi) with no
+duplicates and no misses.
+
+== Usage
+
+[source,go]
+----
+room := interval_tree.NewIntervalTree[int, string]()
+
+// A room cannot hold two meetings that overlap: check with one
+// logarithmic descent, then book.
+book := func(name string, start, end int) bool {
+    slot := interval_tree.Interval[int]{Lo: start, Hi: end}
+    if _, _, clash := room.AnyOverlap(slot); clash {
+        return false
+    }
+    room.Insert(slot, name)
+    return true
+}
+
+book("standup", 9, 10) // true
+book("design", 11, 13) // true
+book("retro", 9, 11)   // false — overlaps standup
+
+for meeting := range room.Stab(12) {
+    fmt.Println(meeting) // design
+}
+----
+
+Structs ordered by a field — the endpoint type implements no interface,
+and the exported `Compare` helper builds the field comparison:
+
+[source,go]
+----
+type Timestamp struct {
+    Wall clock.Time
+    Seq  int
+}
+cmpTs := func(a, b Timestamp) int {
+    if c := interval_tree.Compare(a.Wall.Unix(), b.Wall.Unix()); c != 0 {
+        return c
+    }
+    return interval_tree.Compare(a.Seq, b.Seq)
+}
+lease := interval_tree.NewIntervalTreeFunc[Timestamp, string](cmpTs)
+----
+
+== Iteration
+
+`All()` and `Backward()` are range-over-func iterators (Go 1.23+) in
+ascending and descending (Lo, Hi) order; the query iterators `Overlaps`
+and `Stab` share the order.  Because every node stores a parent pointer,
+all of them are plain successor/predecessor walks with *O(1) extra
+space* — no recursion and no explicit stack:
+
+[source,go]
+----
+for iv := range tree.All() { ... }        // one variable: the Interval
+for iv, val := range tree.All() { ... }
+----
+
+The tree must not be modified while an iterator is being consumed — the
+iterators walk the live nodes.  The
+link:../interval_tree_ts/[`interval_tree_ts`] twin returns eager
+snapshots instead, at which point mutation during iteration is safe.
+
+== Panics
+
+The package panics in exactly four situations — all programmer errors
+with no sane fallback:
+
+[options="header"]
+|===
+| Call                            | Why
+
+| `NewIntervalTreeFunc(nil)`      | nil comparison function, caught at construction time
+| `Insert` on a nil tree          | a nil tree cannot store an interval
+| `Insert` on a zero-value tree   | no comparison function; the message names the constructors
+| `Insert` with Hi < Lo           | an inverted interval has no closed-set meaning
+|===
+
+Everything else tolerates a nil tree and the zero value as an empty
+tree: searches and `AnyOverlap` find nothing, deletes return `false`,
+and the iterators visit nothing.  The queries never validate the probe —
+an inverted probe returns an unspecified (non-panicking) answer, and
+deleting an inverted probe simply misses.
+
+== Thread safety
+
+The tree is *not* safe for concurrent use; see the
+link:../interval_tree_ts/[`interval_tree_ts`] package for the guarded
+twin (same API behind a `sync.RWMutex`, snapshot iterators, plus
+`Lock`/`Unlock` and `Nl*` forms for atomic compounds such as
+check-overlap-then-book).
+
+== Deviations from the algs4 reference
+
+algs4's `IntervalST` is a *left-leaning red-black* BST storing only
+intervals (`Interval1D` keys, no satellite values) with `intersects`,
+`delete`, `search` (== `AnyOverlap`) and `searchAll` (== `Overlaps`).
+pluto's differences, per house convention:
+
+* *Two type parameters* — `IntervalTree[K, V]` maps an interval to a
+  satellite value (the lru map pattern), where algs4 stores bare keys.
+* *Plain CLRS red-black tree*, not left-leaning — the same machinery as
+  pluto's own `rb_tree` (parent pointers, `transplant`-based delete),
+  because the augmentation must be maintained inside rotations and the
+  two implementations should read alike.
+* *`Stab`, `Min`, `Max`, `Backward`, `Truncate`, `Dump`* are additions;
+  `Stab` is the classic stabbing query the algs4 exercise asks for.
+* `searchAll` yields a queue in the algs4 version; pluto's `Overlaps` is
+  a range-over-func iterator in ascending (Lo, Hi) order.

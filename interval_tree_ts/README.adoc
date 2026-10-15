@@ -1,0 +1,97 @@
+= interval_tree_ts
+
+The *thread-safe twin* of link:../interval_tree/[`interval_tree`] — the
+interval search tree (a red-black BST keyed by closed intervals,
+augmented with each subtree's max `Hi`) behind a single `sync.RWMutex`.
+The public API is identical to the plain package: switch the import and
+every operation becomes safe to call from multiple goroutines.  See the
+plain package's README for the data structure, the query semantics and
+the complexity table.
+
+== What the lock changes
+
+* *Every operation takes the lock for its whole duration*; no locked
+  public method calls another (the unexported internals — rotations,
+  fixups, `findNode`, `deleteNode`, `nlAnyOverlap`, `nlOverlaps` — run
+  lock-free while the lock is held).
+* *Nil receivers are checked BEFORE the lock is acquired* (a
+  nil-receiver `RLock` would itself panic) and behave as an empty tree;
+  the four write panics carry `interval_tree_ts:` prefixes.
+* *`All` / `Backward` / `Overlaps` / `Stab` are eager snapshots* taken
+  under the read lock at call time (`toPairs` / `nlOverlaps`): unlike
+  the plain package's live walks it is safe to mutate the tree from
+  inside the loop, at O(n) (or O(k)) snapshot cost.
+* *`Dump` holds the read lock for the whole traversal* (nothing else
+  touches the tree meanwhile) and computes the depth with the lock-free
+  helper instead of calling the locked `Depth`.
+* *`Delete` holds the write lock across search and splice* — an atomic
+  search-and-delete, like the other pluto `_ts` twins.
+
+== Lock / Unlock and the Nl* methods
+
+The twin exposes the *real write lock* and the no-lock bodies of the
+operations, for atomic compounds:
+
+[options="header"]
+|===
+| Method                | Lock-free body of
+
+| `NlIsEmpty`           | `IsEmpty`
+| `NlLen`               | `Len`
+| `NlSearch`            | `Search`
+| `NlInsert`            | `Insert` (carries the nil / zero-value / inverted panics)
+| `NlDelete`            | `Delete`
+| `NlAnyOverlap`        | `AnyOverlap`
+| `NlTruncate`          | `Truncate`
+|===
+
+The canonical compound is *check-overlap-then-book* — booking a slot
+only when nothing overlaps it.  Without the compound, another
+goroutine's booking can land between the check and the insert:
+
+[source,go]
+----
+room := interval_tree_ts.NewIntervalTree[int, string]()
+
+book := func(name string, start, end int) bool {
+    room.Lock() // atomic check + insert
+    defer room.Unlock()
+    slot := interval_tree_ts.Interval[int]{Lo: start, Hi: end}
+    if _, _, clash := room.NlAnyOverlap(slot); clash {
+        return false
+    }
+    room.NlInsert(slot, name)
+    return true
+}
+----
+
+Rules, as for every pluto `_ts` package with an exposed lock:
+
+* Calling a locked public method while holding `Lock` *deadlocks* —
+  use the `Nl*` forms inside.
+* The iterators get *no* `Nl*` forms: a lock cannot be held across
+  their consumption.  They snapshot instead, so no lock is needed.
+* The `Nl*` methods are race-free only when the caller holds `Lock`
+  (or has otherwise exclusive access).
+
+== Twin-switching
+
+`IntervalTree_ts[K, V]` is a self-contained copy of the plain package
+(its `Interval[K]` is structurally identical to
+`interval_tree.Interval[K]` — converting is a plain assignment of the
+two fields), so a program can move between the single-goroutine and
+guarded versions by changing the import.
+
+== Panics
+
+The plain package's four, each with the `interval_tree_ts:` prefix:
+`NewIntervalTreeFunc(nil)`, `Insert` (or `NlInsert`) on a nil tree,
+`Insert` on a zero-value tree, and `Insert` with `Hi < Lo`.  Everything
+else tolerates a nil tree and the zero value as an empty tree.
+
+== Thread safety
+
+Safe for concurrent use: one `sync.RWMutex` guards every field.
+Reads (`Search`, `AnyOverlap`, `Min`/`Max`, the snapshot iterators)
+share the read lock; `Insert`/`Delete`/`Truncate` take the write lock.
+Run the test suite with `-race`.

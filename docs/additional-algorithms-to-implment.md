@@ -88,7 +88,7 @@ quality (README + model tests + invariants).
 * **API:** `Add(T)`, `Len`, `IsEmpty`, `All() iter.Seq2[int, T]` (insertion order), `Backward`. Singly linked (stable memory, the `queue_dll` rationale).
 * **Twin:** `bag_ts` (the `queue_ts` pattern: nil guards before lock, snapshot iterators, race trio). Trivial.
 
-### 3.3 `interval_tree` — M
+### 3.3 `interval_tree` — M — **DONE 2026-10-15** (`interval_tree/`, `interval_tree_ts/`)
 
 * **algs4:** `IntervalST.java` (§6.3 intersections; textbook exercise 3.3.43 "interval search tree"), companions `Interval1D/2D`, sweep-line clients.
 * **Why:** a classic *augmented* balanced BST (each node stores max-hi of its subtree) answering **stabbing/overlap queries** in O(log n) — a capability pluto has nothing like. Enormously practical (calendar/IP-range/bandwidth problems; the booksite's 70k IP-range dataset is a ready-made perf fixture).
@@ -107,6 +107,7 @@ quality (README + model tests + invariants).
   ```
 * **Twin:** `interval_tree_ts` (mutable container → RWMutex twin).
 * **Verification:** algs4 exercise semantics + randomized model vs O(n) scan oracle (seed 42); invariant checker: BST order by Lo, maxHi == max over subtree, balance.
+* **As built:** two type params `IntervalTree[K, V any]` (the sketch's `val T` was a typo — satellite value, the lru map pattern), a *self-contained* CLRS red-black tree (not composed on rb_tree — the augmentation lives in the nodes), closed intervals (touching overlaps, point intervals legal).  Names deviate from the sketch: `AnyOverlap` (not AnyOverlaps) and `Overlaps` (not OverlapsAll); `Stab` kept.  Inverted `Hi < Lo` is the 4th Insert panic (b_tree-shaped contract).  The ts twin exports real `Lock`/`Unlock` + `Nl*` (skip_list_ts surface) — the canonical compound is check-overlap-then-book.  Same-seed model test (PCG 42,7) in both twins.
 
 ### 3.4 `kd_tree` — M/L
 

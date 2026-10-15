@@ -28,6 +28,8 @@ with an identical public API.
 | link:splay_tree/[splay_tree]               | Generic self-adjusting splay tree (top-down splaying, amortized O(log n); Sedgwick, Algorithms in C).
 | link:b_tree/[b_tree]                       | Generic B-tree (multiway search tree, configurable order; Sedgwick external searching).
 | link:b_tree_disk_ts/[b_tree_disk_ts]       | Disk-backed thread-safe B+ tree store (4K blocks, LRU write-back cache, WAL journal, crash recovery, multi-tree indexes).
+| link:interval_tree/[interval_tree]         | Generic interval search tree — red-black BST on closed intervals, O(log n) overlap/stabbing queries (CLRS §14.3; algs4 IntervalST).
+| link:interval_tree_ts/[interval_tree_ts]   | Thread-safe interval search tree (RWMutex, snapshot iterators, Lock+Nl* compounds).
 | link:skip_list/[skip_list]                 | Generic probabilistic ordered skip list (span-backed rank/range queries).
 | link:skip_list_ts/[skip_list_ts]           | Thread-safe skip list (RWMutex, snapshot iterators, Nl* compounds).
 | link:dll/[dll]                             | Generic doubly linked list (stack/queue/list, JSON array marshal/unmarshal).
@@ -403,6 +405,31 @@ O(n) walk (the value it returns is O(log n)).
 space, live walk); smallest surface to get wrong.
 * Bad: smallest API of the trees — reach for `avl_tree` when you need
 set operations, positional `Index`, or O(1) `Depth`.
+
+=== Interval Search Tree — `interval_tree/`, `interval_tree_ts/`
+
+Red-black BST keyed by *closed intervals* `[Lo, Hi]` with a satellite
+value, each node augmented with `maxHi` (the largest `Hi` in its
+subtree) so intersection queries prune whole subtrees (CLRS §14.3;
+algs4 exercise 3.3.43 `IntervalST`). `AnyOverlap` is the CLRS
+INTERVAL-SEARCH — a single pruned descent answering "does anything
+clash with this slot?" in O(log n); `Overlaps` yields every
+intersecting interval and `Stab(p)` every interval containing a point
+(the stabbing query), both ascending by `(Lo, Hi)`. Intervals are
+closed — `[1,2]` and `[2,3]` overlap at 2 — and point intervals
+(`Lo == Hi`) are legal keys. Two type parameters
+(`IntervalTree[K, V]`, the `lru` map pattern) with the usual
+constructor pair: `NewIntervalTree[K cmp.Ordered, V]()` or
+`NewIntervalTreeFunc(cmp)` for any endpoint type. The `_ts` twin adds
+snapshot iterators plus `Lock`/`Unlock` and `Nl*` forms whose canonical
+compound is check-overlap-then-book.
+
+* Good: logarithmic intersection/stabbing queries over a mutable,
+duplicated-range-friendly collection — calendars, IP CIDR blocks,
+memory allocators, lease tables.
+* Bad: exact-match keyed by the *whole* interval (both endpoints) — it
+is not a priority search tree; a maxHi-pruned `Overlaps` can visit
+non-matching high-`Hi` nodes (O(n) worst case, O(log n + k) expected).
 
 == Skip Lists — `skip_list/`, `skip_list_ts/`
 
