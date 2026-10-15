@@ -1,0 +1,92 @@
+= bag_ts
+
+A generic *bag* — the add-only collection of Sedgwick & Wayne's algs4
+§1.3 (`Bag.java`) — that is *safe for concurrent use*: the
+link:../bag/[`bag`] structure (a singly linked list with head and tail
+pointers) behind a `sync.RWMutex`.  `Add` appends at the tail, so
+iteration order is insertion order.
+
+The element type needs *no constraints at all* — `T` is `any` — and the
+zero value of `Bag` is an empty bag ready to use without a constructor.
+
+== Concurrency model
+
+[options="header"]
+|===
+| Operation                    | Lock            | Description
+
+| `Add`                        | write           | Add an element, O(1)
+| `Truncate`                   | write           | Remove all elements, O(1)
+| `IsEmpty` / `Len` / `Length` | read            | Size queries, O(1)
+| `All` / `Backward`           | read (snapshot) | Range-over-func iterators, O(n)
+| `MarshalJSON` / `UnmarshalJSON` | read / write | JSON array encode/decode
+|===
+
+`All` and `Backward` copy a *snapshot at call time* under the read lock
+(inverted from the plain package's live walk), so they are safe to use
+concurrently with any bag operation — *including mutating the bag from
+inside the loop* — and never observe later modifications.
+`Backward`'s indexes count down from `Length()-1` so they match the
+index `All` assigns to the same element.
+
+`MarshalJSON` snapshots under the read lock and encodes without it;
+`UnmarshalJSON` decodes *before* taking the write lock (element-level
+unmarshalers must not run under the bag lock), then replaces the
+contents under one lock hold.  The bag encodes as a JSON array of its
+elements in insertion order.
+
+== Panics
+
+The package has exactly *one* panic:
+
+[options="header"]
+|===
+| Call | Why
+
+| `Add` on a nil bag | a nil bag cannot store an element
+|===
+
+The nil guard runs *before* the lock is acquired (a nil-receiver lock
+operation would itself panic), and the panic message carries the
+`bag_ts:` prefix.  Everything else tolerates a nil bag as an empty bag.
+
+== Usage
+
+[source,go]
+----
+package main
+
+import (
+    "fmt"
+    "sync"
+
+    "github.com/pschlump/pluto/bag_ts"
+)
+
+func main() {
+    var b bag_ts.Bag[int]
+    var wg sync.WaitGroup
+    for g := range 4 {
+        wg.Add(1)
+        go func() {
+            defer wg.Done()
+            for i := range 100 {
+                b.Add(g*100 + i)
+            }
+        }()
+    }
+    wg.Wait()
+    fmt.Println(b.Len()) // 400 — every concurrent Add landed exactly once
+}
+----
+
+Runnable, tested copies of these examples live in
+link:example_test.go[`example_test.go`].
+
+== Thread safety
+
+Safe for concurrent use — that is the package.  Run the tests with
+`-race` (the suite includes `TestBagConcurrent`,
+`TestBagConcurrentTruncate` and `TestBagConcurrentJSON`).  For
+single-goroutine use, the plain link:../bag/[`bag`] is the same
+structure without the lock overhead.

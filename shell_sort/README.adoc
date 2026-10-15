@@ -1,0 +1,92 @@
+= shell_sort
+
+A generic *shellsort* (Donald L. Shell, 1959) — Sedgwick's algs4 §2.1
+`Shell.java` — as plain in-place slice-sort functions.  There is no
+sorter object, no constructor and no stored state: `Sort` orders
+naturally ordered element types (all integers, floats, strings —
+`cmp.Ordered`) by the built-in `<` / `>` operators, and `SortFunc`
+orders any type by a caller supplied comparison function — no boxing,
+no dynamic dispatch, no type assertions.
+
+Shellsort is a decreasing sequence of h-sorts (gapped insertion sorts)
+for gaps 1, 4, 13, 40, 121, ... (each gap 3h+1), finishing with h = 1 —
+a plain insertion sort over data that the larger-gap passes have
+already made "almost sorted".  An h-sorted array remains h-sorted after
+a k-sort for k < h (an intuition proof in algs4 §2.1), which is why the
+final 1-pass is nearly linear instead of quadratic.  The sort is *not
+stable*: elements that compare equal may come out in any relative
+order.  Sorting is in place — the input slice is rearranged and nothing
+is allocated per element.
+
+== Operations
+
+[options="header"]
+|===
+| Operation            | Description                                     | Complexity
+
+| `Sort(data)`         | Sort `[]T` (`cmp.Ordered`) in place, ascending  | O(n^{3/2}) worst, ~O(n^{1.25}) empirically
+| `SortFunc(data, fn)` | Sort `[]T` (any type) by a comparison function  | O(n^{3/2}) worst, ~O(n^{1.25}) empirically
+|===
+
+The exact average-case complexity for the 3x+1 gap sequence is a
+long-standing open problem; the O(n^{1.25}) figure is Sedgwick's own
+empirical measurement on random input.  Already-sorted input costs
+O(n log n) compares — each of the ~log₃ n passes is a linear scan that
+moves nothing.  Unlike quicksort there is *no recursion at all*: the
+sort is a fixed pair of nested loops, the gap schedule is the same for
+every input, and there is no adversarial input shape and no
+stack-depth story.  Nil, empty and single-element slices are no-ops.
+
+== Usage
+
+[source,go]
+----
+data := []int{42, 7, 13, 7, 1}
+shell_sort.Sort(data) // [1 7 7 13 42]
+
+type Item struct {
+    Weight int
+    Name   string
+}
+items := []Item{{7, "anchor"}, {2, "oar"}, {5, "plank"}}
+shell_sort.SortFunc(items, func(a, b Item) int {
+    return a.Weight - b.Weight // ascending by Weight; reverse for descending
+})
+----
+
+== Panics
+
+The package panics in exactly one situation — a programmer error with
+no sane fallback:
+
+[options="header"]
+|===
+| Call | Why
+
+| `SortFunc(data, nil)` | nil comparison function
+|===
+
+Everything else — including nil, empty and single-element slices —
+is tolerated as a no-op.
+
+== Thread safety
+
+`Sort` and `SortFunc` are *stateless functions*: they keep no package
+state and touch only the slice they are given.  They are safe for
+concurrent use on disjoint slices (two goroutines sorting two different
+slices need no synchronization).  Because there is no shared state to
+guard, *no `_ts` twin exists or is needed* — there is nothing for a
+lock to protect.
+
+== Deviations from the algs4 reference
+
+The algorithm — the 3x+1 gap schedule and the h-sort passes — is
+exactly `Shell.sort`; the only deviations are two presentation-level
+rewrites with no behavioral difference:
+
+* The inner loop is written in the *hoisted-value form* (`v := data[i]`
+  shifted down while the element h before it is larger) instead of the
+  algs4 `exch` swap form.  Same compares, fewer writes.
+* The algs4 trailing `isSorted` assertion is the test suite's job
+  (`checkSorted` cross-checks against the `slices.Sort` oracle at a
+  fixed PCG seed), not shipped code.

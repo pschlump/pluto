@@ -37,6 +37,8 @@ with an identical public API.
 | link:queue/[queue]                         | Generic slice-backed FIFO queue.
 | link:queue_ts/[queue_ts]                   | Thread-safe slice-backed FIFO queue (RWMutex, snapshot iterators).
 | link:queue_dll/[queue_dll]                 | Generic FIFO queue on a doubly linked list (stable O(1) memory).
+| link:bag/[bag]                             | Generic bag — add-only collection with insertion-order iteration (Sedgwick §1.3 Bag).
+| link:bag_ts/[bag_ts]                       | Thread-safe bag (RWMutex, snapshot iterators).
 | link:stack/[stack]                         | Generic slice-backed LIFO stack.
 | link:stack_ts/[stack_ts]                   | Thread-safe slice-backed LIFO stack (RWMutex, snapshot iterators).
 | link:stack_sll_ts/[stack_sll_ts]           | Thread-safe LIFO stack on a singly linked list (RWMutex, snapshot iterators).
@@ -51,6 +53,7 @@ with an identical public API.
 | link:heap_sort/[heap_sort]                 | Generic heap sort on pluto/heap (ascending Sort, descending SortDown).
 | link:heap_sort_ts/[heap_sort_ts]           | Thread-safe heap sort on pluto/heap_ts (atomic drain, Lock+Nl* compound ops).
 | link:quick_sort/[quick_sort]               | In-place 3-way quicksort on slices (median-of-3, insertion cutoff; Sedgwick §2.3).
+| link:shell_sort/[shell_sort]               | In-place shellsort on slices (3x+1 gap sequence 1,4,13,40,…; Sedgwick §2.1).
 | link:binomial_queue/[binomial_queue]       | Generic mergeable priority queue (forest of heap-ordered binomial trees, O(log n) Merge; Sedgwick §9).
 | link:hash_tab/[hash_tab]                   | Generic fixed-size hash table (separate chaining, == or eq+hash funcs).
 | link:hash_tab_ts/[hash_tab_ts]             | Thread-safe fixed-size hash table (RWMutex, snapshot iterators, Lock+Nl* compound ops).
@@ -92,6 +95,7 @@ with an identical public API.
 | link:suffix_array/[suffix_array]           | Immutable suffix array with Kasai LCP (Sedgwick §6.3; no `_ts` twin — immutable, concurrent reads safe).
 | link:substring/[substring]                 | Substring search: KMP, Boyer-Moore, Rabin-Karp (compile pattern once, search many texts; Sedgwick §5.3).
 | link:lzw/[lzw]                             | LZW compression/expansion over byte slices on pluto/tst (widening 9→16-bit codes; Sedgwick §5.5 variant).
+| link:run_length/[run_length]               | Run-length encoding over byte slices (alternating count bytes, 255/0 saturation split; Sedgwick §5.5; pure functions, concurrent-use safe).
 | link:stream/[stream]                       | Redis-style stream: append-oriented log of `<ms>-<seq>` ID entries with consumer groups and PEL tracking (on pluto/skip_list).
 | link:stream_ts/[stream_ts]                 | Thread-safe stream (RWMutex, snapshot iterators, Lock+Nl* compound ops).
 | link:hyperloglog/[hyperloglog]             | HyperLogLog cardinality estimator, dense 6-bit registers (Redis PFADD/PFCOUNT/PFMERGE behavior; LinearCounting + Ertl estimator, ~0.8% error).
@@ -207,6 +211,26 @@ slice window would churn; `Backward` is O(1) per step.
 * Bad: per-push allocation makes it slower than `queue` for short-lived
 queues; not thread-safe and no `_ts` twin — a shared FIFO on the same
 list structure is `dqueue_ts`'s `PushBack`/`PopFront`.
+
+=== Bag — `bag/`, `bag_ts/`
+
+A generic bag — the add-only collection of Sedgwick's §1.3 `Bag`
+(`Bag[T any]`, no constraints, constructor-free like `queue`/`stack`:
+the zero value is ready to use). `Add` appends at the tail, so `All`
+iterates in *insertion order* (the ResizingArrayBag convention —
+algs4's LinkedBag iterates in reverse, an implementation artifact
+pluto does not copy); `Backward` collects the chain and yields it
+reversed (no back pointers — the `skip_list` precedent), its indexes
+counting down from `Length()-1`. Also `Len`/`Length`/`IsEmpty`/
+`Truncate`, JSON array marshal/unmarshal, and exactly one panic
+(`Add` on a nil bag). The plain `bag`'s iterators walk the live list;
+`bag_ts` (RWMutex) snapshots at call time.
+
+* Good: the collection shape where order of arrival is the only
+structure — collecting samples, evidence, work items before their
+order matters; O(1) `Add` with stable memory.
+* Bad: no search, no delete of a single element (it is a bag);
+the plain twin must not be mutated while an iterator runs.
 
 === Stack — `stack/`, `stack_ts/`
 
@@ -1208,6 +1232,26 @@ safe for concurrent use on disjoint slices; no `_ts` twin.
 duplicate-heavy keys where two-way quicksort goes quadratic.
 * Bad: not stable; O(n²) worst case remains possible in principle.
 
+== Shellsort — `shell_sort/`
+
+Sedgwick's §2.1 shellsort (algs4 `Shell.java`) as stateless in-place
+slice sorts: `shell_sort.Sort[T cmp.Ordered](data)` and
+`shell_sort.SortFunc[T any](data, cmp)` — not stable. Decreasing
+h-sorts (gapped insertion) for the 3x+1 gap sequence 1, 4, 13, 40,
+121, ..., finishing with h = 1 — a plain insertion sort over
+already-almost-sorted data. No recursion at all: no adversarial input
+shape and no stack-depth story (the gap schedule is input-independent).
+The single panic is `SortFunc` with a nil comparison function.
+Stateless functions — safe for concurrent use on disjoint slices; no
+`_ts` twin.
+
+* Good: tiny code, tiny constants, no worst-case input shape to
+engineer around — a fine small-to-medium sort (and the classic fix
+for "insertion sort is almost fast enough").
+* Bad: O(n^{3/2}) worst case loses to quicksort's O(n log n) average
+on large arrays; not stable; the exact average for the 3x+1 sequence
+is an open problem (~O(n^{1.25}) empirically).
+
 == Substring Search — `substring/`
 
 Sedgwick's §5.3 substring search as three constructor-style,
@@ -1246,6 +1290,24 @@ without table exhaustion.
 * Bad: the table never resets, so compression degrades on very long
 inputs once the 65536-entry codebook fills; fixed-width algs4 streams
 cannot be exchanged.
+
+== Run-Length Compression — `run_length/`
+
+The simple form of run-length encoding over byte slices (Sedgwick §5.5
+`RunLength.java`): `Compress(data []byte) []byte` and
+`Expand(blob []byte) []byte` — non-generic, pure functions (the
+`lzw` precedent; no `_ts` twin, safe for concurrent use). Bits are
+read MSB-first (the `bitmap`/`lzw` convention); each alternating run
+of zero-bits/one-bits becomes one count byte, always beginning with a
+zero-bits run (input that opens with a 1-bit encodes a first count of
+0); runs longer than 255 split as 255, 0, remainder. `Expand` returns
+nil — never panics — when the counts do not sum to a whole number of
+bytes; interior zero counts are tolerated (they decode to no bits).
+
+* Good: O(n) both directions, byte-exact, ideal for long same-value
+runs (bitmaps, fax-like data) where it compresses aggressively.
+* Bad: random input expands (a count byte per ≤ 8 bits); byte-granular
+only — no literal/escape form (use `lzw` for general data).
 
 == Max Flow — `maxflow/`
 

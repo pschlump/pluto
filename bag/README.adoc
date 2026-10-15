@@ -1,0 +1,111 @@
+= bag
+
+A generic *bag* — the add-only collection of Sedgwick & Wayne's algs4
+§1.3 (`Bag.java`): a container whose whole job is to *collect elements
+and iterate them*.  There is no per-element removal (taking elements
+back out in an order is a stack or a queue) — only `Truncate`, which
+drops everything.
+
+The element type needs *no constraints at all* — `T` is `any`, nothing
+in a bag ever compares elements — and the zero value of `Bag` is an
+empty bag ready to use without a constructor.  Elements are stored and
+returned *by value*.
+
+== Structure
+
+A self-contained singly linked list with head and tail pointers (the
+link:../queue_dll/[`queue_dll`]/link:../dqueue/[`dqueue`] rationale —
+pluto's `sll` requires an equality function at construction, and a bag
+never compares).  `Add` appends at the tail: strictly O(1), one small
+node allocation per add, stable memory.
+
+Iteration order is *insertion order* — element 0 is the first element
+added.  algs4's `LinkedBag` prepends and therefore iterates in reverse
+order; that is an artifact of the implementation, not the abstraction
+(algs4's own `ResizingArrayBag` iterates in insertion order), and this
+package pins the friendlier convention as a contract.
+
+== Operations
+
+[options="header"]
+|===
+| Operation                    | Description                                        | Complexity
+
+| `Add`                        | Add an element (the only mutating operation)       | O(1)
+| `IsEmpty` / `Len` / `Length` | Size queries                                       | O(1)
+| `Truncate`                   | Remove all elements                                | O(1)
+| `All` / `Backward`           | Range-over-func iterators over the live list       | O(n)
+|===
+
+`All` iterates in insertion order; `Backward` from the most recently
+added, with indexes counting down from `Length()-1` so they match the
+index `All` assigns to the same element.  `Backward` collects the chain
+into a slice first (no back pointers — the `skip_list` `Backward`
+convention, O(n) extra space).  `Len` is an alias for `Length`.
+
+== Iterators walk the live list
+
+`All` and `Backward` do *not* copy a snapshot: `All` follows the `next`
+pointers from the head in O(1) extra space.  The price is the usual one
+for a plain package: the bag must not be modified while an iterator is
+running.  (The link:../bag_ts/[`bag_ts`] twin snapshots instead.)
+
+== Panics
+
+The package has exactly *one* panic:
+
+[options="header"]
+|===
+| Call | Why
+
+| `Add` on a nil bag | a nil bag cannot store an element
+|===
+
+Everything else — including the zero value, which is fully usable
+because there is no comparison or equality function to configure —
+tolerates a nil bag as an empty bag.
+
+== JSON
+
+`Bag` implements `json.Marshaler`/`json.Unmarshaler`: it encodes as a
+JSON array of its elements in insertion order, and unmarshaling a JSON
+array replaces the contents (a decode error leaves the bag untouched).
+`[]` and `null` clear the bag.  A *direct* `UnmarshalJSON` call with
+non-empty data on a nil bag panics with the standard insert-family
+message; a nil `*Bag` struct field needs no such care — `json.Unmarshal`
+allocates a zero-value bag, and the zero value is fully usable (unlike
+`dll`, whose inserts need an equality function).  See
+link:json.go[`json.go`] and the tests for the corner cases.
+
+== Usage
+
+[source,go]
+----
+package main
+
+import (
+    "fmt"
+
+    "github.com/pschlump/pluto/bag"
+)
+
+func main() {
+    var b bag.Bag[int]
+    b.Add(10)
+    b.Add(20)
+    b.Add(10) // a bag keeps duplicates
+
+    fmt.Println(b.Len()) // 3
+    for _, v := range b.All() {
+        fmt.Println(v) // 10, 20, 10 — insertion order
+    }
+}
+----
+
+Runnable, tested copies of these examples live in
+link:example_test.go[`example_test.go`].
+
+== Thread safety
+
+Not safe for concurrent use — the link:../bag_ts/[`bag_ts`] twin is the
+same structure behind a `sync.RWMutex` (snapshot iterators).

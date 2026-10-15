@@ -1,0 +1,73 @@
+= run_length
+
+The *simple form of run-length encoding* over byte slices — Sedgwick &
+Wayne's algs4 §5.5 `RunLength.java` — as two stateless functions.
+Bit streams with long runs of repeated bits are compressed by replacing
+each run with a one-byte count of its length: `Compress` encodes,
+`Expand` decodes.  Not generic (`[]byte` in, `[]byte` out — the
+hyperloglog/union_find precedent), non-object (pure functions — the
+geo/substring precedent), and *no `_ts` twin* (nothing to guard, the
+lzw precedent).
+
+== Format
+
+The input's bits are read MSB-first (bit 0 is the most significant bit
+of `data[0]` — the same bit order as bitmap and lzw).  The output is
+one count byte per run, where runs strictly alternate zero-bits /
+one-bits and *always begin with a run of zero-bits* — input that opens
+with a 1-bit encodes a first count of 0.  A run longer than 255 bits
+saturates: it is emitted as 255, then a 0 count for the opposite
+polarity (which decodes to nothing and merely restores the
+alternation), then the remainder — repeated as needed.  This eager
+split is exactly equivalent to algs4's lazy toggle-at-256 encoder, and
+it is what the algs4 decoder (which strictly alternates polarity per
+count byte and knows nothing of the split) already understands.
+
+[options="header"]
+|===
+| Input (bits)        | Encoding              | Note
+
+| `0000 0000`         | `[8]`                 | one run of zeros
+| `1111 1111`         | `[0, 8]`              | anchor 0 for a 1-bit opening
+| `1111 0000`         | `[0, 4, 4]`           |
+| `0101 0101`         | `[1,1,1,1,1,1,1,1]`   | per-bit alternation
+| 32 × `0x00` (256 zeros) | `[255, 0, 1]`     | the saturation split
+| 33 × `0x00` (264 zeros) | `[255, 0, 9]`     |
+|===
+
+== Operations
+
+[options="header"]
+|===
+| Operation           | Description                                          | Complexity
+
+| `Compress(data)`    | Encode `[]byte` to count bytes                       | O(n)
+| `Expand(blob)`      | Decode count bytes to `[]byte`, nil if malformed     | O(m)
+|===
+
+Both functions are pure: the input is never modified, the result is a
+fresh slice.  Empty input yields the empty result in both directions.
+
+== Malformed input
+
+`Expand` has exactly one failure mode and it is *not* a panic: a blob
+whose counts do not sum to a whole number of bytes (a bit stream that
+came from a `[]byte` always does) expands to nil.  Interior or
+trailing zero counts are tolerated — they decode to no bits — though
+only `Compress`'s output is canonical (a zero count appears only at
+index 0, the anchor, or immediately after a 255, the split).
+
+== Usage
+
+[source,go]
+----
+blob := run_length.Compress([]byte{0x00, 0x0F}) // [12 4]
+back := run_length.Expand(blob)                 // [0x00 0x0f]
+----
+
+== Thread safety
+
+`Compress` and `Expand` are *stateless functions*: they hold no
+package-level state and never modify their input, so they are safe for
+concurrent use with no synchronization.  There is no `_ts` twin —
+there is nothing for a lock to protect.
