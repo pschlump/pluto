@@ -1,0 +1,147 @@
+= fib_heap
+
+A generic *indexed Fibonacci priority queue* — Fredman & Tarjan's
+Fibonacci heap (1986), as taught in Sedgwick's Algorithms §9 "Beyond"
+(`FibonacciMinPQ` / `IndexFibonacciMinPQ`) and CLRS chapter 19.  It
+mirrors the API of pluto's link:../index_pq/[`index_pq`] (Sedgwick's
+`IndexMinPQ`): the client owns stable indices `0..n-1`, `Peek`/`Pop`
+return the *minimum* value together with its index, `Change` replaces
+the value of any present index, and — the reason this structure exists
+— `DecreaseKey` runs in amortized O(1).
+
+The value type implements no interface: ordering is either the value
+type's built-in `<` / `>` operators (`NewIndexFibonacciPQ`) or a
+caller supplied function (`NewIndexFibonacciPQFunc`) — no boxing, no
+dynamic dispatch, no type assertions.  Values are stored and returned
+*by value* (`T`, not `*T`).  A reversed comparison function turns it
+into a max-first queue.
+
+== Structure
+
+A forest of heap-ordered trees whose roots form a circular
+doubly-linked root list, plus a pointer to the minimum root:
+
+* *Insert* lazily splices a new singleton into the root list — O(1),
+  worst case, not just amortized.
+* *Pop* promotes the minimum's children to the root list and then
+  *consolidates*: roots of equal degree are repeatedly linked (the
+  smaller value becomes the parent) until no two roots share a degree —
+  amortized O(log n).
+* *DecreaseKey* (and the decrease direction of `Change`) cuts the node
+  from its parent when heap order is violated, then *cascades* upward:
+  an unmarked parent is marked (it has lost a child), an already-marked
+  parent is cut too and the walk continues.  Amortized O(1).
+* The increase direction of `Change` removes and re-inserts the node
+  through the same extract machinery as `Pop` — amortized O(log n) —
+  because the node's whole subtree may now be out of order.
+
+The cascading cuts are what keep every node's degree bounded by
+log_φ n (φ = the golden ratio): a node of degree d must root at least
+F(d+2) nodes (F = Fibonacci numbers).  That bound is what makes
+consolidation cheap; the invariant checker in the test suite verifies
+it directly.
+
+== Operations
+
+[options="header"]
+|===
+| Operation        | Description                                              | Complexity
+
+| `Insert(k, v)`   | Add index `k` with value `v`; *replaces* if `k` present  | O(1)
+| `Change(k, v)`   | Replace the value of a present index, either direction   | O(1) amortized decrease / O(log n) increase
+| `DecreaseKey(k, v)` | Replace only when `v` orders before the current value (the Dijkstra shape) | O(1) amortized
+| `Delete(k)`      | Remove index `k`                                         | O(log n) amortized
+| `Contains(k)`    | Is index `k` in the queue                                | O(1)
+| `Value(k)`       | The value associated with index `k`, or `(_, false)`     | O(1)
+| `Peek`           | The minimum `(index, value)`, without removing           | O(1)
+| `Pop`            | Remove and return the minimum `(index, value)`           | O(log n) amortized
+| `All`            | Iterate `(index, value)` in priority order (snapshot)    | O(n log n)
+| `Len` / `IsEmpty`| Size queries                                             | O(1)
+| `Truncate`       | Remove all indices (keeps the ordering and index space)  | O(n)
+|===
+
+The index space `0..n-1` is fixed at construction (`n ≥ 1`).  Indices
+that are out of range, or absent from the queue, are reported — never
+panicked on: `Insert` returns `false` only for an out-of-range `k`
+(replacing a present in-range `k` reports `true`),
+`Change`/`Delete` return `false` for an absent or out-of-range `k`,
+and `DecreaseKey` additionally returns `false` — changing nothing —
+when the new value does not order strictly before the current one.
+`Peek`/`Pop` return `(k, v, found)` triples.
+
+`All` yields the pairs in priority order (minimum first) by draining a
+*private snapshot copy* taken when it is called — the queue is
+unchanged afterwards, later modifications are not observed, and
+mutating the queue from inside the loop is safe.  Ties may yield in
+any order.
+
+== Usage
+
+[source,go]
+----
+q := fib_heap.NewIndexFibonacciPQ[int](4)
+q.Insert(0, 30)
+q.Insert(1, 10)
+q.Insert(2, 50)
+q.DecreaseKey(0, 5) // O(1) amortized: index 0 is now the minimum
+
+k, v, _ := q.Pop() // 0, 5
+----
+
+== Panics
+
+The package panics in exactly four situations — the same shape as
+`index_pq`, all programmer errors with no sane fallback:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewIndexFibonacciPQFunc(n, nil)`        | nil comparison function, caught at construction time
+| `NewIndexFibonacciPQ`/`NewIndexFibonacciPQFunc` with n < 1 | no usable index space
+| `Insert`/`Change` on a nil queue         | a nil queue cannot store a value
+| `Insert`/`Change` on a zero-value queue  | no comparison function; the message names the constructors
+|===
+
+Everything else — including every operation with a bad index —
+tolerates a nil queue and the zero value as an empty queue and reports
+`false`.
+
+== Concurrency
+
+Not safe for concurrent use.  There is deliberately *no `_ts` twin*
+(the `binomial_queue` precedent): the whole point of a Fibonacci heap
+is the amortized O(1) single-threaded decrease-key, and a global lock
+would erase the advantage over the already-thread-safe
+link:../index_pq_ts/[`index_pq_ts`] / link:../heap_ts/[`heap_ts`].
+Wrap it in your own mutex if you must.
+
+== Benchmarks (Apple M4 Max)
+
+Numbers from `bench_test.go` at n = 1024 (see the file for the
+dense-graph Dijkstra driver):
+
+[options="header"]
+|===
+| Operation | fib_heap | index_pq (binary heap)
+
+| `Insert`            | 20.6 ns/op (1 alloc — the node) | 4.8 ns/op
+| `Pop`               | 211 ns/op (0 allocs steady state) | 169 ns/op
+| decrease-key        | *5.7 ns/op* (`DecreaseKey`)     | 31.5 ns/op (`Change`)
+| `Change` (increase) | 109 ns/op                        | 31.5 ns/op
+| Dijkstra, dense V=400  | 208 µs                        | *170 µs*
+| Dijkstra, dense V=1500 | 2.04 ms                       | *1.84 ms*
+|===
+
+The honest picture: the amortized O(1) decrease-key is real — 5.5×
+faster than the binary heap's O(log n) `Change`, allocation-free —
+but the per-node allocation on `Insert`, the pointer-chasing and the
+consolidation constants make every other operation slower, and at
+practical sizes the binary heap's cache-friendly array wins the
+end-to-end Dijkstra driver (the gap narrows from 1.22× at V=400 to
+1.11× at V=1500 — the asymptotics are on the Fibonacci heap's side,
+the constants are not).  Use `fib_heap` when decrease-key dominates
+the workload and n is large; use link:../index_pq/[`index_pq`]
+otherwise.  This is the textbook's own caveat about Fibonacci heaps
+(Sedgwick §9, CLRS ch. 19 notes): the theoretical bounds are
+asymptotic, and the constants are large.

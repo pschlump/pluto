@@ -74,6 +74,7 @@ with an identical public API.
 | link:union_find_ts/[union_find_ts]         | Thread-safe union-find (RWMutex; Find takes the write lock — path halving mutates).
 | link:index_pq/[index_pq]                   | Generic indexed priority queue (decrease-key by client index, Sedgwick §2.6 IndexMinPQ).
 | link:index_pq_ts/[index_pq_ts]             | Thread-safe indexed priority queue (RWMutex, snapshot All, Lock+Nl* compound ops).
+| link:fib_heap/[fib_heap]                   | Generic indexed Fibonacci priority queue (amortized O(1) decrease-key, Fredman–Tarjan; algs4 §9).
 | link:graph/[graph]                         | Undirected graph with DFS/BFS paths, connected components, cycle detection, bipartiteness (Sedgwick §4.1–4.2).
 | link:graph_ts/[graph_ts]                   | Thread-safe graph (RWMutex, snapshot adjacency; traversals run lock-free on a snapshot).
 | link:digraph/[digraph]                     | Directed graph with DFS/BFS reachability, cycle detection, topological order, Kosaraju SCC, transitive closure (Sedgwick §4.4–4.6).
@@ -750,6 +751,31 @@ indices — none of `priority_queue`'s stale-position problem.
 `index_pq_ts` is the twin with the RWMutex, snapshot `All`, and the
 compound-op surface (real `Lock`/`Unlock` + `NlLen`/`NlContains`/
 `NlValue`/`NlInsert`/`NlChange`/`NlDelete`/`NlPop`).
+
+=== Fibonacci Heap — `fib_heap/`
+
+The indexed Fibonacci priority queue (Fredman & Tarjan; algs4 §9
+`IndexFibonacciMinPQ`, CLRS ch. 19) — `index_pq`'s API on the
+decrease-key-optimized structure: a forest of heap-ordered trees on a
+circular root list with lazy `Insert` (O(1) worst case), consolidation
+on `Pop` (O(log n) amortized), and cut + cascading-cut on decreases
+(O(1) amortized — the whole point). Two-constructor ordering like
+`heap`; `Insert(k, v)` replaces, `Peek`/`Pop` return
+`(index, value, ok)`, `All` drains a private snapshot in priority
+order, plus `DecreaseKey(k, v)` which refuses (returns false,
+changes nothing) a value that does not order strictly before the
+current one — the Dijkstra/Prim shape. Panics in exactly the four
+`index_pq`-shaped situations.
+
+* Good: amortized O(1) decrease-key (measured 5.7 ns vs `index_pq`'s
+31.5 ns `Change`), O(1) worst-case insert.
+* Bad: the constants — node allocation per insert, pointer-chasing,
+consolidation — lose to the binary heap's cache-friendly array at
+practical sizes (dense-graph Dijkstra: 1.11×–1.22× slower than
+`index_pq` at V=1500–400), the textbook's own caveat about Fibonacci
+heaps; no `_ts` twin (`binomial_queue` precedent — the amortized
+single-threaded decrease-key is the point, a global lock would erase
+it; use `index_pq_ts` for shared queues).
 
 == Hash Tables
 

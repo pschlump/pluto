@@ -164,13 +164,14 @@ Small constructor-style query objects added to the existing packages (and mirror
 
 * **As built:** all four plus twins. `Cycle`/`TwoColor` in `graph` (+ `graph_ts`): dedicated self-loop and parallel-edge scans BEFORE the DFS (the parent check cannot see either), cycle reported with the first vertex repeated at the end; `TwoColor.Color(v)` returns `(bool, bool)` — meaningful only when bipartite. Both are source-less queries tolerating nil/empty graphs (the `NewCC` precedent). `TransitiveClosure` in `digraph` (+ `digraph_ts`): algs4's one-DFS-per-vertex into a V×V boolean matrix (O(V·(V+E)), the sparse-friendly alternative to literal Warshall O(V³)), reused `marked` scratch cleared between passes, every vertex reaches itself. `LCS` in `suffix_array`: dynamic separator (first byte absent from both inputs) instead of a literal `#`, returning `("", false)` only when all 256 byte values are in use. Verification: seed-42 model tests against structurally different oracles — incremental-union has-cycle + closed-walk certificate, BFS-coloring + proper-coloring certificate, boolean-matrix Warshall, brute-force LCS length + substring check.
 
-### 3.9 `fib_heap` — M/L
+### 3.9 `fib_heap` — M/L — **DONE 2026-10-16** (`fib_heap/`)
 
 * **algs4:** `FibonacciMinPQ`, `IndexFibonacciMinPQ` (§9 Beyond).
 * **Why:** completes the priority-queue zoo — binary ✅, binomial ✅, **Fibonacci ❌** — with the textbook's amortized O(1) `Insert`/`DecreaseKey` and O(log n) extract-min (lazy root list + cascading cuts; degree bound D(n) ≤ log_φ n).
 * **API:** mirror `index_pq` (the index variant is the useful one — decrease-key is the point): `NewIndexFibonacciPQ[T cmp.Ordered](n)` / `…Func`, `Insert(k, v)`, `Change`/`DecreaseKey`, `Pop`, `Peek`, `All` in priority order.
 * **Twin:** follow `binomial_queue` — **no `_ts` twin** initially; document.
 * **Verification:** model test vs `index_pq`/`heap` (seed 42, every return value cross-checked), invariant checker (heap order, degree bound, mark rules); benchmarks against `heap` showing where decrease-key wins (dense-graph Dijkstra driver).
+* **As built:** all of the above. One `extract` routine is the removal machinery for `Pop`, `Delete` AND the increase-direction `Change` (the CLRS delete-then-insert trick — no subtree-dissolve code); `DecreaseKey` refuses a non-decrease (false, no change) and is nil/zero-tolerant like `Delete`; consolidate reuses scratch slices (Pop is 0-alloc steady state); the invariant checker verifies the Fibonacci size lemma (degree-d ⇒ ≥ F(d+2) nodes), which is the log_φ degree bound itself. The mirror model test draws tie-free values — after a tie-pop the two structures legally hold different index sets and every presence op diverges (ties covered by a separate map-oracle test). Benchmark honesty: `DecreaseKey` 5.7 ns vs `index_pq.Change` 31.5 ns, but the dense Dijkstra driver still loses to the binary heap (1.22× at V=400 → 1.11× at V=1500 — asymptotics favor fib, constants don't; documented in README).
 
 ### 3.10 `multiway_pq` (d-ary heap) — M
 
@@ -221,7 +222,7 @@ Small constructor-style query objects added to the existing packages (and mirror
 5. **`nfa`** — regexp query object.
 6. **`kd_tree` + `_ts`** (introduces `Point2D`/`RectHV`, unlocks Tier 2 geometry).
 7. **`huffman`** — completes compression.
-8. **`fib_heap`**, then **`multiway_pq`** — PQ zoo complete.
+8. **`fib_heap`** — **DONE 2026-10-16** (`fib_heap/`, backlog §3.9); then **`multiway_pq`** (§3.10) — PQ zoo complete.
 9. Tier 2 in table order as appetite allows (SCC/Eulerian batch and `boruvka_mst` are the cheapest next stops).
 
 Rough totals: Tier 1 ≈ 7–10 working days; Tier 2 adds ≈ 8–12.
