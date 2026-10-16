@@ -75,6 +75,7 @@ with an identical public API.
 | link:index_pq/[index_pq]                   | Generic indexed priority queue (decrease-key by client index, Sedgwick §2.6 IndexMinPQ).
 | link:index_pq_ts/[index_pq_ts]             | Thread-safe indexed priority queue (RWMutex, snapshot All, Lock+Nl* compound ops).
 | link:fib_heap/[fib_heap]                   | Generic indexed Fibonacci priority queue (amortized O(1) decrease-key, Fredman–Tarjan; algs4 §9).
+| link:multiway_pq/[multiway_pq]             | Generic d-ary heap (branching factor d ≥ 2 at construction; cheaper decrease-key, shallower tree; algs4 §9 MultiwayMinPQ).
 | link:graph/[graph]                         | Undirected graph with DFS/BFS paths, connected components, cycle detection, bipartiteness (Sedgwick §4.1–4.2).
 | link:graph_ts/[graph_ts]                   | Thread-safe graph (RWMutex, snapshot adjacency; traversals run lock-free on a snapshot).
 | link:digraph/[digraph]                     | Directed graph with DFS/BFS reachability, cycle detection, topological order, Kosaraju SCC, transitive closure (Sedgwick §4.4–4.6).
@@ -776,6 +777,33 @@ practical sizes (dense-graph Dijkstra: 1.11×–1.22× slower than
 heaps; no `_ts` twin (`binomial_queue` precedent — the amortized
 single-threaded decrease-key is the point, a global lock would erase
 it; use `index_pq_ts` for shared queues).
+
+=== Multiway (d-ary) Heap — `multiway_pq/`
+
+The d-ary min-heap (algs4 §9 `MultiwayMinPQ`) — `heap`'s exact API with
+the branching factor `d` fixed at construction (`NewDHeap(d)` /
+`NewDHeapFunc(d, fx)`, d ≥ 2; d = 2 *is* the plain binary heap). One
+slice in breadth-first order: node i's children at `d*i+1 .. d*i+d`,
+parent `(i-1)/d` — so sift-UP (Push, a decrease toward the root) costs
+O(log_d n) compares while sift-DOWN (Pop, an increase) pays d-1
+compares per level for O(d·log_d n), and the `AppendHeap` + bottom-up
+`Heapify` bulk build is O(n) for fixed d. Same contracts as `heap`:
+indexed ops report false out-of-range, Pop/Delete zero the slot and
+release the backing array on a full drain, JSON array in internal
+order (unmarshal rebuilds in one O(n) sweep), panics in exactly the
+four `heap`-shaped situations plus `d < 2`.
+
+Measured at n=4096 (worst-case sift paths): decrease-key 12.8 → 7.7 ns
+from d=2 to d=16 — the signature advantage, robust even at 2²⁰
+elements (one cache line per level); Pop pays 71.9 → 124.3 ns; the
+bulk build *speeds up* with d (20.5 → 10.8 µs — n/d Heapify calls
+instead of n/2). The d=2 columns track `heap` within noise, validating
+the port. Practical reading: d=4 keeps Pop within ~7% of binary while
+making decreases 17% cheaper; d=8–16 for decrease-dominated workloads
+(the dense-Dijkstra / large-scheduler shape); the k-way sorted-stream
+merge (algs4 `Multiway.java`) rides the same heap as a checked
+example. No `_ts` twin yet (the backlog lists `d_heap_ts` as possible
+later work; shared-heap callers use `heap_ts`).
 
 == Hash Tables
 

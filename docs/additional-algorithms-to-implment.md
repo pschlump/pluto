@@ -173,12 +173,13 @@ Small constructor-style query objects added to the existing packages (and mirror
 * **Verification:** model test vs `index_pq`/`heap` (seed 42, every return value cross-checked), invariant checker (heap order, degree bound, mark rules); benchmarks against `heap` showing where decrease-key wins (dense-graph Dijkstra driver).
 * **As built:** all of the above. One `extract` routine is the removal machinery for `Pop`, `Delete` AND the increase-direction `Change` (the CLRS delete-then-insert trick — no subtree-dissolve code); `DecreaseKey` refuses a non-decrease (false, no change) and is nil/zero-tolerant like `Delete`; consolidate reuses scratch slices (Pop is 0-alloc steady state); the invariant checker verifies the Fibonacci size lemma (degree-d ⇒ ≥ F(d+2) nodes), which is the log_φ degree bound itself. The mirror model test draws tie-free values — after a tie-pop the two structures legally hold different index sets and every presence op diverges (ties covered by a separate map-oracle test). Benchmark honesty: `DecreaseKey` 5.7 ns vs `index_pq.Change` 31.5 ns, but the dense Dijkstra driver still loses to the binary heap (1.22× at V=400 → 1.11× at V=1500 — asymptotics favor fib, constants don't; documented in README).
 
-### 3.10 `multiway_pq` (d-ary heap) — M
+### 3.10 `multiway_pq` (d-ary heap) — M — **DONE 2026-10-16** (`multiway_pq/`)
 
 * **algs4:** `MultiwayMinPQ`, `IndexMultiwayMinPQ` (§9).
 * **Why:** the practical PQ variant algs4 ships for large heaps: d children ⇒ shallower tree, cheaper `DecreaseKey`/sift-down at dearer `Insert` — the right structure behind dense Dijkstra/large schedulers; also `Multiway.java`'s k-way sorted-stream merge rides naturally here (`MergeK` helper or an example).
 * **API:** `NewDHeap[T cmp.Ordered](d int)` / `NewDHeapFunc(d, cmp)`; d ≥ 2 panic; otherwise mirror `heap`'s surface.
 * **Twin:** optional `d_heap_ts` later; ship plain first, benchmark d ∈ {2,4,8,16}.
+* **As-built:** `DHeap[T]` mirrors `heap`'s ENTIRE surface file-for-file (incl. `iter.go` `All` and `json.go` — unmarshal bulk-rebuilds in O(n) instead of heap's O(n log n) push loop) with `d` fixed at construction and `D()` exposing it; panic contract = heap's 3 + `d < 2`. Randomized model test runs d ∈ {2,3,4,8,16} against a multiset model AND pluto `heap` value-for-value (tie-safe: two heaps over one multiset pop the same minimum VALUE). Benchmarked d ∈ {2,4,8,16} with worst-case sift paths (leaf-slot decreases, root increases — a random slot is a leaf on average and measures nothing): decrease 12.8→7.7 ns (d=2→16), Pop 71.9→124.3 ns, bulk build 20.5→10.8 µs (FASTER with d); d=2 tracks `heap` within noise. Multiway.java merge shipped as a checked example (`MergeK` remains item 23).
 
 ---
 
@@ -222,7 +223,7 @@ Small constructor-style query objects added to the existing packages (and mirror
 5. **`nfa`** — regexp query object.
 6. **`kd_tree` + `_ts`** (introduces `Point2D`/`RectHV`, unlocks Tier 2 geometry).
 7. **`huffman`** — completes compression.
-8. **`fib_heap`** — **DONE 2026-10-16** (`fib_heap/`, backlog §3.9); then **`multiway_pq`** (§3.10) — PQ zoo complete.
+8. **`fib_heap`** — **DONE 2026-10-16** (`fib_heap/`, backlog §3.9); then **`multiway_pq`** — **DONE 2026-10-16** (`multiway_pq/`, backlog §3.10). PQ zoo complete.
 9. Tier 2 in table order as appetite allows (SCC/Eulerian batch and `boruvka_mst` are the cheapest next stops).
 
 Rough totals: Tier 1 ≈ 7–10 working days; Tier 2 adds ≈ 8–12.

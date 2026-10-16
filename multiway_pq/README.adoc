@@ -1,0 +1,149 @@
+= multiway_pq
+
+A generic *d-ary min-heap* — the multiway heap of Sedgwick's Algorithms
+§9 "Beyond" (`MultiwayMinPQ` / `IndexMultiwayMinPQ`), the practical
+variant for large heaps.  It mirrors the API of pluto's
+link:../heap/[`heap`] exactly — same surface, same value semantics, same
+panic shape — with one added knob: the branching factor `d` fixed at
+construction (`d >= 2`; `d = 2` *is* the plain binary heap).
+
+The element type implements no interface: ordering is either the
+element type's built-in `<` / `>` operators (`NewDHeap`) or a caller
+supplied function (`NewDHeapFunc`) — no boxing, no dynamic dispatch, no
+type assertions.  Elements are stored and returned *by value* (`T`, not
+`*T`).  A reversed comparison function turns it into a max-heap.
+
+== Structure
+
+The heap is one slice in breadth-first tree order, exactly like the
+binary heap — node `i`'s children live at `d*i+1 .. d*i+d` and its
+parent at `(i-1)/d`.  A larger `d` makes the tree shallower:
+
+* *sift up* (`Push`, a decrease toward the root) compares against ONE
+  node per level: O(log_d n) comparisons instead of the binary heap's
+  O(log₂ n).  This is the d-ary heap's signature advantage — the
+  cheaper decrease-key behind dense-graph Dijkstra and large schedulers.
+* *sift down* (`Pop`, `Delete`, an increase away from the root) must
+  find the smallest of the `d` children at every level: O(d·log_d n).
+* the *bulk build* (`AppendHeap` + the bottom-up `Heapify` rebuild) is
+  O(n) for any fixed `d`, and *gets faster* as `d` grows: every element
+  is scanned once as a child regardless of `d`, but the number of
+  `Heapify` calls drops from `n/2` to `n/d`.
+
+The measured table below shows exactly this three-way trade-off.
+
+== Operations
+
+[options="header"]
+|===
+| Operation | Description | Complexity
+
+| `Push(x)` | Add `x`, sifting up | O(log_d n)
+| `Pop` | Remove and return the minimum | O(d·log_d n)
+| `Peek` | The minimum, without removing | O(1)
+| `Delete(ii)` | Remove and return the element at index `ii` (false if out of range) | O(d·log_d n)
+| `Fix(ii, v)` / `SetValue` | Replace the element at `ii` and re-sift | O(log_d n) decrease / O(d·log_d n) increase
+| `Search(v)` | Linear scan for an element equal to `v` per the comparator, `(T, pos, bool)` with `-1` | O(n)
+| `GetValue(ii)` | The element at `ii`, `(T, bool)` | O(1)
+| `AppendHeap(xs)` | Bulk-append WITHOUT re-ordering (non-heap state) | O(m)
+| `Heapify(n, i)` | Re-order the sub-tree rooted at `i` (rebuild: `i = (Len()-2)/D()` down to `0`) | O(d·log_d n)
+| `All` | Iterate in internal breadth-first order — *not* sorted order | O(n)
+| `D` | The branching factor fixed at construction | O(1)
+| `Len` / `Length` / `IsEmpty` | Size queries | O(1)
+| `Truncate` | Remove everything, releasing storage | O(1)
+| `Dump` | Indexed internal-order listing to an `io.Writer` | O(n)
+| `MarshalJSON` / `UnmarshalJSON` | JSON array in internal order; unmarshal replaces the contents (bulk rebuild, O(n)) | O(n) / O(n)
+|===
+
+`Pop`/`Delete` zero the vacated slot and release the backing array on a
+full drain (memory behavior identical to `heap`).  The `Lock`/`Unlock`
+pair is a no-op kept for API compatibility with a prospective
+`d_heap_ts` twin.
+
+== Usage
+
+[source,go]
+----
+h := multiway_pq.NewDHeap[int](4) // 4 children per node
+for _, v := range []int{42, 7, 13} {
+    h.Push(v)
+}
+v, _ := h.Pop() // 7
+
+// Bulk load: AppendHeap + the bottom-up rebuild loop.
+h.AppendHeap([]int{9, 5, 2, 7, 1, 8})
+for i := (h.Len()-2)/h.D(); i >= 0; i-- {
+    h.Heapify(h.Len(), i)
+}
+----
+
+The k-way sorted-stream merge (Sedgwick §2.4 `Multiway.java`) rides the
+same heap — see `Example_mergeKSortedSlices` in `example_test.go`: keep
+the head of each of the `k` streams in the heap, each element carrying
+its stream id as satellite data the comparator ignores.
+
+== Panics
+
+The package panics in exactly four situations — the same shape as
+`heap` plus the branching-factor check, all programmer errors with no
+sane fallback:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewDHeapFunc(d, nil)`                    | nil comparison function, caught at construction time
+| `NewDHeap`/`NewDHeapFunc` with `d < 2`    | there is no such thing as a 1-ary heap
+| `Push`/`AppendHeap`/`UnmarshalJSON` (with elements) on a nil heap | a nil heap cannot store a value
+| the same on a zero-value heap             | no comparison function; the message names the constructors
+|===
+
+Everything else — including every out-of-range index — tolerates a nil
+heap and the zero value as an empty heap and reports `false`.
+
+== Concurrency
+
+Not safe for concurrent use.  No `_ts` twin exists yet (the backlog
+lists `d_heap_ts` as a possible later addition); shared-heap callers
+should use link:../heap_ts/[`heap_ts`] or wrap in their own mutex.
+
+== Benchmarks (Apple M4 Max)
+
+From `bench_test.go` — n = 4096 (and 2²⁰ for the "large" rows), ints,
+worst-case sift paths (the decrease starts at a leaf slot, the increase
+at the root — a uniformly random slot is a leaf on average, O(1) depth,
+and measures nothing):
+
+[options="header"]
+|===
+| Operation | d=2 | d=4 | d=8 | d=16 | pluto `heap`
+
+| `Push`                       | 5.3 ns | 5.4 ns | 5.3 ns | 5.3 ns | 5.7 ns
+| `Pop`                        | 71.9 ns | 76.6 ns | 93.4 ns | 124.3 ns | *66.4 ns*
+| `Push`+`Pop` cycle           | 13.3 ns | 13.4 ns | 13.2 ns | 13.1 ns | —
+| `Fix` decrease (worst case)  | 12.8 ns | 10.6 ns | 8.6 ns | *7.7 ns* | 12.9 ns
+| `Fix` increase (worst case)  | 83.6 ns | 84.1 ns | 91.6 ns | 111.3 ns | —
+| bulk build 4096 (`Heapify`)  | 20.5 µs | 15.0 µs | 12.2 µs | *10.8 µs* | —
+| `Fix` decrease, n = 2²⁰      | 13.8 ns | 10.2 ns | 8.9 ns | *7.5 ns* | 13.6 ns
+| `Pop`, n = 2²⁰               | 119 ns | 128 ns | 154 ns | 205 ns | —
+|===
+
+The three-way trade-off, measured:
+
+* *Decrease-key is the win*: 12.8 → 7.7 ns from d=2 to d=16 — the
+  log₂ n → log₁₆ n up-sift path, a 40% cut that holds even at 2²⁰
+  elements (an up-sift touches one cache line per level, so the
+  shallower path is also the friendlier one to the memory hierarchy).
+* *Pop pays for it*: 71.9 → 124.3 ns — the d-1 compares per level to
+  find the smallest child; at 2²⁰ the gap widens to 119 → 205 ns.
+* *The bulk build gets cheaper with d*: 20.5 → 10.8 µs — each element
+  is scanned as a child once regardless of d, but the rebuild makes
+  n/d `Heapify` calls instead of n/2.
+
+The d=2 columns track pluto's `heap` within noise (Push 5.3 vs 5.7,
+Pop 71.9 vs 66.4, Fix 12.8 vs 12.9) — the port is the same algorithm.
+The practical reading: **d=4** keeps `Pop` within ~7% of the binary
+heap while making every decrease 17% cheaper and every bulk build 27%
+faster; **d=8–16** for decrease-dominated workloads (the Dijkstra /
+scheduler shape); **d=2** when extract-min dominates and the heap is
+small enough to stay cache-resident.
