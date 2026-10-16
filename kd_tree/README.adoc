@@ -1,0 +1,154 @@
+= kd_tree
+
+The two-dimensional k-d tree from Sedgwick & Wayne, Algorithms, 4th
+ed. — the booksite's "5. Nearest Neighbor Search" chapter
+(`KdTree.java`) with the brute-force `PointSET.java` shipped alongside
+as `PointSet` — over the `Point2D`/`RectHV` geometry value types that
+live in pluto's link:g_lib/[g_lib] (the §1.2 support types, introduced
+here for the geometry batch to come).
+
+A k-d tree is a binary search tree over *points* that alternates the
+splitting coordinate by depth: the root partitions the plane by x
+(strictly smaller x goes left, ties and larger go right), its children
+partition by y, and so on.  Every node therefore owns an axis-aligned
+rectangle of the plane — the property that prunes orthogonal range
+search and nearest-neighbor search to the rectangles that can matter.
+
+Constructor-free like the tries: the splitting rule is inherent in the
+coordinates, there is no comparison function to store, and the zero
+value of `KdTree` is an empty tree ready to use (`NewKdTree` is
+convenience only).  Set semantics throughout: `Insert` of an existing
+point is a no-op returning false.  A 2D-faithful port by design — the
+backlog decision — not a generic k-d tree; generalizing means points
+as `[]float64` with k fixed at construction, which changes every
+signature for a capability nothing downstream needs yet.
+
+== Operations
+
+[options="header"]
+|===
+| Operation                  | Description                                          | Complexity
+
+| `Insert(p) bool`           | Add p (duplicates no-op)                             | O(log₂ n) expected
+| `Contains(p) bool`         | Exact-match search                                   | O(log₂ n) expected
+| `Nearest(q) (Point2D, bool)` | Closest point to q by squared distance             | O(log₂ n) expected
+| `NearestK(q, k) []Point2D` | The k closest, ascending distance, (X,Y) tie order  | O(log₂ n + k log k) expected
+| `Range(rect) []Point2D`    | Points in the closed rectangle, tree order           | O(log₂ n + m) expected
+| `All() iter.Seq[Point2D]`  | Iterate in tree (pre)order — live walk               | O(n)
+| `Len()`, `IsEmpty()`       | Size                                                | O(1)
+|===
+
+Expected costs hold for randomly ordered insertions.  The tree is not
+self-balancing (the binary_tree precedent): a monotone adversarial
+insertion order — points marching up a diagonal, every split sending
+them the same way — legitimately builds a depth-n chain with O(n)
+operations (pinned by `TestDegenerateChain`; uniformly random order
+stays near 2·ln n depth, pinned by `TestShuffledUniformDepth`).
+
+`PointSet` mirrors the whole query surface with brute-force costs
+(O(1) expected `Insert`/`Contains`, O(n) `Nearest`/`Range`,
+O(n log n) `NearestK`) over a hash map — the simple fallback for small
+inputs, and the reference implementation the tree's tests are
+differential-checked against (the way the algs4 assignment pairs the
+two).
+
+== Why the tree exists
+
+Measured on this repository's reference machine (Apple M4 Max,
+`go test -bench=. -benchmem`), 100,000 uniformly random points in the
+unit square, queries just outside it:
+
+[options="header"]
+|===
+| Query                     | KdTree      | PointSet (brute force) | Ratio
+
+| `Contains`                | 22 ns       | (O(1) — a map)         |
+| `Nearest`                 | 0.93 µs     | 466 µs                 | ~500×
+| `NearestK` (k=10)         | 3.4 µs      | 10.4 ms                | ~3,000×
+| `Range` (0.02×0.02 box)   | 0.78 µs     | 664 µs                 | ~850×
+|===
+
+Build cost for the 100k-point tree is 14.5 ms (~145 ns per insert, one
+node allocation each).
+
+== Usage
+
+[source,go]
+----
+tr := kd_tree.NewKdTree()
+for _, p := range sites {
+    tr.Insert(p) // g_lib.Point2D{X: ..., Y: ...}
+}
+
+site, ok := tr.Nearest(g_lib.Point2D{X: 0.85, Y: 0.45})
+near := tr.NearestK(customer, 2)                     // closest first
+inBox := tr.Range(g_lib.RectHV{Xmin: 0.2, Ymin: 0.2, Xmax: 0.5, Ymax: 0.4})
+for p := range tr.All() { ... }                      // tree order, not sorted
+----
+
+`Range` and `All` return points in tree order (the partition
+alternates coordinates, so no single sort matches it) — sort with
+`(X, Y)` when order matters.  Rectangles are closed: a point exactly
+on the boundary is contained.
+
+== Distances, ties and infinities
+
+Everything nearest-neighbor measures *squared* distance — no square
+roots until an answer is demanded.  Two contracts worth knowing:
+
+* **Ties.**  When several points are exactly equidistant from a query,
+  `Nearest` may return any of them, and when more than k points tie at
+  the k-th rank `NearestK`'s choice of which make the cut is
+  unspecified.  The *distance sequence* `NearestK` returns is always
+  exact.  Output order is deterministic: ascending squared distance,
+  ties broken by (X, Y).  Beware that mathematically-tied distances
+  computed through float arithmetic may differ by an ulp — both
+  structures compute identical values, so their orders agree.
+* **Coordinates.**  ±Inf coordinates are legal points (squared
+  distances saturate to +Inf).  NaN is not: `Insert` with a NaN
+  coordinate panics, and NaN probes return unspecified not-found
+  answers without panicking — the interval_tree convention of
+  rejecting at write what reads could never answer.
+
+== Panics
+
+Exactly two, both on `Insert` of `KdTree` (and the mirrored pair on
+`PointSet.Insert`), each naming the method:
+
+[options="header"]
+|===
+| Call | Why
+
+| `Insert` on a nil `*KdTree` / `*PointSet` | a nil container cannot store a point
+| `Insert` with a NaN coordinate | a NaN point can never be found again
+|===
+
+Every read tolerates a nil container and every query tolerates a NaN
+or inverted rectangle (inverted = matches nothing, never a panic).
+
+== Thread safety
+
+Not safe for concurrent use — the mutex-guarded twin
+link:../kd_tree_ts/[kd_tree_ts] has the same interface plus
+`Lock`/`Unlock` and `Nl*` compound-operation methods.  `PointSet` has
+no twin: a locked linear scan is just a worse hash set.
+
+== Deviations from the algs4 reference
+
+* The root rectangle is the **whole plane** (±Inf), not the unit
+  square the assignment confines its inputs to — arbitrary coordinates
+  are legal here.
+* Nodes store no `RectHV` (the Java node caches one); each subtree
+  rectangle is derived from the ancestor splits during the descent —
+  four floats passed down the recursion instead of stored per node.
+* **No delete**, as in algs4's KdTree: k-d tree deletion requires
+  re-partitioning the affected subtree.  Rebuild into a fresh tree
+  instead.
+* `NearestK` is beyond the algs4 surface (the booksite grades
+  `nearest` only) — implemented as `Nearest` with the single champion
+  replaced by a bounded max-heap composed from pluto's
+  link:../heap/[heap] package (reversed comparator on squared
+  distance).
+* `PointSET`'s backing `SET` (red-black) is a Go hash map here — the
+  brute-force costs are the point, not the container.
+* No `draw` (the booksite's StdDraw visualization).

@@ -6,9 +6,9 @@
 `g_lib` is a small library of generic utility functions built on Go type
 parameters: min/max, absolute value and exponentiation, slice searching
 and manipulation, set conversion, map key extraction, and a pointer
-helper.  There are no data structures here — just pure functions on
-slices and maps — which makes it the one non-structure package in
-pluto.
+helper — plus the `Point2D`/`RectHV` geometry value types (below).
+There are no data structures here — just pure functions on slices and
+maps — which makes it the one non-structure package in pluto.
 
 Everything is stdlib-only; ordering comes from the standard library's
 `cmp.Ordered`, and arithmetic comes from the numeric constraints defined
@@ -81,6 +81,23 @@ never modifies its input.
 element types that are not comparable (slices, maps, functions);
 `RemoveComparable` uses `==` and is the faster choice for comparable
 elements.
+
+== Geometry value types
+
+`Point2D` and `RectHV` (link:point2d.go[`point2d.go`]) are the §1.2
+planar geometry support types, introduced for pluto's
+link:../kd_tree/[kd_tree] and the geometry batch to come — plain
+comparable structs, not interfaces, per the house rule.
+
+* `Point2D{X, Y float64}` — `String` ("(x, y)"), `DistanceSquaredTo`,
+`DistanceTo`.  Comparable, so it works as a map key (the kd_tree
+contract).
+* `RectHV{Xmin, Ymin, Xmax, Ymax float64}` — `Contains` (boundary
+inclusive), `Intersects`, `DistanceSquaredTo` (per-axis clamp).
+* NaN is tolerated everywhere (no method panics; NaN coordinates never
+  order and NaN rectangles contain/intersect nothing); inverted
+  rectangles contain nothing; `kd_tree` uses ±Inf bounds as the whole
+  plane.
 
 == Usage
 

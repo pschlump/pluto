@@ -109,7 +109,7 @@ quality (README + model tests + invariants).
 * **Verification:** algs4 exercise semantics + randomized model vs O(n) scan oracle (seed 42); invariant checker: BST order by Lo, maxHi == max over subtree, balance.
 * **As built:** two type params `IntervalTree[K, V any]` (the sketch's `val T` was a typo — satellite value, the lru map pattern), a *self-contained* CLRS red-black tree (not composed on rb_tree — the augmentation lives in the nodes), closed intervals (touching overlaps, point intervals legal).  Names deviate from the sketch: `AnyOverlap` (not AnyOverlaps) and `Overlaps` (not OverlapsAll); `Stab` kept.  Inverted `Hi < Lo` is the 4th Insert panic (b_tree-shaped contract).  The ts twin exports real `Lock`/`Unlock` + `Nl*` (skip_list_ts surface) — the canonical compound is check-overlap-then-book.  Same-seed model test (PCG 42,7) in both twins.
 
-### 3.4 `kd_tree` — M/L
+### 3.4 `kd_tree` — M/L — **DONE 2026-10-16** (`kd_tree/`, `kd_tree_ts/`)
 
 * **algs4:** `KdTree.java`, `PointSET.java` (§5+ "Nearest neighbor search"; §1.2 `Point2D`, `RectHV`).
 * **Why:** THE multidimensional search structure — orthogonal range search and nearest-neighbor in 2D+, a whole query family nothing in pluto approximates. Also the gateway to the §9 geometry batch (Tier 2) by introducing `Point2D`/`RectHV` support types.
@@ -117,6 +117,7 @@ quality (README + model tests + invariants).
 * **API sketch:** `NewKdTree()`, `Insert(Point2D) bool`, `Contains`, `Nearest(p) (Point2D, bool)`, `NearestK(p, k)`, `Range(rect) []Point2D` / iterator, `Len`, `IsEmpty`. Zero value usable; panic = `Insert` on nil only.
 * **Twin:** `kd_tree_ts`.
 * **Verification:** brute-force `PointSET` oracle (implement both — algs4 does), circle-test client fixture, seeds 42/7; invariants: partition by depth, subtree point containment, size field.
+* **As built:** all of the sketch, 2D-faithful per the recommendation. `Point2D`/`RectHV` live in `g_lib/point2d.go` (comparable value types — `Point2D` is a legal map key — so Tier 2's geometry batch reuses them). Constructor-free (the tries' precedent — the splitting rule is inherent in the coordinates; `NewKdTree()` convenience only), nodes carry **no stored RectHV** (`splitRects` derives each subtree rect from the ancestor splits during the descent), root rect = the whole plane ±Inf (not algs4's unit square). `NearestK` keeps its k best in a bounded max-heap composed from `pluto/heap` (reversed comparator on squared distance); output deterministic by (d², X, Y); ties among exactly equidistant points unspecified beyond the distance sequence (mathematical ties can differ by an ulp — both structures compute identical d² so their orders agree; the model tests compare distance sequences). Panic contract: 2 per structure — `Insert` on nil, `Insert` with a NaN coordinate (the interval_tree reject-at-write precedent; ±Inf legal, saturating d²). `PointSET` shipped as `PointSet` (map-backed brute force) — the test oracle and the small-input fallback. No delete (as in algs4 — rebuild); unbalanced (diagonal inserts legitimately chain, asserted). `kd_tree_ts` is the wrapper twin (stream_ts pattern — plain value + one RWMutex, nothing stored to adopt/snapshot) with eager-snapshot `All`, `Nl*` mirror, and check-spacing-then-insert as the canonical compound; `PointSet` deliberately has no twin. Tests: PCG 42,7 4000-step model vs `PointSet`, invariants checker, tie/degenerate-chain/depth/edge-rect suites, twin race trio + plain-vs-twin model. Benchmarks (100k points, M4 Max): Nearest 925 ns vs brute 466 µs (~500×), Range 777 ns vs 664 µs (~850×), NearestK 3.4 µs vs 10.4 ms (~3,000×).
 
 ### 3.5 `nfa` (regular expressions) — M
 
@@ -196,7 +197,7 @@ Small constructor-style query objects added to the existing packages (and mirror
 | 16 | `boruvka_mst` | `BoruvkaMST` (§4.3) | Completes the MST quartet (lazy/eager Prim, Kruskal done); UF-driven | S |
 | 17 | `global_mincut` | `GlobalMincut` (§6.4) | Global min cut over `maxflow` (n−1 maxflows) or Stoer–Wagner; pick after benchmark | M |
 | 18 | SCC + Eulerian batch | `TarjanSCC`, `GabowSCC`, `EulerianCycle/Path`, directed Eulerian (§4.1/4.2) | Additions to `digraph`/`graph` + twins; Tarjan/Gabow are the linear SCCs algs4 teaches beside Kosaraju; Eulerian is the classic multigraph walk | S each |
-| 19 | Geometry batch | `GrahamScan`, `ClosestPair`, `FarthestPair` (§9) | Needs `Point2D` (shared with kd_tree); polar-order comparator; closest-pair divide-and-conquer; convex hull returns ccw `[]Point2D` | M |
+| 19 | Geometry batch | `GrahamScan`, `ClosestPair`, `FarthestPair` (§9) | `Point2D`/`RectHV` now in `g_lib` (introduced by kd_tree); polar-order comparator; closest-pair divide-and-conquer; convex hull returns ccw `[]Point2D` | M |
 | 20 | `fft` | `FFT.java` (§9) | Radix-2 FFT over `[]complex128`; stateless functions (`geo` precedent), no twin; verify against DFT oracle + round-trip | M |
 | 21 | `gauss` | `GaussianElimination`, `GaussJordanElimination` (§9) | Needs a minimal matrix story (`[][]float64` is enough); pivoting + singular detection | M |
 | 22 | `sparse_vector` | `SparseVector` (§3.5) | Dimension-indexed sparse dot/axpy used by gauss/simplex; hash-map backed | S |
@@ -222,7 +223,7 @@ Small constructor-style query objects added to the existing packages (and mirror
 3. **`interval_tree` + `_ts`** — first genuinely new query family.
 4. ~~**`string_sort`**~~ — **DONE 2026-10-16** (`string_sort/`, backlog §3.6): LSD → MSD → Quick3string.
 5. **`nfa`** — regexp query object.
-6. **`kd_tree` + `_ts`** (introduces `Point2D`/`RectHV`, unlocks Tier 2 geometry).
+6. ~~**`kd_tree` + `_ts`**~~ — **DONE 2026-10-16** (`kd_tree/`, `kd_tree_ts/`, backlog §3.4): introduced `Point2D`/`RectHV` in `g_lib`, unlocking Tier 2 geometry.
 7. **`huffman`** — completes compression.
 8. **`fib_heap`** — **DONE 2026-10-16** (`fib_heap/`, backlog §3.9); then **`multiway_pq`** — **DONE 2026-10-16** (`multiway_pq/`, backlog §3.10). PQ zoo complete.
 9. Tier 2 in table order as appetite allows (SCC/Eulerian batch and `boruvka_mst` are the cheapest next stops).

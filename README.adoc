@@ -102,6 +102,8 @@ with an identical public API.
 | link:lzw/[lzw]                             | LZW compression/expansion over byte slices on pluto/tst (widening 9→16-bit codes; Sedgwick §5.5 variant).
 | link:run_length/[run_length]               | Run-length encoding over byte slices (alternating count bytes, 255/0 saturation split; Sedgwick §5.5; pure functions, concurrent-use safe).
 | link:string_sort/[string_sort]              | LSD/MSD/3-way-radix string sorts on `[]string` in place (key-indexed counting, 256-byte alphabet; Sedgwick §5.1; pure functions, concurrent-use safe).
+| link:kd_tree/[kd_tree]                     | 2-d k-d tree over `g_lib.Point2D`: nearest, k-nearest, orthogonal range (alternating x/y splits, rectangle pruning; Sedgwick "5. Nearest Neighbor Search"; constructor-free) — with the brute-force `PointSet` oracle.
+| link:kd_tree_ts/[kd_tree_ts]               | Thread-safe 2-d k-d tree (RWMutex wrapper, snapshot `All`, Lock+Nl* compound ops).
 | link:stream/[stream]                       | Redis-style stream: append-oriented log of `<ms>-<seq>` ID entries with consumer groups and PEL tracking (on pluto/skip_list).
 | link:stream_ts/[stream_ts]                 | Thread-safe stream (RWMutex, snapshot iterators, Lock+Nl* compound ops).
 | link:hyperloglog/[hyperloglog]             | HyperLogLog cardinality estimator, dense 6-bit registers (Redis PFADD/PFCOUNT/PFMERGE behavior; LinearCounting + Ertl estimator, ~0.8% error).
@@ -115,7 +117,7 @@ with an identical public API.
 | link:bitmap/[bitmap]                       | Redis bit operations on byte slices: GETBIT/SETBIT, BITCOUNT, BITPOS (end-given semantics), BITOP AND/OR/XOR/NOT, BITFIELD GET/SET/INCRBY with WRAP/SAT/FAIL overflow (Redis-exact, word-wise; pure functions, concurrent-use safe).
 | link:crc/[crc]                             | Table-driven CRC-32/CRC-64 checksums (IEEE, Castagnoli, Koopman, ECMA, ISO; pure functions, concurrent-use safe).
 | link:geo/[geo]                             | Redis GEO geohash math: 52-bit Encode/Decode (bit-compatible with Redis), Neighbors, radius/box score ranges, haversine Distance, m/km/ft/mi units (pure functions, concurrent-use safe).
-| link:g_lib/[g_lib]                         | Generic utility functions (min/max, slice ops, set/map conversion, numeric constraints).
+| link:g_lib/[g_lib]                         | Generic utility functions (min/max, slice ops, set/map conversion, numeric constraints) and the `Point2D`/`RectHV` geometry value types.
 |===
 
 == Common Conventions
@@ -1449,6 +1451,43 @@ level per key byte; none is stable except LSD/MSD, and none carries
 satellite data (sort `[]string`, or sort indices into a payload
 slice).
 
+== k-d Tree — `kd_tree/`, `kd_tree_ts/`
+
+The 2-d k-d tree (Sedgwick & Wayne, "5. Nearest Neighbor Search") over
+the `g_lib.Point2D`/`RectHV` geometry value types introduced with it:
+a binary tree over points whose splitting coordinate alternates x/y by
+depth, so every node owns a rectangle of the plane — the property that
+prunes range and nearest-neighbor search to the rectangles that can
+matter. `Range` (closed rect, O(log n + m) expected),
+`Nearest`/`NearestK` (squared-distance champion + rectangle pruning;
+NearestK keeps its k best in a bounded max-heap composed from
+`pluto/heap`), `Insert`/`Contains`, tree-order `All`. Constructor-free
+(the tries' precedent — the splitting rule is inherent in the
+coordinates), set semantics, ±Inf coordinates legal, and exactly two
+panics: `Insert` on nil and `Insert` with a NaN coordinate. The
+brute-force `PointSet` (algs4 `PointSET`) ships alongside as the
+simple fallback and the test oracle — measured at 100k points (M4
+Max): tree Nearest 0.93 µs vs brute 466 µs (~500×), Range 0.78 µs vs
+664 µs (~850×), NearestK 3.4 µs vs 10.4 ms (~3,000×). Not
+self-balancing (the `binary_tree` precedent): a monotone diagonal
+legitimately builds a depth-n chain; no delete (as in algs4 — rebuild
+instead).
+
+* Good: logarithmic-pruned geometric queries with value semantics and
+zero stored state to configure; deterministic output order (ascending
+squared distance, (X,Y) ties).
+* Bad: adversarial insertion order degrades to a linked list; ties
+among exactly equidistant points are unspecified beyond their distance
+sequence; 2-d only — generalizing means `[]float64` points with k at
+construction, deliberately out of scope.
+
+`kd_tree_ts` is the wrapper twin (the `stream_ts` pattern — one
+RWMutex over a plain value, since there is no stored function to adopt
+or snapshot): eager-snapshot `All`, real `Lock`/`Unlock` + the `Nl*`
+mirror, with the check-spacing-then-insert compound as the canonical
+use. `PointSet` has no twin (a locked linear scan is just a worse hash
+set).
+
 == Max Flow — `maxflow/`
 
 Sedgwick's §6.4 max-flow / min-cut: a `FlowNetwork` container
@@ -1483,8 +1522,11 @@ helpers (`InArray`, `LocationInArray`, `RemoveAt`, `Remove` via
 numeric constraint interfaces (`Numeric`, `SignedInteger`,
 `SignedNumeric`, `Unsigned` — all `~T`; `Number` — exact types
 only, so defined types do not satisfy it; `uintptr` only in
-`Unsigned`). Two tracked `*.go.txt` scratch files from the gotip era
-live here; they are not library code.
+`Unsigned`). Also home to the `Point2D`/`RectHV` geometry value types
+(distances, rectangle containment/intersection/distance — the §1.2
+support types, introduced for `kd_tree` and the geometry batch to
+come). Two tracked `*.go.txt` scratch files from the gotip era live
+here; they are not library code.
 * There are no interface-constraint support packages — pure generics
 provide ordering and equality, and no interface indirection is needed
 to swap a `_ts` twin (it is a package-name change).

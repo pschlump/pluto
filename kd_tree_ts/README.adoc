@@ -1,0 +1,107 @@
+= kd_tree_ts
+
+The thread-safe twin of link:../kd_tree/[kd_tree] — the 2-d k-d tree
+behind a single `sync.RWMutex`, with the same query surface plus the
+compound-operation `Nl*` methods.  The geometry value types are
+re-exported as aliases, so twin-switching is an import change.
+
+== Composition
+
+A **wrapper over a plain kd_tree value** (the stream_ts /
+hash_tab_bt_ts pattern — not a re-implementation): the plain package
+stores no comparison or equality functions for a twin to adopt or
+snapshot, so guarding the value is the whole job.
+
+[source,go]
+----
+type KdTree struct {
+    inner kd_tree.KdTree
+    lock  sync.RWMutex
+}
+----
+
+* `Point2D` and `RectHV` are aliases of the g_lib types — switching
+  concurrent code from kd_tree to kd_tree_ts changes only the import.
+* Nil guards come **before** lock acquisition (a nil-receiver
+  `lock.RLock()` would itself panic); write panics carry the
+  `kd_tree_ts:` prefix.  A NaN coordinate through `NlInsert` reaches
+  the plain core's own check and carries the plain `kd_tree:` prefix.
+* `All` is an **eager snapshot** taken under the read lock
+  (`slices.Collect` of the plain live iterator, then served from the
+  slice) — safe to mutate the tree from inside the loop, the inverted
+  contract from the plain package's live walk
+  (`TestIteratorSnapshotSemantics`).
+* `Range`/`NearestK`/`Nearest` build their answers under the read lock
+  by construction, so no extra snapshot work is needed.
+
+== Operations
+
+The plain package's entire surface, with the same complexities —
+`Insert`, `Contains`, `Nearest`, `NearestK`, `Range`, `All`, `Len`,
+`IsEmpty` — plus the twin additions:
+
+[options="header"]
+|===
+| Operation | Lock | Notes
+
+| `Insert(p) bool`             | write | nil/NaN panic, `kd_tree_ts:` prefix
+| `Contains(p) bool`           | read  |
+| `Nearest(q) (Point2D, bool)` | read  |
+| `NearestK(q, k) []Point2D`   | read  |
+| `Range(rect) []Point2D`      | read  |
+| `All() iter.Seq[Point2D]`    | read  | eager snapshot at call time
+| `Len()`, `IsEmpty()`         | read  |
+| `Lock()` / `Unlock()`        | —     | the real write lock (nil no-ops)
+| `NlInsert` … `NlRange`       | none  | the read/write bodies for compounds
+|===
+
+`Nl*` mirrors: `NlInsert`/`NlLen`/`NlIsEmpty`/`NlContains`/
+`NlNearest`/`NlNearestK`/`NlRange` — plain inner calls with no lock.
+They exist for the atomic compound; `All` deliberately has no `Nl*`
+form because a lock cannot be held across an iterator's consumption
+(the house rule).
+
+== The canonical compound
+
+Check-spacing-then-insert — accept a new site only when it is far
+enough from every existing one, as one atomic section:
+
+[source,go]
+----
+insertIfFar := func(p g_lib.Point2D, minDist float64) bool {
+    tr.Lock()
+    defer tr.Unlock()
+    if near, ok := tr.NlNearest(p); ok {
+        if dx, dy := near.X-p.X, near.Y-p.Y; dx*dx+dy*dy < minDist*minDist {
+            return false
+        }
+    }
+    return tr.NlInsert(p)
+}
+----
+
+Without the lock a concurrent writer could slip a site into the gap
+between the nearest-neighbor check and the insert
+(`ExampleKdTree_Lock`, `TestLockNlCompound`,
+`TestKdTreeConstrainedInsertCompound` — 4 compound writers racing 2
+plain writers, post-storm pairwise-spacing verified).
+
+Calling any locked public method while holding `Lock` deadlocks —
+compound sections use only `Nl*` inside.
+
+== Panics
+
+The plain package's two (Insert on nil, Insert with a NaN coordinate),
+with the `kd_tree_ts:` prefix on the locked path.  Every read
+tolerates nil; `Lock`/`Unlock` on nil are no-ops.
+
+== Thread safety
+
+Safe for concurrent use — that is the package.  `PointSet` is
+deliberately NOT mirrored: a mutex-guarded linear scan is just a worse
+hash set, and a concurrent brute-force caller wants a plain map, not a
+tree-shaped detour.  Race coverage: `TestKdTreeConcurrent` (8 writers
+× 500 disjoint-cloud inserts + 4 readers on every read path, exact
+final count), the constrained-insert compound race, and
+`TestKdTreeVsPlainModel` (fixed-seed behavioral identity with the
+plain package).  Run the tests with `-race`.
