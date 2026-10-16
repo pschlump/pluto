@@ -132,7 +132,7 @@ quality (README + model tests + invariants).
 * **Twin:** none (immutable — `substring`/`suffix_array` precedent).
 * **Verification:** property test vs Go `regexp` oracle on the supported subset (seeds 42/7, adversarial patterns like `(a|aa)*b` + `a{n}` blowup-free), algs4 propositional-dynamic-logic examples.
 
-### 3.6 `string_sort` (LSD / MSD / Quick3string) — M
+### 3.6 `string_sort` (LSD / MSD / Quick3string) — M — **DONE 2026-10-16** (`string_sort/`)
 
 * **algs4:** `LSD`, `MSD`, `InplaceMSD`, `Quick3string`, `AmericanFlag(X)`, `Alphabet` (§5.1).
 * **Why:** §5.1 missing wholesale; key-indexed/radix character sorts are the classic answer when comparison sorts are the bottleneck and the Redis-lineage library handles byte strings natively throughout.
@@ -145,6 +145,7 @@ quality (README + model tests + invariants).
   ```
   (internal shared `insertion` cutoff helper; `Alphabet`-style extended-ASCII assumption, 256 buckets, documented).
 * **Verification:** `slices.Sort` oracle over random fixed-width and variable-width keys, equal-prefix-heavy inputs (the MSD worst case), seeds 42/7; benchmarks vs `slices.Sort` and `quick_sort`.
+* **As built:** all of the sketch. Ordering is byte-wise lexicographic — exactly Go's native string `<` — so `slices.Sort` is the exact oracle (strings are values, the sorted sequence of a multiset is unique; `slices.Equal` checks sortedness+permutation in one) and binary-safe/UTF-8 keys work unchanged (`Alphabet`/`InplaceMSD`/American-flag documented out of scope).  Panic contract: exactly 2, both `LSDSort` (`w < 0`, key shorter than w — the only function with a precondition).  `Quick3String` carries the two `quick_sort` deviations (median-of-3 pivot byte, recurse-smaller-side/loop-larger — a library cannot pre-shuffle); MSD skips recursion into empty buckets (no-op elimination); `less(v,w,d)` is `v[d:] < w[d:]`.  Thorough tests at PCG 42,7: fixed/variable-width, equal-prefix-heavy, prefix chains, alphabet-256, 100k sorted/reverse/all-equal adversarial, and 2000 keys sharing a 2000-byte prefix (recursion depth vs Go stack growth).  Benchmarks (100k keys, M4 Max): MSD 2.5 ms vs `slices.Sort` 9.4 ms on random 16-byte keys; `Quick3String` most robust on long shared prefixes (beats `slices.Sort` there); LSD 4.6 ms on random16 but 25.3 ms on 64-byte keys — every w pass is a full counting sort.
 
 ### 3.7 `huffman` + `run_length` — M total — `run_length` **DONE 2026-10-15** (`run_length/`); `huffman` open
 
@@ -219,7 +220,7 @@ Small constructor-style query objects added to the existing packages (and mirror
 1. **Quick wins batch:** ~~`bag` + `bag_ts`, `shell_sort`, graph additions (Cycle/TwoColor/TransitiveClosure), `run_length`~~ — all done (bag/bag_ts, shell_sort and run_length 2026-10-15; the graph additions + the `suffix_array.LCS` rider 2026-10-16).
 2. ~~**`merge_sort`** (+ `Inversions`) — closes the stability gap.~~ — done (2026-10-15), with the stability oracle against `slices.SortStableFunc`.
 3. **`interval_tree` + `_ts`** — first genuinely new query family.
-4. **`string_sort`** — LSD → MSD → Quick3string.
+4. ~~**`string_sort`**~~ — **DONE 2026-10-16** (`string_sort/`, backlog §3.6): LSD → MSD → Quick3string.
 5. **`nfa`** — regexp query object.
 6. **`kd_tree` + `_ts`** (introduces `Point2D`/`RectHV`, unlocks Tier 2 geometry).
 7. **`huffman`** — completes compression.

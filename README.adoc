@@ -101,6 +101,7 @@ with an identical public API.
 | link:substring/[substring]                 | Substring search: KMP, Boyer-Moore, Rabin-Karp (compile pattern once, search many texts; Sedgwick §5.3).
 | link:lzw/[lzw]                             | LZW compression/expansion over byte slices on pluto/tst (widening 9→16-bit codes; Sedgwick §5.5 variant).
 | link:run_length/[run_length]               | Run-length encoding over byte slices (alternating count bytes, 255/0 saturation split; Sedgwick §5.5; pure functions, concurrent-use safe).
+| link:string_sort/[string_sort]              | LSD/MSD/3-way-radix string sorts on `[]string` in place (key-indexed counting, 256-byte alphabet; Sedgwick §5.1; pure functions, concurrent-use safe).
 | link:stream/[stream]                       | Redis-style stream: append-oriented log of `<ms>-<seq>` ID entries with consumer groups and PEL tracking (on pluto/skip_list).
 | link:stream_ts/[stream_ts]                 | Thread-safe stream (RWMutex, snapshot iterators, Lock+Nl* compound ops).
 | link:hyperloglog/[hyperloglog]             | HyperLogLog cardinality estimator, dense 6-bit registers (Redis PFADD/PFCOUNT/PFMERGE behavior; LinearCounting + Ertl estimator, ~0.8% error).
@@ -1420,6 +1421,33 @@ bytes; interior zero counts are tolerated (they decode to no bits).
 runs (bitmaps, fax-like data) where it compresses aggressively.
 * Bad: random input expands (a count byte per ≤ 8 bits); byte-granular
 only — no literal/escape form (use `lzw` for general data).
+
+== String Sorts — `string_sort/`
+
+The §5.1 character-key radix sorts (Sedgwick & Wayne) as stateless
+in-place functions over `[]string`: `LSDSort(a, w)` (w passes of
+key-indexed counting, least-significant byte first — fixed-width
+keys), `MSDSort(a)` (most-significant-byte-first recursion with a -1
+end-of-key sentinel) and `Quick3String(a)` (3-way radix quicksort, in
+place). Ordering is byte-wise lexicographic — exactly Go's native
+string `<` — over a 256-bucket alphabet that covers every Go string.
+`LSDSort`/`MSDSort` are stable, `Quick3String` is not; the only two
+panics in the package are `LSDSort` with `w < 0` or with a key
+shorter than w. Quick3String pivots on a median-of-3 byte and
+recurses smaller-side-first (the `quick_sort` deviations — a library
+cannot pre-shuffle). Non-generic pure functions; safe for concurrent
+use on disjoint slices; no `_ts` twin. Measured at 100k keys (M4
+Max): MSD 2.5 ms vs `slices.Sort` 9.4 ms on random 16-byte keys;
+Quick3String the most robust on long shared prefixes.
+
+* Good: LSD is O(w·(n+R)) with no comparisons and no random access
+pattern — the sort for fixed-width keys; MSD and Quick3 beat
+comparison sorts on random string keys by wide margins.
+* Bad: LSD needs the key width up front and degrades linearly in it;
+MSD pays a 256-count pass per shared-prefix level and recurses one
+level per key byte; none is stable except LSD/MSD, and none carries
+satellite data (sort `[]string`, or sort indices into a payload
+slice).
 
 == Max Flow — `maxflow/`
 
