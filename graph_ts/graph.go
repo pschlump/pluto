@@ -5,12 +5,12 @@ BSD 3 Clause Licensed.
 */
 
 // Package graph_ts implements an undirected graph on the integer vertices
-// 0..n-1 with adjacency lists, safe for concurrent use, plus the three
-// fundamental graph queries — depth-first paths, breadth-first paths, and
-// connected components — as constructor-style query objects (Sedgwick,
-// Algorithms, 4th ed., §4.1).  It is the thread-safe twin of
-// github.com/pschlump/pluto/graph — the same API, guarded by a
-// sync.RWMutex.
+// 0..n-1 with adjacency lists, safe for concurrent use, plus the
+// fundamental graph queries — depth-first paths, breadth-first paths,
+// connected components, cycle detection, and bipartiteness — as
+// constructor-style query objects (Sedgwick, Algorithms, 4th ed., §4.1).
+// It is the thread-safe twin of github.com/pschlump/pluto/graph — the
+// same API, guarded by a sync.RWMutex.
 //
 // Concurrency model:
 //
@@ -21,13 +21,15 @@ BSD 3 Clause Licensed.
 //	the read lock when Adj is called, so it is safe to use concurrently
 //	with any graph operation — including mutating the graph from inside
 //	the loop — and never observes later modifications.
-//	NewDFSPaths, NewBFSPaths, and NewCC snapshot the whole adjacency
-//	structure under the read lock, then run the traversal lock-free on
-//	the snapshot — no lock is held during the traversal.
+//	The query constructors (NewDFSPaths, NewBFSPaths, NewCC, NewCycle,
+//	NewTwoColor) snapshot the whole adjacency structure under the read
+//	lock, then run the traversal lock-free on the snapshot — no lock is
+//	held during the traversal.
 //
-// The query objects (DFSPaths, BFSPaths, CC) are immutable snapshots of
-// the graph at construction time: later AddEdge calls are not reflected,
-// and the query objects themselves are safe for concurrent reads.
+// The query objects (DFSPaths, BFSPaths, CC, Cycle, TwoColor) are
+// immutable snapshots of the graph at construction time: later AddEdge
+// calls are not reflected, and the query objects themselves are safe for
+// concurrent reads.
 //
 // Self-loops and parallel edges are allowed: AddEdge(v, v) counts once in
 // E and twice in Degree(v), exactly like Sedgwick.  There is deliberately

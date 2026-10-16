@@ -34,6 +34,7 @@ BSD 3 Clause Licensed.
 //	NewDepthFirstOrder(g) — Preorder, postorder, reverse postorder.	O(V+E)
 //	NewTopological(g) — A topological order, if the digraph is a DAG.	O(V+E)
 //	NewKosarajuSCC(g) — Strongly connected components (Kosaraju).	O(V+E)
+//	NewTransitiveClosure(g) — All-pairs reachability matrix.		O(V·(V+E))
 //
 // Self-loops and parallel edges are allowed: AddEdge(v, v) counts once in
 // E, once in OutDegree(v), and once in InDegree(v).  There is
@@ -49,8 +50,9 @@ BSD 3 Clause Licensed.
 // NewDirectedDFS/NewDFSDirectedPaths/NewBFSDirectedPaths on a nil or
 // empty graph or with an out-of-range source (NewDirectedDFS also panics
 // with no sources).  NewDirectedCycle/NewDepthFirstOrder/NewTopological/
-// NewKosarajuSCC have a sane answer for a nil or empty graph — no cycle,
-// an empty order, no components — so they do not panic.  Every other
+// NewKosarajuSCC/NewTransitiveClosure have a sane answer for a nil or
+// empty graph — no cycle, an empty order, no components, no reachable
+// pairs — so they do not panic.  Every other
 // operation tolerates a nil or zero-value digraph as an empty digraph
 // with no vertices (a zero-value digraph reports all vertices out of
 // range, so AddEdge on it returns false).

@@ -322,3 +322,125 @@ func TestConcurrentReads(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+// -------------------------------------------------------------------------------------------------------
+// LCS — longest common substring of two strings (lcs.go).
+// -------------------------------------------------------------------------------------------------------
+
+// refLCS is the reference longest common substring: the brute-force
+// scan over every pair of start offsets.  Ties are broken by position,
+// so only the length is compared against LCS (which breaks ties by
+// sorted order).
+func refLCS(s, t string) int {
+	best := 0
+	for i := 0; i < len(s); i++ {
+		for j := 0; j < len(t); j++ {
+			k := 0
+			for i+k < len(s) && j+k < len(t) && s[i+k] == t[j+k] {
+				k++
+			}
+			if k > best {
+				best = k
+			}
+		}
+	}
+	return best
+}
+
+func TestLCSKnown(t *testing.T) {
+	for _, tc := range []struct {
+		s, t, want string
+	}{
+		{"abcde", "cdefg", "cde"},
+		{"banana", "atana", "ana"},
+		{"alling", "all", "all"},
+		{"hello", "hello", "hello"},
+		{"abc", "xyz", ""}, // no common substring
+		{"", "abc", ""},
+		{"abc", "", ""},
+		{"", "", ""},
+		// Tie: "ab" and "cd" are both longest; the first in sorted
+		// order ("ab") wins, as in LongestRepeatedSubstring.
+		{"abXcd", "abYcd", "ab"},
+		// Binary-safe keys: the separator is picked dynamically (here
+		// 0x02), and "\x00\x01" is the first longest pair in sorted
+		// order.
+		{"\x00\x01\x00", "\x01\x00\x01", "\x00\x01"},
+	} {
+		got, ok := LCS(tc.s, tc.t)
+		if !ok {
+			t.Errorf("LCS(%q, %q): ok=false on ordinary strings", tc.s, tc.t)
+			continue
+		}
+		if got != tc.want {
+			t.Errorf("LCS(%q, %q)=%q, expected %q", tc.s, tc.t, got, tc.want)
+		}
+		if n, _ := LCS(tc.t, tc.s); n != got && got != "" {
+			// Symmetric up to tie-breaking: the length must agree.
+			t.Errorf("LCS(%q, %q)=%q but LCS(%q, %q)=%q differ in length", tc.s, tc.t, got, tc.t, tc.s, n)
+		}
+	}
+}
+
+func TestLCSRandomizedModel(t *testing.T) {
+	rng := rand.New(rand.NewSource(42)) // fixed seed: deterministic run
+
+	// Small alphabets force long common substrings; the byte-heavy
+	// regime exercises the dynamic separator pick.
+	alphabets := []string{"abc", "ab", "\x00\xff", "abcdefgh"}
+	for step := range 600 {
+		alphabet := alphabets[rng.Intn(len(alphabets))]
+		newStr := func(maxLen int) string {
+			var sb strings.Builder
+			for range rng.Intn(maxLen + 1) {
+				sb.WriteByte(alphabet[rng.Intn(len(alphabet))])
+			}
+			return sb.String()
+		}
+		s, tst := newStr(60), newStr(60)
+
+		got, ok := LCS(s, tst)
+		if !ok {
+			t.Fatalf("step %d: LCS(%q, %q) ok=false", step, s, tst)
+		}
+		if want := refLCS(s, tst); len(got) != want {
+			t.Fatalf("step %d: LCS(%q, %q)=%q (len %d), reference length is %d",
+				step, s, tst, got, len(got), want)
+		}
+		// The answer really is a common substring.
+		if got != "" && (!strings.Contains(s, got) || !strings.Contains(tst, got)) {
+			t.Fatalf("step %d: LCS(%q, %q)=%q is not a common substring", step, s, tst, got)
+		}
+	}
+}
+
+// TestLCSSeparatorExhausted verifies the pathological contract: when s
+// and t together use all 256 byte values there is no separator to build
+// the merged suffix array with, and ok is false.  One byte short of
+// that, the construction still works.
+func TestLCSSeparatorExhausted(t *testing.T) {
+	all := make([]byte, 256)
+	for i := range all {
+		all[i] = byte(i)
+	}
+	if got, ok := LCS(string(all), "q"); ok {
+		t.Errorf("Expected ok=false when all 256 byte values are in use, got %q", got)
+	}
+
+	// Leave one byte value out of s that t does not use either (t =
+	// "qzq" uses only 'q' and 'z'): a separator exists and the whole of
+	// t is found inside s.
+	s := []byte("qzq")
+	for _, b := range all {
+		if b != 0xff {
+			s = append(s, b)
+		}
+	}
+	got, ok := LCS(string(s), "qzq")
+	if !ok {
+		t.Fatalf("Expected ok=true when a free byte value exists.")
+	}
+	if want := "qzq"; got != want {
+		t.Errorf("LCS = %q, expected %q", got, want)
+	}
+}

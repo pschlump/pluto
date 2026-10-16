@@ -5,11 +5,11 @@ BSD 3 Clause Licensed.
 */
 
 // Package graph implements an undirected graph on the integer vertices
-// 0..n-1 with adjacency lists, plus the three fundamental graph queries —
-// depth-first paths, breadth-first paths, and connected components — as
-// constructor-style query objects in the same package (Sedgwick, Algorithms,
-// 4th ed., §4.1).  The vertices ARE the indices, like Sedgwick's Graph;
-// there is no element type.
+// 0..n-1 with adjacency lists, plus the fundamental graph queries —
+// depth-first paths, breadth-first paths, connected components, cycle
+// detection, and bipartiteness — as constructor-style query objects in
+// the same package (Sedgwick, Algorithms, 4th ed., §4.1).  The vertices
+// ARE the indices, like Sedgwick's Graph; there is no element type.
 //
 // Operations:
 //
@@ -26,6 +26,8 @@ BSD 3 Clause Licensed.
 //	NewDFSPaths(g, s) — Paths from s via depth-first search.		O(V+E)
 //	NewBFSPaths(g, s) — Shortest paths from s via breadth-first search.	O(V+E)
 //	NewCC(g) — Connected components.					O(V+E)
+//	NewCycle(g) — A cycle, if one exists.					O(V+E)
+//	NewTwoColor(g) — Bipartiteness (2-coloring).				O(V+E)
 //
 // Self-loops and parallel edges are allowed: AddEdge(v, v) counts once in
 // E and twice in Degree(v), exactly like Sedgwick.  There is deliberately
@@ -38,7 +40,9 @@ BSD 3 Clause Licensed.
 //
 // Panic contract (each panic message names the method and the fix):
 // NewGraph with n < 1; AddEdge on a nil *Graph; NewDFSPaths/NewBFSPaths on
-// a nil or empty graph or with an out-of-range source.  Every other
+// a nil or empty graph or with an out-of-range source.  NewCC/NewCycle/
+// NewTwoColor have a sane answer for a nil or empty graph — no components,
+// no cycle, vacuously bipartite — so they do not panic.  Every other
 // operation tolerates a nil or zero-value graph as an empty graph with no
 // vertices (a zero-value graph reports all vertices out of range, so
 // AddEdge on it returns false).

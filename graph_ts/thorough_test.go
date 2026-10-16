@@ -295,6 +295,12 @@ func TestGraphConcurrent(t *testing.T) {
 				_ = c.Count()
 				_ = c.Connected(0, n-1)
 				_, _ = c.ID(r)
+				cyc := NewCycle(g)
+				_ = cyc.HasCycle()
+				_ = cyc.Cycle()
+				tc := NewTwoColor(g)
+				_ = tc.IsBipartite()
+				_, _ = tc.Color(r)
 				for range g.Adj(r) {
 				}
 				_, _ = g.Degree(r)
@@ -361,6 +367,196 @@ func checkInvariantsAfterConcurrent(t *testing.T, g *Graph, n, writers, perWrite
 		if bp.HasPathTo(v) != c.Connected(0, v) {
 			t.Errorf("BFS HasPathTo(%d)=%v but CC Connected(0, %d)=%v", v, bp.HasPathTo(v), v, c.Connected(0, v))
 		}
+	}
+}
+
+// -------------------------------------------------------------------------------------------------------
+// Cycle / TwoColor — undirected cycle detection and bipartiteness
+// (Cycle.go / TwoColor.go, cross-checked against reference models).
+// -------------------------------------------------------------------------------------------------------
+
+// edgeMultiset returns the multiplicity of every edge of g (a self-loop
+// appears twice in Adj(v) but counts once per copy).
+func edgeMultiset(g *Graph) map[[2]int]int {
+	m := make(map[[2]int]int)
+	for v := 0; v < g.V(); v++ {
+		self := 0
+		for w := range g.Adj(v) {
+			if w > v {
+				m[[2]int{v, w}]++
+			} else if w == v {
+				self++
+			}
+		}
+		if self > 0 {
+			m[[2]int{v, v}] = self / 2
+		}
+	}
+	return m
+}
+
+// checkCycleValid verifies that cyc is a closed walk over edges that g
+// actually has, respecting multiplicity (parallel edges and self-loops).
+func checkCycleValid(t *testing.T, g *Graph, cyc []int) {
+	t.Helper()
+	if len(cyc) < 2 || cyc[0] != cyc[len(cyc)-1] {
+		t.Fatalf("Cycle %v is not closed (first != last)", cyc)
+	}
+	avail := edgeMultiset(g)
+	for i := 0; i+1 < len(cyc); i++ {
+		a, b := cyc[i], cyc[i+1]
+		key := [2]int{min(a, b), max(a, b)}
+		if avail[key] == 0 {
+			t.Fatalf("Cycle %v uses edge %d-%d that is not available", cyc, a, b)
+		}
+		avail[key]--
+	}
+}
+
+// refHasCycle is the reference cycle oracle: an undirected multigraph
+// has a cycle iff some edge joins two vertices a previous edge already
+// connected (self-loops included).  Incremental naive relabeling —
+// structurally different from the DFS.
+func refHasCycle(n int, edges [][2]int) bool {
+	id := make([]int, n)
+	for i := range id {
+		id[i] = i
+	}
+	for _, e := range edges {
+		v, w := e[0], e[1]
+		if v == w {
+			return true // self-loop
+		}
+		if id[v] == id[w] {
+			return true // parallel edge, or a path already joins them
+		}
+		rb := id[w]
+		for i := range id {
+			if id[i] == rb {
+				id[i] = id[v]
+			}
+		}
+	}
+	return false
+}
+
+// refBipartite is the reference bipartiteness oracle: BFS 2-coloring —
+// structurally different from the DFS 2-coloring under test.
+func refBipartite(adj [][]int) bool {
+	n := len(adj)
+	color := make([]int8, n) // 0 unknown, +1/-1 the two sides
+	for s := 0; s < n; s++ {
+		if color[s] != 0 {
+			continue
+		}
+		color[s] = 1
+		q := []int{s}
+		for len(q) > 0 {
+			v := q[0]
+			q = q[1:]
+			for _, w := range adj[v] {
+				if color[w] == 0 {
+					color[w] = -color[v]
+					q = append(q, w)
+				} else if color[w] == color[v] {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+// TestGraphCycleTwoColorModel cross-checks NewCycle and NewTwoColor
+// against the reference oracles over three graph regimes: general random
+// multigraphs (self-loops and parallel edges included), random trees
+// (acyclic, bipartite), and random bipartite graphs (cyclic but
+// 2-colorable).
+func TestGraphCycleTwoColorModel(t *testing.T) {
+	rng := rand.New(rand.NewSource(42)) // fixed seed: deterministic run
+
+	const n = 30
+	verify := func(g *Graph, edges [][2]int, model [][]int, step int) {
+		wantCycle := refHasCycle(n, edges)
+		c := NewCycle(g)
+		if c.HasCycle() != wantCycle {
+			t.Fatalf("step %d: HasCycle=%v, reference says %v", step, c.HasCycle(), wantCycle)
+		}
+		if wantCycle {
+			checkCycleValid(t, g, c.Cycle())
+		} else if c.Cycle() != nil {
+			t.Fatalf("step %d: Cycle()=%v on an acyclic graph", step, c.Cycle())
+		}
+
+		tc := NewTwoColor(g)
+		if got, want := tc.IsBipartite(), refBipartite(model); got != want {
+			t.Fatalf("step %d: IsBipartite=%v, reference says %v", step, got, want)
+		}
+		if tc.IsBipartite() {
+			// The coloring is a certificate: every edge crosses sides.
+			for v := 0; v < n; v++ {
+				cv, ok := tc.Color(v)
+				if !ok {
+					t.Fatalf("step %d: Color(%d) out of range", step, v)
+				}
+				for _, w := range model[v] {
+					if cw, _ := tc.Color(w); cw == cv {
+						t.Fatalf("step %d: edge %d-%d joins two %v-colored vertices", step, v, w, cv)
+					}
+				}
+			}
+		}
+	}
+
+	// Regime 1: general random multigraphs, edge count swept from sparse
+	// to dense.
+	for step := range 200 {
+		g := NewGraph(n)
+		model := make([][]int, n)
+		var edges [][2]int
+		m := rng.Intn(3 * n)
+		for range m {
+			v, w := rng.Intn(n), rng.Intn(n)
+			g.AddEdge(v, w)
+			model[v] = append(model[v], w)
+			model[w] = append(model[w], v)
+			edges = append(edges, [2]int{v, w})
+		}
+		verify(g, edges, model, step)
+	}
+
+	// Regime 2: random trees — every v > 0 gets one edge to a random
+	// lower vertex, so the graph is always acyclic and bipartite.
+	for step := range 100 {
+		g := NewGraph(n)
+		model := make([][]int, n)
+		var edges [][2]int
+		for v := 1; v < n; v++ {
+			w := rng.Intn(v)
+			g.AddEdge(v, w)
+			model[v] = append(model[v], w)
+			model[w] = append(model[w], v)
+			edges = append(edges, [2]int{v, w})
+		}
+		verify(g, edges, model, step)
+	}
+
+	// Regime 3: random bipartite graphs — edges only between the two
+	// fixed halves, so cyclic (even cycles) but always 2-colorable.
+	for step := range 100 {
+		g := NewGraph(n)
+		model := make([][]int, n)
+		var edges [][2]int
+		half := n / 2
+		m := rng.Intn(3 * n)
+		for range m {
+			v, w := rng.Intn(half), half+rng.Intn(n-half)
+			g.AddEdge(v, w)
+			model[v] = append(model[v], w)
+			model[w] = append(model[w], v)
+			edges = append(edges, [2]int{v, w})
+		}
+		verify(g, edges, model, step)
 	}
 }
 

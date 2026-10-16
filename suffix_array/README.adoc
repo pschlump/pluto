@@ -31,6 +31,7 @@ situation as `queue_dll`, which has no twin for its own reason).
 | `LCP(i)`     | LCP of sorted suffixes i and i-1, `(len, ok)`      | O(1)
 | `Rank(i)`    | Sorted position of suffix i, `(pos, ok)`           | O(1)
 | `LongestRepeatedSubstring` | Longest substring appearing ≥ 2 times | O(n)
+| `LCS(s, t)`  | Longest common substring of two strings | O((n+m) log²(n+m))
 |===
 
 Construction sorts the suffixes by *prefix doubling*: starting from
@@ -50,6 +51,18 @@ method: the longest common prefix of some pair of adjacent sorted
 suffixes — the maximum over the LCP table, ties broken by first in
 sorted order — or `""` if there is no repeated substring.
 
+`LCS(s, t)` is the algs4 `LongestCommonSubstring` client folded in as a
+function: it builds one suffix array over `s + sep + t`, where `sep` is
+the first byte value absent from both inputs (a separator guarantees
+that a suffix of `s` and a suffix of `t` never share a prefix running
+across the join), then takes the maximum LCP over *adjacent* sorted
+suffixes that start in opposite halves — the longest common substring
+must end up adjacent in sorted order, so one linear scan suffices.
+Ties break by first in sorted order, like LRS.  The second return is
+`false` only in the pathological case that all 256 byte values occur
+across `s` and `t`, leaving no separator to use — `("", true)` means a
+genuine empty answer.
+
 == Usage
 
 [source,go]
@@ -66,6 +79,9 @@ for i := 0; i < sa.Len(); i++ {
 r, _ := sa.Rank(0) // 3 — "banana" is the 4th smallest of its suffixes
 
 sa.LongestRepeatedSubstring() // "ana"
+
+lcs, ok := suffix_array.LCS("the quick brown fox", "the lazy brown dog")
+// " brown ", true — the longest substring shared by both strings
 ----
 
 == Panics
@@ -73,7 +89,8 @@ sa.LongestRepeatedSubstring() // "ana"
 *None.*  The package never panics.  A nil `*SuffixArray` and the zero
 value behave as an *empty* suffix array for every operation: `Len`
 returns 0, `Index`/`LCP`/`Rank` return `(0, false)`, `Select` returns
-`("", false)`, and `LongestRepeatedSubstring` returns `""`.
+`("", false)`, and `LongestRepeatedSubstring` returns `""`.  `LCS` has no
+receiver and reports its one failure mode (`("", false)`) as a value.
 
 == Concurrency
 

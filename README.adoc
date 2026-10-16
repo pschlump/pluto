@@ -74,9 +74,9 @@ with an identical public API.
 | link:union_find_ts/[union_find_ts]         | Thread-safe union-find (RWMutex; Find takes the write lock — path halving mutates).
 | link:index_pq/[index_pq]                   | Generic indexed priority queue (decrease-key by client index, Sedgwick §2.6 IndexMinPQ).
 | link:index_pq_ts/[index_pq_ts]             | Thread-safe indexed priority queue (RWMutex, snapshot All, Lock+Nl* compound ops).
-| link:graph/[graph]                         | Undirected graph with DFS/BFS paths and connected components (Sedgwick §4.1–4.2).
+| link:graph/[graph]                         | Undirected graph with DFS/BFS paths, connected components, cycle detection, bipartiteness (Sedgwick §4.1–4.2).
 | link:graph_ts/[graph_ts]                   | Thread-safe graph (RWMutex, snapshot adjacency; traversals run lock-free on a snapshot).
-| link:digraph/[digraph]                     | Directed graph with DFS/BFS reachability, cycle detection, topological order, Kosaraju SCC (Sedgwick §4.4–4.6).
+| link:digraph/[digraph]                     | Directed graph with DFS/BFS reachability, cycle detection, topological order, Kosaraju SCC, transitive closure (Sedgwick §4.4–4.6).
 | link:digraph_ts/[digraph_ts]               | Thread-safe digraph (RWMutex, snapshot adjacency; traversals run lock-free on a snapshot).
 | link:dijkstra/[dijkstra]                   | Edge-weighted digraph/graph with Dijkstra shortest paths (single-source, undirected, all-pairs; Sedgwick §4.4).
 | link:dijkstra_ts/[dijkstra_ts]             | Thread-safe Dijkstra shortest paths (RWMutex, snapshot adjacency; searches run lock-free on a snapshot).
@@ -95,7 +95,7 @@ with an identical public API.
 | link:tst_ts/[tst_ts]                       | Thread-safe ternary search trie (RWMutex, snapshot iterators, Lock+Nl* compound ops).
 | link:patricia_trie/[patricia_trie]         | String-keyed Patricia (crit-bit) trie with path compression (prefix/glob queries; Sedgwick radix searching).
 | link:patricia_trie_ts/[patricia_trie_ts]   | Thread-safe Patricia trie (RWMutex, snapshot iterators, Lock+Nl* compound ops).
-| link:suffix_array/[suffix_array]           | Immutable suffix array with Kasai LCP (Sedgwick §6.3; no `_ts` twin — immutable, concurrent reads safe).
+| link:suffix_array/[suffix_array]           | Immutable suffix array with Kasai LCP, longest repeated substring, two-string LCS (Sedgwick §6.3; no `_ts` twin — immutable, concurrent reads safe).
 | link:substring/[substring]                 | Substring search: KMP, Boyer-Moore, Rabin-Karp (compile pattern once, search many texts; Sedgwick §5.3).
 | link:lzw/[lzw]                             | LZW compression/expansion over byte slices on pluto/tst (widening 9→16-bit codes; Sedgwick §5.5 variant).
 | link:run_length/[run_length]               | Run-length encoding over byte slices (alternating count bytes, 255/0 saturation split; Sedgwick §5.5; pure functions, concurrent-use safe).
@@ -951,11 +951,15 @@ the parent pointers; only `Count`/`Len` are true reads.
 
 Sedgwick's §4.1–4.2 undirected graph on the int vertices `0..n-1`
 (adjacency lists; self-loops and parallel edges allowed — a self-loop
-counts once in `E`, twice in `Degree`), plus the three fundamental
-queries as constructor-style result objects in the same package:
+counts once in `E`, twice in `Degree`), plus the fundamental queries as
+constructor-style result objects in the same package:
 `NewDFSPaths(g, s)` and `NewBFSPaths(g, s)` (`HasPathTo`, `PathTo` —
 a source-first slice; BFS adds `DistTo`, the shortest distance in
-unweighted edges) and `NewCC(g)` (`Connected`, `ID`, `Count`).
+unweighted edges), `NewCC(g)` (`Connected`, `ID`, `Count`),
+`NewCycle(g)` (`HasCycle`, `Cycle` — self-loop/parallel-edge aware,
+first vertex repeated at the end) and `NewTwoColor(g)`
+(`IsBipartite`, `Color` — DFS 2-coloring; a self-loop is an odd
+cycle, parallel edges an even one).
 `AddEdge` O(1); the traversals O(V+E) time and O(V) space. Result
 objects are immutable snapshots of the graph at call time — later
 `AddEdge` calls are not reflected — and there is no `RemoveEdge`
@@ -963,8 +967,8 @@ objects are immutable snapshots of the graph at call time — later
 internally (an intra-pluto composition).
 
 * Good: the classic graph traversals with pluto's value semantics and
-panic contracts; BFS shortest paths and connected components out of
-the box.
+panic contracts; BFS shortest paths, connected components, cycle
+detection and bipartiteness out of the box.
 * Bad: undirected only — the directed sibling is `digraph`; int
 vertices — a symbol layer is a possible later package; no edge
 removal.
@@ -989,17 +993,20 @@ adds `DistTo` — `pluto/queue` internally, like `graph`),
 `NewDirectedCycle(g)` (`HasCycle`, `Cycle` — on-stack DFS marking),
 `NewDepthFirstOrder(g)` (`Pre`, `Post`, `ReversePost`),
 `NewTopological(g)` (`HasOrder`, `Order` — cycle check plus reverse
-postorder) and `NewKosarajuSCC(g)` (`StronglyConnected`, `ID`,
-`Count`). All traversals O(V+E). Sourced constructors panic on a
+postorder), `NewKosarajuSCC(g)` (`StronglyConnected`, `ID`, `Count`)
+and `NewTransitiveClosure(g)` (`Reachable(v, w)` — one DFS per vertex
+into a V×V boolean matrix, O(V·(V+E)) time / O(V²) space, the
+sparse-friendly alternative to Warshall's O(V³); every vertex reaches
+itself). All traversals O(V+E). Sourced constructors panic on a
 nil/empty graph or out-of-range source; the source-less queries
-(`DirectedCycle`, `DepthFirstOrder`, `Topological`, `KosarajuSCC`)
-tolerate empty graphs — an empty digraph has a sane answer, the
-`NewCC` precedent.
+(`DirectedCycle`, `DepthFirstOrder`, `Topological`, `KosarajuSCC`,
+`TransitiveClosure`) tolerate empty graphs — an empty digraph has a
+sane answer, the `NewCC` precedent.
 
 * Good: the full §4.4–4.6 toolkit — reachability, paths, cycle
-detection, topological sort and strong components — with pluto's panic
-contracts and immutable result objects; verified against the algs4
-tinyDG/tinyDAG datasets.
+detection, topological sort, strong components and transitive closure —
+with pluto's panic contracts and immutable result objects; verified
+against the algs4 tinyDG/tinyDAG datasets.
 * Bad: int vertices (a symbol layer is a possible later package); no
 edge removal; edge-weighted directed graphs live in `dijkstra`.
 
@@ -1199,10 +1206,14 @@ builds the array by prefix doubling (sort by rank pairs, doubling the
 lookahead — O(n log² n), simple and deterministic) and the LCP table
 with Kasai's algorithm (O(n)). Queries are all O(1): `Index` (text
 offset of the i-th sorted suffix), `Select` (the suffix itself),
-`LCP`, `Rank` (the inverse of `Index`), plus `Len` and
+`LCP`, `Rank` (the inverse of `Index`), plus `Len`,
 `LongestRepeatedSubstring` (the algs4 LRS client folded in as a
-method, O(n)). Out-of-range indices report `false`, never panic — the
-package has no panics at all.
+method, O(n)) and `LCS(s, t)` (the algs4 `LongestCommonSubstring`
+client: one suffix array over `s + sep + t` with a separator byte
+absent from both inputs, then the max LCP over adjacent sorted
+suffixes from opposite halves; `("", false)` only when all 256 byte
+values are in use). Out-of-range indices report `false`, never panic —
+the package has no panics at all.
 
 * Good: O(1) positional access to the sorted suffixes and their LCPs;
 the base for substring/repeat analyses (binary search over `Select`

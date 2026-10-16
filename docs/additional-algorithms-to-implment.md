@@ -153,7 +153,7 @@ quality (README + model tests + invariants).
 * **API:** `func Compress(data []byte) []byte`, `func Expand(blob []byte) []byte` (nil on malformed, `lzw` convention). Huffman = canonical code, 8-bit symbols, trie serialized in the header; RLE = algs4's 8-bit count/bitmap-style runs (simplest member, do first).
 * **Verification:** round-trip property tests at seeds 42/7 across entropy regimes; hand-traced vectors for tiny inputs; malformed-input sweeps.
 
-### 3.8 Graph/digraph query completions — S each
+### 3.8 Graph/digraph query completions — S each — **DONE 2026-10-16**
 
 Small constructor-style query objects added to the existing packages (and mirrored in the `_ts` twins) — the pattern is already established there:
 
@@ -161,6 +161,8 @@ Small constructor-style query objects added to the existing packages (and mirror
 * `graph.TwoColor` (a.k.a. `Bipartite`) — 2-coloring / bipartiteness, `IsBipartite`, `Color(v)`.
 * `digraph.TransitiveClosure` — Warshall reachability matrix, `Reachable(v, w)`; document the O(V²) memory.
 * (rider) `suffix_array.LCS(s, t)` — algs4 `LongestCommonSubstring.java` (§6.3): build suffix array over `s#t`, scan LCP of adjacent suffixes from opposite halves — S, rides on existing machinery.
+
+* **As built:** all four plus twins. `Cycle`/`TwoColor` in `graph` (+ `graph_ts`): dedicated self-loop and parallel-edge scans BEFORE the DFS (the parent check cannot see either), cycle reported with the first vertex repeated at the end; `TwoColor.Color(v)` returns `(bool, bool)` — meaningful only when bipartite. Both are source-less queries tolerating nil/empty graphs (the `NewCC` precedent). `TransitiveClosure` in `digraph` (+ `digraph_ts`): algs4's one-DFS-per-vertex into a V×V boolean matrix (O(V·(V+E)), the sparse-friendly alternative to literal Warshall O(V³)), reused `marked` scratch cleared between passes, every vertex reaches itself. `LCS` in `suffix_array`: dynamic separator (first byte absent from both inputs) instead of a literal `#`, returning `("", false)` only when all 256 byte values are in use. Verification: seed-42 model tests against structurally different oracles — incremental-union has-cycle + closed-walk certificate, BFS-coloring + proper-coloring certificate, boolean-matrix Warshall, brute-force LCS length + substring check.
 
 ### 3.9 `fib_heap` — M/L
 
@@ -212,7 +214,7 @@ Small constructor-style query objects added to the existing packages (and mirror
 
 ## 6. Suggested order of work
 
-1. **Quick wins batch:** ~~`bag` + `bag_ts`, `shell_sort`, graph additions (Cycle/TwoColor/TransitiveClosure), `run_length`~~ — bag/bag_ts, shell_sort and run_length are done (2026-10-15); the graph additions (Cycle/TwoColor/TransitiveClosure) remain the cheapest next stop.
+1. **Quick wins batch:** ~~`bag` + `bag_ts`, `shell_sort`, graph additions (Cycle/TwoColor/TransitiveClosure), `run_length`~~ — all done (bag/bag_ts, shell_sort and run_length 2026-10-15; the graph additions + the `suffix_array.LCS` rider 2026-10-16).
 2. ~~**`merge_sort`** (+ `Inversions`) — closes the stability gap.~~ — done (2026-10-15), with the stability oracle against `slices.SortStableFunc`.
 3. **`interval_tree` + `_ts`** — first genuinely new query family.
 4. **`string_sort`** — LSD → MSD → Quick3string.

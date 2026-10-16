@@ -28,6 +28,7 @@ BSD 3 Clause Licensed.
 //	LCP(i) — longest common prefix of sorted suffixes i and i-1.		O(1)
 //	Rank(i) — position of suffix i in the sorted order.					O(1)
 //	LongestRepeatedSubstring — longest substring appearing ≥ 2 times.	O(n)
+//	LCS(s, t) — longest common substring of two strings.		O(n log² n)
 //
 // Construction sorts the suffixes by prefix doubling: starting from
 // byte-value ranks, the indices are repeatedly sorted by the pair

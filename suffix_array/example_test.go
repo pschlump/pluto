@@ -58,3 +58,13 @@ func ExampleSuffixArray_Rank() {
 	// 3
 	// 0
 }
+
+// The longest common substring of two strings (the algs4 §6.3
+// LongestCommonSubstring client): " brown " is shared by both sentences
+// and nothing longer is.
+func ExampleLCS() {
+	lcs, ok := suffix_array.LCS("the quick brown fox", "the lazy brown dog")
+	fmt.Printf("%q %v\n", lcs, ok)
+	// Output:
+	// " brown " true
+}

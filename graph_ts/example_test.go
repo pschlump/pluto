@@ -112,6 +112,49 @@ func ExampleNewCC() {
 	// 0 connected to 3: false
 }
 
+// Cycle detection on the tinyG trace graph: it is connected with
+// E = 8 > V-1 = 5, so a cycle exists.
+func ExampleNewCycle() {
+	g := graph_ts.NewGraph(6)
+	for _, e := range [][2]int{{0, 5}, {2, 4}, {2, 3}, {1, 2}, {0, 1}, {3, 4}, {3, 5}, {0, 2}} {
+		g.AddEdge(e[0], e[1])
+	}
+
+	c := graph_ts.NewCycle(g)
+	fmt.Println("has cycle:", c.HasCycle())
+	fmt.Println("cycle:", c.Cycle())
+	// Output:
+	// has cycle: true
+	// cycle: [3 2 4 3]
+}
+
+// Bipartiteness: a 6-cycle is 2-colorable (every edge crosses between
+// the two color classes), a triangle is not.
+func ExampleNewTwoColor() {
+	even := graph_ts.NewGraph(6)
+	for _, e := range [][2]int{{0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 5}, {5, 0}} {
+		even.AddEdge(e[0], e[1])
+	}
+	tc := graph_ts.NewTwoColor(even)
+	fmt.Println("6-cycle bipartite:", tc.IsBipartite())
+	for v := 0; v < 3; v++ {
+		c, _ := tc.Color(v)
+		fmt.Printf("vertex %d color %v\n", v, c)
+	}
+
+	odd := graph_ts.NewGraph(3)
+	for _, e := range [][2]int{{0, 1}, {1, 2}, {2, 0}} {
+		odd.AddEdge(e[0], e[1])
+	}
+	fmt.Println("triangle bipartite:", graph_ts.NewTwoColor(odd).IsBipartite())
+	// Output:
+	// 6-cycle bipartite: true
+	// vertex 0 color false
+	// vertex 1 color true
+	// vertex 2 color false
+	// triangle bipartite: false
+}
+
 // MarshalJSON encodes the graph as a JSON object with the vertex list
 // and the edge list (each edge once, in canonical order).
 func ExampleGraph_MarshalJSON() {

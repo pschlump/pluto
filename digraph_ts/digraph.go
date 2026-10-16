@@ -8,10 +8,11 @@ BSD 3 Clause Licensed.
 // 0..n-1 with adjacency lists, safe for concurrent use, plus the
 // fundamental digraph algorithms — depth-first reachability and paths,
 // breadth-first paths, cycle detection, depth-first order, topological
-// sort, and Kosaraju's strong components — as constructor-style query
-// objects (Sedgwick, Algorithms, 4th ed., §4.4–4.6).  It is the
-// thread-safe twin of github.com/pschlump/pluto/digraph — the same API,
-// guarded by a sync.RWMutex.
+// sort, Kosaraju's strong components, and transitive closure — as
+// constructor-style query objects (Sedgwick, Algorithms, 4th ed.,
+// §4.4–4.6).  It is the thread-safe twin of
+// github.com/pschlump/pluto/digraph — the same API, guarded by a
+// sync.RWMutex.
 //
 // Concurrency model:
 //
@@ -26,16 +27,16 @@ BSD 3 Clause Licensed.
 //	Reverse snapshots the adjacency under the read lock and builds the
 //	reversed digraph as an independent copy.
 //	NewDirectedDFS, NewDFSDirectedPaths, NewBFSDirectedPaths,
-//	NewDirectedCycle, NewDepthFirstOrder, NewTopological, and
-//	NewKosarajuSCC snapshot the whole adjacency structure under the
-//	read lock, then run the traversal lock-free on the snapshot — no
-//	lock is held during the traversal.
+//	NewDirectedCycle, NewDepthFirstOrder, NewTopological,
+//	NewKosarajuSCC, and NewTransitiveClosure snapshot the whole
+//	adjacency structure under the read lock, then run the traversal
+//	lock-free on the snapshot — no lock is held during the traversal.
 //
 // The query objects (DirectedDFS, DFSDirectedPaths, BFSDirectedPaths,
-// DirectedCycle, DepthFirstOrder, Topological, KosarajuSCC) are immutable
-// snapshots of the digraph at construction time: later AddEdge calls are
-// not reflected, and the query objects themselves are safe for concurrent
-// reads.
+// DirectedCycle, DepthFirstOrder, Topological, KosarajuSCC,
+// TransitiveClosure) are immutable snapshots of the digraph at
+// construction time: later AddEdge calls are not reflected, and the
+// query objects themselves are safe for concurrent reads.
 //
 // Self-loops and parallel edges are allowed: AddEdge(v, v) counts once in
 // E, once in OutDegree(v), and once in InDegree(v).  There is
@@ -50,8 +51,9 @@ BSD 3 Clause Licensed.
 // NewDirectedDFS/NewDFSDirectedPaths/NewBFSDirectedPaths on a nil or
 // empty graph or with an out-of-range source (NewDirectedDFS also panics
 // with no sources).  NewDirectedCycle/NewDepthFirstOrder/NewTopological/
-// NewKosarajuSCC have a sane answer for a nil or empty graph — no cycle,
-// an empty order, no components — so they do not panic.  Every other
+// NewKosarajuSCC/NewTransitiveClosure have a sane answer for a nil or
+// empty graph — no cycle, an empty order, no components, no reachable
+// pairs — so they do not panic.  Every other
 // operation tolerates a nil or zero-value digraph as an empty digraph
 // with no vertices (a zero-value digraph reports all vertices out of
 // range, so AddEdge on it returns false).

@@ -352,6 +352,75 @@ func checkCycleIsReal(t *testing.T, g *Digraph, cyc []int) {
 	}
 }
 
+// adjOfAll collects the full adjacency structure of g (Adj snapshots in
+// vertex order).
+func adjOfAll(t *testing.T, g *Digraph) [][]int {
+	t.Helper()
+	adj := make([][]int, g.V())
+	for v := range adj {
+		adj[v] = adjOf(g, v)
+	}
+	return adj
+}
+
+// refWarshall is the reference transitive closure: Warshall's boolean
+// matrix squaring — O(V³), structurally different from the V depth-first
+// passes under test.
+func refWarshall(adj [][]int) [][]bool {
+	n := len(adj)
+	r := make([][]bool, n)
+	for v := range r {
+		r[v] = make([]bool, n)
+		r[v][v] = true
+		for _, w := range adj[v] {
+			r[v][w] = true
+		}
+	}
+	for k := 0; k < n; k++ {
+		for i := 0; i < n; i++ {
+			if !r[i][k] {
+				continue
+			}
+			ri, rk := r[i], r[k]
+			for j := 0; j < n; j++ {
+				if rk[j] {
+					ri[j] = true
+				}
+			}
+		}
+	}
+	return r
+}
+
+// TestTransitiveClosureModel cross-checks NewTransitiveClosure against
+// the Warshall oracle over random digraphs swept from sparse to dense,
+// self-loops and parallel edges included.
+func TestTransitiveClosureModel(t *testing.T) {
+	rng := rand.New(rand.NewSource(42)) // fixed seed: deterministic run
+
+	const n = 20
+	for step := range 300 {
+		g := NewDigraph(n)
+		model := make([][]int, n)
+		m := rng.Intn(3 * n)
+		for range m {
+			v, w := rng.Intn(n), rng.Intn(n)
+			g.AddEdge(v, w)
+			model[v] = append(model[v], w)
+		}
+		tc := NewTransitiveClosure(g)
+		want := refWarshall(model)
+		for v := 0; v < n; v++ {
+			for w := 0; w < n; w++ {
+				if got := tc.Reachable(v, w); got != want[v][w] {
+					t.Fatalf("step %d (m=%d): Reachable(%d, %d)=%v, Warshall says %v",
+						step, m, v, w, got, want[v][w])
+				}
+			}
+		}
+	}
+}
+
 // -------------------------------------------------------------------------------------------------------
 // Randomized property test against reference models (fixed seed)
 // -------------------------------------------------------------------------------------------------------
@@ -607,6 +676,9 @@ func TestDigraphConcurrent(t *testing.T) {
 				_ = scc.Count()
 				_ = scc.StronglyConnected(0, n-1)
 				_, _ = scc.ID(r)
+				tcl := NewTransitiveClosure(g)
+				_ = tcl.Reachable(0, n-1)
+				_ = tcl.Reachable(r, r)
 				rg := g.Reverse()
 				_ = rg.E()
 				for range g.Adj(r) {

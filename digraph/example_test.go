@@ -152,6 +152,30 @@ func ExampleNewKosarajuSCC() {
 	// 0 strongly connected to 3: false
 }
 
+// Transitive closure on a digraph with a 4-cycle {0,1,2,3} and a
+// separate edge 4->5: every vertex of the cycle reaches every other
+// vertex of the cycle, nothing reaches 4 or 5 from the cycle, and every
+// vertex reaches itself.
+func ExampleNewTransitiveClosure() {
+	g := digraph.NewDigraph(6)
+	for _, e := range [][2]int{{0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}} {
+		g.AddEdge(e[0], e[1])
+	}
+
+	tc := digraph.NewTransitiveClosure(g)
+	for _, q := range [][2]int{{0, 3}, {3, 0}, {2, 1}, {0, 4}, {4, 5}, {5, 4}, {5, 5}} {
+		fmt.Printf("%d reaches %d: %v\n", q[0], q[1], tc.Reachable(q[0], q[1]))
+	}
+	// Output:
+	// 0 reaches 3: true
+	// 3 reaches 0: true
+	// 2 reaches 1: true
+	// 0 reaches 4: false
+	// 4 reaches 5: true
+	// 5 reaches 4: false
+	// 5 reaches 5: true
+}
+
 // MarshalJSON encodes the digraph as a JSON object with the vertex count
 // and the edge list, in natural iteration order.
 func ExampleDigraph_MarshalJSON() {
