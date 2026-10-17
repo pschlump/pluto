@@ -1,0 +1,131 @@
+= bipartite
+
+Maximum bipartite matching and minimum vertex cover — Sedgwick's §6.4 —
+as two constructor-style immutable query objects with one surface, the
+link:../mst/[`mst`] precedent of same-shape alternatives:
+
+* `BipartiteMatching` — the classic augmenting-path algorithm (Kuhn's
+  method): one alternating path at a time, O(V·E) worst case.
+* `HopcroftKarp` — the phased algorithm of Hopcroft and Karp: BFS
+  layering plus a maximal set of vertex-disjoint *shortest* augmenting
+  paths per phase, O(E·√V).
+
+Both operate on a link:../graph/[`graph`] `Graph` (an intra-pluto
+composition): the bipartition itself is `graph.NewTwoColor` — the
+two-coloring IS the partition.  A graph that is not bipartite (an odd
+cycle; a self-loop is one) has no bipartite matching, so both
+constructors panic naming themselves.  A nil or empty graph is vacuously
+bipartite and yields the empty matching (the `NewCC` precedent).
+
+Beyond the matching, both objects expose the *minimum vertex cover* of
+König's theorem, derived constructively from the matching: the smallest
+set of vertices touching every edge, whose size equals the matching's
+cardinality.  The pair is self-certifying — a valid cover no larger than
+the matching *proves* the matching maximum (every matching edge needs
+its own cover vertex) — and the test suite checks exactly that
+certificate, plus a brute-force all-matchings oracle on small graphs.
+
+Results are immutable snapshots: the constructor copies the adjacency
+lists, later `AddEdge` calls are not reflected, and there is no `_ts`
+twin — the link:../maxflow/[`maxflow`] immutability precedent.
+
+== Operations
+
+[options="header"]
+|===
+| Operation                          | Description                                          | complexity
+
+| `NewBipartiteMatching(g)`          | Max matching, one augmenting path at a time          | O(V·E) time, O(V+E) space
+| `NewHopcroftKarp(g)`               | Max matching, phased shortest augmenting paths       | O(E·√V) time, O(V+E) space
+| `Cardinality()`                    | The number of matched edges (= min vertex cover size)| O(1)
+| `Mate(v)`                          | v's partner, or -1 (unmatched / out of range / nil)  | O(1)
+| `InMatching(v)`                    | Is v an endpoint of a matched edge                   | O(1)
+| `Edges()`                          | Matched edges as `[white, black]` pairs, fresh slice | O(V)
+| `InMinVertexCover(v)`              | Is v in the König minimum vertex cover               | O(1)
+| `MinVertexCover()`                 | The cover, ascending, fresh slice                    | O(V)
+|===
+
+`Edges` always pairs `[white, black]` — the first element is on side A
+of the bipartition (TwoColor's color false; which physical side that is
+is an implementation detail).  The two constructors may return
+*different* maximum matchings (different partners for the same
+cardinality) — both are maximum, and both carry the same cardinality
+and cover size.
+
+== Usage
+
+[source,go]
+----
+g := graph.NewGraph(6)
+for _, e := range [][2]int{{0, 3}, {0, 4}, {1, 3}, {1, 5}, {2, 4}} {
+    g.AddEdge(e[0], e[1])
+}
+
+hk := bipartite.NewHopcroftKarp(g)
+hk.Cardinality()     // 3 — a perfect matching
+hk.Mate(0)           // 3
+hk.Edges()           // [0 3], [1 5], [2 4]
+hk.MinVertexCover()  // [0 1 2] — every edge touches side A here
+----
+
+== Panics
+
+[options="header"]
+|===
+| Call                                                | Why
+
+| `NewBipartiteMatching` / `NewHopcroftKarp` on a non-bipartite graph | an odd cycle has no bipartition, no bipartite matching exists
+|===
+
+Everything else tolerates: a nil result object reports 0 / -1 / false /
+nil, out-of-range vertices report the same as unmatched, and a nil or
+empty graph yields the empty matching rather than a panic.  There are no
+other panics.
+
+== Direct augmentation vs composing maxflow
+
+algs4's `BipartiteMatching` routes the problem through
+`FordFulkerson` on a unit-capacity network (source → side A → side B →
+sink).  pluto augments directly on the integers, per the backlog's
+"compose or augment directly — bench once, pick" instruction.  Measured
+once (M4 Max, `bench_test.go`, PCG-fixed graphs):
+
+[options="header"]
+|===
+| Graph (sideA×sideB, E)      | Kuhn        | Hopcroft-Karp | maxflow composition
+
+| 500×500, E≈5k               | 756 µs      | 146 µs        | 4.7 ms
+| 500×500, E≈25k              | 2.7 ms      | 396 µs        | 13.4 ms
+| 1000×500, E≈25k             | 8.6 ms      | 585 µs        | 20.3 ms
+|===
+
+Direct augmentation wins by 6–35× (integer mate arrays, no
+`float64` capacities, no per-augmentation flow-network BFS), and
+Hopcroft-Karp beats plain Kuhn by 5–15× on the same instances — so both
+are shipped: Kuhn as the teaching-simple form, Hopcroft-Karp as the
+fast one.
+
+== Concurrency
+
+The constructors snapshot the adjacency lists, so a graph must not be
+mutated while a constructor runs.  Both result objects are immutable
+and safe for concurrent reads.  No `_ts` twin, per the
+link:../maxflow/[`maxflow`] immutability precedent.
+
+== Tests
+
+`thorough_test.go` verifies every result by *certificate*
+(`checkCertificate`): the mate array is symmetric over real edges,
+exactly 2·cardinality vertices are matched, the reported cover touches
+every edge, and its size equals the cardinality — a cover of matching
+size proves maximality.  On top of that:
+
+* `TestRandomizedModel` (fixed seeds) cross-checks both algorithms
+  against an independent BFS-augmenting reference on random bipartite
+  graphs and on random *arbitrary* graphs filtered to bipartite ones
+  (exercising the real `TwoColor` composition).
+* `TestBruteForceOracle` checks against an enumerate-all-matchings
+  oracle on small instances.
+* `TestLargerGraphs` (sparse/square/dense/tall/wide shapes),
+  `TestChainGraphs` (paths to 1000 vertices — multi-edge augmenting
+  paths), and the greedy-lower-bound sanity check.

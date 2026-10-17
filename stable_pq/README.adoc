@@ -1,0 +1,108 @@
+= stable_pq
+
+A generic *stable min-priority queue* — Sedgwick's `StableMinPQ`
+(Algorithms 4th ed. §2.4 exercise): the minimum element comes out
+first, and among elements that *compare equal*, the one inserted
+earliest comes out first.  Ties pop FIFO — the priority-queue sibling
+of what link:../merge_sort/[`merge_sort`] guarantees for sorts.
+
+Stability is achieved the way algs4 does it: every inserted element
+receives a strictly increasing timestamp, and the queue orders by the
+(key, timestamp) pair.  A tie on the key falls through to the
+timestamp, which is a total order with no ties — any total order on
+ties yields a correct heap; this one makes it stable.  The heap is
+pluto's own link:../heap/[`heap`] over that pair (an intra-pluto
+composition, like link:../priority_queue/[`priority_queue`] and
+huffman's frequency merge), so the queue is `heap`'s O(log n) sifts
+with one extra comparison only on actual ties.
+
+The element type implements no interface: ordering is either the
+element type's built-in `<` / `>` operators (`NewStablePQ`) or a caller
+supplied function (`NewStablePQFunc`) — no boxing, no dynamic dispatch.
+Elements are stored and returned *by value* (`T`, not `*T`).  A
+reversed comparison function turns it into a stable *max*-priority
+queue (the reversal applies to the key only — ties stay FIFO).
+
+== Operations
+
+[options="header"]
+|===
+| Operation | Description | Complexity
+
+| `Insert(x)` | Add `x`, stamped with the next insertion sequence number | O(log n)
+| `Pop` | Remove and return the minimum — ties: oldest first | O(log n)
+| `Peek` | The minimum without removing — ties: oldest first | O(1)
+| `All` | Iterate in (key, insertion) order — the exact `Pop` order, non-destructive snapshot | O(n log n)
+| `Len` / `Length` / `IsEmpty` | Size queries | O(1)
+| `Truncate` | Remove everything, releasing storage (the stamp keeps counting) | O(1)
+| `Lock` / `Unlock` | No-op pair kept for API compatibility | O(1)
+|===
+
+`All` drains a private copy of the heap (a snapshot taken when `All` is
+called), so it is safe to `Insert` or `Pop` from inside the loop and
+the queue is unchanged afterwards.
+
+The surface is deliberately lean — algs4's own `StableMinPQ` is
+`insert`/`delMin`/`min`/`size`/`isEmpty`; the indexed/positional
+machinery of `heap` and `priority_queue` is intentionally not mirrored,
+because a "position" behind an unexported stamp is not a useful handle.
+
+== Usage
+
+[source,go]
+----
+pq := stable_pq.NewStablePQFunc(func(a, b Job) int { return a.Priority - b.Priority })
+for _, j := range []Job{{2, "index-build"}, {1, "billing"}, {2, "snapshot"}, {1, "alerting"}} {
+    pq.Insert(j)
+}
+for !pq.IsEmpty() {
+    j, _ := pq.Pop() // billing, alerting, index-build, snapshot — ties FIFO
+    ...
+}
+----
+
+== Panics
+
+The package panics in exactly three situations — the same shape as
+`priority_queue`, all programmer errors with no sane fallback:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewStablePQFunc(nil)`                          | nil comparison function, caught at construction time
+| `Insert` on a nil queue                          | a nil queue cannot store an element
+| `Insert` on a zero-value queue                   | no underlying heap; the message names the constructors
+|===
+
+Everything else tolerates a nil `*StablePQ` and the zero value as an
+empty queue (`Pop`/`Peek` report not-found, `All` iterates nothing).
+
+== Concurrency
+
+Not safe for concurrent use.  There is deliberately no `_ts` twin:
+callers that need a shared queue and do not care about tie order
+already have link:../priority_queue_ts/[`priority_queue_ts`], and the
+stability stamp makes a wrapper trivial (`Lock`/`Unlock` are kept as
+no-ops for that pattern).
+
+== Benchmarks (Apple M4 Max)
+
+From `bench_test.go`, n = 4096 ints, against pluto's plain
+`priority_queue` over the same heap (the difference is the `(key, seq)`
+wrapper and its two-stage comparison):
+
+[options="header"]
+|===
+| Operation | stable_pq | priority_queue
+
+| `Insert` (ties-heavy keys)  | 50.6 µs | 43.5 µs
+| `Insert` (wide keys)        | 64.8 µs | 44.0 µs
+| `Peek`                      | 0.25 ns | —
+| `Insert`+`Pop` steady state | 107 ns  | —
+| `All` snapshot (n = 4096)   | 420 µs  | —
+|===
+
+The stability tax is one extra branch and a 16-byte item instead of an
+8-byte one: roughly 10–20% on inserts, nothing measurable on `Pop`'s
+sift-down path, and zero on the answer.

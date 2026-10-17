@@ -76,6 +76,7 @@ with an identical public API.
 | link:index_pq_ts/[index_pq_ts]             | Thread-safe indexed priority queue (RWMutex, snapshot All, Lock+Nl* compound ops).
 | link:fib_heap/[fib_heap]                   | Generic indexed Fibonacci priority queue (amortized O(1) decrease-key, Fredman–Tarjan; algs4 §9).
 | link:multiway_pq/[multiway_pq]             | Generic d-ary heap (branching factor d ≥ 2 at construction; cheaper decrease-key, shallower tree; algs4 §9 MultiwayMinPQ).
+| link:stable_pq/[stable_pq]                 | Generic stable min-priority queue (equal keys pop FIFO via insertion stamps; Sedgwick §2.4 ex. StableMinPQ).
 | link:graph/[graph]                         | Undirected graph with DFS/BFS paths, connected components, cycle detection, bipartiteness (Sedgwick §4.1–4.2).
 | link:graph_ts/[graph_ts]                   | Thread-safe graph (RWMutex, snapshot adjacency; traversals run lock-free on a snapshot).
 | link:digraph/[digraph]                     | Directed graph with DFS/BFS reachability, cycle detection, topological order, Kosaraju SCC, transitive closure (Sedgwick §4.4–4.6).
@@ -87,6 +88,7 @@ with an identical public API.
 | link:bellman_ford/[bellman_ford]           | Bellman-Ford shortest paths with negative-cycle detection, plus DAG shortest/longest paths (Sedgwick §4.10–4.11).
 | link:bellman_ford_ts/[bellman_ford_ts]     | Thread-safe Bellman-Ford / acyclic shortest paths (snapshot adjacency; searches run lock-free on a snapshot).
 | link:maxflow/[maxflow]                     | Max-flow / min-cut on a flow network (Ford-Fulkerson with Edmonds-Karp BFS; Sedgwick §6.4).
+| link:bipartite/[bipartite]                 | Maximum bipartite matching + König minimum vertex cover (Kuhn augmenting paths and Hopcroft-Karp; Sedgwick §6.4).
 | link:fenwick_tree/[fenwick_tree]           | Fenwick (binary indexed) tree, generic over numeric types (prefix sums, point updates; Sedgwick "Beyond").
 | link:fenwick_tree_ts/[fenwick_tree_ts]     | Thread-safe Fenwick tree (RWMutex, Lock+Nl* compound ops).
 | link:segment_tree/[segment_tree]           | Segment tree, generic range-combine queries (sum via numeric constraint, min/max/gcd via combine func).
@@ -808,6 +810,28 @@ making decreases 17% cheaper; d=8–16 for decrease-dominated workloads
 merge (algs4 `Multiway.java`) rides the same heap as a checked
 example. No `_ts` twin yet (the backlog lists `d_heap_ts` as possible
 later work; shared-heap callers use `heap_ts`).
+
+=== Stable Priority Queue — `stable_pq/`
+
+The stable min-priority queue (algs4 §2.4 exercise `StableMinPQ`):
+among elements that compare equal, the earliest inserted pops first —
+ties are FIFO, the priority-queue sibling of what `merge_sort`
+guarantees for sorts. Stability rides a strictly increasing int64
+insertion stamp: the queue is a `pluto/heap` over
+`spqItem{key, seq}` ordered lexicographically (the huffman
+`huffItem` / `priority_queue` composition pattern), so a tie on the
+key falls through to the stamp — one extra comparison, only on actual
+ties. The stamp survives `Truncate`, so refill order stays FIFO across
+a clear. `NewStablePQ[T cmp.Ordered]()` / `NewStablePQFunc(fx)`; a
+reversed comparator is a stable max-priority queue. Three panics
+(`NewStablePQFunc(nil)`, `Insert` on nil or zero-value — no stamp, no
+sane answer). The stability tax is one extra branch and a 16-byte item
+instead of an 8-byte one: 10–20% on inserts against the plain
+`priority_queue` (50.6 vs 43.5 µs for 4096 ties-heavy inserts), nothing
+measurable on the pop path. No
+`_ts` twin (documented deliberate — wrap `stable_pq` + `RWMutex` the
+`lru_ts` way if a shared stable queue is ever needed; the stamp makes
+the heap's `All` snapshot semantics all that matters under a lock).
 
 == Hash Tables
 
@@ -1532,6 +1556,42 @@ arithmetic on integer capacities.
 * Bad: Edmonds-Karp is the simple heuristic — no scaling or
 push-relabel; float capacities make the result
 data-dependent-terminating.
+
+== Bipartite Matching — `bipartite/`
+
+Sedgwick's §6.4 maximum bipartite matching, as two constructor-style
+immutable query objects with one surface (the `mst` precedent of
+same-shape alternatives): `NewBipartiteMatching(g)` — Kuhn's classic
+one-alternating-path-at-a-time, O(V·E) — and `NewHopcroftKarp(g)` —
+the phased algorithm, BFS layering plus a maximal set of
+vertex-disjoint shortest augmenting paths per phase, O(E·√V). Both
+take a `pluto/graph` `Graph`; the bipartition itself is
+`graph.NewTwoColor` (the two-coloring IS the partition — an
+intra-pluto composition). Both also expose the *minimum vertex cover*
+of König's theorem, derived constructively from the matching: the
+smallest vertex set touching every edge, size equal to the matching's
+cardinality — the pair is self-certifying (a valid cover no larger
+than the matching proves the matching maximum), and the test suite
+checks exactly that certificate plus a brute-force oracle.
+
+algs4's `BipartiteMatching` routes the problem through `FordFulkerson`
+on a unit-capacity network; pluto augments directly on the integers,
+and the benchmark settles why: direct augmentation is 6–35× faster
+than the maxflow route (146 µs vs 4.7 ms Hopcroft-Karp-vs-maxflow on a
+500×500 sparse graph), and Hopcroft-Karp itself beats Kuhn 5–15×.
+The two may return different partners — both matchings are maximum;
+cardinality and cover size always agree.
+
+* Good: certificate-backed correctness (cover == cardinality), the
+fast algorithm shipped next to the teaching-simple one.
+* Bad: non-bipartite input panics (no bipartition exists); results
+are snapshots — later `AddEdge` is not reflected.
+
+Panic contract: exactly the non-bipartite graph (both constructors,
+naming themselves); nil/empty graphs yield the empty matching (the
+`NewCC` precedent), nil results tolerate every read, out-of-range
+vertices report the same as unmatched. No `_ts` twin (immutable
+results — the `maxflow` precedent).
 
 == Supporting Packages
 

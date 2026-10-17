@@ -119,8 +119,9 @@ quality (README + model tests + invariants).
 * **Verification:** brute-force `PointSET` oracle (implement both — algs4 does), circle-test client fixture, seeds 42/7; invariants: partition by depth, subtree point containment, size field.
 * **As built:** all of the sketch, 2D-faithful per the recommendation. `Point2D`/`RectHV` live in `g_lib/point2d.go` (comparable value types — `Point2D` is a legal map key — so Tier 2's geometry batch reuses them). Constructor-free (the tries' precedent — the splitting rule is inherent in the coordinates; `NewKdTree()` convenience only), nodes carry **no stored RectHV** (`splitRects` derives each subtree rect from the ancestor splits during the descent), root rect = the whole plane ±Inf (not algs4's unit square). `NearestK` keeps its k best in a bounded max-heap composed from `pluto/heap` (reversed comparator on squared distance); output deterministic by (d², X, Y); ties among exactly equidistant points unspecified beyond the distance sequence (mathematical ties can differ by an ulp — both structures compute identical d² so their orders agree; the model tests compare distance sequences). Panic contract: 2 per structure — `Insert` on nil, `Insert` with a NaN coordinate (the interval_tree reject-at-write precedent; ±Inf legal, saturating d²). `PointSET` shipped as `PointSet` (map-backed brute force) — the test oracle and the small-input fallback. No delete (as in algs4 — rebuild); unbalanced (diagonal inserts legitimately chain, asserted). `kd_tree_ts` is the wrapper twin (stream_ts pattern — plain value + one RWMutex, nothing stored to adopt/snapshot) with eager-snapshot `All`, `Nl*` mirror, and check-spacing-then-insert as the canonical compound; `PointSet` deliberately has no twin. Tests: PCG 42,7 4000-step model vs `PointSet`, invariants checker, tie/degenerate-chain/depth/edge-rect suites, twin race trio + plain-vs-twin model. Benchmarks (100k points, M4 Max): Nearest 925 ns vs brute 466 µs (~500×), Range 777 ns vs 664 µs (~850×), NearestK 3.4 µs vs 10.4 ms (~3,000×).
 
-### 3.5 `nfa` (regular expressions) — M
+### 3.5 `nfa` (regular expressions) — M — **DEFERRED 2026-10-17** (not started)
 
+* **Status:** deferred at Philip's request — he wants to do extensive research and planning on what the Thompson NFA is and how it works (construction, ε-closure simulation, the pattern grammar) before any implementation is attempted. Revisit only when he reopens it; the sketch below is preserved unchanged for that discussion.
 * **algs4:** `NFA.java` (§5.4), `GREP` client.
 * **Why:** §5.4 is missing wholesale, and Sedgwick's NFA construction (Thompson NFA via digraph + stack, simulated by multi-set-of-states reachable set) is a beloved classic that fits pluto's *constructor-style immutable query object* pattern exactly (`substring` precedent: build once, search many, zero panics).
 * **API sketch:**
@@ -191,8 +192,8 @@ Small constructor-style query objects added to the existing packages (and mirror
 | # | Item | algs4 ref | Notes / shape | Effort |
 |---|---|---|---|---|
 | 11 | `shell_sort` | `Shell.java` (§2.1) | **DONE 2026-10-15** (`shell_sort/`) — 3x+1 gaps exactly as algs4, hoisted-value inner loop; the 3x+1-vs-Knuth bench comparison was not done | S |
-| 12 | `stable_pq` | `StableMinPQ` (§2.4 ex.) | Stable priority queue (tie → FIFO); pairs with `merge_sort` as its PQ cousin | S |
-| 13 | `bipartite` matching | `BipartiteMatching`, `HopcroftKarp` (§6.4) | Augmenting-path matching + O(E√V) Hopcroft–Karp over `graph`; compose `maxflow` like algs4 or direct augmenting paths (bench once, pick) | M |
+| 12 | `stable_pq` | `StableMinPQ` (§2.4 ex.) | **DONE 2026-10-17** (`stable_pq/`) — stamp + (key, seq) lexicographic on `pluto/heap`; no `_ts` twin (documented) | S |
+| 13 | `bipartite` matching | `BipartiteMatching`, `HopcroftKarp` (§6.4) | **DONE 2026-10-17** (`bipartite/`) — direct augmenting paths picked (6–35× over maxflow composition, benched); König min vertex cover as the certificate; no `_ts` twin | M |
 | 14 | `assignment_problem` | `AssignmentProblem` (§6.4) | Hungarian/successive-shortest-paths n×n assignment | M/L |
 | 15 | `floyd_warshall` | `FloydWarshall` (§4.4) | All-pairs SP, negatives OK (detects negative cycles); V×V matrix query object, own small pkg | S/M |
 | 16 | `boruvka_mst` | `BoruvkaMST` (§4.3) | Completes the MST quartet (lazy/eager Prim, Kruskal done); UF-driven | S |
@@ -221,11 +222,11 @@ Small constructor-style query objects added to the existing packages (and mirror
 
 1. **Quick wins batch:** ~~`bag` + `bag_ts`, `shell_sort`, graph additions (Cycle/TwoColor/TransitiveClosure), `run_length`~~ — all done (bag/bag_ts, shell_sort and run_length 2026-10-15; the graph additions + the `suffix_array.LCS` rider 2026-10-16).
 2. ~~**`merge_sort`** (+ `Inversions`) — closes the stability gap.~~ — done (2026-10-15), with the stability oracle against `slices.SortStableFunc`.
-3. **`interval_tree` + `_ts`** — first genuinely new query family.
+3. ~~**`interval_tree` + `_ts`**~~ — **DONE 2026-10-15** (`interval_tree/`, `interval_tree_ts/`, backlog §3.3).
 4. ~~**`string_sort`**~~ — **DONE 2026-10-16** (`string_sort/`, backlog §3.6): LSD → MSD → Quick3string.
-5. **`nfa`** — regexp query object.
+5. ~~**`nfa`**~~ — **DEFERRED 2026-10-17** (backlog §3.5): Philip wants extensive research/planning on the Thompson NFA first; not started.
 6. ~~**`kd_tree` + `_ts`**~~ — **DONE 2026-10-16** (`kd_tree/`, `kd_tree_ts/`, backlog §3.4): introduced `Point2D`/`RectHV` in `g_lib`, unlocking Tier 2 geometry.
-7. **`huffman`** — completes compression.
+7. ~~**`huffman`**~~ — **DONE 2026-10-16** (`huffman/`, backlog §3.7): completes the §5.5 compression trio with lzw/run_length.
 8. **`fib_heap`** — **DONE 2026-10-16** (`fib_heap/`, backlog §3.9); then **`multiway_pq`** — **DONE 2026-10-16** (`multiway_pq/`, backlog §3.10). PQ zoo complete.
 9. Tier 2 in table order as appetite allows (SCC/Eulerian batch and `boruvka_mst` are the cheapest next stops).
 
