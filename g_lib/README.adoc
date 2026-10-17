@@ -33,6 +33,7 @@ in this package (see below).
 | `RemoveComparable`       | New slice without items equal to `element`                     | O(n)
 | `Unique`                 | Slice with duplicates removed, first-occurrence order          | O(n)
 | `EqualSlice`             | Element-wise slice equality                                    | O(n)
+| `FormatSorted`           | Elements formatted then string-sorted into `[a b c]`           | O(n log n)
 | `SortSlice`              | In-place ascending sort                                        | O(n log n)
 | `ToBoolMap`              | Slice to set (`map[T]bool`)                                    | O(n)
 | `KeysForStringMap`       | Keys of a `map[string]T`, unspecified order                    | O(n)
@@ -81,6 +82,11 @@ never modifies its input.
 element types that are not comparable (slices, maps, functions);
 `RemoveComparable` uses `==` and is the faster choice for comparable
 elements.
+* `FormatSorted` renders an empty or nil slice as `[]`; it sorts only
+the formatted strings, never reordering or modifying the input
+elements.  It exists so hash-family containers (whose iteration order
+is seeded randomly per process) can print run-to-run deterministic
+`String()` output without requiring `T` to be ordered.
 
 == Geometry value types
 

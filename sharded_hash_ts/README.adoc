@@ -75,12 +75,21 @@ under concurrency.
 | `Insert`                                 | O(1)    | O(n)       | one stripe write-locked; doubling amortized
 | `Search`                                 | O(1)    | O(n)       | one stripe read-locked
 | `Delete`                                 | O(1)    | O(n)       | one stripe write-locked, atomic search-and-unlink
+| `Contains`                               | O(1)    | O(n)       | the found flag of Search
 | `IsEmpty`, `Len`, `Length`               | O(1)    | O(1)       | lock-free atomic counter
 | `Truncate`                               | O(n)    | O(n)       | clears stripes one at a time
 | `Scan`                                   | O(count)| O(n)       | one stripe read-locked at a time, never across calls
 | `LockKey` + `Nl*`                        | O(1)    | O(1)       | one stripe write-locked
 | `StripeCount`, `StripeLen`               | O(1)    | O(1)       | per-stripe load metrics
 | `Walk`, `All`, `Values`                  | O(n)    | O(n)       | per-stripe snapshots
+| `InsertSlice`, `InsertIter`              | O(k)    | O(n·k)     | grouped by stripe; each stripe's share atomic under its write lock
+| `DeleteSlice`                            | O(k)    | O(n·k)     | grouped by stripe; each stripe's share atomic under its write lock
+| `DeleteFunc`                             | O(n)    | O(n²)      | predicate runs unlocked on a snapshot
+| `ContainsSlice`, `ContainsAny`           | O(k)    | O(n·k)     | batch membership: all / at least one present
+| `Slice`                                  | O(n)    | O(n)       | per-stripe snapshots, stripe order then bucket order
+| `String`, `StringFunc`                   | O(n log n) | O(n log n) | formatted strings sorted — deterministic
+| `Equal`                                  | O(n)    | O(n²)      | membership only; never holds two locks at once
+| `Clone`                                  | O(n)    | O(n)       | deep copy per stripe; keeps stripes and eq/hash
 | `Dump`                                   | O(stripes) | O(stripes) | per-stripe summary
 |===
 
@@ -103,6 +112,11 @@ if v, found := h.Search("alpha"); found {
 }
 h.Delete("alpha")
 ----
+
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] and
+link:capabilities_example_test.go[`capabilities_example_test.go`] — they run
+under `go test` and appear on pkg.go.dev.
 
 == Atomic read-modify-write: LockKey + Nl*
 
@@ -188,9 +202,59 @@ is walked, so `fx` must not call methods on the same table.  Visit order
 depends on the hash seed and per-stripe growth history — never assert a
 fixed order.
 
+== Set conveniences
+
+`capabilities.go` adds the go-set-style surface, all of it additive:
+
+* Materialize: `Slice() []T` — a fresh slice copied stripe by stripe, each
+  stripe under one hold of its read lock (each stripe's share is consistent;
+  stripes are not mutually consistent — inherent to sharding).  Order is
+  stripe order then bucket order, both unspecified; sort when order matters.
+  `String()`/`StringFunc(f)` render *deterministically*: each element is
+  formatted (fmt.Sprint by default), the formatted strings are sorted, then
+  joined `[a b c]`-style — the stripe/bucket order never shows.  The format
+  function runs on the snapshot with no lock held, so it may safely call
+  back into the table.
+* Compare: `Equal(other)` — same element set by membership, never iteration
+  order; a nil table equals an empty table.  At most one stripe lock (of one
+  table) is held at any moment, so Equal cannot deadlock — even when two
+  goroutines compare the same pair in opposite directions.  Precondition:
+  both tables use consistent equality/hash functions.
+* Copy: `Clone()` — deep copy (fresh chains, same stripe count and routing,
+  same growth state, same eq/hash), each source stripe read-locked only
+  while it is copied.
+* Membership: `Contains(x)` — the found flag of `Search`; the batches
+  `ContainsSlice(items)` (all present) and `ContainsAny(items)` (at least
+  one present) check each stripe's share under one hold of that stripe's
+  read lock.
+* Mutation batches: `InsertSlice(items)` / `InsertIter(seq)` /
+  `DeleteSlice(items)` return true when the receiver changed.
+  `InsertIter` takes any container's `Values()` iterator directly,
+  including the table's own (safe: the iterator is drained before the first
+  stripe is locked).  `DeleteFunc(pred)` snapshots per stripe, runs the
+  predicate with no lock held (it may call back into the table), then
+  deletes the matches — collect-then-delete, never modify while walking.
+
+*Sharding discipline of the batches:* there is no global lock, so no batch
+is atomic table-wide — the same caveat `Scan` and `Truncate` document.  The
+batch methods group their items by stripe (`groupByStripe`) and take the
+stripes one at a time **in stripe-index order** — the multi-key `LockKey`
+ordering rule — so each stripe's share of the batch is atomic under one
+hold of that stripe's write lock, concurrent batches cannot deadlock
+against each other, and an interleaved single-key operation never observes
+a stripe's share half-applied.  Only ever one stripe lock is held at a
+time.  A reader probing through a stripe lock (`StripeLen`, `Search`)
+therefore sees a stripe's share all-or-nothing; `Len` — a lock-free atomic
+counter incremented per element — legitimately observes fine-grained
+progress within a share.
+
+All of them tolerate a nil table and the zero value as an empty table on
+the read side, exactly like the core operations.  No new `Nl*` methods:
+the capabilities are self-locking, not compounds.
+
 == Panics
 
-Four situations, each message naming the fix:
+Five situations, each message naming the fix:
 
 [options="header"]
 |===
@@ -200,7 +264,12 @@ Four situations, each message naming the fix:
 | `NewShardedHash`/`NewShardedHashFunc` with stripes < 1 | a stripe count is not a tuning hint
 | `Insert` on a nil table | a nil table cannot store an element
 | `Insert`/`NlInsert` on a zero-value table | no equality/hash functions; the message names the constructors
+| `SampleStripe`/`StripeWalk` with an out-of-range stripe index | `StripeCount` reports the fixed count
 |===
+
+The batch inserters `InsertSlice`/`InsertIter` raise the same insert
+contract — a nil or zero-value table panics when, and only when, the batch
+would actually store an element; an empty batch is tolerated everywhere.
 
 Everything else tolerates a nil table and the zero value as an empty
 table: searches report not-found, `Delete` returns false, `Scan` returns

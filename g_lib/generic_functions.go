@@ -23,6 +23,7 @@ import (
 	"reflect"
 	"slices"
 	"sort"
+	"strings"
 )
 
 // Min returns the smaller of a and b.
@@ -261,4 +262,25 @@ func ArrayHas[T comparable](haystack []T, needle T) bool {
 		}
 	}
 	return false
+}
+
+// FormatSorted formats each element of items with format, sorts the
+// formatted strings, and returns them joined with single spaces inside
+// square brackets: "[a b c]".  An empty or nil slice formats as "[]".
+// The input is never modified and the elements are never reordered —
+// only their formatted strings are sorted.
+//
+// It exists for the hash-family String methods: those containers hash
+// with a random per-table seed, so their iteration order differs from
+// run to run — formatting the elements and sorting the strings makes
+// the output deterministic without requiring T itself to be ordered.
+//
+// Complexity is O(n log n).
+func FormatSorted[T any](items []T, format func(T) string) string {
+	strs := make([]string, len(items))
+	for ii, v := range items {
+		strs[ii] = format(v)
+	}
+	slices.Sort(strs)
+	return "[" + strings.Join(strs, " ") + "]"
 }

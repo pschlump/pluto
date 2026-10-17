@@ -338,10 +338,11 @@ func refBipartite(adj [][]int) bool {
 			v := q[0]
 			q = q[1:]
 			for _, w := range adj[v] {
-				if color[w] == 0 {
+				switch color[w] {
+				case 0:
 					color[w] = -color[v]
 					q = append(q, w)
-				} else if color[w] == color[v] {
+				case color[v]:
 					return false
 				}
 			}

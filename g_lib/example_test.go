@@ -171,3 +171,14 @@ func ExampleArrayHas() {
 	// Output:
 	// true false
 }
+
+// FormatSorted renders elements through a caller format and sorts the
+// strings, so unordered sources (hash tables, maps) print
+// deterministically.
+func ExampleFormatSorted() {
+	fmt.Println(g_lib.FormatSorted([]int{3, 1, 2}, func(v int) string {
+		return fmt.Sprintf("%03d", v)
+	}))
+	// Output:
+	// [001 002 003]
+}

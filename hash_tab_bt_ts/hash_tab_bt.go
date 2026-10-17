@@ -35,9 +35,19 @@ BSD 3 Clause Licensed.
 //	Insert — add a new element to the table, replacing an equal element.	O(log(n/k)) average, O(n) worst
 //	Delete — delete the element equal to `find`, if present.					O(log(n/k)) average, O(n) worst
 //	Search — return the stored element equal to `find`.						O(log(n/k)) average, O(n) worst
+//	Contains — the found flag of Search, spelled as a membership predicate.	O(log(n/k)) average, O(n) worst
 //	IsEmpty — Returns true if the table is empty.								O(1)
 //	Len / Length — Returns number of elements in the table.  0 length is empty.	O(1)
 //	Truncate — Delete all the elements in the table.							O(k)
+//	InsertSlice / InsertIter / DeleteSlice / DeleteFunc — batch insert and		O(k log(n/k)) average
+//	delete; DeleteFunc deletes the elements matching a predicate.  Each batch is atomic
+//	under one hold of the write lock.
+//	ContainsSlice / ContainsAny — batch membership: all / at least one.			O(k log(n/k)) average
+//	Slice — fresh []T of the elements, bucket order with buckets ascending.	O(n log(n/k)) average
+//	String / StringFunc — deterministic rendering: the formatted element		O(n log n)
+//	strings sorted, so the random bucket order never shows.
+//	Equal — same element set as another table (membership, never order).		O(n log(n/k)) average
+//	Clone — deep copy with the same bucket count and cmp/hash functions.		O(n log(n/k)) average
 //	Walk — Call a callback for each element in bucket order.					O(n)
 //	Dump — Write a per-bucket listing of the table for debugging.				O(n)
 //	All / Values — Range-over-func iterators over a snapshot.					O(n)
@@ -60,6 +70,11 @@ BSD 3 Clause Licensed.
 //	NewHashTab/NewHashTabFunc with n < 5 — a smaller table has no headroom.
 //	Insert on a nil table — a nil table cannot store an element.
 //	Insert on a zero-value table — no comparison/hash functions; the message names the constructors.
+
+// The batch inserters InsertSlice and InsertIter raise the same insert
+// contract as Insert — a nil table or a zero-value table panics when, and
+// only when, the batch would actually store an element; an empty batch is
+// tolerated everywhere.
 package hash_tab_bt_ts
 
 import (

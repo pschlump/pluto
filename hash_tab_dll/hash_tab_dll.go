@@ -42,11 +42,20 @@ BSD 3 Clause Licensed.
 //	Delete — delete the element equal to `find`, if present.					O(1) average, O(n) worst
 //	DeleteFound — delete a previously located element.								O(1)
 //	Search — return a handle to the stored element equal to `find`.				O(1) average, O(n) worst
+//	Contains — the found flag of Search, spelled as a membership predicate.		O(1) average, O(n) worst
 //	IsEmpty — Returns true if the table is empty.									O(1)
 //	Len / Length — Returns number of elements in the table.  0 length is empty.	O(1)
 //	Truncate — Delete all the elements in the table.								O(k)
+//	InsertSlice / InsertIter / DeleteSlice / DeleteFunc — batch insert and		O(k) average
+//	delete; DeleteFunc deletes the elements matching a predicate.
+//	ContainsSlice / ContainsAny — batch membership: all / at least one.			O(k) average
+//	Slice — fresh []T of the elements, bucket order (unspecified).				O(n)
+//	String / StringFunc — deterministic rendering: the formatted element		O(n log n)
+//	strings sorted, so the random bucket order never shows.
+//	Equal — same element set as another table (membership, never order).		O(n) average
+//	Clone — deep copy with the same bucket count and eq/hash functions.		O(n)
 //	Walk — Call a callback for each element in bucket order.						O(n)
-//	Dump — Write a per-bucket listing of the table for debugging.					O(n)
+//	Dump — Write a per-bucket listing of the table for debugging.				O(n)
 //	All / Values — Range-over-func iterators in bucket order.						O(n)
 //
 // A nil *HashTab and the zero value both behave as an empty table for
@@ -60,6 +69,11 @@ BSD 3 Clause Licensed.
 //	NewHashTab/NewHashTabFunc with n < 5 — a smaller table has no headroom.
 //	Insert on a nil table — a nil table cannot store an element.
 //	Insert on a zero-value table — no equality/hash functions; the message names the constructors.
+//
+// The batch inserters InsertSlice and InsertIter raise the same insert
+// contract as Insert — a nil table or a zero-value table panics when, and
+// only when, the batch would actually store an element; an empty batch is
+// tolerated everywhere.
 //
 // This version of the table is not suitable for concurrent usage; use the
 // thread-safe hash_tab_dll_ts twin (or the auto-growing hash_grow_ts when

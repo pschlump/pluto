@@ -33,9 +33,19 @@ BSD 3 Clause Licensed.
 //	Insert — add a new element to the table, replacing any existing equal element.	O(1) average, O(n) worst
 //	Delete — delete the element equal to `find`, if present.					O(1) average, O(n) worst
 //	Search — return the stored element equal to `find`.						O(1) average, O(n) worst
+//	Contains — the found flag of Search, spelled as a membership predicate.	O(1) average, O(n) worst
 //	IsEmpty — Returns true if the table is empty.								O(1)
 //	Len / Length — Returns number of elements in the table.  0 length is empty.	O(1)
 //	Truncate — Delete all the elements in the table.							O(k)
+//	InsertSlice / InsertIter / DeleteSlice / DeleteFunc — batch insert and		O(k) average
+//	delete; each batch is atomic under one hold of the write lock.
+//	ContainsSlice / ContainsAny — batch membership: all / at least one.			O(k) average
+//	Slice — fresh []T of the elements, bucket order (unspecified).				O(n)
+//	String / StringFunc — deterministic rendering: the formatted element		O(n log n)
+//	strings sorted, so the random bucket order never shows.
+//	Equal — same element set as another table (membership, never order);		O(n) average
+//	never holds both tables' locks at once.
+//	Clone — deep copy with the same bucket count and eq/hash functions.		O(n)
 //	Walk — Call a callback for each element in bucket order.					O(n)
 //	Dump — Write a per-bucket listing of the table for debugging.				O(n)
 //	All / Values — Range-over-func iterators over a snapshot.					O(n)
@@ -58,6 +68,11 @@ BSD 3 Clause Licensed.
 //	NewHashTab/NewHashTabFunc with n < 5 — a smaller table has no headroom.
 //	Insert on a nil table — a nil table cannot store an element.
 //	Insert on a zero-value table — no equality/hash functions; the message names the constructors.
+//
+// The batch inserters InsertSlice and InsertIter raise the same insert
+// contract as Insert — a nil table or a zero-value table panics when, and
+// only when, the batch would actually store an element; an empty batch is
+// tolerated everywhere.
 package hash_tab_ts
 
 import (

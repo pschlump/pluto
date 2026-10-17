@@ -1,7 +1,16 @@
 # Set capabilities & set packages — implementation plan
 
-Status: **plan, not yet implemented** (drafted 2026-10-17). No code has been
-written against this plan.
+Status: **phases 0–1 complete** (2026-10-17); phases 2–8 not started — pick up
+at **phase 2** (ordered structures, §4.2 menu + avl `SymmetricDifference` +
+avl `Floor`/`Ceil`). Phase 0 added `g_lib.FormatSorted`; phase 1 added the
+full §4.1 menu to all 12 hash packages — each package got
+`capabilities.go`, a mirrored `capabilities_test.go` (twins append the
+concurrency block), `capabilities_example_test.go`, a package-doc
+Operations-list update, README.adoc updates, and a
+`docs/packages/<name>.md` capabilities paragraph (`cuckoo_grow15_ts` got a
+new notes file; the misplaced Scan paragraph moved from hash_tab_dll.md to
+hash_grow.md). Gates green at the phase-1 commit: `make build test vet race
+lint`, `gofmt -l .` empty, `go mod tidy` leaves no root go.sum.
 
 Source of the capability list: hashicorp/go-set `hashset.go` / `set.go`
 (MPL-2.0). What that library offers that pluto does not — verified by a full

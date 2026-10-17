@@ -1,0 +1,270 @@
+/*
+Copyright (C) Philip Schlump, 2012-2026.
+
+BSD 3 Clause Licensed.
+*/
+
+package hash_tab_dll
+
+import (
+	"fmt"
+	"iter"
+
+	"github.com/pschlump/pluto/dll"
+	"github.com/pschlump/pluto/g_lib"
+)
+
+// This file holds the set-convenience capabilities (the hashicorp/go-set
+// translation): materialization, rendering, deep copy, membership batches
+// and predicate bulk delete.  Everything is additive — no existing method
+// changed — and every new method is a total function on the read side: a
+// nil table and the zero value behave as an empty table, exactly like the
+// read operations in hash_tab_dll.go.  The only panics the new methods can
+// surface are the insert-contract panics below, and only when a batch
+// would actually store an element (a caller loop over the same items hits
+// the identical panics).  None of these methods expose the dll element
+// handles Search returns — they go through values and the value-based
+// Insert/Delete, so no live handle can escape into caller code that might
+// hold it across a mutation.
+
+// insertContractCheck applies the insert panic contract for the batch
+// inserters.  `caller` names the public method in the messages.
+func (tt *HashTab[T]) insertContractCheck(caller string) {
+	if tt == nil {
+		panic(fmt.Sprintf("hash_tab_dll: %s called on a nil table (a nil table cannot store an element)", caller))
+	}
+	if tt.eq == nil || tt.hash == nil {
+		panic(fmt.Sprintf("hash_tab_dll: %s called on a table with no equality/hash functions (create the table with NewHashTab or NewHashTabFunc)", caller))
+	}
+}
+
+// Contains reports whether the table holds an element equal to find.  It
+// is the found flag of Search, spelled as a membership predicate — the
+// element handle Search would return is discarded, never exposed.
+// Complexity is O(1) average, O(n) worst case.
+func (tt *HashTab[T]) Contains(find T) bool {
+	_, found := tt.Search(find)
+	return found
+}
+
+// Slice returns a fresh slice holding every element of the table.  The
+// order is bucket order — the order All and Values yield — with each
+// bucket's list running from the most recently inserted element to the
+// oldest; the bucket order itself depends on the per-table hash seed and
+// is therefore unspecified, so sort the result when a fixed order is
+// needed.  The slice is a copy: mutating it does not affect the table.  A
+// nil table yields nil; an empty table yields an empty slice.
+// Complexity is O(n).
+func (tt *HashTab[T]) Slice() []T {
+	if tt == nil {
+		return nil
+	}
+	items := make([]T, 0, tt.length)
+	for i := range tt.buckets {
+		for _, data := range tt.buckets[i].All() {
+			items = append(items, data)
+		}
+	}
+	return items
+}
+
+// String renders the table as its elements formatted with fmt.Sprint,
+// the formatted strings sorted ascending and joined with single spaces
+// inside square brackets: "[a b c]".  Sorting the formatted strings —
+// not the elements — is what makes the output deterministic: bucket
+// order depends on the per-table random hash seed and differs from run
+// to run, but two tables holding the same elements always render the
+// same string.  A nil or empty table renders as "[]".  For a custom
+// per-element rendering use StringFunc.
+// Complexity is O(n log n).
+func (tt *HashTab[T]) String() string {
+	return tt.StringFunc(func(v T) string { return fmt.Sprint(v) })
+}
+
+// StringFunc is String with a caller supplied per-element format
+// function; the elements are formatted, the strings sorted ascending and
+// joined inside square brackets, so the output is deterministic whatever
+// order the buckets happen to be in.  A nil format function renders as
+// "[]".
+// Complexity is O(n log n).
+func (tt *HashTab[T]) StringFunc(format func(T) string) string {
+	if format == nil {
+		return "[]"
+	}
+	return g_lib.FormatSorted(tt.Slice(), format)
+}
+
+// Equal reports whether tt and other hold the same set of elements: same
+// length and every element of tt found in other by Search.  Membership
+// is compared, never iteration order.  Two empty tables are equal, a nil
+// table equals an empty table, and Equal is symmetric on any pair that
+// satisfies its precondition.
+//
+// Precondition: both tables must use consistent equality and hash
+// functions (a nil table trivially does).  Functions are not comparable,
+// so this cannot be checked — two tables built by the same constructor
+// over the same element type always satisfy it.
+// Complexity is O(n) average.
+func (tt *HashTab[T]) Equal(other *HashTab[T]) bool {
+	if tt.Len() != other.Len() {
+		return false
+	}
+	if tt.Len() == 0 {
+		return true // both empty (either may be nil)
+	}
+	for _, v := range tt.Slice() {
+		if !other.Contains(v) {
+			return false
+		}
+	}
+	return true
+}
+
+// Clone returns a deep copy of the table: a fresh table with the same
+// bucket count, the same equality/hash functions, and a fresh bucket
+// list holding every element.  Each bucket list is rebuilt by walking
+// the source list from head to oldest and appending at the tail, so the
+// clone's lists have exactly the receiver's newest-first order.  No
+// backing memory — no list node — is shared with the receiver, so
+// mutating either table afterwards never affects the other.  A nil table
+// clones to nil; a zero-value table clones to a zero-value table.
+// Complexity is O(n).
+func (tt *HashTab[T]) Clone() *HashTab[T] {
+	if tt == nil {
+		return nil
+	}
+	dup := &HashTab[T]{
+		buckets: make([]*dll.Dll[T], tt.size),
+		size:    tt.size,
+		length:  tt.length,
+		eq:      tt.eq,
+		hash:    tt.hash,
+	}
+	for i := range tt.buckets {
+		dup.buckets[i] = dll.NewDllFunc(tt.eq)
+		for _, data := range tt.buckets[i].All() {
+			dup.buckets[i].AppendAtTail(data)
+		}
+	}
+	return dup
+}
+
+// ContainsSlice reports whether every element of items is present in the
+// table (an empty items slice is vacuously contained).  For "at least
+// one present" use ContainsAny.
+// Complexity is O(k) average, O(n) worst case per element, k = len(items).
+func (tt *HashTab[T]) ContainsSlice(items []T) bool {
+	for _, item := range items {
+		if !tt.Contains(item) {
+			return false
+		}
+	}
+	return true
+}
+
+// ContainsAny reports whether at least one element of items is present
+// in the table.  An empty items slice contains nothing.
+// Complexity is O(k) average, O(n) worst case per element, k = len(items).
+func (tt *HashTab[T]) ContainsAny(items []T) bool {
+	for _, item := range items {
+		if tt.Contains(item) {
+			return true
+		}
+	}
+	return false
+}
+
+// InsertSlice inserts each element of items in order and reports whether
+// at least one element was new (Insert replaces an equal element and
+// reports false, exactly as a caller loop does).
+//
+// It follows the insert contract: a batch that would store an element
+// into a nil table or a zero-value table panics with the standard
+// insert-family message; an empty batch stores nothing and is tolerated
+// everywhere.
+// Complexity is O(k) average, O(n) worst case per element, k = len(items).
+func (tt *HashTab[T]) InsertSlice(items []T) bool {
+	if len(items) == 0 {
+		return false // nothing to store: the insert contract never fires
+	}
+	tt.insertContractCheck("InsertSlice")
+	return tt.insertAll(items)
+}
+
+// insertAll is the shared insert loop of the batch inserters; the caller
+// has already applied the insert contract check.
+func (tt *HashTab[T]) insertAll(items []T) bool {
+	changed := false
+	for _, item := range items {
+		if tt.Insert(item) {
+			changed = true
+		}
+	}
+	return changed
+}
+
+// InsertIter is InsertSlice over a Go 1.23 range-over-func iterator:
+// every pluto container's All() or Values() feeds it directly, with no
+// interface between.  The iterator is drained to a slice before the
+// first insert, so feeding a table its own Values() is safe.  It reports
+// whether at least one element was new and follows the same insert
+// contract as InsertSlice.  A nil iterator inserts nothing and returns
+// false.
+// Complexity is O(k) average, k = number of yielded elements.
+func (tt *HashTab[T]) InsertIter(seq iter.Seq[T]) bool {
+	if seq == nil {
+		return false
+	}
+	items := make([]T, 0)
+	for item := range seq {
+		items = append(items, item)
+	}
+	if len(items) == 0 {
+		return false
+	}
+	tt.insertContractCheck("InsertIter")
+	return tt.insertAll(items)
+}
+
+// DeleteSlice deletes each element of items and reports whether at least
+// one was present.  Deleting is tolerated on a nil table (returns
+// false), like Delete.
+// Complexity is O(k) average, O(n) worst case per element, k = len(items).
+func (tt *HashTab[T]) DeleteSlice(items []T) bool {
+	changed := false
+	for _, item := range items {
+		if tt.Delete(item) {
+			changed = true
+		}
+	}
+	return changed
+}
+
+// DeleteFunc deletes every element for which fx returns true and reports
+// whether anything was deleted.  The matching elements are collected
+// first and deleted afterwards — the table is never modified while it is
+// being walked, so no bucket list can be spliced mid-traversal.  The
+// deletes go through the value-based Delete, not DeleteFound handles, so
+// no liveness question ever arises.  A nil table, an empty table or a
+// nil fx deletes nothing and returns false.
+// Complexity is O(n) average.
+func (tt *HashTab[T]) DeleteFunc(fx func(T) bool) bool {
+	if tt == nil || fx == nil || tt.length == 0 {
+		return false
+	}
+	var doomed []T
+	for i := range tt.buckets {
+		for _, data := range tt.buckets[i].All() {
+			if fx(data) {
+				doomed = append(doomed, data)
+			}
+		}
+	}
+	changed := false
+	for _, item := range doomed {
+		if tt.Delete(item) {
+			changed = true
+		}
+	}
+	return changed
+}

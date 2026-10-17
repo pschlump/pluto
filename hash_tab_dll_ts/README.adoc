@@ -106,8 +106,17 @@ bodies of the public methods; call them only while holding `Lock`
 | `Search`                                 | O(1)    | O(n)       | walks the bucket list, returns the element handle
 | `Delete`                                 | O(1)    | O(n)       | chain walk, then an O(1) splice; atomic under the write lock
 | `DeleteFound`                            | O(1)    | O(1)       | splices the located element out through its prev/next pointers — no chain walk
+| `Contains`                               | O(1)    | O(n)       | the found flag of Search; no handle escapes
 | `IsEmpty`, `Len`, `Length`               | O(1)    | O(1)       |
 | `Truncate`                               | O(k)    | O(k)       | k = bucket count; bucket lists are emptied
+| `InsertSlice`, `InsertIter`              | O(k)    | O(n·k)     | batch insert, atomic under one write-lock hold
+| `DeleteSlice`                            | O(k)    | O(n·k)     | batch delete, atomic under one write-lock hold
+| `DeleteFunc`                             | O(n)    | O(n²)      | predicate runs unlocked on a snapshot; deletes atomic
+| `ContainsSlice`, `ContainsAny`           | O(k)    | O(n·k)     | batch membership: all / at least one present
+| `Slice`                                  | O(n)    | O(n)       | snapshot under the read lock; bucket order unspecified
+| `String`, `StringFunc`                   | O(n log n) | O(n log n) | formatted strings sorted — deterministic; format runs unlocked
+| `Equal`                                  | O(n)    | O(n²)      | membership only; never holds both tables' locks
+| `Clone`                                  | O(n)    | O(n)       | deep copy under the read lock; keeps bucket count, eq/hash and list order
 | `Walk`, `Dump`, `All`, `Values`          | O(n)    | O(n)       |
 | `Lock` / `Unlock`                        | O(1)    | O(1)       | compound sequences of the `Nl*` methods
 |===
@@ -178,6 +187,48 @@ inserted element to the oldest:
   returns true when the walk ran to completion.  The read lock is held
   for the whole walk.
 
+== Set conveniences
+
+`capabilities.go` adds the go-set-style surface, all of it additive and
+method-for-method identical to
+link:../hash_tab_dll[hash_tab_dll]'s:
+
+* Materialize: `Slice() []T` — a fresh slice snapshotted under the read
+  lock, in bucket order (unspecified — sort when a global order matters).
+  `String()`/`StringFunc(f)` render *deterministically*: each element
+  formatted (fmt.Sprint by default), the strings sorted, joined
+  `[a b c]`-style — the per-table random seed never shows.  The format
+  function runs on the snapshot without the lock, so it may safely call
+  back into the table.
+* Compare: `Equal(other)` — same element set by membership, never
+  iteration order; a nil table equals an empty table.  Each table is
+  touched under its own lock only — never two locks at once — so Equal
+  cannot deadlock, even when two goroutines compare the same pair in
+  opposite directions.  Precondition: both tables use consistent
+  equality/hash functions.
+* Copy: `Clone()` — deep copy (fresh bucket lists in the same
+  newest-first order, same bucket count, same eq/hash) under one hold of
+  the read lock.
+* Membership batches: `Contains(x)`, `ContainsSlice(items)` (all
+  present), `ContainsAny(items)` (at least one present) — the read lock
+  is held once for the whole batch.
+* Mutation batches: `InsertSlice(items)` / `InsertIter(seq)` /
+  `DeleteSlice(items)` return true when the receiver changed and are
+  atomic — the write lock is held once for the whole batch, so an
+  interleaved reader sees all or nothing.  `InsertIter` takes any
+  container's `Values()` iterator directly, including the table's own
+  (safe: the iterator is drained before the lock is taken).
+  `DeleteFunc(pred)` snapshots under the read lock, runs the predicate
+  with no lock held (it may call back into the table), then deletes the
+  matches atomically — collect-then-delete, never modify while walking.
+
+None of the new methods expose the `Search` element handles — elements
+flow by value through the value-based Insert/Delete, so no live handle
+can escape into caller code.  All of them tolerate a nil table and the
+zero value as an empty table on the read side, exactly like the core
+operations.  No new `Nl*` methods: the capabilities are self-locking,
+not compounds.
+
 == Panics
 
 The package panics in exactly four situations — all programmer errors with
@@ -193,6 +244,11 @@ no sane fallback, each message naming the fix (identical in shape to
 | `Insert` on a nil `*HashTab` | a nil table cannot store an element
 | `Insert` on a zero-value table | no equality/hash functions; the message names the constructors
 |===
+
+The batch inserters `InsertSlice`/`InsertIter` raise the same insert
+contract — a nil or zero-value table panics when, and only when, the
+batch would actually store an element; an empty batch is tolerated
+everywhere.
 
 Everything else tolerates a nil table and the zero value as an empty table:
 searches report not-found, `Delete` and `DeleteFound` return false, and the

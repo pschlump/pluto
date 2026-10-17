@@ -68,11 +68,21 @@ BSD 3 Clause Licensed.
 //	Insert — add a new element to the table, replacing any existing equal element.	O(1) average, O(n) worst
 //	Delete — delete the element equal to `find`, if present.					    O(1) average
 //	Search — return the stored element equal to `find`.						        O(1)
+//	Contains — the found flag of Search, spelled as a membership predicate.		    O(1)
 //	IsEmpty — Returns true if the table is empty.								    O(1)
 //	Len / Length — Returns number of elements in the table.  0 length is empty.	    O(1)
 //	Capacity / Saturation — Returns the table size and its load factor.			    O(1)
 //	Info — Returns length, capacity, saturation and the resize counters.	    O(1)
 //	Truncate — Delete all the elements in the table.							    O(n)
+//	InsertSlice / InsertIter / DeleteSlice / DeleteFunc — batch insert and		O(k) average
+//	delete; a batch runs atomically under one hold of the write lock, and a
+//	batch that crosses a resize threshold resizes on the background goroutine.
+//	ContainsSlice / ContainsAny — batch membership: all / at least one.		    O(k) average
+//	Slice — fresh []T snapshot of the elements, slot order (unspecified).		    O(n)
+//	String / StringFunc — deterministic rendering: the formatted element		O(n log n)
+//	strings sorted; the format function runs without the lock.
+//	Equal — same element set as another table (membership, never order).		O(n) average
+//	Clone — deep copy with the same size, thresholds and eq/hash functions.	O(n)
 //	Walk — Call a callback for each element in slot order.					        O(n)
 //	Dump — Write a per-slot listing of the table for debugging.				        O(n)
 //	All / Values — Range-over-func iterators over a snapshot.					    O(n)
@@ -89,6 +99,11 @@ BSD 3 Clause Licensed.
 //	NewHashTab/NewHashTabFunc with n < 5 — a smaller table has no headroom.
 //	Insert on a nil table — a nil table cannot store an element.
 //	Insert on a zero-value table — no equality/hash functions; the message names the constructors.
+//
+// The batch inserters InsertSlice and InsertIter raise the same insert
+// contract as Insert — a nil table or a zero-value table panics when, and
+// only when, the batch would actually store an element; an empty batch is
+// tolerated everywhere.
 //
 // One further, pathological panic exists (raised on the background resizer
 // when a growth rebuild triggers it): if several distinct elements' four

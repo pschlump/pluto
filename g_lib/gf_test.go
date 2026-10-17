@@ -7,6 +7,7 @@ BSD 3 Clause Licensed.
 */
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -316,6 +317,55 @@ func TestPow(t *testing.T) {
 	}
 	if x := Pow(1.5, 2); x != 2.25 {
 		t.Errorf("Pow(1.5,2) should be 2.25, got %v", x)
+	}
+}
+
+func TestFormatSorted(t *testing.T) {
+	// Input deliberately not in sorted order.
+	got := FormatSorted([]int{3, 1, 2}, func(v int) string {
+		return fmt.Sprintf("%d", v)
+	})
+	if got != "[1 2 3]" {
+		t.Errorf("FormatSorted should sort formatted strings, got %q", got)
+	}
+}
+
+func TestFormatSortedEmpty(t *testing.T) {
+	if got := FormatSorted([]int{}, func(v int) string { return "" }); got != "[]" {
+		t.Errorf("Empty slice should format as [], got %q", got)
+	}
+	if got := FormatSorted(nil, func(v int) string { return "" }); got != "[]" {
+		t.Errorf("nil slice should format as [], got %q", got)
+	}
+}
+
+func TestFormatSortedUnorderedType(t *testing.T) {
+	// T is a struct — no ordering on T is required, only on the strings.
+	type pair struct{ A, B string }
+	got := FormatSorted([]pair{{"y", "2"}, {"x", "1"}}, func(p pair) string {
+		return p.A + "=" + p.B
+	})
+	if got != "[x=1 y=2]" {
+		t.Errorf("FormatSorted on struct elements, got %q", got)
+	}
+}
+
+func TestFormatSortedDoesNotMutateInput(t *testing.T) {
+	in := []int{3, 1, 2}
+	_ = FormatSorted(in, func(v int) string { return "" })
+	if !reflect.DeepEqual(in, []int{3, 1, 2}) {
+		t.Errorf("FormatSorted modified its input, got %v", in)
+	}
+}
+
+func TestFormatSortedDeterministic(t *testing.T) {
+	// The point of the function: same elements in, same string out —
+	// regardless of the order the caller happens to hold them in.
+	f := func(v int) string { return fmt.Sprintf("%d", v) }
+	a := FormatSorted([]int{5, 1, 9, 3}, f)
+	b := FormatSorted([]int{9, 3, 5, 1}, f)
+	if a != b {
+		t.Errorf("FormatSorted not order-insensitive: %q vs %q", a, b)
 	}
 }
 

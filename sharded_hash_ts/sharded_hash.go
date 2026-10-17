@@ -57,6 +57,7 @@ BSD 3 Clause Licensed.
 //	Insert — add a new element, replacing any existing equal element.	O(1) average per stripe
 //	Delete — delete the element equal to `find`, if present.	O(1) average per stripe
 //	Search — return the stored element equal to `find`.		O(1) average per stripe
+//	Contains — the found flag of Search, spelled as a membership predicate.	O(1) average per stripe
 //	IsEmpty / Len / Length — lock-free via an atomic counter.	O(1)
 //	Truncate — remove all elements from every stripe.			O(n)
 //	Scan — up to `count` elements plus the next cursor.			O(count) amortized, one stripe lock at a time
@@ -64,6 +65,17 @@ BSD 3 Clause Licensed.
 //	StripeCount / StripeLen — per-stripe load for metrics.		O(1) / O(1)
 //	Walk / All / Values — iterate stripe by stripe.				O(n)
 //	StripeWalk / SampleStripe — iterate/sample ONE stripe.			O(n_stripe) / O(n)
+//	InsertSlice / InsertIter / DeleteSlice / DeleteFunc — batch insert and	O(k) average
+//	delete; items grouped by stripe, each stripe's share atomic under one
+//	hold of that stripe's write lock (the batch is NOT atomic table-wide).
+//	ContainsSlice / ContainsAny — batch membership: all / at least one,	O(k) average
+//	grouped by stripe like the other batches.
+//	Slice — fresh []T of the elements, stripe order then bucket order.	O(n)
+//	String / StringFunc — deterministic rendering: the formatted element	O(n log n)
+//	strings sorted, so the stripe/bucket order never shows.
+//	Equal — same element set as another table (membership, never order);	O(n) average
+//	never holds two locks at once.
+//	Clone — deep copy with the same stripes and eq/hash functions.	O(n)
 //	Dump — per-stripe summary for debugging.					O(stripes)
 //
 // A nil *ShardedHash and the zero value both behave as an empty table for
@@ -78,6 +90,11 @@ BSD 3 Clause Licensed.
 //	Insert on a nil table — a nil table cannot store an element.
 //	Insert on a zero-value table — no equality/hash functions; the message names the constructors.
 //	SampleStripe/StripeWalk with an out-of-range stripe index — StripeCount reports the fixed count.
+//
+// The batch inserters InsertSlice and InsertIter raise the same insert
+// contract as Insert — a nil table or a zero-value table panics when, and
+// only when, the batch would actually store an element; an empty batch is
+// tolerated everywhere.
 //
 // There is no plain (non-_ts) twin: the striping exists only for concurrent
 // use.  Single-goroutine callers want hash_grow or hash_tab.

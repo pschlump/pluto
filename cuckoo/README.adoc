@@ -127,7 +127,16 @@ synchronous collision-loop resizes.
 | `Delete`                                 | O(1)    | O(1)       | clearing a slot repairs nothing
 | `IsEmpty`, `Len`, `Length`, `Capacity`, `Saturation` | O(1) | O(1) |
 | `Info`                                   | O(1)    | O(1)       | size plus exact grow/shrink/forced resize counters
+| `Contains`                               | O(1)    | O(1)       | the found flag of Search
 | `Truncate`                               | O(n)    | O(n)       | clears all slots for GC
+| `InsertSlice`, `InsertIter`              | O(k)    | O(n·k)     | batch insert; may grow mid-batch, like a caller loop
+| `DeleteSlice`                            | O(k)    | O(n·k)     | batch delete; may shrink mid-batch, like a caller loop
+| `DeleteFunc`                             | O(n)    | O(n²)      | bulk delete by predicate, collect-then-delete (mandatory: a shrink rebuild repositions everything)
+| `ContainsSlice`, `ContainsAny`           | O(k)    | O(k)       | batch membership: all / at least one present
+| `Slice`                                  | O(n)    | O(n)       | fresh slice in slot order (unspecified)
+| `String`, `StringFunc`                   | O(n log n) | O(n log n) | formatted strings sorted — deterministic
+| `Equal`                                  | O(n)    | O(n)       | same element set, membership only (never order)
+| `Clone`                                  | O(n)    | O(n)       | deep copy; keeps size, thresholds and eq/hash
 | `Walk`, `Dump`, `All`, `Values`          | O(n)    | O(n)       |
 | `Scan` (per call)                        | O(count) | O(count)  | incremental cursor scan; O(size) for a full iteration
 |===
@@ -222,6 +231,38 @@ for {
 - Only 0 is meaningful in a cursor (start/done); a foreign cursor may
   return arbitrary results but never corrupts the table.
 
+== Set conveniences
+
+`capabilities.go` adds the go-set-style surface, all of it additive:
+
+* Materialize: `Slice() []T` — a fresh slice in slot order (unspecified;
+  sort it when order matters).  `String()`/`StringFunc(f)` render
+  *deterministically*: each element is formatted (fmt.Sprint by default),
+  the formatted strings are sorted, then joined `[a b c]`-style — the
+  per-table random seed never shows in the output.
+* Compare: `Equal(other)` — same element set by membership, never
+  iteration order; a nil table equals an empty table.  Precondition: both
+  tables use consistent equality/hash functions (same constructor over
+  the same type always satisfies it).
+* Copy: `Clone()` — deep copy (fresh slot array, elements by value; same
+  size, thresholds and resize counters, same eq/hash); mutating either
+  table never affects the other.
+* Membership batches: `Contains(x)`, `ContainsSlice(items)` (all present),
+  `ContainsAny(items)` (at least one present).
+* Mutation batches: `InsertSlice(items)` / `InsertIter(seq)` /
+  `DeleteSlice(items)` return true when the receiver changed and resize
+  exactly as a caller loop of Insert/Delete would when a batch crosses a
+  threshold.  `DeleteFunc(pred)` bulk-deletes the predicate's matches
+  with a collect-then-delete pass — mandatory here, not just tidiness: a
+  delete that crosses the shrink threshold rebuilds the table and
+  repositions every element, so the table must never be modified while
+  walked.  `InsertIter` takes any container's `Values()` iterator
+  directly — including the table's own, which is safe because the
+  iterator is drained before the first insert.
+
+All of them tolerate a nil table and the zero value as an empty table on
+the read side, exactly like the core operations.
+
 == Panics
 
 The package panics in exactly four situations — all programmer errors with
@@ -236,6 +277,11 @@ no sane fallback, each message naming the fix:
 | `Insert` on a nil `*HashTab` | a nil table cannot store an element
 | `Insert` on a zero-value table | no equality/hash functions; the message names the constructors
 |===
+
+The batch inserters `InsertSlice`/`InsertIter` raise the same insert
+contract as `Insert` — a nil or zero-value table panics when, and only
+when, the batch would actually store an element; an empty batch is
+tolerated everywhere.
 
 Everything else tolerates a nil table and the zero value as an empty table:
 searches report not-found, `Delete` returns false, and the iterators visit
