@@ -135,9 +135,9 @@ cuckoo, cuckoo_ts, cuckoo_grow15_ts, sharded_hash_ts)
 
 These are sets natively — the fullest treatment.
 
-| Slice | String(+Func) | Equal | Clone | Contains | ContainsSlice/Any | InsertSlice/InsertIter | DeleteSlice | DeleteFunc |
-|---|---|---|---|---|---|---|---|---|
-| ● | ● (sorted strings) | ● | ● | ● | ● | ● | ● | ● |
+| Slice | String(+Func)      | Equal | Clone | Contains | ContainsSlice/Any | InsertSlice/InsertIter | DeleteSlice | DeleteFunc |
+|-------|--------------------|-------|-------|----------|-------------------|------------------------|-------------|------------|
+| ●     | ● (sorted strings) | ●     | ●     | ●        | ●                 | ●                      | ●           | ●          |
 
 - Set algebra (Union/Intersect/Minus/SymmetricDifference) and subset
   predicates are **not** added to these 12 packages — they live once in the
@@ -159,9 +159,9 @@ These are sets natively — the fullest treatment.
 avl_tree, avl_tree_ts, rb_tree, rb_tree_ts, splay_tree, b_tree, skip_list,
 skip_list_ts, interval_tree, interval_tree_ts)
 
-| Slice (in-order) | String(+Func) | Equal | Clone | Contains | ContainsSlice/Any | InsertSlice/InsertIter | DeleteSlice | DeleteFunc | SymmetricDifference |
-|---|---|---|---|---|---|---|---|---|---|
-| ● | ● | ● | ● | ● | ● | ● | ● | ● | ○ (avl family only, completes the existing quartet) |
+| Slice (in-order) | String(+Func) | Equal | Clone | Contains | ContainsSlice/Any | InsertSlice/InsertIter | DeleteSlice | DeleteFunc | SymmetricDifference                                 |
+|------------------|---------------|-------|-------|----------|-------------------|------------------------|-------------|------------|-----------------------------------------------------|
+| ●                | ●             | ●     | ●     | ●        | ●                 | ●                      | ●           | ●          | ○ (avl family only, completes the existing quartet) |
 
 - Full set algebra stays avl-only (+ the new `tree_set`, Part 2). The other
   trees keep map semantics; their callers who want algebra use `tree_set`.
@@ -183,8 +183,8 @@ The tries **are** pluto's string sets (this resolves backlog
 `TrieSet` package is built; instead the tries get set ergonomics directly).
 
 | Keys | Values | String (byte order) | Equal (keys only) | Clone | ContainsSlice/Any (keys) | DeleteSlice (keys) |
-|---|---|---|---|---|---|---|
-| ● | ● | ● | ● | ● | ● | ● |
+|------|--------|---------------------|-------------------|-------|--------------------------|--------------------|
+| ●    | ●      | ●                   | ●                 | ●     | ●                        | ●                  |
 
 - `Keys()` = all keys in byte order (today only `KeysWithPrefix`/
   `KeysThatMatch` return slices). `Values()` returns values in key order.
@@ -208,8 +208,8 @@ Minimal treatment — sequences are not sets; O(n) membership scans and
 subset predicates would be footguns.
 
 | Slice (logical order) | String | Equal (ORDER-SENSITIVE) | Clone |
-|---|---|---|---|
-| ● | ● | ● | ● |
+|-----------------------|--------|-------------------------|-------|
+| ●                     | ●      | ●                       | ●     |
 
 - `Equal` is documented as order-sensitive (a queue [a b] ≠ [b a]) — the one
   family where equality is sequence equality, not set equality.
@@ -226,8 +226,8 @@ priority_queue_ts, index_pq, index_pq_ts, fib_heap, multiway_pq, stable_pq,
 binomial_queue)
 
 | Slice (backing/breadth order) | String (same order) | Equal (multiset) | Clone |
-|---|---|---|---|
-| ● | ● | ● | ● |
+|-------------------------------|---------------------|------------------|-------|
+| ●                             | ●                   | ●                | ●     |
 
 - Order semantics follow the JSON precedent (note/implement-json.md): a
   heap's only stable non-destructive observable order is its backing array /
@@ -380,17 +380,17 @@ Each phase is independently shippable; within a phase the work parcels
 cleanly per package (the note/implement-json.md agent-per-package wave
 pattern).
 
-| Phase | Scope | Packages | Effort |
-|---|---|---|---|
-| 0 | `g_lib.FormatSorted` helper | 1 | XS |
-| 1 | Hash families — full §4.1 menu | 12 | M (2–3 days parallel) |
-| 2 | Ordered structures — §4.2 menu + avl `SymmetricDifference` + avl `Floor`/`Ceil` | 12 | M/L |
-| 3 | Tries — §4.3 menu | 6 | S/M |
-| 4 | Sequences — §4.4 minimal menu | 16 | S |
-| 5 | Heaps/PQs — §4.5 menu | 10 | S |
-| 6 | `hash_set` + `hash_set_ts` | 2 | M |
-| 7 | `tree_set` + `tree_set_ts` | 2 | M |
-| 8 | Cache `String()` riders + §9 doc cross-updates | 4+docs | XS |
+| Phase | Scope                                                                           | Packages | Effort                |
+|-------|---------------------------------------------------------------------------------|----------|-----------------------|
+| 0     | `g_lib.FormatSorted` helper                                                     | 1        | XS                    |
+| 1     | Hash families — full §4.1 menu                                                  | 12       | M (2–3 days parallel) |
+| 2     | Ordered structures — §4.2 menu + avl `SymmetricDifference` + avl `Floor`/`Ceil` | 12       | M/L                   |
+| 3     | Tries — §4.3 menu                                                               | 6        | S/M                   |
+| 4     | Sequences — §4.4 minimal menu                                                   | 16       | S                     |
+| 5     | Heaps/PQs — §4.5 menu                                                           | 10       | S                     |
+| 6     | `hash_set` + `hash_set_ts`                                                      | 2        | M                     |
+| 7     | `tree_set` + `tree_set_ts`                                                      | 2        | M                     |
+| 8     | Cache `String()` riders + §9 doc cross-updates                                  | 4+docs   | XS                    |
 
 Gates per phase: `make build test vet race lint`, `gofmt -l .` empty,
 `go mod tidy` leaves no root go.sum. Phases 6–7 land only after 1–2 (the
