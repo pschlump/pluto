@@ -99,6 +99,7 @@ with an identical public API.
 | link:patricia_trie_ts/[patricia_trie_ts]   | Thread-safe Patricia trie (RWMutex, snapshot iterators, Lock+Nl* compound ops).
 | link:suffix_array/[suffix_array]           | Immutable suffix array with Kasai LCP, longest repeated substring, two-string LCS (Sedgwick §6.3; no `_ts` twin — immutable, concurrent reads safe).
 | link:substring/[substring]                 | Substring search: KMP, Boyer-Moore, Rabin-Karp (compile pattern once, search many texts; Sedgwick §5.3).
+| link:huffman/[huffman]                     | Huffman compression/expansion over byte slices: frequency-built trie serialized in the header, prefix-free codewords, on pluto/heap (Sedgwick §5.5; pure functions, concurrent-use safe).
 | link:lzw/[lzw]                             | LZW compression/expansion over byte slices on pluto/tst (widening 9→16-bit codes; Sedgwick §5.5 variant).
 | link:run_length/[run_length]               | Run-length encoding over byte slices (alternating count bytes, 255/0 saturation split; Sedgwick §5.5; pure functions, concurrent-use safe).
 | link:string_sort/[string_sort]              | LSD/MSD/3-way-radix string sorts on `[]string` in place (key-indexed counting, 256-byte alphabet; Sedgwick §5.1; pure functions, concurrent-use safe).
@@ -1386,6 +1387,29 @@ twin (the `suffix_array` precedent).
 Boyer-Moore skips ahead on ordinary text.
 * Bad: KMP's DFA costs 256·m ints per pattern; Boyer-Moore without
 the good-suffix rule has a quadratic worst case.
+
+== Huffman Compression — `huffman/`
+
+Huffman compress/expand over byte slices (Sedgwick §5.5 `Huffman.java`),
+completing the §5.5 compression trio: `Compress(data []byte) []byte`
+and `Expand(blob []byte) []byte` — non-generic, pure functions (the
+`lzw`/`run_length` precedent; no `_ts` twin, safe for concurrent use).
+The blob is self-describing: the frequency-built trie serialized
+preorder (0 = internal, 1 + 8-bit symbol = leaf), a 64-bit symbol
+count, then one codeword per symbol — bits MSB-first, the shared
+algs4 convention. The trie merge runs on `pluto/heap` (intra-pluto
+composition) with deterministic tie-breaking, so recompressing an
+expansion reproduces the blob byte for byte. A single distinct symbol
+costs zero bits per symbol (1 MiB of one byte → 10 bytes);
+`Expand` returns nil — never panics — on truncated blobs, oversized
+tries (> 511 nodes), or dishonest counts.
+
+* Good: optimal prefix-free code for the data's own distribution;
+  0.33 B/byte on run-heavy data and 0.55 on English-like text
+  (measured, M4 Max); compresses what RLE cannot.
+* Bad: the ~14-byte header expands tiny inputs; uniform data gains
+  nothing; a crafted single-leaf blob can claim a huge count (the
+  standard decompression-bomb exposure, documented).
 
 == LZW Compression — `lzw/`
 

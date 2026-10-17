@@ -1,0 +1,157 @@
+= huffman
+
+*Huffman compression* over byte slices — Sedgwick & Wayne's algs4 §5.5
+`Huffman.java` — as two stateless functions: `Compress` builds the
+optimal prefix-free code for the input's own symbol distribution and
+`Expand` decodes it.  Not generic (`[]byte` in, `[]byte` out — the
+hyperloglog/union_find precedent), non-object (pure functions — the
+geo/substring precedent), and *no `_ts` twin* (nothing to guard, the
+lzw precedent).  This completes the §5.5 compression trio alongside
+link:../lzw/[lzw] and link:../run_length/[run_length].
+
+The alphabet is the 256 byte values.  `Compress` tabulates frequencies,
+builds the Huffman trie by pairwise merge on
+link:../heap/[pluto/heap] (an intra-pluto composition — the merge IS a
+min-priority-queue), assigns each symbol its root-to-leaf path as a
+codeword, and emits a self-describing blob; `Expand` rebuilds the trie
+from the blob and walks it bit by bit.
+
+== Format
+
+[cols="1,3",options="header"]
+|===
+| Section | Encoding
+
+| trie, preorder | internal node = one `0` bit; leaf = one `1` bit + the 8-bit symbol
+| symbol count | 64 bits
+| codewords | one codeword per input symbol, in order
+|===
+
+Bits pack MSB-first — the algs4 `BinaryStdOut`/`BinaryStdIn`
+convention shared with lzw and run_length — with the final partial
+byte zero-padded.  A codeword is its symbol's path from the root
+(0 = left, 1 = right).  The worst-case header is ~320 bytes (a full
+256-leaf trie serializes to 256·9 + 255 bits).
+
+Hand-traced vector, `"AB"` (A pops first, hangs left, so A = `0`,
+B = `1`; trie 19 bits + count 64 + codewords 2 = 85 bits):
+
+----
+50 68 40 00 00 00 00 00 00 00 48
+----
+
+== Operations
+
+[cols="1,3",options="header"]
+|===
+| Operation        | Description                                             | Complexity
+
+| `Compress(data)` | Frequencies → trie → code → blob                       | O(n)
+| `Expand(blob)`   | Trie ← blob, walk n codewords; nil if malformed        | O(n)
+|===
+
+Both functions are pure: the input is never modified, the result is a
+fresh slice.  The empty (or nil) input compresses to the empty result
+in both directions.
+
+== Determinism
+
+The merge breaks frequency ties by insertion order — leaves in symbol
+order, merged subtrees in creation order — so the trie, the code and
+the blob are deterministic: *recompressing an expansion reproduces the
+blob byte for byte* (asserted every iteration of the randomized
+round-trip test).  Any tie-break yields an optimal code; this one just
+makes the output stable.  Optimality itself is pinned against a
+structurally different reference (scan-based, no heap): the weighted
+path lengths agree exactly, including on all-equal-frequency tables
+where the shapes do not.
+
+== Edge contracts
+
+* **Single distinct symbol**: the trie is that leaf alone, its codeword
+  is the *empty string*, and the message costs zero bits per symbol —
+  1 MiB of one byte compresses to exactly 10 bytes (9-bit trie +
+  64-bit count).  `Expand` honors the same shape.
+* **Deep codes**: pathological skews grow codewords far past 64 bits —
+  85 Fibonacci-weighted symbols (largest ≈ 6.8e17, inside int64)
+  produce an 84-bit codeword — so codewords are stored as strings, not
+  integers (algs4 uses `String` too).  `Expand` decodes a hand-built
+  100-deep chain correctly.
+* **The blob's trie** is always a full binary tree over ≤ 256 leaves
+  satisfying Kraft's equality Σ 2^-depth = 1 — checked from the parsed
+  blob by the tests, not trusted from `Compress`.
+
+== Malformed input
+
+`Expand` never panics; it returns nil for a blob that is truncated
+anywhere (the trie, the count, or mid-codeword), whose trie exceeds the
+511 nodes a full binary tree over 256 symbols can hold, or whose count
+cannot be honest — larger than any Go slice, or (under an internal
+root, where every codeword costs ≥ 1 bit) larger than the bits
+remaining.  Every strict prefix of a valid blob is malformed (pinned by
+a truncation sweep).  Trailing bytes after the last codeword bit are
+ignored, the lzw behavior.
+
+One documented hazard remains: a *single-leaf* blob can claim any count
+— each symbol costs zero bits, so nothing in the blob contradicts it —
+and `Expand` will allocate accordingly.  That is the standard
+decompression-bomb exposure of the format (gzip has it too; algs4 has
+it too); an internal-rooted claim is already bounded by the blob's own
+bits.
+
+== Measured
+
+Apple M4 Max, 1 MiB inputs, `go test -bench=. -benchmem`:
+
+[cols="1,1,1,1,1",options="header"]
+|===
+| Regime               | Ratio (B/byte) | Compress   | Expand     | Note
+
+| English-like text    | 0.546          | 8.2 ms, 128 MB/s  | 23.9 ms, 44 MB/s | 26 symbols, skewed
+| long runs, 6 symbols | 0.333          | 5.7 ms, 183 MB/s  | 5.6 ms, 186 MB/s |
+| uniform over 256     | ~1.000         | 15.0 ms, 70 MB/s  | 46.9 ms, 22 MB/s | header adds ~330 B/MiB
+| single symbol        | 0.00001        | 1.6 ms, 671 MB/s  | 0.8 ms, 1276 MB/s | 10 bytes out
+|===
+
+Expand cost tracks total codeword bits, not output bytes — the uniform
+regime decodes slowest because every symbol walks ~8 trie levels.
+
+== The bits.go decision
+
+`lzw/bits.go` holds the same MSB-first bit writer/reader, unexported.
+The backlog offered two options — duplicate small, or lift into g_lib —
+and this package duplicates (`bits.go`): g_lib's charter is *stateless
+pure functions*, and a bit writer is stateful machinery, so lifting it
+would widen g_lib's charter for a ~60-line file.  Decided once here;
+if a third consumer appears, lift into an `internal/` package instead.
+
+== Usage
+
+[source,go]
+----
+blob := huffman.Compress(data)  // self-describing: trie + count + codewords
+back := huffman.Expand(blob)    // == data, or nil if malformed
+----
+
+== Thread safety
+
+`Compress` and `Expand` are *stateless functions*: they hold no
+package-level state and never modify their input, so they are safe for
+concurrent use with no synchronization.  There is no `_ts` twin —
+there is nothing for a lock to protect.
+
+== Deviations from algs4
+
+* The symbol count is 64 bits, not algs4's 32-bit Java `int` — a Go
+  slice can exceed 4 GiB, and 8 bytes of header is noise.  (The stream
+  is therefore not wire-compatible with algs4's; as with lzw, the
+  comparison is semantic — `Expand(Compress(x)) == x` — not bytewise.)
+* The empty input is handled (empty ↔ empty); algs4's `compress`
+  crashes on it (its trie build pops from an empty priority queue).
+  Single-symbol input works in both — algs4 also assigns the empty
+  codeword — but algs4 never documents it.
+* `readTrie` caps the trie at 511 nodes and `Expand` sanity-checks the
+  count; algs4 trusts its input streams blindly (a malformed stream
+  recurses until stack exhaustion).
+* Tie-breaking is fixed (deterministic output); algs4's `MinPQ` order
+  is an implementation accident.
