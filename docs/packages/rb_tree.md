@@ -1,0 +1,6 @@
+# rb_tree notes
+
+`RbTree[T any]` is a leaner API than the other trees: no `Index`, `Reverse`, `Walk*`, `Front`, or set operations — just insert/search/delete/min/max/head-tail removal, `Dump` (color-aware format: `RbTree (empty)` or a header plus `data(R|B)` lines), and `All`/`Backward`.  Nodes carry parent pointers, so the iterators are successor/predecessor walks with O(1) extra space (`successor`/`predecessor` in iter.go).  Insert/delete are CLRS-style: red new node + `insertFixup`, `transplant` + `deleteFixup(x, xParent)` (the parent is passed separately because x may be nil).  `DeleteAtHead`/`DeleteAtTail` call `deleteNode(minNode/maxNode(root))` directly — one descent, no re-search through `Delete`.  `checkInvariants` in rb_tree_test.go verifies all five red-black properties plus parent-pointer integrity — call it after any structural change.
+
+`rb_tree_ts` adds the `lock sync.RWMutex`; its unexported helpers (rotations, fixups, `findNode`, `deleteNode`, `nodeDepth`) are the lock-free internals that the locked public methods call.  Its snapshot (`toSlice`) walks the parent pointers under the read lock.  Never call one locked public method from inside another (see `Dump`, which uses the lock-free `nodeDepth` instead of calling `Depth`).
+

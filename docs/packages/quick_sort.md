@@ -1,0 +1,4 @@
+# quick_sort notes
+
+`quick_sort` is Sedgwick's §2.3 3-way quicksort as stateless in-place slice sorts: `Sort[T cmp.Ordered](data []T)` / `SortFunc[T any](data []T, cmp func(a, b T) int)` — Dijkstra Dutch-national-flag partitioning (algs4 `Quick3way`), NOT stable. Because a library cannot pre-shuffle like the textbook client, robustness comes from median-of-3 pivot selection, an insertion-sort cutoff at ≤ 12, and recurse-smaller-side/loop-larger-side (O(log n) stack) — all documented deviations in the README. All-equal-key input is O(n). Panic contract: exactly 1 (`SortFunc` with nil cmp, naming the function); nil/empty/single slices are no-ops. Stateless → no `_ts` twin. `thorough_test.go` cross-checks against `slices.Sort` (sortedness + multiset equality) at fixed seed 42 (`rand.NewPCG(42, 7)`), including adversarial shapes and a 1M sorted/reverse-sorted stack-depth test.
+

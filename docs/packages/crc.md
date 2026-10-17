@@ -1,0 +1,4 @@
+# crc notes
+
+`crc` is the stateless utility package of table-driven reflected CRC checksums: `MakeTable32`/`MakeTable64(poly)`, `Update32`/`Update64`, `Checksum32`/`Checksum64`, with exported polynomials (`IEEE`/`Castagnoli`/`Koopman`, `ECMA`/`ISO` — same numeric values as stdlib) and prebuilt package-level tables (`IEEETable`...`ISOTable`). Bit-identical to stdlib `hash/crc32`/`hash/crc64` for shared polynomials — which means CRC-64/ECMA here yields the CRC-64/XZ value `0x995DC9BBDF1939FA` for "123456789" (stdlib's all-ones init/xorout convention), NOT the catalogue's `0x6C40DF5F0B497347`; the README explains this — don't "fix" it to the catalogue value, the stdlib cross-check in thorough_test.go (seed 42, one-shot and random-cut chunked, lengths 0..5000) is the contract. Pure functions, safe for concurrent use. Nil-table calls panic naming the method and fix. `b_tree_disk_ts`'s journal uses `crc.CastagnoliTable`.
+

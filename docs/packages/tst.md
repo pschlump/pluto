@@ -1,0 +1,4 @@
+# tst notes
+
+`Tst[T any]` is Sedgwick's §5.5 TST — the memory-efficient sibling of `trie`: one node per byte (`c byte; left, mid, right`), three pointers, no 256-way arrays. Identical API surface to `trie` with one contract difference: the **empty key is rejected** (`Insert("")` returns false, Search not-found — algs4 throws; pluto reports). `Delete` clears the value and prunes childless value-less branches (algs4's TST has no delete); a full drain restores `root == nil`. Key reconstruction must use `string([]byte{x.c})` — `string(x.c)` converts the byte to a rune and corrupts non-ASCII keys (the UTF-8 test guards this). Same constructor-free contract as `trie` (zero value usable, single nil-`Insert` panic). `tst_ts` is the twin, same pattern as `trie_ts` (snapshot iterators, real `Lock`/`Unlock` + `Nl*`, race tests `TestTstConcurrent`/`TestConcurrentCompound`; main source file keeps the plain package's name, `tst_ts/tst.go`, per house convention).
+

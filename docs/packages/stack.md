@@ -1,0 +1,8 @@
+# stack notes
+
+`Stack[T any]` is the constraint-free LIFO twin of `queue`: struct wrapping the slice, no constructors, zero value fully usable, single panic = `Push` on a nil stack.  `Pop` zeroes the vacated slot and nils the slice on full drain (like `queue`'s `popHead`).  `Pop`/`Peek` return `(T, error)`.  `All` numbers from 0 at the **top** (most recently pushed) going down; `Backward` from 0 at the bottom going up; both reflect the live stack.  Error API: `ErrEmptyStack`.
+
+`stack_ts` is the twin with the `lock sync.RWMutex` and the lock-free internals (`noLockIsEmpty`/`noLockPop`, which keeps the plain package's memory behavior — zero the slot, nil the slice on full drain); it is pluto/stack plus the lock.  Nil guards come **before** the lock acquisition, and `All`/`Backward` copy a **value snapshot at call time** under the read lock (the plain package's iterators walk the live stack — `TestIteratorSnapshotSemantics` in thorough_test.go checks the inverted contract).  Race coverage lives in `TestStackConcurrent` (producers/consumers plus observers hammering the read ops and the snapshot iterator); point stable-memory callers at `stack_sll_ts`.
+
+`stack_sll_ts` is the thread-safe LIFO stack on a singly linked list (**self-contained**, not a wrapper over `sll_ts`, because `sll_ts` requires an equality function at insert, which a stack never uses — wrapping would break the constraint-free contract).  Own `ErrEmptyStack`, eager value-snapshot `All`/`Backward`, same single-panic contract, and stable O(1) memory per push/pop (one node allocation per push; point slice-window callers here or at `dll`).
+
