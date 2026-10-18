@@ -1,0 +1,89 @@
+= tree_set_ts
+
+The thread-safe twin of link:../tree_set/[tree_set] — the same sorted
+`TreeSet[T]` surface (the avl_tree facade with the full
+set-capabilities menu) behind a single `sync.RWMutex`, plus the
+compound-operation `Nl*` methods.
+
+== Composition
+
+A **wrapper over a plain tree_set value** (the kd_tree_ts pattern, not
+a re-implementation):
+
+[source,go]
+----
+type TreeSet[T any] struct {
+    inner tree_set.TreeSet[T]
+    lock  sync.RWMutex
+    cmp   func(a, b T) int // the twin's own copy: adoption and Range bounds
+}
+----
+
+* The twin keeps its **own copy of the comparison function** —
+  tree_set does not export its comparator.  The algebra's zero-value
+  adoption and `Range`'s bounds read it, always under a lock; another
+  set's algebra reads it under this set's read lock, which is why
+  `snapshot()` returns the elements and the comparator together.
+* Nil guards come **before** lock acquisition (a nil-receiver
+  `lock.RLock()` would itself panic); write-contract panics carry the
+  `tree_set_ts:` prefix.  A store through `NlInsert` on a zero-value
+  twin reaches the plain package's own contract and carries the
+  `tree_set:` prefix.
+* `All` / `Backward` / `Range` yield **snapshots** taken under the read
+  lock — safe to mutate the set from inside the loop, the inverted
+  contract from the plain package's live walks.
+* The `Walk*` callbacks traverse the **live** set with the read lock
+  held for the whole traversal — atomic to concurrent writers, but a
+  callback must not call back into the set (use `All` for that).
+
+== Locking behavior
+
+* **Reads** — `Search`, `Contains`, `Floor`, `Ceil`, `FindMin`,
+  `FindMax`, `Index`, `Len`, `Length`, `IsEmpty`, `Slice`,
+  `ContainsSlice`, `ContainsAny`, the relations, `MarshalJSON` — take
+  the read lock for the whole call.
+* **Writes** — `Insert`, `InsertSlice`, `InsertIter`, `Delete`,
+  `DeleteSlice`, `DeleteFunc`, `DeleteAtHead`, `DeleteAtTail`,
+  `Truncate`, the algebra, `UnmarshalJSON` — take the write lock once
+  for the whole operation: a batch is atomic to concurrent readers.
+* **Callbacks run unlocked on a snapshot**: `StringFunc`'s format
+  function and `DeleteFunc`'s predicate may safely call back into the
+  set.  `InsertIter` drains its iterator before the write lock is
+  acquired, so feeding a set its own `All()` is safe.
+* **Cross-set operations never hold two locks at once**: `Equal` and
+  the relations snapshot the receiver and probe the other set one
+  self-locking call at a time; the algebra snapshots each operand under
+  that operand's read lock (released), rebuilds locally and installs
+  under the receiver's write lock.  Two goroutines may touch the same
+  pair of sets in opposite directions without deadlock.  The price is
+  inherent: an algebra operation is atomic *per set*, not across sets.
+
+== The canonical compound
+
+The `Nl*` forms — `NlInsert`, `NlDelete`, `NlSearch`, `NlContains`,
+`NlLen`, `NlIsEmpty` — take no lock, for multi-step sequences run under
+one hold of `Lock`:
+
+[source,go]
+----
+set.Lock()
+if _, found := set.NlSearch(key); !found {
+    set.NlInsert(key) // the check-and-insert pair is one atomic step
+}
+set.Unlock()
+----
+
+== Panics
+
+The same contract as the plain package, with twin-named messages:
+`NewTreeSetFunc(nil)` / `FromSliceFunc(nil, …)` at construction, and
+storing (`Insert`, the batch inserters, `UnmarshalJSON` with elements)
+on a nil set or a zero-value set.  An empty batch is tolerated
+everywhere; every read treats both as the empty set.
+
+== Thread safety
+
+Safe for concurrent use by multiple goroutines.  Run the package's
+tests with `-race` (`make race` from the repo root) — the battery
+includes the concurrent read/write trio, batch atomicity, the
+opposite-direction no-deadlock pair, and adoption-under-race.

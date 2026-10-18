@@ -211,7 +211,7 @@ Small constructor-style query objects added to the existing packages (and mirror
 
 * `binary_search_st` (`BinarySearchST`, §3.1) — sorted-array symbol table with `Rank`/`Floor`/`Ceiling`; overlaps `skip_list` capability-wise, but it is *the* array-ST classic and trivially cheap.
 * `symbol_graph` (`SymbolGraph`, §4.1) — string→int vertex facade over `graph`/`digraph`; thin, but every graph client wants it.
-* Set facades — `trie`/`tst`/`patricia` already return keys; a `TrieSet`-style shell is sugar only.
+* Set facades — `trie`/`tst`/`patricia` already return keys; a `TrieSet`-style shell is sugar only.  **Resolved** (set-capabilities plan, 2026-10-17): the tries got the set ergonomics directly (phases 1–3 menus), and the generic sets are the new `hash_set`(+`_ts`) and `tree_set`(+`_ts`) packages (phases 6–7, over `hash_grow` and `avl_tree`); a `TrieSet` is deliberately still not built (plan §7).
 * `suffix_array_x` — 3-way-quicksort suffix construction variant (impl detail; skip unless construction time becomes a benchmark concern).
 * Linear programming — `LinearProgramming`, `TwoPersonZeroSumGame` (§6.5/6.6): heavyweight numeric, pull in only if a numeric-algorithms track is ever wanted.
 * `GraphGenerator`/`DigraphGenerator` — not public packages, but porting a few generators (random, grid, bipartite, tinyDG-style) into shared *test* helpers would harden the randomized graph tests.

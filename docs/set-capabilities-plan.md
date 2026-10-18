@@ -1,7 +1,7 @@
 # Set capabilities & set packages — implementation plan
 
-Status: **phases 0–5 complete** (2026-10-17); phases 6–8 not started — pick up
-at **phase 6**. Phase 0 added
+Status: **phases 0–7 complete** (2026-10-17); phase 8 not started — pick up
+at **phase 8**. Phase 0 added
 `g_lib.FormatSorted`; phase 1 added the full §4.1 menu to all 12 hash
 packages — each package got `capabilities.go`, a mirrored
 `capabilities_test.go` (twins append the concurrency block),
@@ -63,7 +63,30 @@ rebuilds by re-insertion (forest shape not claimed); heap/heap_ts
 `Clone` copies the backing array — the heap property survives exactly,
 no re-heapify.  The twins take sequential snapshots in `Equal` (never
 two locks), snapshot in `Slice`, run the `StringFunc` callback
-unlocked, and add no new `Nl*`.  Gates green at each phase
+unlocked, and add no new `Nl*`.  Phase 6 delivered §5 as the new
+package pair `hash_set`+`hash_set_ts` — a facade over `hash_grow`'s
+auto-growing open-addressed table storing its own eq/hash pair
+(adoption + Clone keep a built set usable), with the full §5 menu:
+batches returning "receiver changed", `String` via `FormatSorted`
+(deterministic despite per-table random seeds), membership `Equal`,
+destination-form algebra with snapshotted operands and zero-value
+adoption, the six relations, JSON that replaces contents but keeps the
+functions, and the five `Nl*` riders on the twin (a kd_tree_ts-style
+wrapper: one value + one RWMutex, batches under a single write lock,
+two-set ops snapshot each operand under its own lock, compute locally,
+swap in).  Phase 7 delivered §6 as the matching ordered pair
+`tree_set`+`tree_set_ts` over `avl_tree` — thin delegation for the
+algebra and riders (avl's destination-form, alias-safe Union et al.),
+NEW surface for the six relations plus `Range(lo,hi) iter.Seq[T]`
+(ascending, inclusive, early-stopping), the facade keeping its own cmp
+copy (the priority_queue precedent) and deliberately NO no-op
+Lock/Unlock (they would make plain TreeSet a sync.Locker and trip
+copylocks on the twin's by-value install); the twin's snapshot returns
+elements+cmp together under one read lock.  Cross-package benchmarks
+complete the §8 three-way: map vs hash engine vs tree engine over both
+int and string keys — the tree pays ~3–10× with one node allocation
+per element, and that is the recorded, documented price of ORDER.
+Gates green at each phase
 commit: `make build test vet race lint`, `gofmt -l .` empty, `go mod
 tidy` leaves no root go.sum.
 

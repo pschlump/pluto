@@ -8,6 +8,8 @@ BSD 3 Clause Licensed.
 
 import (
 	"testing"
+
+	"github.com/pschlump/pluto/tree_set"
 )
 
 // Honest-constants benchmark, the fib_heap/multiway_pq tradition: a
@@ -28,9 +30,11 @@ import (
 // The facade's batch and algebra methods are NOT measured here — they
 // are plain loops over the core, so their constants follow these.
 //
-// The tree_set arm of this comparison (sorted-set semantics over the
-// tree engine) is added by phase 7 of docs/set-capabilities-plan.md, in
-// tree_set/bench_test.go.
+// The tree_set arm below completes the plan §8 three-way comparison on
+// these same keys: hash engine vs tree engine (tree_set, the phase-7
+// facade over avl_tree — O(log₂ n) comparands, ordered iteration in
+// exchange) vs the runtime map.  tree_set/bench_test.go runs the mirror
+// comparison over string keys.
 
 const (
 	benchSmallSize = 1_000
@@ -163,6 +167,59 @@ func BenchmarkMapBoolMixed(b *testing.B) {
 	}
 }
 
+// The tree_set driver — identical workloads over the phase-7 facade on
+// avl_tree, so the three-way table reads off one run of this file.
+
+func runTreeSetInsertAll(b *testing.B, n int) {
+	keys := benchKeys(n)
+	b.ResetTimer()
+	for range b.N {
+		ts := tree_set.NewTreeSet[int]()
+		for _, k := range keys {
+			ts.Insert(k)
+		}
+	}
+	b.StopTimer()
+}
+
+func runTreeSetMixed(b *testing.B, n int) {
+	keys := benchKeys(n)
+	ts := tree_set.NewTreeSet[int]()
+	ts.InsertSlice(keys)
+	misses := make([]int, n)
+	for i := range misses {
+		misses[i] = i*7919 + 1
+	}
+	b.ResetTimer()
+	for range b.N {
+		for i, k := range keys {
+			if i%2 == 0 {
+				ts.Contains(k)
+			} else {
+				ts.Delete(k)
+				ts.Insert(misses[i])
+			}
+		}
+		// restore the full population for the next iteration
+		for _, k := range keys {
+			ts.Insert(k)
+		}
+	}
+	b.StopTimer()
+}
+
+func BenchmarkTreeSetInsertAll(b *testing.B) {
+	for _, sz := range benchSizes {
+		b.Run(sz.name, func(b *testing.B) { runTreeSetInsertAll(b, sz.n) })
+	}
+}
+
+func BenchmarkTreeSetMixed(b *testing.B) {
+	for _, sz := range benchSizes {
+		b.Run(sz.name, func(b *testing.B) { runTreeSetMixed(b, sz.n) })
+	}
+}
+
 // Sanity check that the benchmark drivers actually populate the set —
 // a benchmark measuring empty structures lies.
 func TestBenchDriversPopulate(b *testing.T) {
@@ -181,6 +238,13 @@ func TestBenchDriversPopulate(b *testing.T) {
 		}
 		if len(m) != sz.n {
 			b.Fatalf("size %d: map holds %d elements", sz.n, len(m))
+		}
+		ts := tree_set.NewTreeSet[int]()
+		for _, k := range keys {
+			ts.Insert(k)
+		}
+		if ts.Len() != sz.n {
+			b.Fatalf("size %d: tree set holds %d elements", sz.n, ts.Len())
 		}
 	}
 }

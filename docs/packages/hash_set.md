@@ -165,9 +165,12 @@ checks `inner.Eq() == nil` under the held lock).
 
 ## Benchmarks
 
-`hash_set/bench_test.go`: HashSet vs the `map[T]bool` driver at n = 1k
-and 100k (insert-all + mixed lookup/delete phases) — the honest
-constants tradition: the runtime map (SWISS, incremental growth,
-specialized hashing) wins insert-heavy work and that is documented in
-the file, not hidden; the mixed phase is close.  The tree_set arm of
-the comparison is added by phase 7 in `tree_set/bench_test.go`.
+`hash_set/bench_test.go`: HashSet vs tree_set vs the `map[T]bool`
+driver at n = 1k and 100k over int keys (insert-all + mixed
+lookup/delete phases) — the honest constants tradition: the runtime
+map (SWISS, incremental growth, specialized hashing) wins
+insert-heavy work and that is documented in the file, not hidden; the
+mixed phase is close.  The tree_set arm (one node allocation per
+element, ~3–8× HashSet's constants across both phases at n=100k) is
+the price of its ordered riders.  `tree_set/bench_test.go` runs the
+mirror three-way over string keys.

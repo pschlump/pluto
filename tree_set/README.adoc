@@ -1,0 +1,162 @@
+= tree_set
+
+A generic *sorted set* of unique elements — the algs4 `SET` analog with
+Go generics and no interfaces.  It is a thin facade over
+link:../avl_tree/[`avl_tree`] (the `priority_queue`-over-`heap`
+composition precedent): the whole surface delegates to a wrapped
+`AvlTree[T]`, so `Insert`, `Delete` and `Search` are *O(log₂ n) in the
+worst case* regardless of insertion order, and every walk is already in
+ascending order — the order is free, no sorting anywhere.
+
+Ordering never goes through an interface method, so element data is
+never boxed into an interface and never unboxed with a type assertion.
+
+* Elements are stored and returned *by value* (`T`, not `*T`); find-style
+  operations return `(T, bool)`.
+* Sets of ordered element types (integers, floats, strings) are ordered by
+  the built-in `<` / `>` operators: `tree_set.NewTreeSet[int]()`.
+* Sets of any other type — including structs ordered by a single field —
+  take a plain comparison function, with no interface to implement:
+  `tree_set.NewTreeSetFunc(func(a, b Item) int { ... })`.
+* `FromSlice` / `FromSliceFunc` build a set from data in one step.
+
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and appear
+on pkg.go.dev.
+
+== Operations
+
+[options="header"]
+|===
+| Operation                                                        | Description                                        | Complexity
+
+| `Insert`                                                         | Add an element; duplicates replace the old data    | O(log₂ n)
+| `Delete`                                                         | Remove an element; reports whether it was found    | O(log₂ n)
+| `Search` / `Contains`                                            | Return / test membership of an equal element       | O(log₂ n)
+| `FindMin` / `FindMax`                                            | Return the smallest / largest element              | O(log₂ n)
+| `Floor` / `Ceil`                                                 | Largest element ≤ key / smallest ≥ key             | O(log₂ n)
+| `DeleteAtHead` / `DeleteAtTail`                                  | Remove the smallest / largest element              | O(log₂ n)
+| `Index`                                                          | Return the pos-th element, ascending (0-based)     | O(n)
+| `Range`                                                          | Iterate lo ≤ x ≤ hi, ascending, inclusive          | O(n)
+| `IsEmpty` / `Len` / `Length`                                     | Size queries                                       | O(1)
+| `Truncate`                                                       | Remove all elements (keeps the comparator)         | O(1)
+| `InsertSlice` / `InsertIter`                                     | Batch insert (slice / range-over-func)             | O(k·log₂ n)
+| `DeleteSlice` / `DeleteFunc`                                     | Batch / predicate bulk delete                      | O(n log₂ n)
+| `ContainsSlice` / `ContainsAny`                                  | Membership batches: all / at least one             | O(k·log₂ n)
+| `Slice` / `String` / `StringFunc`                                | Materialize / render, ascending                    | O(n)
+| `Equal` / `Clone`                                                | Same-set equality / deep copy                      | O(n log₂ n) / O(n)
+| `Union` / `Intersect` / `Minus` / `SymmetricDifference`          | Set algebra (destination form)                     | O((n+m)·log₂(n+m))
+| `IsSubsetOf` / `IsProperSubsetOf` / `IsSupersetOf` /             | Relation predicates (receiver-first)               | O(n·log₂ m)
+| `IsProperSupersetOf` / `IsDisjointWith`                          |                                                    |
+| `All` / `Backward`                                               | Range-over-func iterators, ascending / descending  | O(n)
+| `WalkInOrder` / `WalkPreOrder` / `WalkPostOrder`                 | Callback walks                                     | O(n)
+| `MarshalJSON` / `UnmarshalJSON`                                  | JSON array round trip (ascending, canonical)       | O(n) / O(k·log₂ k)
+|===
+
+The set is *not* safe for concurrent use; see the
+link:../tree_set_ts/[`tree_set_ts`] twin.
+
+== Usage
+
+[source,go]
+----
+set := tree_set.NewTreeSet[string]()
+set.InsertSlice([]string{"pear", "apple", "fig"})
+
+fmt.Println(set)        // [apple fig pear] — the walk is already sorted
+v, found := set.Floor("dog") // cat would be here; dog rounds down
+----
+
+Structs ordered by a field — the element type implements no interface:
+
+[source,go]
+----
+type Employee struct {
+    ID   int
+    Name string
+}
+
+byID := tree_set.NewTreeSetFunc(func(a, b Employee) int {
+    return cmp.Compare(a.ID, b.ID)
+})
+byID.Insert(Employee{ID: 3, Name: "Ada"})
+
+// A search probe only needs the fields the comparison reads: the ID.
+if e, found := byID.Search(Employee{ID: 3}); found {
+    fmt.Println(e.Name) // Ada
+}
+----
+
+== Set operations
+
+`Union`, `Intersect`, `Minus` and `SymmetricDifference` follow
+avl_tree's destination-form contract verbatim: the receiver becomes
+yy ∪/∩/−/△ zz, rebuilt from snapshots of the operands, so either operand
+may safely alias the receiver (`s.Union(s, s)` is `s`).  If an element
+is in both operands the one from `zz` is kept.  The result is ordered by
+the receiver's comparison function; a zero-value receiver adopts yy's
+(then zz's) and becomes a fully working set:
+
+[source,go]
+----
+a := tree_set.FromSlice([]int{1, 2, 3})
+b := tree_set.FromSlice([]int{2, 3, 4})
+
+var union tree_set.TreeSet[int] // zero value adopts a's comparison
+union.Union(a, b)               // {1, 2, 3, 4} — and is refillable after
+
+var sym tree_set.TreeSet[int]
+sym.SymmetricDifference(a, b) // {1, 4} — in exactly one operand
+----
+
+The relation predicates read receiver-first: `s.IsSubsetOf(other)`,
+`s.IsProperSubsetOf`, `s.IsSupersetOf` (other's subset test), and
+`s.IsDisjointWith(other)` — the empty set is a subset of every set and
+disjoint with every set.  `Equal` compares membership, never tree
+shape.  All cross-set operations share one precondition: the sets
+involved must use consistent comparison functions (functions are not
+comparable, so this cannot be checked — two sets built by the same
+constructor over the same element type always satisfy it).
+
+== Iteration
+
+* `All()` / `Backward()` — range-over-func iterators (Go 1.23+),
+  ascending / descending.
+* `Range(lo, hi)` — the bounded form, inclusive on both ends, `lo > hi`
+  iterates as empty.  It is an `iter.Seq[T]` (a set element carries no
+  index/rank) and walks from the smallest element, stopping once past
+  `hi` — O(n) worst case, not skip_list's O(log₂ n + m) positioned
+  descent; that is the documented price of the avl facade reuse.
+* `WalkInOrder` / `WalkPreOrder` / `WalkPostOrder` — callback walks
+  (position, depth, data); returning `false` stops the walk.
+
+It is not safe to modify the set while an iterator or walk is in
+progress.
+
+== JSON
+
+A set marshals as a JSON array of its elements in ascending order — the
+canonical form two equal sets encode identically.  `UnmarshalJSON`
+replaces the contents, keeps the comparison function and collapses
+duplicates as inserting them in order would; a decode error leaves the
+set untouched.
+
+== Panics
+
+The package panics in exactly these situations — all programmer errors
+with no sane fallback:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewTreeSetFunc(nil)` / `FromSliceFunc(nil, …)` | nil comparison function, caught at construction time
+| `Insert` on a nil `*TreeSet` or a zero-value set | no comparison function to store under; the message names the constructors
+|===
+
+The batch inserters `InsertSlice`/`InsertIter` and `UnmarshalJSON`
+raise the same insert contract when, and only when, they would actually
+store an element — an empty batch is tolerated everywhere.  Everything
+else treats a nil set and the zero value as an empty set: not-found
+answers, `Len` 0, empty iterations, and nil operands to the algebra and
+relations (which act as the empty set).
