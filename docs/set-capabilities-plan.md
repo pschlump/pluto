@@ -1,7 +1,7 @@
 # Set capabilities & set packages — implementation plan
 
-Status: **phases 0–7 complete** (2026-10-17); phase 8 not started — pick up
-at **phase 8**. Phase 0 added
+Status: **phases 0–8 complete** (2026-10-18) — the plan is fully
+delivered. Phase 0 added
 `g_lib.FormatSorted`; phase 1 added the full §4.1 menu to all 12 hash
 packages — each package got `capabilities.go`, a mirrored
 `capabilities_test.go` (twins append the concurrency block),
@@ -86,6 +86,12 @@ elements+cmp together under one read lock.  Cross-package benchmarks
 complete the §8 three-way: map vs hash engine vs tree engine over both
 int and string keys — the tree pays ~3–10× with one node allocation
 per element, and that is the recorded, documented price of ORDER.
+Phase 8 closed the plan: the deferred §4.6 cache capability —
+`String`/`StringFunc` on `lru`(+_ts) and `lfu`(+_ts), keys only (the
+tries' rule), lru in All's MRU→LRU order and lfu sorted (the
+hash-family rule), clock-invariant and parity-pinned against the plain
+packages — plus the §9 doc cross-updates (README rows, package notes,
+§4.6 annotated).
 Gates green at each phase
 commit: `make build test vet race lint`, `gofmt -l .` empty, `go mod
 tidy` leaves no root go.sum.
@@ -353,8 +359,12 @@ binomial_queue)
   `segment_tree`/`fenwick_tree` (array-indexed, wrap caller storage),
   `bloom`/`hyperloglog` (+twins — approximate: exact `Equal`/subset is
   meaningless; they already have `Clone`/`Merge` where sensible).
-- `lru`/`lfu` (+twins): ○ `String()` only, in `All()` order — deferred to
-  the last phase; everything else is eviction-order-sensitive and murky.
+- `lru`/`lfu` (+twins): ○ `String()` only, in `All()` order — **delivered
+  (phase 8)**: lru renders the keys MRU→LRU (All's order, no sorting —
+  recency is data), lfu renders the keys as sorted formatted strings
+  (the hash-family rule — no natural walk order), both keys-only per
+  the tries' precedent, with `StringFunc` alongside; everything else
+  stays out — eviction-order-sensitive and murky.
 
 ---
 

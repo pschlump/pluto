@@ -48,6 +48,7 @@ flush, and the flusher shrinks it back under.
 | `Len` / `Capacity`           | Size queries (Len may exceed Capacity under the soft cap)                                | O(1)
 | `Clear`                      | Drop all entries, keep capacity and veto                                                 | O(n)
 | `All` / `Backward`           | Iterators, MRU→LRU / LRU→MRU (`iter.Seq2[K, V]`; a single-variable range yields the KEY) | O(n)
+| `String` / `StringFunc`      | Keys only, joined in brackets in `All`'s MRU→LRU order (values via `All`/`Peek`); `StringFunc` takes a per-key format | O(n)
 |===
 
 `All` and `Backward` walk the live recency list, so the cache must not

@@ -28,8 +28,11 @@ BSD 3 Clause Licensed.
 //	                     walks the snapshot, so it is safe to mutate
 //	                     the cache (even from inside the loop).  This
 //	                     differs from the plain package, whose
-//	                     iterators walk the live list in O(1) extra
+//		                     iterators walk the live list in O(1) extra
 //	                     space.
+//	String / StringFunc — All's snapshot discipline (the keys rendered
+//	                     MRU→LRU, same string as the plain package);
+//	                     a StringFunc callback runs outside the lock.
 //
 // The eviction-veto callback (NewLruFunc) runs INSIDE Put while the
 // write lock is held: the callback must not call any method on the

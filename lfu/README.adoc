@@ -39,6 +39,7 @@ with the keyspace.
 | `Len`                                    | Number of keys                                                             | O(1)
 | `Truncate`                               | Drop every key, keeping the configuration                                  | O(n)
 | `MorrisCounter.Incr` / `Decay` / `Value` | The standalone 8-bit counter                                               | O(1)
+| `String` / `StringFunc`      | Keys only, formatted strings sorted (the hash-family determinism rule — slot order is per-table random); counters via `Counter` | O(n log n)
 |===
 
 Constructors: `NewLfu(logFactor, decayTimeMinutes)` uses the wall

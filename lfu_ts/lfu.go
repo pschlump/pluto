@@ -37,7 +37,10 @@ BSD 3 Clause Licensed.
 //
 // Alongside the borrowed table the twin tracks the keys in
 // first-insert order (the borrowed table has no key iterator), which
-// MarshalJSON enumerates and Len-cost reads never touch.
+// MarshalJSON enumerates and Len-cost reads never touch — and which
+// String / StringFunc snapshot under the read lock to render the keys
+// as sorted formatted strings, byte-identical to the plain package's
+// rendering (the callback runs outside the lock, on the snapshot).
 //
 // See the lfu package documentation for the counter contracts (the
 // LFULogIncr math, decay-from-elapsed-time, the 16-bit minute clock

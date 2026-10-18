@@ -30,6 +30,9 @@ BSD 3 Clause Licensed.
 //	Len / Capacity — size queries.
 //	Clear — drop every entry, keeping the capacity and the veto.
 //	All / Backward — range-over-func iterators (MRU→LRU / LRU→MRU).
+//	String / StringFunc — render the KEYS in All's MRU→LRU order
+//	      (StringFunc with a caller-supplied per-key format); the values
+//	      are not rendered — use All or Peek for them.
 //
 // A nil *Lru and the zero value both behave as an empty cache for every
 // operation that has a sane answer: Get and Peek report not-found,

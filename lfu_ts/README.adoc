@@ -17,6 +17,7 @@ aliases of the plain package's.
 | `Counter`               | read  | Decay-adjusted frequency (the OBJECT FREQ / eviction view), pure
 | `IdleMinutes`           | read  | Minutes since the last Touch/Add
 | `Len`                   | read  | Number of keys
+| `String`, `StringFunc`  | read (keys snapshotted under it; the format callback runs unlocked) | Keys only, sorted — byte-identical to the plain package's rendering
 | `Lock`/`Unlock` + `Nl*` | held  | Compound operations (below)
 |===
 

@@ -17,6 +17,7 @@ eviction, one cache per shard (request `note/06-lru-ts.md`).
 | `Peek`, `Len`, `Capacity`       | read     | true reads
 | `Put`, `Delete`, `Clear`        | write    | mutations
 | `All`, `Backward`               | read (held only while the snapshot is materialized) | see below
+| `String`, `StringFunc`          | read (via `All`'s snapshot; the format callback runs unlocked) | keys only, MRU→LRU — same rendering as the plain package |
 | `Lock`/`Unlock` + `Nl*`         | held     | compound operations
 |===
 

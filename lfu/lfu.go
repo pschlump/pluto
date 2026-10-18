@@ -30,6 +30,10 @@ BSD 3 Clause Licensed.
 //	Counter — the decay-adjusted frequency (OBJECT FREQ), read-only.	O(1) average
 //	IdleMinutes — minutes since the last Touch/Add.					O(1) average
 //	Delete / Len / Truncate — the table plumbing.					O(1) / O(1) / O(n)
+//	String / StringFunc — render the keys, formatted strings sorted		O(n log n)
+//	      (the hash-family determinism rule — the backing table's slot
+//	      order is per-table random).  The counters are not rendered —
+//	      use Counter for them.
 //
 // A nil *Lfu and the zero value behave as an empty table for every read
 // (Counter and IdleMinutes report not-found, Delete returns false, Len
