@@ -34,22 +34,22 @@ Same as `avl_tree`:
 
 [options="header"]
 |===
-| Operation                                       | Complexity
+| Operation                                              | Complexity
 
-| Insert / Delete / Search                        | O(log₂ n) worst case
-| FindMin / FindMax / DeleteAtHead / DeleteAtTail | O(log₂ n) worst case
-| Floor / Ceil                                    | O(log₂ n) worst case
-| Index                                           | O(n)
-| Depth / IsEmpty / Len / Length / Truncate       | O(1)
-| Walk* / WalkFunc / Dump                         | O(n)
-| All / Backward (full iteration)                 | O(n) — plus an O(n) snapshot
+| Insert / Delete / Search                               | O(log₂ n) worst case
+| FindMin / FindMax / DeleteAtHead / DeleteAtTail        | O(log₂ n) worst case
+| Floor / Ceil                                           | O(log₂ n) worst case
+| Index                                                  | O(n)
+| Depth / IsEmpty / Len / Length / Truncate              | O(1)
+| Walk* / WalkFunc / Dump                                | O(n)
+| All / Backward (full iteration)                        | O(n) — plus an O(n) snapshot
 | Copy / Union / Minus / Intersect / SymmetricDifference | O(n log₂ n)
-| Contains                                        | O(log₂ n) worst case
-| ContainsSlice / ContainsAny                     | O(k·log₂ n) — atomic
-| InsertSlice / InsertIter                        | O(k·log₂ n) — atomic
-| DeleteSlice / DeleteFunc                        | O(n log₂ n) — DeleteFunc's predicate runs unlocked
-| Slice / String / StringFunc                     | O(n) — snapshot under the read lock, format unlocked
-| Equal / Clone                                   | O(n log₂ n) / O(n) — never two locks
+| Contains                                               | O(log₂ n) worst case
+| ContainsSlice / ContainsAny                            | O(k·log₂ n) — atomic
+| InsertSlice / InsertIter                               | O(k·log₂ n) — atomic
+| DeleteSlice / DeleteFunc                               | O(n log₂ n) — DeleteFunc's predicate runs unlocked
+| Slice / String / StringFunc                            | O(n) — snapshot under the read lock, format unlocked
+| Equal / Clone                                          | O(n log₂ n) / O(n) — never two locks
 |===
 
 `Insert` returns `true` when a new node was added and `false` when a
