@@ -37,7 +37,11 @@ of the plain package's live-walk `Range`).
 `Floor`, `CountRange`, `Len`, `Length`, `IsEmpty`) take the read lock and
 release it before returning — they can run in parallel with each other.
 * *Writes* (`Insert`, `Delete`, `DeleteAtHead`, `DeleteAtTail`,
-`DeleteRange`, `DeleteByRank`, `Truncate`) take the write lock.
+`DeleteRange`, `DeleteByRank`, `Truncate`) take the write lock.  The
+*batch mutators* (`InsertSlice`, `InsertIter`, `DeleteSlice` and the
+delete pass of `DeleteFunc`) hold the write lock once for the whole
+batch, so a batch is atomic: an interleaved reader sees none or all of
+it, never part.
 * *`All` and `Backward` operate on a snapshot* of the list taken when
 they are called (under the read lock, released immediately after).  It
 is safe to mutate the list while iterating — including from inside the
@@ -48,6 +52,17 @@ range* (plus the O(log₂ n) descent to it), so they cost O(log₂ n + m) —
 not the O(n) of a full snapshot — with the same safety: mutate the list
 freely while iterating.  They yield `(index, value)` pairs where index is
 the element's global 0-based rank.
+* *Compute-after-snapshot methods* (`Slice`, `String`, `StringFunc`,
+`Equal`, `DeleteFunc`'s match pass) snapshot under the read lock and run
+the caller format or predicate function *without* any lock held — a
+callback may safely call back into the list.  `Equal` snapshots one side
+and probes the other one element at a time, so it never holds two locks —
+not even when two goroutines compare the same pair of lists in opposite
+directions.  The membership batches `ContainsSlice`/`ContainsAny` hold
+the read lock for the whole batch, so the answer describes one consistent
+snapshot.  `Clone` snapshots under the read lock and re-inserts into the
+local copy without any lock held (fresh tower heights, identical
+contents).
 * *`Lock`/`Unlock` expose the real write lock*, and the `Nl*` methods
 (`NlIsEmpty`, `NlLen`, `NlRank`, `NlAtIndex`, `NlCeil`, `NlFloor`,
 `NlCountRange`, `NlDeleteRange`, `NlDeleteByRank`) are the lock-free
@@ -67,6 +82,11 @@ Calling a public method while `Lock` is held deadlocks — use the `Nl*`
 forms inside the critical section.
 * *`Dump` holds the read lock for the whole dump*, so the writer must
 not call methods on the same list.
+
+The go-set-style surface (`Contains`, the batches, `Slice`, `String`,
+`Equal`, `Clone`) behaves exactly as documented in the
+link:../skip_list/[skip_list README]; `capabilities.go` adds it behind the
+locks described above.
 
 [source,go]
 ----
@@ -91,6 +111,13 @@ all programmer errors with no sane fallback:
 
 Everything else tolerates a nil list and the zero value as an empty list
 (the zero value of `sync.RWMutex` is a working lock).
+
+The batch inserters `InsertSlice`/`InsertIter` raise the same insert
+contract as `Insert` — a nil list or a zero-value list panics when, and
+only when, the batch would actually store an element; an empty batch is
+tolerated everywhere.  Every other capability is a total function on the
+read side (`Slice` of nil is nil, `String` of nil is `[]`, `Equal` of nil
+is equality with an empty list, `DeleteFunc` on nil returns false).
 
 == Usage
 

@@ -28,10 +28,19 @@ on pkg.go.dev).
 | Insert                            | O(log₂ n) average, O(n) worst
 | Delete / DeleteMatch              | O(log₂ n) average, O(n) worst
 | Search                            | O(log₂ n) average, O(n) worst
+| Contains                          | O(log₂ n) average, O(n) worst
 | FindMin / FindMax                 | O(log₂ n) average, O(n) worst
 | DeleteAtHead / DeleteAtTail       | O(log₂ n) average, O(n) worst
+| InsertSlice / InsertIter          | O(k·log₂ n) average, O(n·k) worst
+| DeleteSlice                       | O(k·log₂ n) average, O(n·k) worst
+| DeleteFunc                        | O(n log₂ n) average, O(n²) worst
+| ContainsSlice / ContainsAny       | O(k·log₂ n) average, O(n·k) worst
 | Index                             | O(n)
 | Depth                             | O(n)
+| Slice                             | O(n)
+| String / StringFunc               | O(n)
+| Equal                             | O(n log₂ n) average, O(n²) worst
+| Clone                             | O(n)
 | Walk* / WalkFunc / Dump           | O(n)
 | All / Backward (full iteration)   | O(n)
 | IsEmpty / Len / Length / Truncate | O(1)
@@ -42,6 +51,28 @@ randomly ordered input and O(n) in the worst case (sorted input builds a
 degenerate chain).  Insert of a duplicate replaces the stored value in
 place and returns `false`; a new element returns `true`.  `Truncate` and
 `Delete` drop node references so the garbage collector can reclaim them.
+
+=== Set-convenience capabilities
+
+`capabilities.go` adds the go-set-style surface, all of it additive.
+Ordering comes free — every walk is the in-order traversal:
+
+* Materialization and rendering: `Slice()` (fresh `[]T`, ascending),
+  `String()` / `StringFunc(format)` — `fmt.Sprint` or a caller format,
+  joined with spaces in brackets: `[a b c]`.
+* Equality and copy: `Equal(other)` — same element set, membership only
+  (never tree shape); both trees must use consistent comparison
+  functions.  `Clone()` — deep copy keeping the comparison function and
+  the receiver's shape.
+* Membership: `Contains(x)` (the found flag of `Search`), and the batches
+  `ContainsSlice(items)` / `ContainsAny(items)` (all / at least one).
+* Mutation batches: `InsertSlice(items)` / `InsertIter(seq)` /
+  `DeleteSlice(items)` — true when the receiver changed; `InsertIter`
+  drains its iterator before inserting, so feeding a tree its own `All()`
+  is safe.
+* `DeleteFunc(fx)` — bulk delete by predicate, collect-then-delete: the
+  in-order snapshot is taken first, the matches deleted afterwards, so
+  the walk is never corrupted.
 
 `DeleteAtHead` / `DeleteAtTail` splice the extreme node out in a single
 descent from the root, rather than requiring a `FindMin` / `FindMax`
@@ -192,4 +223,11 @@ Everything else tolerates a nil tree and the zero value as an empty tree:
 `Search` finds nothing, `Delete`/`DeleteAtHead`/`DeleteAtTail` return
 `false`, `FindMin`/`FindMax`/`Index` report not-found, `Len` and `Depth`
 are 0, and the walks and iterators visit nothing.
+
+The batch inserters `InsertSlice`/`InsertIter` raise the same insert
+contract as `Insert` — a nil tree or a zero-value tree panics when, and
+only when, the batch would actually store an element; an empty batch is
+tolerated everywhere.  Every other new method is a total function on the
+read side (`Slice` of nil is nil, `String` of nil is `[]`, `Equal` of nil
+is equality with an empty tree, `DeleteFunc` on nil returns false).
 

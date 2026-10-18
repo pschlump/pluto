@@ -58,11 +58,47 @@ elements costs O(m log₂ n) overall.
 | Dump                              | O(n)
 | All / Backward (full iteration)   | O(n)
 | IsEmpty / Len / Length / Truncate | O(1)
+| Contains                          | O(log₂ n) amortized (a hit splays)
+| ContainsSlice / ContainsAny       | O(k·log₂ n) amortized
+| InsertSlice / InsertIter          | O(k·log₂ n) amortized
+| DeleteSlice / DeleteFunc          | O(n log₂ n) amortized
+| Slice / String / StringFunc       | O(n), no splaying
+| Equal / Clone                     | O(n log₂ n) / O(n)
 |===
 
 Insert of a duplicate replaces the stored value in place and returns
 `false`; a new element returns `true`.  `Truncate` and `Delete` drop node
 references so the garbage collector can reclaim them.
+
+=== Set-convenience capabilities
+
+`capabilities.go` adds the go-set-style surface, all of it additive.
+Ordering comes free — every walk is the in-order traversal:
+
+* Materialization and rendering: `Slice()` (fresh `[]T`, ascending),
+  `String()` / `StringFunc(format)` — `fmt.Sprint` or a caller format,
+  joined with spaces in brackets: `[a b c]`.
+* Equality and copy: `Equal(other)` — same element set, membership only
+  (never tree shape); both trees must use consistent comparison
+  functions.  `Clone()` — deep copy keeping the comparison function and
+  the receiver's shape.
+* Membership: `Contains(x)` (the found flag of `Search`), and the batches
+  `ContainsSlice(items)` / `ContainsAny(items)` (all / at least one).
+* Mutation batches: `InsertSlice(items)` / `InsertIter(seq)` /
+  `DeleteSlice(items)` — true when the receiver changed; `InsertIter`
+  drains its iterator before inserting, so a self-derived sequence is
+  safe (this package's `All` is an `iter.Seq2`, so adapt it — e.g.
+  `slices.Values(tree.Slice())`).
+* `DeleteFunc(fx)` — bulk delete by predicate, collect-then-delete: the
+  in-order snapshot is taken first, the matches deleted afterwards, so
+  the walk is never corrupted.
+
+Splay semantics carry over unchanged: `Contains`/`ContainsSlice`/
+`ContainsAny`/`Equal` are built on `Search`, so a hit splays the found
+element to the root — an access mutates, which is legal and amortized,
+exactly like calling `Search` directly.  The materialization methods
+(`Slice`, `String`, `StringFunc`, `DeleteFunc`'s collect pass) walk
+without splaying, and `Clone` copies structure without splaying.
 
 SplayTree is *not* safe for concurrent use — not even for concurrent
 reads, because every read mutates the tree.
@@ -188,3 +224,10 @@ Everything else tolerates a nil tree and the zero value as an empty tree:
 and the iterators visit nothing.  (A tolerant read on a nil or zero-value
 tree never needs the comparison function, so splaying is skipped and no
 panic occurs.)
+
+The batch inserters `InsertSlice`/`InsertIter` raise the same insert
+contract as `Insert` — a nil tree or a zero-value tree panics when, and
+only when, the batch would actually store an element; an empty batch is
+tolerated everywhere.  Every other new method is a total function on the
+read side (`Slice` of nil is nil, `String` of nil is `[]`, `Equal` of nil
+is equality with an empty tree, `DeleteFunc` on nil returns false).

@@ -40,6 +40,12 @@ on pkg.go.dev.
 | `Truncate`                      | Remove all items                                 | O(1)
 | `Dump`                          | Indented picture with node colors, for debugging | O(n)
 | `All` / `Backward`              | Range-over-func iterators                        | O(n), O(1) space
+| `Contains`                      | Membership predicate (the found flag of `Search`) | O(log₂ n)
+| `ContainsSlice` / `ContainsAny` | Membership batches: all / at least one           | O(k·log₂ n)
+| `InsertSlice` / `InsertIter`    | Batch insert (slice / range-over-func)           | O(k·log₂ n)
+| `DeleteSlice` / `DeleteFunc`    | Batch / predicate bulk delete                    | O(n log₂ n)
+| `Slice` / `String` / `StringFunc` | Materialize / render, in-order (ascending)     | O(n)
+| `Equal` / `Clone`               | Same-set equality / deep copy                    | O(n log₂ n) / O(n)
 |===
 
 `Insert` returns `true` when a new node was added and `false` when a
@@ -47,6 +53,28 @@ duplicate replaced the stored value.  `Len` is an alias for `Length`,
 matching the other pluto tree packages.  `DeleteAtHead` / `DeleteAtTail`
 splice the extreme node out directly (a single descent) instead of
 re-searching for the min/max item through `Delete`.
+
+=== Set-convenience capabilities
+
+`capabilities.go` adds the go-set-style surface, all of it additive.
+Ordering comes free — every walk is the in-order traversal:
+
+* Materialization and rendering: `Slice()` (fresh `[]T`, ascending),
+  `String()` / `StringFunc(format)` — `fmt.Sprint` or a caller format,
+  joined with spaces in brackets: `[a b c]`.
+* Equality and copy: `Equal(other)` — same element set, membership only
+  (never tree shape); both trees must use consistent comparison
+  functions.  `Clone()` — deep copy keeping the comparison function and
+  the receiver's shape (node colors and parent links included).
+* Membership: `Contains(x)` (the found flag of `Search`), and the batches
+  `ContainsSlice(items)` / `ContainsAny(items)` (all / at least one).
+* Mutation batches: `InsertSlice(items)` / `InsertIter(seq)` /
+  `DeleteSlice(items)` — true when the receiver changed; `InsertIter`
+  drains its iterator before inserting, so feeding a tree its own `All()`
+  is safe.
+* `DeleteFunc(fx)` — bulk delete by predicate, collect-then-delete: the
+  in-order snapshot is taken first, the matches deleted afterwards, so
+  the walk is never corrupted.
 
 The tree is *not* safe for concurrent use.
 
@@ -125,4 +153,11 @@ with no sane fallback:
 Everything else tolerates a nil tree and the zero value as an empty tree:
 searches find nothing, deletes return `false`, and the iterators visit
 nothing.
+
+The batch inserters `InsertSlice`/`InsertIter` raise the same insert
+contract as `Insert` — a nil tree or a zero-value tree panics when, and
+only when, the batch would actually store an element; an empty batch is
+tolerated everywhere.  Every other new method is a total function on the
+read side (`Slice` of nil is nil, `String` of nil is `[]`, `Equal` of nil
+is equality with an empty tree, `DeleteFunc` on nil returns false).
 

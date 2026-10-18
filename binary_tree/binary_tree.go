@@ -36,6 +36,14 @@ BSD 3 Clause Licensed.
 //	WalkFunc — apply a function to every element in pre-order.
 //	Front — old-style in-order iterator.
 //	All / Backward — range-over-func iterators (in-order and reverse in-order).
+//	Contains — the found flag of Search, spelled as a membership predicate.
+//	InsertSlice / InsertIter / DeleteSlice / DeleteFunc — batch insert and
+//	delete; DeleteFunc deletes the elements matching a predicate.
+//	ContainsSlice / ContainsAny — batch membership: all / at least one.
+//	Slice — fresh []T of the elements, in-order (ascending).
+//	String / StringFunc — in-order rendering, fmt.Sprint or a caller format.
+//	Equal — same element set as another tree (membership, never shape).
+//	Clone — deep copy keeping the comparison function.
 //
 // Insert, Delete and Search are O(log₂ n) on average for randomly ordered
 // input and O(n) in the worst case (the tree is NOT self-balancing).
@@ -53,6 +61,11 @@ BSD 3 Clause Licensed.
 //	NewBinaryTreeFunc(nil)         — nil comparison function, caught at construction.
 //	Insert on a nil tree           — a nil tree cannot store an element.
 //	Insert on a zero-value tree    — no comparison function; the message names the constructors.
+//
+// The batch inserters InsertSlice and InsertIter raise the same insert
+// contract as Insert — a nil tree or a zero-value tree panics when, and
+// only when, the batch would actually store an element; an empty batch is
+// tolerated everywhere.
 //
 // BinaryTree is not safe for concurrent use.
 package binary_tree

@@ -55,6 +55,12 @@ on pkg.go.dev.
 | `Truncate`                       | Remove all elements                             | O(1)
 | `Dump`                           | Write the node structure for debugging          | O(n)
 | `All` / `Backward`               | Range-over-func iterators                       | O(n)
+| `Contains`                       | Membership predicate (the found flag of `Search`) | O(log n)
+| `ContainsSlice` / `ContainsAny`  | Membership batches: all / at least one          | O(k·log n)
+| `InsertSlice` / `InsertIter`     | Batch insert (slice / range-over-func)          | O(k·log n)
+| `DeleteSlice` / `DeleteFunc`     | Batch / predicate bulk delete                   | O(n log n)
+| `Slice` / `String` / `StringFunc` | Materialize / render, in-order (ascending)     | O(n)
+| `Equal` / `Clone`                | Same-set equality / deep copy                   | O(n log n) / O(n)
 |===
 
 `Insert` returns `true` when a new element was added and `false` when a
@@ -62,6 +68,30 @@ duplicate replaced the stored value.  `Len` is an alias for `Length`,
 matching link:../avl_tree/[`avl_tree`].  `DeleteAtHead` and
 `DeleteAtTail` each make a single descent down the left/right spine —
 there is no separate search for the victim key.
+
+=== Set-convenience capabilities
+
+`capabilities.go` adds the go-set-style surface, all of it additive.
+Ordering comes free — every walk is the in-order traversal:
+
+* Materialization and rendering: `Slice()` (fresh `[]T`, ascending),
+  `String()` / `StringFunc(format)` — `fmt.Sprint` or a caller format,
+  joined with spaces in brackets: `[a b c]`.
+* Equality and copy: `Equal(other)` — same element set, membership only
+  (never shape — trees of different orders holding the same elements are
+  equal); both trees must use consistent comparison functions.  `Clone()`
+  — deep copy keeping the order and the comparison function, with the
+  per-node keys/children slices copied, never shared.
+* Membership: `Contains(x)` (the found flag of `Search`), and the batches
+  `ContainsSlice(items)` / `ContainsAny(items)` (all / at least one).
+* Mutation batches: `InsertSlice(items)` / `InsertIter(seq)` /
+  `DeleteSlice(items)` — true when the receiver changed; `InsertIter`
+  drains its iterator before inserting, so a self-derived sequence is
+  safe (this package's `All` is an `iter.Seq2`, so adapt it — e.g.
+  `slices.Values(tree.Slice())`).
+* `DeleteFunc(fx)` — bulk delete by predicate, collect-then-delete: the
+  in-order snapshot is taken first, the matches deleted afterwards, so
+  the walk is never corrupted.
 
 The tree is *not* safe for concurrent use.
 
@@ -135,6 +165,13 @@ Everything else tolerates a nil tree and the zero value as an empty tree:
 `Search` finds nothing, `Delete`/`DeleteAtHead`/`DeleteAtTail` return
 false, `FindMin`/`FindMax` report not-found, `Len` and `Depth` are 0,
 and the iterators yield nothing.
+
+The batch inserters `InsertSlice`/`InsertIter` raise the same insert
+contract as `Insert` — a nil tree or a zero-value tree panics when, and
+only when, the batch would actually store an element; an empty batch is
+tolerated everywhere.  Every other new method is a total function on the
+read side (`Slice` of nil is nil, `String` of nil is `[]`, `Equal` of nil
+is equality with an empty tree, `DeleteFunc` on nil returns false).
 
 == Concurrency
 

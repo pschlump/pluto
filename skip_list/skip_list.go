@@ -25,6 +25,11 @@ roughly half of the nodes below it.  The operations provided are:
   - Truncate — remove all nodes.														O(1)
   - Dump     — write a per-level picture of the list for debugging.					O(n)
   - All / Backward — range-over-func iterators (see iter.go).							O(n)
+  - Contains / ContainsSlice / ContainsAny — membership predicate and batches.			O(log₂ n) / O(k·log₂ n) expected
+  - InsertSlice / InsertIter — batch insert from a slice / range-over-func.				O(k·log₂ n) expected
+  - DeleteSlice / DeleteFunc — batch delete by elements / by predicate.					O(k·log₂ n) / O(n log₂ n) expected
+  - Slice / String / StringFunc — materialize / render, ascending.						O(n)
+  - Equal / Clone — same-set equality / deep copy (rebuilt by re-insertion).			O(n log₂ n) expected
 
 Every forward pointer carries a span — the number of level-0 nodes it
 skips over, as in Redis's zskiplist (note/redis/src/t_zset.c) — which is
@@ -52,6 +57,11 @@ A nil *SkipList and the zero value both behave as an empty list for every
 operation except Insert: Search finds nothing, Delete, DeleteAtHead and
 DeleteAtTail return false, FindMin and FindMax report not-found, Len is 0,
 and the iterators visit nothing.
+
+The batch inserters InsertSlice and InsertIter raise the same insert
+contract as Insert — a nil list or a zero-value list panics when, and
+only when, the batch would actually store an element; an empty batch is
+tolerated everywhere.
 
 The package panics in exactly three situations, all programmer errors
 that cannot be handled where they occur:

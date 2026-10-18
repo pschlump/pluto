@@ -21,11 +21,29 @@ the complexity table.
   under the read lock at call time (`toPairs` / `nlOverlaps`): unlike
   the plain package's live walks it is safe to mutate the tree from
   inside the loop, at O(n) (or O(k)) snapshot cost.
+* *Compute-after-snapshot capabilities* (`Slice`, `String`, `StringFunc`,
+  `Equal`, `DeleteFunc`'s match pass) snapshot under the read lock and
+  run the caller format or predicate function *without* any lock held —
+  a callback may safely call back into the tree.  `Equal` snapshots one
+  side and probes the other one interval at a time, so it never holds
+  two locks — not even when two goroutines compare the same pair of
+  trees in opposite directions.  The membership batches
+  `ContainsSlice`/`ContainsAny` hold the read lock for the whole batch,
+  so the answer describes one consistent snapshot.
+* *The batch mutators hold the write lock once for the whole batch*:
+  `DeleteSlice` and the delete pass of `DeleteFunc` are atomic — an
+  interleaved reader sees none or all of a batch, never part.
 * *`Dump` holds the read lock for the whole traversal* (nothing else
   touches the tree meanwhile) and computes the depth with the lock-free
   helper instead of calling the locked `Depth`.
 * *`Delete` holds the write lock across search and splice* — an atomic
   search-and-delete, like the other pluto `_ts` twins.
+
+The go-set-style surface (`Contains`, the batches, `Slice`, `String`,
+`Equal`, `Clone`) behaves exactly as documented in the
+link:../interval_tree/[interval_tree README] — the map-shaped reduced
+menu with exact-match membership and keys-only `Equal`;
+`capabilities.go` adds it behind the locks described above.
 
 == Lock / Unlock and the Nl* methods
 
@@ -87,7 +105,10 @@ guarded versions by changing the import.
 The plain package's four, each with the `interval_tree_ts:` prefix:
 `NewIntervalTreeFunc(nil)`, `Insert` (or `NlInsert`) on a nil tree,
 `Insert` on a zero-value tree, and `Insert` with `Hi < Lo`.  Everything
-else tolerates a nil tree and the zero value as an empty tree.
+else tolerates a nil tree and the zero value as an empty tree — the
+set-convenience capabilities are total functions and none of them
+panics (`Slice` of nil is nil, `String` of nil is `[]`, `Equal` of nil
+is equality with an empty tree, `DeleteFunc` on nil returns false).
 
 == Thread safety
 

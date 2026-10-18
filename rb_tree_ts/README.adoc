@@ -40,6 +40,12 @@ usage; it applies unchanged.
 | IsEmpty / Len / Length / Truncate | O(1)
 | Dump                              | O(n)
 | All / Backward (full iteration)   | O(n) — plus an O(n) snapshot
+| Contains                          | O(log₂ n) worst case
+| ContainsSlice / ContainsAny       | O(k·log₂ n) — atomic
+| InsertSlice / InsertIter          | O(k·log₂ n) — atomic
+| DeleteSlice / DeleteFunc          | O(n log₂ n) — DeleteFunc's predicate runs unlocked
+| Slice / String / StringFunc       | O(n) — snapshot under the read lock, format unlocked
+| Equal / Clone                     | O(n log₂ n) / O(n) — never two locks
 |===
 
 `Insert` returns `true` when a new node was added and `false` when a
@@ -54,14 +60,31 @@ re-searching for the min/max item through `Delete`.
 `IsEmpty`) take the read lock and release it before returning — they can
 run in parallel with each other.
 * *Writes* (`Insert`, `Delete`, `DeleteAtHead`, `DeleteAtTail`,
-`Truncate`) take the write lock.
+`Truncate`) take the write lock.  The *batch mutators* (`InsertSlice`,
+`InsertIter`, `DeleteSlice`) hold the write lock once for the whole
+batch, so a batch is atomic: an interleaved reader sees none or all of
+it, never part.
 * *`All` and `Backward` operate on a snapshot* of the tree taken when
 they are called (under the read lock, released immediately after).  It
 is safe to mutate the tree while iterating — including from inside the
 loop — and an iterator never observes modifications made after it was
 created.  The snapshot costs one O(n) copy.
+* *Compute-after-snapshot methods* (`Slice`, `String`, `StringFunc`,
+`Equal`, `DeleteFunc`'s match pass) snapshot under the read lock and run
+the caller format or predicate function *without* any lock held — a
+callback may safely call back into the tree.  `Equal` snapshots one side
+and probes the other one element at a time, so it never holds two locks —
+not even when two goroutines compare the same pair in opposite
+directions.  The membership batches `ContainsSlice`/`ContainsAny` hold
+the read lock for the whole batch, so the answer describes one consistent
+snapshot.
 * *`Dump` holds the read lock for the whole dump*, so the writer must
 not call methods on the same tree.
+
+The go-set-style surface (`Contains`, the batches, `Slice`, `String`,
+`Equal`, `Clone`) behaves exactly as documented in the
+link:../rb_tree/[rb_tree README]; `capabilities.go` adds it behind the
+locks described above.
 
 [source,go]
 ----
@@ -86,6 +109,13 @@ all programmer errors with no sane fallback:
 
 Everything else tolerates a nil tree and the zero value as an empty tree
 (the zero value of `sync.RWMutex` is a working lock).
+
+The batch inserters `InsertSlice`/`InsertIter` raise the same insert
+contract as `Insert` — a nil tree or a zero-value tree panics when, and
+only when, the batch would actually store an element; an empty batch is
+tolerated everywhere.  Every other capability is a total function on the
+read side (`Slice` of nil is nil, `String` of nil is `[]`, `Equal` of nil
+is equality with an empty tree, `DeleteFunc` on nil returns false).
 
 == Usage
 

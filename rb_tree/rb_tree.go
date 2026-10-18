@@ -21,6 +21,13 @@ are O(log₂ n) in the worst case:
   - Truncate — remove all nodes.														O(1)
   - Dump     — write an indented picture of the tree for debugging.					O(n)
   - All / Backward — range-over-func iterators (see iter.go).							O(n), O(1) extra space
+  - Contains — membership predicate (the found flag of Search).						O(log₂ n)
+  - ContainsSlice / ContainsAny — membership batches: all / at least one present.		O(k·log₂ n)
+  - InsertSlice / InsertIter — batch insert from a slice / range-over-func iterator.	O(k·log₂ n)
+  - DeleteSlice / DeleteFunc — batch delete by elements / by predicate.				O(n log₂ n)
+  - Slice / String / StringFunc — materialize / render, in-order (ascending).			O(n)
+  - Equal — same element set as another tree (membership, never shape).				O(n log₂ n)
+  - Clone — deep copy of the tree.														O(n)
 
 Elements are stored and returned by value and ordering is a direct
 function call, so element data is never boxed into an interface and
@@ -40,6 +47,11 @@ A nil *RbTree and the zero value both behave as an empty tree for every
 operation except Insert: Search finds nothing, Delete, DeleteAtHead and
 DeleteAtTail return false, FindMin and FindMax report not-found, Len and
 Depth are 0, and the iterators visit nothing.
+
+The batch inserters InsertSlice and InsertIter raise the same insert
+contract as Insert — a nil tree or a zero-value tree panics when, and
+only when, the batch would actually store an element; an empty batch is
+tolerated everywhere.
 
 The package panics in exactly three situations, all programmer errors
 that cannot be handled where they occur:

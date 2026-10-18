@@ -35,19 +35,28 @@ BSD 3 Clause Licensed.
 //	Reverse — swap the left and right children of every node in the tree.
 //	Truncate — delete all the nodes in the tree.
 //	FindMin / FindMax — return the smallest / largest element in the tree.
+//	Floor / Ceil — return the largest element <= key / smallest element >= key.
 //	DeleteAtHead — delete the smallest element of the tree.
 //	DeleteAtTail — delete the largest element of the tree.
 //	Depth — number of levels in the deepest part of the tree.
 //	WalkInOrder / WalkPreOrder / WalkPostOrder — callback-based traversals.
-//	Copy / Union / Minus / Intersect — whole-tree set operations.
+//	Copy / Union / Minus / Intersect / SymmetricDifference — whole-tree set operations.
 //	Front — old-style in-order iterator.
 //	All / Backward — range-over-func iterators (in-order and reverse in-order).
+//	Contains — the found flag of Search, spelled as a membership predicate.
+//	InsertSlice / InsertIter / DeleteSlice / DeleteFunc — batch insert and
+//	delete; DeleteFunc deletes the elements matching a predicate.
+//	ContainsSlice / ContainsAny — batch membership: all / at least one.
+//	Slice — fresh []T of the elements, in-order (ascending).
+//	String / StringFunc — in-order rendering, fmt.Sprint or a caller format.
+//	Equal — same element set as another tree (membership, never shape).
+//	Clone — deep copy keeping the comparison function.
 //
 // A nil *AvlTree and the zero value both behave as an empty tree for
 // every operation except Insert: Search finds nothing, Delete,
-// DeleteAtHead and DeleteAtTail return false, FindMin, FindMax and Index
-// report not-found, Len and Depth are 0, and the walks and iterators
-// visit nothing.
+// DeleteAtHead and DeleteAtTail return false, FindMin, FindMax, Floor,
+// Ceil and Index report not-found, Len and Depth are 0, and the walks and
+// iterators visit nothing.
 //
 // The package panics in exactly three situations, all programmer errors
 // that cannot be handled where they occur:
@@ -56,10 +65,16 @@ BSD 3 Clause Licensed.
 //	Insert on a nil tree         — a nil tree cannot store an element.
 //	Insert on a zero-value tree  — no comparison function; the message names the constructors.
 //
-// The set operations Copy, Union, Minus and Intersect rebuild the
-// destination from snapshots of their operands, so an operand may safely
-// alias the destination.  The result is ordered by the destination's
-// comparison function; a zero-value destination adopts yy's (or zz's).
+// The batch inserters InsertSlice and InsertIter raise the same insert
+// contract as Insert — a nil tree or a zero-value tree panics when, and
+// only when, the batch would actually store an element; an empty batch is
+// tolerated everywhere.
+//
+// The set operations Copy, Union, Minus, Intersect and SymmetricDifference
+// rebuild the destination from snapshots of their operands, so an operand
+// may safely alias the destination.  The result is ordered by the
+// destination's comparison function; a zero-value destination adopts yy's
+// (or zz's).
 //
 // AvlTree is not safe for concurrent use.
 package avl_tree
@@ -515,6 +530,56 @@ func (tt *AvlTree[T]) FindMax() (item T, found bool) {
 	return cur.data, true
 }
 
+// Floor returns the largest element that compares <= key, or found=false
+// when key is less than every element.  As with Search, `key` only needs
+// the fields that the comparison function reads.
+// Complexity is O(log₂ n).
+func (tt *AvlTree[T]) Floor(key T) (rv T, found bool) {
+	if tt == nil || tt.root == nil {
+		return
+	}
+	cur := tt.root
+	for cur != nil {
+		switch c := tt.compare(key, cur.data); {
+		case c == 0:
+			return cur.data, true
+		case c > 0:
+			// cur.data < key: a candidate; a larger one may sit to the right.
+			rv, found = cur.data, true
+			cur = cur.right
+		default:
+			// cur.data > key: too big, the answer (if any) is to the left.
+			cur = cur.left
+		}
+	}
+	return
+}
+
+// Ceil returns the smallest element that compares >= key, or found=false
+// when key is greater than every element.  As with Search, `key` only
+// needs the fields that the comparison function reads.
+// Complexity is O(log₂ n).
+func (tt *AvlTree[T]) Ceil(key T) (rv T, found bool) {
+	if tt == nil || tt.root == nil {
+		return
+	}
+	cur := tt.root
+	for cur != nil {
+		switch c := tt.compare(key, cur.data); {
+		case c == 0:
+			return cur.data, true
+		case c < 0:
+			// cur.data > key: a candidate; a smaller one may sit to the left.
+			rv, found = cur.data, true
+			cur = cur.left
+		default:
+			// cur.data < key: too small, the answer (if any) is to the right.
+			cur = cur.right
+		}
+	}
+	return
+}
+
 // DeleteAtHead removes the smallest element of the tree, returning false if
 // the tree is empty.
 // Complexity is O(log₂ n).
@@ -821,5 +886,46 @@ func (tt *AvlTree[T]) Intersect(yy, zz *AvlTree[T]) {
 		if _, found := zzTree.Search(d); found {
 			tt.insert(d)
 		}
+	}
+}
+
+// SymmetricDifference is a set symmetric difference, tt = yy △ zz = the
+// elements in exactly one of yy and zz.  Operands are snapshotted first,
+// so either may alias tt.  The result is ordered by tt's comparison
+// function; a zero-value tt adopts yy's (then zz's).
+//
+// Both snapshots are already sorted, so a merge walk picks out the
+// elements in exactly one operand with O(n+m) comparisons; together with
+// Union, Minus and Intersect this completes the set algebra.
+// Complexity is O(n log₂ n).
+func (tt *AvlTree[T]) SymmetricDifference(yy, zz *AvlTree[T]) {
+	if tt == nil {
+		return
+	}
+	a, b := yy.toSlice(), zz.toSlice() // snapshots first: operands may alias tt
+	tt.root, tt.length = nil, 0
+	if !tt.adoptCmp(yy, zz) {
+		return
+	}
+	i, j := 0, 0
+	for i < len(a) && j < len(b) {
+		switch c := tt.cmp(a[i], b[j]); {
+		case c < 0:
+			tt.insert(a[i])
+			i++
+		case c > 0:
+			tt.insert(b[j])
+			j++
+		default:
+			// In both operands: not in the symmetric difference.
+			i++
+			j++
+		}
+	}
+	for ; i < len(a); i++ {
+		tt.insert(a[i])
+	}
+	for ; j < len(b); j++ {
+		tt.insert(b[j])
 	}
 }

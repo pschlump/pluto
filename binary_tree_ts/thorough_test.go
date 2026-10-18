@@ -35,6 +35,23 @@ func expectPanic(t *testing.T, name string, fx func()) {
 	fx()
 }
 
+// expectPanicMessage additionally checks that the panic message contains
+// `want` — the contract says each message names the method and the fix.
+func expectPanicMessage(t *testing.T, name, want string, fx func()) {
+	t.Helper()
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Errorf("Expected %s to panic, it did not.", name)
+			return
+		}
+		if msg, ok := r.(string); !ok || !strings.Contains(msg, want) {
+			t.Errorf("Expected the %s panic message to contain %q, got %v", name, want, r)
+		}
+	}()
+	fx()
+}
+
 // inOrder returns the keys of the tree in in-order (ascending) order.
 // It always returns a non-nil slice so empty-tree comparisons work with
 // reflect.DeepEqual.

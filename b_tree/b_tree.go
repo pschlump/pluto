@@ -39,11 +39,23 @@ BSD 3 Clause Licensed.
 //	Truncate — delete all the elements, keeping the comparison function.
 //	Dump — write the tree structure for debugging.
 //	All / Backward — range-over-func iterators (ascending / descending).
+//	Contains — membership predicate (the found flag of Search).
+//	ContainsSlice / ContainsAny — membership batches: all / at least one present.
+//	InsertSlice / InsertIter — batch insert from a slice / range-over-func iterator.
+//	DeleteSlice / DeleteFunc — batch delete by elements / by predicate.
+//	Slice / String / StringFunc — materialize / render, in-order (ascending).
+//	Equal — same element set as another tree (membership, never shape — even across orders).
+//	Clone — deep copy of the tree (order and comparison function kept).
 //
 // A nil *BTree and the zero value both behave as an empty tree for every
 // operation except Insert: Search finds nothing, Delete, DeleteAtHead and
 // DeleteAtTail return false, FindMin and FindMax report not-found, Len
 // and Depth are 0, and the iterators yield nothing.
+//
+// The batch inserters InsertSlice and InsertIter raise the same insert
+// contract as Insert — a nil tree or a zero-value tree panics when, and
+// only when, the batch would actually store an element; an empty batch is
+// tolerated everywhere.
 //
 // The package panics in exactly four situations, all programmer errors
 // that cannot be handled where they occur:

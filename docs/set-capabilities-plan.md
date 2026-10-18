@@ -1,16 +1,24 @@
 # Set capabilities & set packages — implementation plan
 
-Status: **phases 0–1 complete** (2026-10-17); phases 2–8 not started — pick up
-at **phase 2** (ordered structures, §4.2 menu + avl `SymmetricDifference` +
-avl `Floor`/`Ceil`). Phase 0 added `g_lib.FormatSorted`; phase 1 added the
-full §4.1 menu to all 12 hash packages — each package got
-`capabilities.go`, a mirrored `capabilities_test.go` (twins append the
-concurrency block), `capabilities_example_test.go`, a package-doc
-Operations-list update, README.adoc updates, and a
-`docs/packages/<name>.md` capabilities paragraph (`cuckoo_grow15_ts` got a
-new notes file; the misplaced Scan paragraph moved from hash_tab_dll.md to
-hash_grow.md). Gates green at the phase-1 commit: `make build test vet race
-lint`, `gofmt -l .` empty, `go mod tidy` leaves no root go.sum.
+Status: **phases 0–2 complete** (2026-10-17); phases 3–8 not started — pick up
+at **phase 3** (string-keyed tries, §4.3 menu). Phase 0 added
+`g_lib.FormatSorted`; phase 1 added the full §4.1 menu to all 12 hash
+packages — each package got `capabilities.go`, a mirrored
+`capabilities_test.go` (twins append the concurrency block),
+`capabilities_example_test.go`, a package-doc Operations-list update,
+README.adoc updates, and a `docs/packages/<name>.md` capabilities paragraph
+(`cuckoo_grow15_ts` got a new notes file; the misplaced Scan paragraph moved
+from hash_tab_dll.md to hash_grow.md). Phase 2 added the §4.2 menu to all 12
+ordered packages the same way (binary_tree(+_ts), avl_tree(+_ts),
+rb_tree(+_ts), splay_tree, b_tree, skip_list(+_ts), interval_tree(+_ts)),
+plus the avl riders `SymmetricDifference` (avl family) and `Floor`/`Ceil`
+(avl family) — `interval_tree` got the map-shaped reduced menu instead
+(exact-match membership, keys-only `Equal`, no batch inserters; the tries
+precedent), `skip_list.Clone` rebuilds by re-insertion (fresh tower
+heights, documented), and every batch mutator returns "receiver changed"
+with the insert panic contract carried to the batch inserters only where
+a batch can store. Gates green at each phase commit: `make build test vet
+race lint`, `gofmt -l .` empty, `go mod tidy` leaves no root go.sum.
 
 Source of the capability list: hashicorp/go-set `hashset.go` / `set.go`
 (MPL-2.0). What that library offers that pluto does not — verified by a full

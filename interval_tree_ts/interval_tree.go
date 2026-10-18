@@ -30,6 +30,17 @@ for the data-structure contracts; the twin adds only the locking:
     the loop, at the cost of O(n) (or O(k)) space.  The plain package's
     iterators walk the live tree instead.
 
+  - The set-convenience capabilities (capabilities.go) are the plain
+    package's map-shaped reduced menu (no batch inserters; Equal
+    compares interval keys only) behind the same model: the batch
+    mutators DeleteSlice and the delete pass of DeleteFunc hold the
+    write lock once for the whole batch (a batch is atomic), while
+    Slice/String/StringFunc/Equal and DeleteFunc's match pass snapshot
+    under the read lock and compute without the lock held, so a caller
+    format or predicate function may safely call back into the tree.
+    Equal touches each tree under its own lock only — never two locks
+    at once — so comparing trees never deadlocks.
+
   - Lock/Unlock are the real exposed write lock (nil no-ops), and the
     Nl* methods (NlSearch, NlInsert, NlDelete, NlAnyOverlap, ...) are
     the lock-free bodies of their locked counterparts for compound

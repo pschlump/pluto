@@ -28,6 +28,23 @@ func expectPanic(t *testing.T, name string, fn func()) {
 	fn()
 }
 
+// expectPanicMessage runs fn and fails the test unless it panics with a
+// message containing want.
+func expectPanicMessage(t *testing.T, name, want string, fn func()) {
+	t.Helper()
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Errorf("Expected %s to panic, it did not.", name)
+			return
+		}
+		if msg, ok := r.(string); !ok || !strings.Contains(msg, want) {
+			t.Errorf("Expected %s to panic with a message containing %q, got: %v", name, want, r)
+		}
+	}()
+	fn()
+}
+
 // TestNilReceiverPanics verifies the documented panic when Insert is
 // called on a nil list — the one operation with no sane answer.
 func TestNilReceiverPanics(t *testing.T) {

@@ -45,10 +45,44 @@ on pkg.go.dev.
 | `Dump`                       | Per-level picture of the list, for debugging     | O(n)
 | `All`                        | Ascending range-over-func iterator               | O(n), O(1) space
 | `Backward`                   | Descending range-over-func iterator              | O(n), O(n) space
+| `Contains`                   | Membership predicate (the found flag of `Search`) | O(log₂ n) expected
+| `ContainsSlice` / `ContainsAny` | Membership batches: all / at least one        | O(k·log₂ n) expected
+| `InsertSlice` / `InsertIter` | Batch insert (slice / range-over-func)           | O(k·log₂ n) expected
+| `DeleteSlice` / `DeleteFunc` | Batch / predicate bulk delete                    | O(k·log₂ n) / O(n log₂ n) expected
+| `Slice` / `String` / `StringFunc` | Materialize / render, ascending              | O(n)
+| `Equal` / `Clone`            | Same-set equality / deep copy                    | O(n log₂ n) expected
 |===
 
 `Insert` returns `true` when a new node was added and `false` when a
 duplicate replaced the stored value.
+
+=== Set-convenience capabilities
+
+`capabilities.go` adds the go-set-style surface, all of it additive.
+Ordering comes free — every walk is the level-0 lane:
+
+* Materialization and rendering: `Slice()` (fresh `[]T`, ascending),
+  `String()` / `StringFunc(format)` — `fmt.Sprint` or a caller format,
+  joined with spaces in brackets: `[a b c]`.
+* Equality and copy: `Equal(other)` — same element set, membership only
+  (never tower layout); both lists must use consistent comparison
+  functions.  `Clone()` — deep copy that keeps the comparison function
+  and rebuilds the list by re-insertion, so the clone draws *fresh* tower
+  heights from the global RNG: the observable contents and ordering are
+  identical, the internal layout is not (and no `Clone`d heights are ever
+  asserted — same rule as every other list).
+* Membership: `Contains(x)` (the found flag of `Search`), and the batches
+  `ContainsSlice(items)` / `ContainsAny(items)` (all / at least one).
+* Mutation batches: `InsertSlice(items)` / `InsertIter(seq)` /
+  `DeleteSlice(items)` — true when the receiver changed; `InsertIter`
+  drains its iterator before inserting, so a self-derived sequence is
+  safe.  This package's `All` is an `iter.Seq[T]`, so one list feeds
+  another directly: `b.InsertIter(a.All())`.
+* `DeleteFunc(fx)` — bulk delete by predicate, collect-then-delete: the
+  ascending snapshot is taken first, the matches deleted afterwards.  For
+  a contiguous value span `DeleteRange` is the cheaper tool.
+
+The list is *not* safe for concurrent use.
 
 Skip lists are *probabilistic*: the expected cost of the ordered
 operations is O(log₂ n) but the worst case is O(n).  Node tower heights
@@ -80,8 +114,6 @@ Edge contracts: a range with `lo > hi` is empty (no error, no panic),
 elements below the key), `AtIndex` out of bounds reports `false`, and
 `DeleteByRank` clamps `stop` to `Len()-1` while ignoring windows that
 start before 0 or after the last element.
-
-The list is *not* safe for concurrent use.
 
 == Usage
 
@@ -171,4 +203,11 @@ with no sane fallback:
 Everything else tolerates a nil list and the zero value as an empty list:
 searches find nothing, deletes return `false`, and the iterators visit
 nothing.
+
+The batch inserters `InsertSlice`/`InsertIter` raise the same insert
+contract as `Insert` — a nil list or a zero-value list panics when, and
+only when, the batch would actually store an element; an empty batch is
+tolerated everywhere.  Every other new method is a total function on the
+read side (`Slice` of nil is nil, `String` of nil is `[]`, `Equal` of nil
+is equality with an empty list, `DeleteFunc` on nil returns false).
 

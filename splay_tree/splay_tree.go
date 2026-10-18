@@ -35,6 +35,13 @@ BSD 3 Clause Licensed.
 //	DeleteAtTail — delete the largest element of the tree.
 //	Depth — number of levels in the deepest part of the tree.
 //	All / Backward — range-over-func iterators (in-order and reverse in-order).
+//	Contains — membership predicate (the found flag of Search; a hit splays).
+//	ContainsSlice / ContainsAny — membership batches: all / at least one present.
+//	InsertSlice / InsertIter — batch insert from a slice / range-over-func iterator.
+//	DeleteSlice / DeleteFunc — batch delete by elements / by predicate.
+//	Slice / String / StringFunc — materialize / render, in-order (ascending); no splaying.
+//	Equal — same element set as another tree (membership, never shape).
+//	Clone — deep copy of the tree (structural, no splaying).
 //
 // Insert, Delete, Search, FindMin, FindMax, DeleteAtHead and DeleteAtTail
 // are O(log₂ n) amortized: any single operation can be O(n) in the worst
@@ -53,6 +60,11 @@ BSD 3 Clause Licensed.
 // operation except Insert: Search finds nothing, Delete, DeleteAtHead and
 // DeleteAtTail return false, FindMin and FindMax report not-found, Len
 // and Depth are 0, and the iterators visit nothing.
+//
+// The batch inserters InsertSlice and InsertIter raise the same insert
+// contract as Insert — a nil tree or a zero-value tree panics when, and
+// only when, the batch would actually store an element; an empty batch is
+// tolerated everywhere.
 //
 // The package panics in exactly three situations, all programmer errors
 // that cannot be handled where they occur:

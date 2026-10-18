@@ -29,6 +29,11 @@ interval — giving:
   - Depth    — longest root-to-leaf path, kept at O(log₂ n) by balancing.		O(n)
   - Dump     — write an indented picture of the tree for debugging.			O(n)
   - All / Backward — range-over-func iterators in (Lo, Hi) order (see iter.go).	O(n), O(1) extra space
+  - Contains / ContainsSlice / ContainsAny — exact-match membership predicate and batches.	O(log₂ n) / O(k·log₂ n)
+  - DeleteSlice — batch delete by exact-match intervals.				O(k·log₂ n)
+  - DeleteFunc — predicate bulk delete over (interval, value) pairs.			O(n log₂ n)
+  - Slice / String / StringFunc — materialize / render the intervals, ascending.	O(n)
+  - Equal / Clone — same-interval-set equality (keys only) / deep copy.		O(n log₂ n) / O(n)
 
 Intervals are CLOSED: [1,2] and [2,3] intersect, at the point 2.  Insert
 requires Lo <= Hi (a degenerate point interval Lo == Hi is legal); the
@@ -45,6 +50,12 @@ which takes a caller supplied comparison function on the endpoints.
 A nil *IntervalTree and the zero value both behave as an empty tree for
 every operation except Insert: Search and AnyOverlap report not-found,
 Delete returns false, the iterators visit nothing and Len is 0.
+
+The set-convenience capabilities (capabilities.go) are total functions —
+none of them panics, on any receiver.  They are the map-shaped, reduced
+form the tries use: there are no batch inserters (a map-shaped batch
+insert would need key/value pairs — callers loop), and Equal compares
+interval keys only, never the values (comparing V would need boxing).
 
 The package panics in exactly four situations, all programmer errors
 that cannot be handled where they occur:

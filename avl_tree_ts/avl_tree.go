@@ -16,9 +16,9 @@ BSD 3 Clause Licensed.
 //
 // Concurrency model:
 //
-//	Reads (Search, FindMin, FindMax, Index, Depth, Len, Length, IsEmpty)
-//	take the read lock and release it before returning, so they run in
-//	parallel with each other.
+//	Reads (Search, FindMin, FindMax, Floor, Ceil, Index, Depth, Len,
+//	Length, IsEmpty) take the read lock and release it before returning,
+//	so they run in parallel with each other.
 //	Writes (Insert, Delete, DeleteAtHead, DeleteAtTail, Reverse, Truncate)
 //	take the write lock.
 //	Front, All and Backward operate on a snapshot taken when they are
@@ -29,10 +29,17 @@ BSD 3 Clause Licensed.
 //	traversal; their callbacks must not call methods on the same tree, or
 //	the call can deadlock.  To visit elements while mutating, iterate a
 //	snapshot with All instead.
-//	The set operations (Copy, Union, Minus, Intersect) snapshot their
-//	operands under each operand's own read lock before taking the
-//	destination's write lock, so no two locks are ever held at once and an
-//	operand may safely alias the destination or the other operand.
+//	The set operations (Copy, Union, Minus, Intersect,
+//	SymmetricDifference) snapshot their operands under each operand's own
+//	read lock before taking the destination's write lock, so no two locks
+//	are ever held at once and an operand may safely alias the destination
+//	or the other operand.
+//	The capability batches (InsertSlice, InsertIter, DeleteSlice) hold
+//	the write lock once for the whole batch — a batch is atomic.  The
+//	compute-after-snapshot methods (Slice, String, StringFunc, Equal,
+//	DeleteFunc) snapshot under the read lock and run the caller format or
+//	predicate without any lock held, so their callbacks may safely call
+//	back into the tree.
 //
 // Elements are stored and returned by value and ordering is a direct
 // function call, so element data is never boxed into an interface and
@@ -55,19 +62,33 @@ BSD 3 Clause Licensed.
 //	Reverse — swap the left and right children of every node in the tree.
 //	Truncate — delete all the nodes in the tree.
 //	FindMin / FindMax — return the smallest / largest element in the tree.
+//	Floor / Ceil — return the largest element ≤ key / smallest ≥ key.
 //	DeleteAtHead — delete the smallest element of the tree.
 //	DeleteAtTail — delete the largest element of the tree.
 //	Depth — number of levels in the deepest part of the tree.
 //	WalkInOrder / WalkPreOrder / WalkPostOrder — callback-based traversals.
-//	Copy / Union / Minus / Intersect — whole-tree set operations.
+//	Copy / Union / Minus / Intersect / SymmetricDifference — whole-tree set operations.
 //	Front — old-style in-order iterator (operates on a snapshot).
 //	All / Backward — range-over-func iterators (operate on a snapshot).
+//	Contains — membership predicate (the found flag of Search).
+//	ContainsSlice / ContainsAny — membership batches: all / at least one present.
+//	InsertSlice / InsertIter — batch insert from a slice / range-over-func iterator.
+//	DeleteSlice / DeleteFunc — batch delete by elements / by predicate.
+//	Slice — fresh slice of every element, in-order (ascending).
+//	String / StringFunc — render the elements, in-order, with a caller format option.
+//	Equal — same element set as another tree (membership, never shape).
+//	Clone — deep copy of the tree.
 //
 // A nil *AvlTree and the zero value both behave as an empty tree for
 // every operation except Insert: Search finds nothing, Delete,
-// DeleteAtHead and DeleteAtTail return false, FindMin, FindMax and Index
-// report not-found, Len and Depth are 0, and the walks and iterators
-// visit nothing.
+// DeleteAtHead and DeleteAtTail return false, FindMin, FindMax, Floor,
+// Ceil and Index report not-found, Len and Depth are 0, and the walks and
+// iterators visit nothing.
+//
+// The batch inserters InsertSlice and InsertIter raise the same insert
+// contract as Insert — a nil tree or a zero-value tree panics when, and
+// only when, the batch would actually store an element; an empty batch is
+// tolerated everywhere.
 //
 // The package panics in exactly three situations, all programmer errors
 // that cannot be handled where they occur:
@@ -606,6 +627,68 @@ func (tt *AvlTree[T]) nlFindMax() (item T, found bool) {
 	return cur.data, true
 }
 
+// Floor returns the largest element less than or equal to key, or false
+// when key is smaller than every element (there is no floor).  It is the
+// point-query companion of FindMax: FindMax is Floor(+∞).  The read lock
+// is held for the descent.
+// Complexity is O(log₂ n).
+func (tt *AvlTree[T]) Floor(key T) (rv T, found bool) {
+	if tt == nil {
+		return
+	}
+	tt.lock.RLock()
+	defer tt.lock.RUnlock()
+	return tt.nlFloor(key)
+}
+
+// nlFloor is Floor without locking; the caller must hold the lock.
+func (tt *AvlTree[T]) nlFloor(key T) (rv T, found bool) {
+	cur := tt.root
+	for cur != nil {
+		switch c := tt.compare(key, cur.data); {
+		case c == 0:
+			return cur.data, true
+		case c > 0:
+			rv, found = cur.data, true // cur is a candidate floor; look right
+			cur = cur.right
+		default:
+			cur = cur.left
+		}
+	}
+	return
+}
+
+// Ceil returns the smallest element greater than or equal to key, or
+// false when key is larger than every element (there is no ceiling).  It
+// is the point-query companion of FindMin: FindMin is Ceil(−∞).  The read
+// lock is held for the descent.
+// Complexity is O(log₂ n).
+func (tt *AvlTree[T]) Ceil(key T) (rv T, found bool) {
+	if tt == nil {
+		return
+	}
+	tt.lock.RLock()
+	defer tt.lock.RUnlock()
+	return tt.nlCeil(key)
+}
+
+// nlCeil is Ceil without locking; the caller must hold the lock.
+func (tt *AvlTree[T]) nlCeil(key T) (rv T, found bool) {
+	cur := tt.root
+	for cur != nil {
+		switch c := tt.compare(key, cur.data); {
+		case c == 0:
+			return cur.data, true
+		case c < 0:
+			rv, found = cur.data, true // cur is a candidate ceiling; look left
+			cur = cur.left
+		default:
+			cur = cur.right
+		}
+	}
+	return
+}
+
 // DeleteAtHead removes the smallest element of the tree, returning false
 // if the tree is empty.
 // Complexity is O(log₂ n).
@@ -994,5 +1077,49 @@ func (tt *AvlTree[T]) Intersect(yy, zz *AvlTree[T]) {
 		if _, found := zzTree.nlSearch(d); found {
 			tt.nlInsert(d)
 		}
+	}
+}
+
+// SymmetricDifference is a set symmetric difference, tt = (yy union zz)
+// minus (yy intersect zz) — every element in exactly one of the two
+// operands.  The sources are snapshotted under their own read locks
+// before tt's write lock is taken, so yy and zz may alias tt or each
+// other.  The result is ordered by tt's comparison function; a zero-value
+// tt adopts yy's (then zz's).
+// Complexity is O(n log₂ n).
+func (tt *AvlTree[T]) SymmetricDifference(yy, zz *AvlTree[T]) {
+	if tt == nil {
+		return
+	}
+	a, aCmp := yy.snapshot()
+	b, bCmp := zz.snapshot()
+	tt.lock.Lock()
+	defer tt.lock.Unlock()
+	tt.nlTruncate()
+	tt.adoptCmp(aCmp, bCmp)
+	if tt.cmp == nil {
+		return // no source had a comparison function, so no source had data
+	}
+	// Both snapshots are in-order (sorted), so a merge walk emits the
+	// elements present in exactly one operand without any searching.
+	i, j := 0, 0
+	for i < len(a) && j < len(b) {
+		switch c := tt.cmp(a[i], b[j]); {
+		case c < 0:
+			tt.nlInsert(a[i])
+			i++
+		case c > 0:
+			tt.nlInsert(b[j])
+			j++
+		default:
+			i++
+			j++ // in both operands: excluded from the symmetric difference
+		}
+	}
+	for ; i < len(a); i++ {
+		tt.nlInsert(a[i])
+	}
+	for ; j < len(b); j++ {
+		tt.nlInsert(b[j])
 	}
 }

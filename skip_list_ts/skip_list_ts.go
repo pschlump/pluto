@@ -29,6 +29,11 @@ roughly half of the nodes below it.  The operations provided are:
   - Truncate — remove all nodes.														O(1)
   - Dump     — write a per-level picture of the list for debugging.					O(n)
   - All / Backward — range-over-func iterators over a snapshot of the list.			O(n)
+  - Contains / ContainsSlice / ContainsAny — membership predicate and batches.			O(log₂ n) / O(k·log₂ n) expected
+  - InsertSlice / InsertIter — batch insert from a slice / range-over-func.				O(k·log₂ n) expected
+  - DeleteSlice / DeleteFunc — batch delete by elements / by predicate.					O(k·log₂ n) / O(n log₂ n) expected
+  - Slice / String / StringFunc — materialize / render a snapshot, ascending.			O(n)
+  - Equal / Clone — same-set equality / deep copy (rebuilt by re-insertion).			O(n log₂ n) expected
 
 Every forward pointer carries a span — the number of level-0 nodes it
 skips over, as in Redis's zskiplist (note/redis/src/t_zset.c) — which is
@@ -49,6 +54,16 @@ Concurrency model:
 	inside the loop — and never observe later modifications.
 	Dump holds the read lock for the whole dump, so the writer must not
 	call methods on the same list.
+	The set-convenience capabilities (capabilities.go) follow the same
+	model: the batch mutators InsertSlice/InsertIter/DeleteSlice and the
+	delete pass of DeleteFunc each take the write lock once for the whole
+	batch (a batch is atomic — an interleaved reader never sees part of
+	one), while Slice/String/StringFunc/Equal and DeleteFunc's match pass
+	snapshot under the read lock and compute without the lock held, so a
+	caller format or predicate function may safely call back into the
+	list.  Equal touches each list under its own lock only — never two
+	locks at once — so comparing lists never deadlocks.  Clone snapshots
+	under the read lock and re-inserts into the local copy unlocked.
 	Lock/Unlock expose the real write lock, and the Nl* methods
 	(NlIsEmpty, NlLen, NlRank, NlAtIndex, NlCeil, NlFloor, NlCountRange,
 	NlDeleteRange, NlDeleteByRank) are the lock-free bodies for atomic
@@ -76,6 +91,11 @@ A nil *SkipList and the zero value both behave as an empty list for every
 operation except Insert: Search finds nothing, Delete, DeleteAtHead and
 DeleteAtTail return false, FindMin and FindMax report not-found, Len is 0,
 and the iterators visit nothing.
+
+The batch inserters InsertSlice and InsertIter raise the same insert
+contract as Insert — a nil list or a zero-value list panics when, and
+only when, the batch would actually store an element; an empty batch is
+tolerated everywhere.
 
 The package panics in exactly three situations, all programmer errors
 that cannot be handled where they occur:

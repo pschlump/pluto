@@ -25,6 +25,13 @@ case.  Basic operations:
   - Truncate — remove all nodes.														O(1)
   - Dump     — write an indented picture of the tree for debugging.					O(n)
   - All / Backward — range-over-func iterators over a snapshot of the tree.			O(n)
+  - Contains — membership predicate (the found flag of Search).						O(log₂ n)
+  - ContainsSlice / ContainsAny — membership batches: all / at least one present.		O(k·log₂ n)
+  - InsertSlice / InsertIter — batch insert from a slice / range-over-func iterator.	O(k·log₂ n)
+  - DeleteSlice / DeleteFunc — batch delete by elements / by predicate.				O(n log₂ n)
+  - Slice / String / StringFunc — materialize / render, in-order (ascending).			O(n)
+  - Equal — same element set as another tree (membership, never shape).				O(n log₂ n)
+  - Clone — deep copy of the tree.														O(n)
 
 Concurrency model:
 
@@ -32,11 +39,17 @@ Concurrency model:
 	read lock and release it before returning, so they run in parallel with
 	each other.
 	Writes (Insert, Delete, DeleteAtHead, DeleteAtTail, Truncate) take the
-	write lock.
+	write lock.  The batch mutators (InsertSlice, InsertIter, DeleteSlice)
+	hold the write lock once for the whole batch, so a batch is atomic: an
+	interleaved reader sees none or all of it, never part.
 	All and Backward operate on a snapshot taken when they are called (one
 	O(n) copy, under the read lock), so they are safe to use concurrently
 	with any tree operation — including mutating the tree from inside the
 	loop — and never observe later modifications.
+	The compute-after-snapshot methods (Slice, String, StringFunc, Equal,
+	DeleteFunc's match pass) snapshot under the read lock and run the
+	caller format or predicate without any lock held, so their callbacks
+	may safely call back into the tree.
 	Dump holds the read lock for the whole dump, so the writer must not call
 	methods on the same tree.
 
@@ -54,6 +67,11 @@ A nil *RbTree and the zero value both behave as an empty tree for every
 operation except Insert: Search finds nothing, Delete, DeleteAtHead and
 DeleteAtTail return false, FindMin and FindMax report not-found, Len and
 Depth are 0, and the iterators visit nothing.
+
+The batch inserters InsertSlice and InsertIter raise the same insert
+contract as Insert — a nil tree or a zero-value tree panics when, and
+only when, the batch would actually store an element; an empty batch is
+tolerated everywhere.
 
 The package panics in exactly three situations, all programmer errors
 that cannot be handled where they occur:

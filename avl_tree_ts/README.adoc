@@ -38,11 +38,18 @@ Same as `avl_tree`:
 
 | Insert / Delete / Search                        | O(log₂ n) worst case
 | FindMin / FindMax / DeleteAtHead / DeleteAtTail | O(log₂ n) worst case
+| Floor / Ceil                                    | O(log₂ n) worst case
 | Index                                           | O(n)
 | Depth / IsEmpty / Len / Length / Truncate       | O(1)
 | Walk* / WalkFunc / Dump                         | O(n)
 | All / Backward (full iteration)                 | O(n) — plus an O(n) snapshot
-| Copy / Union / Minus / Intersect                | O(n log₂ n)
+| Copy / Union / Minus / Intersect / SymmetricDifference | O(n log₂ n)
+| Contains                                        | O(log₂ n) worst case
+| ContainsSlice / ContainsAny                     | O(k·log₂ n) — atomic
+| InsertSlice / InsertIter                        | O(k·log₂ n) — atomic
+| DeleteSlice / DeleteFunc                        | O(n log₂ n) — DeleteFunc's predicate runs unlocked
+| Slice / String / StringFunc                     | O(n) — snapshot under the read lock, format unlocked
+| Equal / Clone                                   | O(n log₂ n) / O(n) — never two locks
 |===
 
 `Insert` returns `true` when a new node was added and `false` when a
@@ -51,11 +58,14 @@ matching the other pluto tree packages.
 
 == Locking behavior
 
-* *Reads* (`Search`, `FindMin`, `FindMax`, `Index`, `Depth`, `Len`,
-`Length`, `IsEmpty`) take the read lock and release it before returning —
-they can run in parallel with each other.
+* *Reads* (`Search`, `FindMin`, `FindMax`, `Floor`, `Ceil`, `Index`,
+`Depth`, `Len`, `Length`, `IsEmpty`) take the read lock and release it
+before returning — they can run in parallel with each other.
 * *Writes* (`Insert`, `Delete`, `DeleteAtHead`, `DeleteAtTail`,
-`Reverse`, `Truncate`) take the write lock.
+`Reverse`, `Truncate`) take the write lock.  The *batch mutators*
+(`InsertSlice`, `InsertIter`, `DeleteSlice`) hold the write lock once for
+the whole batch, so a batch is atomic: an interleaved reader sees none or
+all of it, never part.
 * *`Front`, `All` and `Backward` operate on a snapshot* of the tree taken
 when they are called (under the read lock, released immediately after).
 It is safe to mutate the tree while iterating — including from inside the
@@ -75,13 +85,28 @@ for v := range tree.All() {
 }
 ----
 
-* *Set operations* (`Copy`, `Union`, `Minus`, `Intersect`) snapshot their
-operands under each operand's own read lock before taking the
-destination's write lock.  No two locks are ever held at once, so an
-operand may safely alias the destination or the other operand, and
-concurrent set operations cannot deadlock against each other.  The
-result is ordered by the destination's comparison function; a zero-value
-destination adopts an operand's.
+* *Set operations* (`Copy`, `Union`, `Minus`, `Intersect`,
+`SymmetricDifference`) snapshot their operands under each operand's own
+read lock before taking the destination's write lock.  No two locks are
+ever held at once, so an operand may safely alias the destination or the
+other operand, and concurrent set operations cannot deadlock against
+each other.  The result is ordered by the destination's comparison
+function; a zero-value destination adopts an operand's.
+
+* *Compute-after-snapshot methods* (`Slice`, `String`, `StringFunc`,
+`Equal`, `DeleteFunc`'s match pass) snapshot under the read lock and run
+the caller format or predicate function *without* any lock held — a
+callback may safely call back into the tree.  `Equal` snapshots one side
+and probes the other one element at a time, so it never holds two locks —
+not even when two goroutines compare the same pair in opposite
+directions.  `Floor`/`Ceil` and the membership batches `ContainsSlice`/
+`ContainsAny` hold the read lock for their whole descent/batch, so the
+answer describes one consistent snapshot.
+
+The go-set-style surface (`Contains`, the batches, `Slice`, `String`,
+`Equal`, `Clone`) behaves exactly as documented in the
+link:../avl_tree/[avl_tree README]; `capabilities.go` adds it behind the
+locks described above.
 
 == Panics
 
@@ -100,6 +125,13 @@ all programmer errors with no sane fallback:
 Everything else tolerates a nil tree and the zero value as an empty tree
 (the zero value of `sync.RWMutex` is a working lock), including nil
 operands to the set operations, which act as the empty set.
+
+The batch inserters `InsertSlice`/`InsertIter` raise the same insert
+contract as `Insert` — a nil tree or a zero-value tree panics when, and
+only when, the batch would actually store an element; an empty batch is
+tolerated everywhere.  Every other capability is a total function on the
+read side (`Slice` of nil is nil, `String` of nil is `[]`, `Equal` of nil
+is equality with an empty tree, `DeleteFunc` on nil returns false).
 
 == Usage
 

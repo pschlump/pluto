@@ -54,11 +54,43 @@ appear on pkg.go.dev.
 | `Depth`       | Longest root-to-leaf path, O(log₂ n) by balancing        | O(n)
 | `Dump`        | Indented picture with colors and maxHi, for debugging    | O(n)
 | `All` / `Backward` | Range-over-func iterators in (Lo, Hi) order         | O(n), O(1) space
+| `Contains`    | Exact-match membership predicate (the found flag of `Search`) | O(log₂ n)
+| `ContainsSlice` / `ContainsAny` | Exact-match membership batches: all / at least one | O(k·log₂ n)
+| `DeleteSlice` | Batch delete by exact-match intervals                    | O(k·log₂ n)
+| `DeleteFunc`  | Predicate bulk delete over (interval, value) pairs       | O(n log₂ n)
+| `Slice` / `String` / `StringFunc` | Materialize / render the intervals, ascending | O(n)
+| `Equal` / `Clone` | Same-interval-set equality (keys only) / deep copy    | O(n log₂ n) / O(n)
 |===
 
 `Insert` returns `true` when a new node was added and `false` when an
 equal interval replaced the stored value.  `Len` is an alias for
 `Length`, matching the other pluto tree packages.
+
+=== Set-convenience capabilities
+
+`capabilities.go` adds the go-set-style surface in the *map-shaped,
+reduced form the tries use* — there are no batch inserters (a map-shaped
+batch insert would need key/value pairs; callers loop), and none of the
+new methods panics:
+
+* Materialization and rendering: `Slice()` (fresh `[]Interval[K]`,
+  ascending by (Lo, Hi) — the order `All` yields), `String()` /
+  `StringFunc(format)` — intervals rendered `Lo..Hi` or by a caller
+  format, joined with spaces in brackets: `[1..5 2..7]`.
+* Equality and copy: `Equal(other)` — same interval *keys* only.  The
+  values are NOT compared: `V` is any, and comparing two arbitrary
+  values is not expressible without boxing.  Two trees with identical
+  intervals but different satellite values are `Equal`.  `Clone()` —
+  deep copy keeping the comparison function, with colors, the `maxHi`
+  augmentation and parent links all copied intact.
+* Membership: `Contains(iv)` — the exact-match found flag of `Search`,
+  *not* an overlap test (use `AnyOverlap`/`Overlaps` for that), plus the
+  batches `ContainsSlice(items)` / `ContainsAny(items)`.
+* Mutation batches: `DeleteSlice(items)` — true when the receiver
+  changed; `DeleteFunc(fx)` — bulk delete by predicate over
+  `(interval, value)` pairs, collect-then-delete: the ascending snapshot
+  is taken first, the matches deleted afterwards, so the walk is never
+  corrupted.
 
 (*) `Overlaps` / `Stab` are expected O(log₂ n + k) over k matches; like
 every maxHi-pruned walk, a query whose Lo is below much of the tree can
@@ -149,6 +181,11 @@ tree: searches and `AnyOverlap` find nothing, deletes return `false`,
 and the iterators visit nothing.  The queries never validate the probe —
 an inverted probe returns an unspecified (non-panicking) answer, and
 deleting an inverted probe simply misses.
+
+The set-convenience capabilities are total functions — none of them
+panics, on any receiver (`Slice` of nil is nil, `String` of nil is `[]`,
+`Equal` of nil is equality with an empty tree, `DeleteFunc` on nil
+returns false).
 
 == Thread safety
 
