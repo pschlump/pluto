@@ -27,15 +27,15 @@ queue (the reversal applies to the key only — ties stay FIFO).
 
 [options="header"]
 |===
-| Operation | Description | Complexity
+| Operation                    | Description                                                                         | Complexity
 
-| `Insert(x)` | Add `x`, stamped with the next insertion sequence number | O(log n)
-| `Pop` | Remove and return the minimum — ties: oldest first | O(log n)
-| `Peek` | The minimum without removing — ties: oldest first | O(1)
-| `All` | Iterate in (key, insertion) order — the exact `Pop` order, non-destructive snapshot | O(n log n)
-| `Len` / `Length` / `IsEmpty` | Size queries | O(1)
-| `Truncate` | Remove everything, releasing storage (the stamp keeps counting) | O(1)
-| `Lock` / `Unlock` | No-op pair kept for API compatibility | O(1)
+| `Insert(x)`                  | Add `x`, stamped with the next insertion sequence number                            | O(log n)
+| `Pop`                        | Remove and return the minimum — ties: oldest first                                  | O(log n)
+| `Peek`                       | The minimum without removing — ties: oldest first                                   | O(1)
+| `All`                        | Iterate in (key, insertion) order — the exact `Pop` order, non-destructive snapshot | O(n log n)
+| `Len` / `Length` / `IsEmpty` | Size queries                                                                        | O(1)
+| `Truncate`                   | Remove everything, releasing storage (the stamp keeps counting)                     | O(1)
+| `Lock` / `Unlock`            | No-op pair kept for API compatibility                                               | O(1)
 |===
 
 `All` drains a private copy of the heap (a snapshot taken when `All` is
@@ -68,11 +68,11 @@ The package panics in exactly three situations — the same shape as
 
 [options="header"]
 |===
-| Call | Why
+| Call                           | Why
 
-| `NewStablePQFunc(nil)`                          | nil comparison function, caught at construction time
-| `Insert` on a nil queue                          | a nil queue cannot store an element
-| `Insert` on a zero-value queue                   | no underlying heap; the message names the constructors
+| `NewStablePQFunc(nil)`         | nil comparison function, caught at construction time
+| `Insert` on a nil queue        | a nil queue cannot store an element
+| `Insert` on a zero-value queue | no underlying heap; the message names the constructors
 |===
 
 Everything else tolerates a nil `*StablePQ` and the zero value as an

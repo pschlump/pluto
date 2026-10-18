@@ -11,11 +11,11 @@ API behind a `sync.RWMutex` (Sedgwick's §4.1 `Graph`,
 
 [options="header"]
 |===
-| Operation                              | Locking
+| Operation                                                            | Locking
 
-| `AddEdge`                              | write lock
-| `V` / `Len` / `E` / `Degree` / `HasEdge` | read lock, released before returning
-| `Adj`                                  | snapshot of the one adjacency list copied under the read lock, then iterated lock-free
+| `AddEdge`                                                            | write lock
+| `V` / `Len` / `E` / `Degree` / `HasEdge`                             | read lock, released before returning
+| `Adj`                                                                | snapshot of the one adjacency list copied under the read lock, then iterated lock-free
 | `NewDFSPaths` / `NewBFSPaths` / `NewCC` / `NewCycle` / `NewTwoColor` | snapshot of the whole adjacency structure under the read lock, then the traversal runs lock-free on the snapshot
 |===
 

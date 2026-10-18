@@ -9,15 +9,15 @@ aliases of the plain package's.
 
 [options="header"]
 |===
-| Operation      | Lock     | Description
-| `Touch`        | write    | Record an access: decay by elapsed periods, then Incr; returns the counter
-| `Add`          | write    | Insert/reset key at `InitVal` with the current minute
-| `Delete`       | write    | Remove a key's entry
-| `Truncate`     | write    | Drop every key, keeping the configuration
-| `Counter`      | read     | Decay-adjusted frequency (the OBJECT FREQ / eviction view), pure
-| `IdleMinutes`  | read     | Minutes since the last Touch/Add
-| `Len`          | read     | Number of keys
-| `Lock`/`Unlock` + `Nl*` | held | Compound operations (below)
+| Operation               | Lock  | Description
+| `Touch`                 | write | Record an access: decay by elapsed periods, then Incr; returns the counter
+| `Add`                   | write | Insert/reset key at `InitVal` with the current minute
+| `Delete`                | write | Remove a key's entry
+| `Truncate`              | write | Drop every key, keeping the configuration
+| `Counter`               | read  | Decay-adjusted frequency (the OBJECT FREQ / eviction view), pure
+| `IdleMinutes`           | read  | Minutes since the last Touch/Add
+| `Len`                   | read  | Number of keys
+| `Lock`/`Unlock` + `Nl*` | held  | Compound operations (below)
 |===
 
 == Compound operations — the eviction scan

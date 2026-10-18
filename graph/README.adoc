@@ -43,19 +43,19 @@ not reflected.
 
 [options="header"]
 |===
-| Query                          | Description                              | Complexity
+| Query                                        | Description                              | Complexity
 
-| `NewDFSPaths(g, s)`            | Paths from s via depth-first search      | O(V+E)
-| `NewBFSPaths(g, s)`            | Shortest paths from s via BFS            | O(V+E)
-| `NewCC(g)`                     | Connected components                     | O(V+E)
-| `NewCycle(g)`                  | A cycle, if one exists                   | O(V+E)
-| `NewTwoColor(g)`               | Bipartiteness (2-coloring)               | O(V+E)
-| `HasPathTo(v)`                 | Is v reachable from the source           | O(1)
-| `PathTo(v)`                    | Path source→v, source first, fresh slice | O(path length)
-| `DistTo(v)` (BFS only)         | Edges on a shortest path to v            | O(1)
-| `Connected(v, w)` / `ID` / `Count` (CC only) | Component queries        | O(1)
-| `HasCycle` / `Cycle` (Cycle only)   | Cycle queries, fresh slice           | O(1) / O(cycle)
-| `IsBipartite` / `Color(v)` (TwoColor only) | Bipartition queries         | O(1)
+| `NewDFSPaths(g, s)`                          | Paths from s via depth-first search      | O(V+E)
+| `NewBFSPaths(g, s)`                          | Shortest paths from s via BFS            | O(V+E)
+| `NewCC(g)`                                   | Connected components                     | O(V+E)
+| `NewCycle(g)`                                | A cycle, if one exists                   | O(V+E)
+| `NewTwoColor(g)`                             | Bipartiteness (2-coloring)               | O(V+E)
+| `HasPathTo(v)`                               | Is v reachable from the source           | O(1)
+| `PathTo(v)`                                  | Path source→v, source first, fresh slice | O(path length)
+| `DistTo(v)` (BFS only)                       | Edges on a shortest path to v            | O(1)
+| `Connected(v, w)` / `ID` / `Count` (CC only) | Component queries                        | O(1)
+| `HasCycle` / `Cycle` (Cycle only)            | Cycle queries, fresh slice               | O(1) / O(cycle)
+| `IsBipartite` / `Color(v)` (TwoColor only)   | Bipartition queries                      | O(1)
 |===
 
 The BFS traversal queue is pluto's own link:../queue/[`queue`] — an

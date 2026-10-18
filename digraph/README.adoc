@@ -48,25 +48,25 @@ not reflected.
 
 [options="header"]
 |===
-| Query                              | Description                                  | Complexity
+| Query                                            | Description                                                  | Complexity
 
-| `NewDirectedDFS(g, sources...)`    | Reachability from a set of sources           | O(V+E)
-| `NewDFSDirectedPaths(g, s)`        | Paths from s via depth-first search          | O(V+E)
-| `NewBFSDirectedPaths(g, s)`        | Shortest paths from s via BFS                | O(V+E)
-| `NewDirectedCycle(g)`              | A directed cycle, if one exists              | O(V+E)
-| `NewDepthFirstOrder(g)`            | Preorder, postorder, reverse postorder       | O(V+E)
-| `NewTopological(g)`                | A topological order, if the digraph is a DAG | O(V+E)
-| `NewKosarajuSCC(g)`                | Strongly connected components (Kosaraju)     | O(V+E)
-| `NewTransitiveClosure(g)`          | All-pairs reachability matrix                | O(V·(V+E))
-| `Marked(v)` / `Count` (DirectedDFS) | Is v reachable / how many vertices          | O(1)
-| `HasPathTo(v)`                     | Is v reachable from the source               | O(1)
-| `PathTo(v)`                        | Path source->v, source first, fresh slice    | O(path length)
-| `DistTo(v)` (BFS only)             | Edges on a shortest path to v                | O(1)
-| `HasCycle` / `Cycle`               | Cycle presence / one cycle, first vertex repeated at the end | O(1) / O(cycle length)
-| `Pre` / `Post` / `ReversePost`     | The DFS vertex orders, fresh slices          | O(V)
-| `HasOrder` / `Order`               | Topological order presence / the order (nil when cyclic) | O(1) / O(V)
-| `StronglyConnected(v, w)` / `ID` / `Count` (SCC) | Strong-component queries         | O(1)
-| `Reachable(v, w)` (TransitiveClosure) | Is w reachable from v, v included | O(1)
+| `NewDirectedDFS(g, sources...)`                  | Reachability from a set of sources                           | O(V+E)
+| `NewDFSDirectedPaths(g, s)`                      | Paths from s via depth-first search                          | O(V+E)
+| `NewBFSDirectedPaths(g, s)`                      | Shortest paths from s via BFS                                | O(V+E)
+| `NewDirectedCycle(g)`                            | A directed cycle, if one exists                              | O(V+E)
+| `NewDepthFirstOrder(g)`                          | Preorder, postorder, reverse postorder                       | O(V+E)
+| `NewTopological(g)`                              | A topological order, if the digraph is a DAG                 | O(V+E)
+| `NewKosarajuSCC(g)`                              | Strongly connected components (Kosaraju)                     | O(V+E)
+| `NewTransitiveClosure(g)`                        | All-pairs reachability matrix                                | O(V·(V+E))
+| `Marked(v)` / `Count` (DirectedDFS)              | Is v reachable / how many vertices                           | O(1)
+| `HasPathTo(v)`                                   | Is v reachable from the source                               | O(1)
+| `PathTo(v)`                                      | Path source->v, source first, fresh slice                    | O(path length)
+| `DistTo(v)` (BFS only)                           | Edges on a shortest path to v                                | O(1)
+| `HasCycle` / `Cycle`                             | Cycle presence / one cycle, first vertex repeated at the end | O(1) / O(cycle length)
+| `Pre` / `Post` / `ReversePost`                   | The DFS vertex orders, fresh slices                          | O(V)
+| `HasOrder` / `Order`                             | Topological order presence / the order (nil when cyclic)     | O(1) / O(V)
+| `StronglyConnected(v, w)` / `ID` / `Count` (SCC) | Strong-component queries                                     | O(1)
+| `Reachable(v, w)` (TransitiveClosure)            | Is w reachable from v, v included                            | O(1)
 |===
 
 The BFS traversal queue is pluto's own link:../queue/[`queue`] — an
@@ -118,13 +118,13 @@ for w := range g.Adj(0) {  // 1 2 — insertion order
 
 [options="header"]
 |===
-| Call                                                | Why
+| Call                                                                           | Why
 
-| `NewDigraph(n < 1)`                                 | a digraph needs at least one vertex
-| `AddEdge` on a nil digraph                          | a nil digraph cannot store an edge
+| `NewDigraph(n < 1)`                                                            | a digraph needs at least one vertex
+| `AddEdge` on a nil digraph                                                     | a nil digraph cannot store an edge
 | `NewDirectedDFS`/`NewDFSDirectedPaths`/`NewBFSDirectedPaths` nil/empty digraph | no source vertex exists to search from
 | `NewDirectedDFS`/`NewDFSDirectedPaths`/`NewBFSDirectedPaths` bad source        | out-of-range source is a programmer error
-| `NewDirectedDFS` with no sources                    | nothing to search from
+| `NewDirectedDFS` with no sources                                               | nothing to search from
 |===
 
 Everything else tolerates a nil or zero-value digraph as an empty digraph

@@ -35,26 +35,26 @@ on pkg.go.dev.
 
 [cols="2,1,1,4",options="header"]
 |===
-| Operation                                | Average | Worst case | Notes
+| Operation                      | Average    | Worst case | Notes
 
-| `Insert`                                 | O(1)    | O(n)       | amortized; growth doubles the table
-| `Search`                                 | O(1)    | O(n)       | linear probe from the home bucket
-| `Delete`                                 | O(1)    | O(n)       | backward-shift keeps probe chains intact
-| `Contains`                               | O(1)    | O(n)       | the found flag of Search
-| `IsEmpty`, `Len`, `Length`               | O(1)    | O(1)       |
-| `Truncate`                               | O(n)    | O(n)       | clears all buckets for GC
-| `InsertSlice`, `InsertIter`              | O(k)    | O(n·k)     | batch insert, atomic under one write-lock hold
-| `DeleteSlice`                            | O(k)    | O(n·k)     | batch delete, atomic under one write-lock hold
-| `DeleteFunc`                             | O(n)    | O(n²)      | predicate runs unlocked on a snapshot; deletes atomic
-| `ContainsSlice`, `ContainsAny`           | O(k)    | O(n·k)     | batch membership: all / at least one present
-| `Slice`                                  | O(n)    | O(n)       | snapshot under the read lock, slot order (unspecified)
-| `String`, `StringFunc`                   | O(n log n) | O(n log n) | formatted strings sorted — deterministic; format runs unlocked
-| `Equal`                                  | O(n)    | O(n²)      | membership only; never holds both tables' locks
-| `Clone`                                  | O(n)    | O(n)       | deep copy under the read lock; keeps size, saturation, eq/hash
-| `Walk`, `Dump`                           | O(n)    | O(n)       | read lock held for the whole call
-| `All`, `Values`                          | O(n)    | O(n)       | snapshot copied under the read lock
-| `Scan` (per call)                        | O(count) | O(count)  | read lock per batch, none held across calls
-| `Lock` / `Unlock` + `Nl*`                | O(1)    | O(1)       | compound operations
+| `Insert`                       | O(1)       | O(n)       | amortized; growth doubles the table
+| `Search`                       | O(1)       | O(n)       | linear probe from the home bucket
+| `Delete`                       | O(1)       | O(n)       | backward-shift keeps probe chains intact
+| `Contains`                     | O(1)       | O(n)       | the found flag of Search
+| `IsEmpty`, `Len`, `Length`     | O(1)       | O(1)       |
+| `Truncate`                     | O(n)       | O(n)       | clears all buckets for GC
+| `InsertSlice`, `InsertIter`    | O(k)       | O(n·k)     | batch insert, atomic under one write-lock hold
+| `DeleteSlice`                  | O(k)       | O(n·k)     | batch delete, atomic under one write-lock hold
+| `DeleteFunc`                   | O(n)       | O(n²)      | predicate runs unlocked on a snapshot; deletes atomic
+| `ContainsSlice`, `ContainsAny` | O(k)       | O(n·k)     | batch membership: all / at least one present
+| `Slice`                        | O(n)       | O(n)       | snapshot under the read lock, slot order (unspecified)
+| `String`, `StringFunc`         | O(n log n) | O(n log n) | formatted strings sorted — deterministic; format runs unlocked
+| `Equal`                        | O(n)       | O(n²)      | membership only; never holds both tables' locks
+| `Clone`                        | O(n)       | O(n)       | deep copy under the read lock; keeps size, saturation, eq/hash
+| `Walk`, `Dump`                 | O(n)       | O(n)       | read lock held for the whole call
+| `All`, `Values`                | O(n)       | O(n)       | snapshot copied under the read lock
+| `Scan` (per call)              | O(count)   | O(count)   | read lock per batch, none held across calls
+| `Lock` / `Unlock` + `Nl*`      | O(1)       | O(1)       | compound operations
 |===
 
 Worst case occurs when many keys collide; the load factor is kept below the

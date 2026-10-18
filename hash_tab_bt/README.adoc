@@ -62,23 +62,23 @@ on pkg.go.dev.
 
 [cols="2,1,1,4",options="header"]
 |===
-| Operation                                | Average      | Worst case | Notes
+| Operation                       | Average       | Worst case | Notes
 
-| `Insert`                                 | O(log(n/k))  | O(n)       | tree insert/replace in the hashed bucket
-| `Search`                                 | O(log(n/k))  | O(n)       | tree descent in the hashed bucket
-| `Delete`                                 | O(log(n/k))  | O(n)       | tree delete in the hashed bucket
-| `Contains`                               | O(log(n/k))  | O(n)       | the found flag of Search
-| `IsEmpty`, `Len`, `Length`               | O(1)         | O(1)       |
-| `Truncate`                               | O(k)         | O(k)       | k = bucket count; bucket trees are emptied
-| `InsertSlice`, `InsertIter`              | O(k log(n/k)) | O(n·k)    | batch insert; true if any element was new
-| `DeleteSlice`                            | O(k log(n/k)) | O(n·k)    | batch delete; true if any was present
-| `DeleteFunc`                             | O(n log(n/k)) | O(n²)     | bulk delete by predicate, collect-then-delete
-| `ContainsSlice`, `ContainsAny`           | O(k log(n/k)) | O(n·k)    | batch membership: all / at least one present
-| `Slice`                                  | O(n log(n/k)) | O(n²)     | fresh slice; buckets ascending, bucket order unspecified
-| `String`, `StringFunc`                   | O(n log n)   | O(n log n) | formatted strings sorted — deterministic
-| `Equal`                                  | O(n log(n/k)) | O(n²)     | same element set, membership only (never order)
-| `Clone`                                  | O(n log(n/k)) | O(n²)     | deep copy; keeps bucket count and cmp/hash
-| `Walk`, `Dump`, `All`, `Values`          | O(n)         | O(n)       |
+| `Insert`                        | O(log(n/k))   | O(n)       | tree insert/replace in the hashed bucket
+| `Search`                        | O(log(n/k))   | O(n)       | tree descent in the hashed bucket
+| `Delete`                        | O(log(n/k))   | O(n)       | tree delete in the hashed bucket
+| `Contains`                      | O(log(n/k))   | O(n)       | the found flag of Search
+| `IsEmpty`, `Len`, `Length`      | O(1)          | O(1)       |
+| `Truncate`                      | O(k)          | O(k)       | k = bucket count; bucket trees are emptied
+| `InsertSlice`, `InsertIter`     | O(k log(n/k)) | O(n·k)     | batch insert; true if any element was new
+| `DeleteSlice`                   | O(k log(n/k)) | O(n·k)     | batch delete; true if any was present
+| `DeleteFunc`                    | O(n log(n/k)) | O(n²)      | bulk delete by predicate, collect-then-delete
+| `ContainsSlice`, `ContainsAny`  | O(k log(n/k)) | O(n·k)     | batch membership: all / at least one present
+| `Slice`                         | O(n log(n/k)) | O(n²)      | fresh slice; buckets ascending, bucket order unspecified
+| `String`, `StringFunc`          | O(n log n)    | O(n log n) | formatted strings sorted — deterministic
+| `Equal`                         | O(n log(n/k)) | O(n²)      | same element set, membership only (never order)
+| `Clone`                         | O(n log(n/k)) | O(n²)      | deep copy; keeps bucket count and cmp/hash
+| `Walk`, `Dump`, `All`, `Values` | O(n)          | O(n)       |
 |===
 
 k = number of buckets.  Average behavior assumes the hashes spread

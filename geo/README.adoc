@@ -48,15 +48,15 @@ stores 13510798882111488 there — so cell intervals may reach
 
 [cols="2,3,1",options="header"]
 |===
-| Function | Description | Complexity
+| Function                                            | Description                                           | Complexity
 
-| `Encode(lat, lon)`    | The 52-bit score GEOADD stores for the position. | O(1)
-| `Decode(hash)`        | Center of the cell the score names — GEOPOS.     | O(1)
-| `Neighbors(hash)`     | The 8 adjacent cells, N, NE, E, SE, S, SW, W, NW. | O(1)
-| `RangesForRadius(lat, lon, radiusMeters)` | Score ranges covering the circle. | O(1) (≤26 coverage checks)
-| `RangesForBox(lat, lon, widthMeters, heightMeters)` | Score ranges covering the rectangle. | O(1)
-| `Distance(lat1, lon1, lat2, lon2)` | Haversine great-circle distance in meters — GEODIST. | O(1)
-| `ToMeters`, `FromMeters` | Unit conversion for m, km, ft, mi (case-insensitive). | O(1)
+| `Encode(lat, lon)`                                  | The 52-bit score GEOADD stores for the position.      | O(1)
+| `Decode(hash)`                                      | Center of the cell the score names — GEOPOS.          | O(1)
+| `Neighbors(hash)`                                   | The 8 adjacent cells, N, NE, E, SE, S, SW, W, NW.     | O(1)
+| `RangesForRadius(lat, lon, radiusMeters)`           | Score ranges covering the circle.                     | O(1) (≤26 coverage checks)
+| `RangesForBox(lat, lon, widthMeters, heightMeters)` | Score ranges covering the rectangle.                  | O(1)
+| `Distance(lat1, lon1, lat2, lon2)`                  | Haversine great-circle distance in meters — GEODIST.  | O(1)
+| `ToMeters`, `FromMeters`                            | Unit conversion for m, km, ft, mi (case-insensitive). | O(1)
 |===
 
 Constants: `StepBits` (26 per axis), `ScoreBits` (52),

@@ -51,10 +51,10 @@ handled per the algorithm (`s = val + val[:1]`).
 
 [options="header"]
 |===
-| Operation    | Description                                          | Complexity
+| Operation            | Description                                    | Complexity
 
-| `Compress(data)` | LZW-compress, EOF-terminated packed bit stream | O(n) expected
-| `Expand(compressed)` | Decode; nil if the stream is malformed  | O(n) expected
+| `Compress(data)`     | LZW-compress, EOF-terminated packed bit stream | O(n) expected
+| `Expand(compressed)` | Decode; nil if the stream is malformed         | O(n) expected
 |===
 
 The expected linear bound deserves an honest footnote: each TST

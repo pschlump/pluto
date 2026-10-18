@@ -22,16 +22,16 @@ situation as `queue_dll`, which has no twin for its own reason).
 
 [options="header"]
 |===
-| Operation    | Description                                              | Complexity
+| Operation                  | Description                                        | Complexity
 
-| `NewSuffixArray(s)` | Build the suffix array, LCP and rank tables | O(n log² n)
-| `Len`        | Number of suffixes (== `len(s)`)                   | O(1)
-| `Index(i)`   | Text offset of the i-th sorted suffix, `(off, ok)` | O(1)
-| `Select(i)`  | The i-th sorted suffix itself, `(suffix, ok)`      | O(1)
-| `LCP(i)`     | LCP of sorted suffixes i and i-1, `(len, ok)`      | O(1)
-| `Rank(i)`    | Sorted position of suffix i, `(pos, ok)`           | O(1)
-| `LongestRepeatedSubstring` | Longest substring appearing ≥ 2 times | O(n)
-| `LCS(s, t)`  | Longest common substring of two strings | O((n+m) log²(n+m))
+| `NewSuffixArray(s)`        | Build the suffix array, LCP and rank tables        | O(n log² n)
+| `Len`                      | Number of suffixes (== `len(s)`)                   | O(1)
+| `Index(i)`                 | Text offset of the i-th sorted suffix, `(off, ok)` | O(1)
+| `Select(i)`                | The i-th sorted suffix itself, `(suffix, ok)`      | O(1)
+| `LCP(i)`                   | LCP of sorted suffixes i and i-1, `(len, ok)`      | O(1)
+| `Rank(i)`                  | Sorted position of suffix i, `(pos, ok)`           | O(1)
+| `LongestRepeatedSubstring` | Longest substring appearing ≥ 2 times              | O(n)
+| `LCS(s, t)`                | Longest common substring of two strings            | O((n+m) log²(n+m))
 |===
 
 Construction sorts the suffixes by *prefix doubling*: starting from

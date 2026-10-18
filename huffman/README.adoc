@@ -44,10 +44,10 @@ B = `1`; trie 19 bits + count 64 + codewords 2 = 85 bits):
 
 [cols="1,3",options="header"]
 |===
-| Operation        | Description                                             | Complexity
+| Operation        | Description                                     | Complexity
 
-| `Compress(data)` | Frequencies → trie → code → blob                       | O(n)
-| `Expand(blob)`   | Trie ← blob, walk n codewords; nil if malformed        | O(n)
+| `Compress(data)` | Frequencies → trie → code → blob                | O(n)
+| `Expand(blob)`   | Trie ← blob, walk n codewords; nil if malformed | O(n)
 |===
 
 Both functions are pure: the input is never modified, the result is a
@@ -105,12 +105,12 @@ Apple M4 Max, 1 MiB inputs, `go test -bench=. -benchmem`:
 
 [cols="1,1,1,1,1",options="header"]
 |===
-| Regime               | Ratio (B/byte) | Compress   | Expand     | Note
+| Regime               | Ratio (B/byte) | Compress         | Expand            | Note
 
-| English-like text    | 0.546          | 8.2 ms, 128 MB/s  | 23.9 ms, 44 MB/s | 26 symbols, skewed
-| long runs, 6 symbols | 0.333          | 5.7 ms, 183 MB/s  | 5.6 ms, 186 MB/s |
-| uniform over 256     | ~1.000         | 15.0 ms, 70 MB/s  | 46.9 ms, 22 MB/s | header adds ~330 B/MiB
-| single symbol        | 0.00001        | 1.6 ms, 671 MB/s  | 0.8 ms, 1276 MB/s | 10 bytes out
+| English-like text    | 0.546          | 8.2 ms, 128 MB/s | 23.9 ms, 44 MB/s  | 26 symbols, skewed
+| long runs, 6 symbols | 0.333          | 5.7 ms, 183 MB/s | 5.6 ms, 186 MB/s  |
+| uniform over 256     | ~1.000         | 15.0 ms, 70 MB/s | 46.9 ms, 22 MB/s  | header adds ~330 B/MiB
+| single symbol        | 0.00001        | 1.6 ms, 671 MB/s | 0.8 ms, 1276 MB/s | 10 bytes out
 |===
 
 Expand cost tracks total codeword bits, not output bytes — the uniform

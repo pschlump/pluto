@@ -25,14 +25,14 @@ count byte and knows nothing of the split) already understands.
 
 [options="header"]
 |===
-| Input (bits)        | Encoding              | Note
+| Input (bits)            | Encoding            | Note
 
-| `0000 0000`         | `[8]`                 | one run of zeros
-| `1111 1111`         | `[0, 8]`              | anchor 0 for a 1-bit opening
-| `1111 0000`         | `[0, 4, 4]`           |
-| `0101 0101`         | `[1,1,1,1,1,1,1,1]`   | per-bit alternation
-| 32 × `0x00` (256 zeros) | `[255, 0, 1]`     | the saturation split
-| 33 × `0x00` (264 zeros) | `[255, 0, 9]`     |
+| `0000 0000`             | `[8]`               | one run of zeros
+| `1111 1111`             | `[0, 8]`            | anchor 0 for a 1-bit opening
+| `1111 0000`             | `[0, 4, 4]`         |
+| `0101 0101`             | `[1,1,1,1,1,1,1,1]` | per-bit alternation
+| 32 × `0x00` (256 zeros) | `[255, 0, 1]`       | the saturation split
+| 33 × `0x00` (264 zeros) | `[255, 0, 9]`       |
 |===
 
 == Operations

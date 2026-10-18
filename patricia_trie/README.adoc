@@ -49,28 +49,28 @@ key; n is the number of keys.
 
 [options="header"]
 |===
-| Operation | Description | Complexity
+| Operation                                   | Description                                                          | Complexity
 
-| `Insert(key, value)` | Add key with value; `false` if it replaced an existing value | O(w)
-| `Search(key)`        | Value associated with key, `(T, bool)`                         | O(w)
-| `Contains(key)`      | Is key in the trie?                                            | O(w)
-| `Delete(key)`        | Remove key, collapsing its branch; `false` if absent           | O(w)
-| `IsEmpty()`          | Is the trie empty?                                             | O(1)
-| `Length()` / `Len()` | Number of keys                                                 | O(1)
-| `Truncate()`         | Remove all keys, restoring the zero shape                      | O(1)
-| `KeysWithPrefix(prefix)` | All keys starting with prefix, ascending; nil when none  | O(w + matches)
-| `LongestPrefixOf(key)` | Longest stored key that is a prefix of key, `(key, value, ok)` | O(w)
-| `KeysThatMatch(pattern)` | `iter.Seq2[string, T]` over keys matching a Redis glob, ascending | O(w + k·m)
-| `All()`              | `iter.Seq2[string, T]` over (key, value) pairs, ascending key order | O(n)
-| `Backward()`         | `iter.Seq2[string, T]` over (key, value) pairs, descending key order | O(n)
-| `Keys()`             | All keys, ascending byte order; nil when empty                   | O(n)
-| `Values()`           | All values, in ascending key order (aligned with `Keys`)         | O(n)
-| `String()` / `StringFunc(f)` | The keys rendered ascending, `"[a b c]"`; `f` formats each key | O(total key bytes)
-| `Equal(other)`       | Same *key set* as other — values are not compared                | O(n·w)
-| `Clone()`            | Deep copy of every node                                          | O(n)
-| `ContainsSlice(keys)` / `ContainsAny(keys)` | Batch membership over keys | O(k·w)
-| `DeleteSlice(keys)`  | Batch delete by keys; `true` if at least one was present         | O(k·w)
-| `Dump(w)`            | Indented structural listing to an `io.Writer` (debug aid)      | O(n)
+| `Insert(key, value)`                        | Add key with value; `false` if it replaced an existing value         | O(w)
+| `Search(key)`                               | Value associated with key, `(T, bool)`                               | O(w)
+| `Contains(key)`                             | Is key in the trie?                                                  | O(w)
+| `Delete(key)`                               | Remove key, collapsing its branch; `false` if absent                 | O(w)
+| `IsEmpty()`                                 | Is the trie empty?                                                   | O(1)
+| `Length()` / `Len()`                        | Number of keys                                                       | O(1)
+| `Truncate()`                                | Remove all keys, restoring the zero shape                            | O(1)
+| `KeysWithPrefix(prefix)`                    | All keys starting with prefix, ascending; nil when none              | O(w + matches)
+| `LongestPrefixOf(key)`                      | Longest stored key that is a prefix of key, `(key, value, ok)`       | O(w)
+| `KeysThatMatch(pattern)`                    | `iter.Seq2[string, T]` over keys matching a Redis glob, ascending    | O(w + k·m)
+| `All()`                                     | `iter.Seq2[string, T]` over (key, value) pairs, ascending key order  | O(n)
+| `Backward()`                                | `iter.Seq2[string, T]` over (key, value) pairs, descending key order | O(n)
+| `Keys()`                                    | All keys, ascending byte order; nil when empty                       | O(n)
+| `Values()`                                  | All values, in ascending key order (aligned with `Keys`)             | O(n)
+| `String()` / `StringFunc(f)`                | The keys rendered ascending, `"[a b c]"`; `f` formats each key       | O(total key bytes)
+| `Equal(other)`                              | Same *key set* as other — values are not compared                    | O(n·w)
+| `Clone()`                                   | Deep copy of every node                                              | O(n)
+| `ContainsSlice(keys)` / `ContainsAny(keys)` | Batch membership over keys                                           | O(k·w)
+| `DeleteSlice(keys)`                         | Batch delete by keys; `true` if at least one was present             | O(k·w)
+| `Dump(w)`                                   | Indented structural listing to an `io.Writer` (debug aid)            | O(n)
 |===
 
 `All()`, `Backward()` and `KeysThatMatch()` visit the *live* trie — do

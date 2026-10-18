@@ -13,13 +13,13 @@ zero value of `Bag` is an empty bag ready to use without a constructor.
 
 [options="header"]
 |===
-| Operation                    | Lock            | Description
+| Operation                       | Lock            | Description
 
-| `Add`                        | write           | Add an element, O(1)
-| `Truncate`                   | write           | Remove all elements, O(1)
-| `IsEmpty` / `Len` / `Length` | read            | Size queries, O(1)
-| `All` / `Backward`           | read (snapshot) | Range-over-func iterators, O(n)
-| `MarshalJSON` / `UnmarshalJSON` | read / write | JSON array encode/decode
+| `Add`                           | write           | Add an element, O(1)
+| `Truncate`                      | write           | Remove all elements, O(1)
+| `IsEmpty` / `Len` / `Length`    | read            | Size queries, O(1)
+| `All` / `Backward`              | read (snapshot) | Range-over-func iterators, O(n)
+| `MarshalJSON` / `UnmarshalJSON` | read / write    | JSON array encode/decode
 |===
 
 `All` and `Backward` copy a *snapshot at call time* under the read lock
@@ -41,7 +41,7 @@ The package has exactly *one* panic:
 
 [options="header"]
 |===
-| Call | Why
+| Call               | Why
 
 | `Add` on a nil bag | a nil bag cannot store an element
 |===

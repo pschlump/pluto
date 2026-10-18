@@ -32,7 +32,7 @@ and each has a prebuilt table made once at package init.
 
 [cols="2,1,2,2",options="header"]
 |===
-| Constant | Value | Common name | Prebuilt table
+| Constant     | Value                | Common name                 | Prebuilt table
 
 | `IEEE`       | `0xedb88320`         | CRC-32 (Ethernet, zip, PNG) | `IEEETable`
 | `Castagnoli` | `0x82f63b78`         | CRC-32C (iSCSI, ext4)       | `CastagnoliTable`
@@ -54,7 +54,7 @@ themselves "CRC-64/ECMA" with a zero init produce a different value.
 
 [cols="1,2,1",options="header"]
 |===
-| Function | Description | Complexity
+| Function                     | Description                                     | Complexity
 
 | `MakeTable32`, `MakeTable64` | Build a 256-entry lookup table for a polynomial | O(1) — fixed 256 × 8 loop
 | `Checksum32`, `Checksum64`   | One-shot CRC of a byte slice                    | O(len(data))

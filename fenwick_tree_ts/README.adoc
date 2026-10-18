@@ -57,11 +57,11 @@ The package has exactly *three* panics, identical to `fenwick_tree`
 
 [options="header"]
 |===
-| Call | Why
+| Call                                       | Why
 
-| `NewFenwickTree(n)` with `n < 1`            | a Fenwick tree over no slots is meaningless
-| `NewFenwickTreeFrom(data)` with empty data  | same reason
-| `Add` / `Set` on a nil `*FenwickTree`       | a nil structure cannot record an update
+| `NewFenwickTree(n)` with `n < 1`           | a Fenwick tree over no slots is meaningless
+| `NewFenwickTreeFrom(data)` with empty data | same reason
+| `Add` / `Set` on a nil `*FenwickTree`      | a nil structure cannot record an update
 |===
 
 Nil guards come *before* the lock acquisition (a nil-receiver lock

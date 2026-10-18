@@ -42,7 +42,7 @@ The plain package's entire surface, with the same complexities —
 
 [options="header"]
 |===
-| Operation | Lock | Notes
+| Operation                    | Lock  | Notes
 
 | `Insert(p) bool`             | write | nil/NaN panic, `kd_tree_ts:` prefix
 | `Contains(p) bool`           | read  |

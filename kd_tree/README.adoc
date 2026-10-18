@@ -27,15 +27,15 @@ signature for a capability nothing downstream needs yet.
 
 [options="header"]
 |===
-| Operation                  | Description                                          | Complexity
+| Operation                    | Description                                        | Complexity
 
-| `Insert(p) bool`           | Add p (duplicates no-op)                             | O(log₂ n) expected
-| `Contains(p) bool`         | Exact-match search                                   | O(log₂ n) expected
+| `Insert(p) bool`             | Add p (duplicates no-op)                           | O(log₂ n) expected
+| `Contains(p) bool`           | Exact-match search                                 | O(log₂ n) expected
 | `Nearest(q) (Point2D, bool)` | Closest point to q by squared distance             | O(log₂ n) expected
-| `NearestK(q, k) []Point2D` | The k closest, ascending distance, (X,Y) tie order  | O(log₂ n + k log k) expected
-| `Range(rect) []Point2D`    | Points in the closed rectangle, tree order           | O(log₂ n + m) expected
-| `All() iter.Seq[Point2D]`  | Iterate in tree (pre)order — live walk               | O(n)
-| `Len()`, `IsEmpty()`       | Size                                                | O(1)
+| `NearestK(q, k) []Point2D`   | The k closest, ascending distance, (X,Y) tie order | O(log₂ n + k log k) expected
+| `Range(rect) []Point2D`      | Points in the closed rectangle, tree order         | O(log₂ n + m) expected
+| `All() iter.Seq[Point2D]`    | Iterate in tree (pre)order — live walk             | O(n)
+| `Len()`, `IsEmpty()`         | Size                                               | O(1)
 |===
 
 Expected costs hold for randomly ordered insertions.  The tree is not

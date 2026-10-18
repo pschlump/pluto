@@ -50,7 +50,7 @@ outcome is a `false` return — and exactly four panics:
 
 [options="header"]
 |===
-| Call | Why
+| Call                                     | Why
 
 | `NewIndexPQFunc(n, nil)`                 | nil comparison function, caught at construction time
 | `NewIndexPQ`/`NewIndexPQFunc` with n < 1 | no usable index space

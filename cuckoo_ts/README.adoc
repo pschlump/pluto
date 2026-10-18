@@ -89,9 +89,9 @@ roughly α⁴ for well-distributed hashes.
 |===
 | Load factor α | P(insert displaces) ≈ α⁴ | What a chain looks like
 
-| 0.37 | ~2%  | rare, 1–2 kicks
-| 0.73 | ~28%  | common, a few kicks
-| 0.85 | ~52%  | every other insert, chains lengthen near the threshold
+| 0.37          | ~2%                      | rare, 1–2 kicks
+| 0.73          | ~28%                     | common, a few kicks
+| 0.85          | ~52%                     | every other insert, chains lengthen near the threshold
 |===
 
 So a table that runs fuller inserts slower. A concrete example, the
@@ -121,27 +121,27 @@ going past ~0.87 invites collision-loop resizes, which are synchronous).
 
 [cols="2,1,1,4",options="header"]
 |===
-| Operation                                | Average | Worst case | Notes
+| Operation                                            | Average    | Worst case | Notes
 
-| `Insert`                                 | O(1)    | O(n)       | a collision-loop resize is synchronous
-| `Search`                                 | O(1)    | O(1)       | exactly four slots are examined
-| `Delete`                                 | O(1)    | O(1)       | clearing a slot repairs nothing
-| `IsEmpty`, `Len`, `Length`, `Capacity`, `Saturation` | O(1) | O(1) |
-| `Info`                                   | O(1)    | O(1)       | size plus exact grow/shrink/forced resize counters
-| `Contains`                               | O(1)    | O(1)       | the found flag of Search
-| `Truncate`                               | O(n)    | O(n)       | clears all slots for GC
-| `InsertSlice`, `InsertIter`              | O(k)    | O(n·k)     | batch insert, atomic under one write-lock hold
-| `DeleteSlice`                            | O(k)    | O(n·k)     | batch delete, atomic under one write-lock hold
-| `DeleteFunc`                             | O(n)    | O(n²)      | predicate runs unlocked on a snapshot; deletes atomic
-| `ContainsSlice`, `ContainsAny`           | O(k)    | O(k)       | batch membership: all / at least one present
-| `Slice`                                  | O(n)    | O(n)       | snapshot under the read lock; slot order unspecified
-| `String`, `StringFunc`                   | O(n log n) | O(n log n) | formatted strings sorted — deterministic; format runs unlocked
-| `Equal`                                  | O(n)    | O(n)       | membership only; never holds both tables' locks
-| `Clone`                                  | O(n)    | O(n)       | deep copy under the read lock; keeps size, thresholds and eq/hash
-| `Walk`, `Dump`                           | O(n)    | O(n)       | read lock held for the whole traversal
-| `All`, `Values`                          | O(n)    | O(n)       | snapshot copied under the read lock
-| `Scan` (per call)                        | O(count) | O(count)  | read lock per batch, none held across calls
-| `Lock` / `Unlock` + `Nl*`                | O(1)    | O(1)       | to lock; then the Nl body's cost
+| `Insert`                                             | O(1)       | O(n)       | a collision-loop resize is synchronous
+| `Search`                                             | O(1)       | O(1)       | exactly four slots are examined
+| `Delete`                                             | O(1)       | O(1)       | clearing a slot repairs nothing
+| `IsEmpty`, `Len`, `Length`, `Capacity`, `Saturation` | O(1)       | O(1)       |
+| `Info`                                               | O(1)       | O(1)       | size plus exact grow/shrink/forced resize counters
+| `Contains`                                           | O(1)       | O(1)       | the found flag of Search
+| `Truncate`                                           | O(n)       | O(n)       | clears all slots for GC
+| `InsertSlice`, `InsertIter`                          | O(k)       | O(n·k)     | batch insert, atomic under one write-lock hold
+| `DeleteSlice`                                        | O(k)       | O(n·k)     | batch delete, atomic under one write-lock hold
+| `DeleteFunc`                                         | O(n)       | O(n²)      | predicate runs unlocked on a snapshot; deletes atomic
+| `ContainsSlice`, `ContainsAny`                       | O(k)       | O(k)       | batch membership: all / at least one present
+| `Slice`                                              | O(n)       | O(n)       | snapshot under the read lock; slot order unspecified
+| `String`, `StringFunc`                               | O(n log n) | O(n log n) | formatted strings sorted — deterministic; format runs unlocked
+| `Equal`                                              | O(n)       | O(n)       | membership only; never holds both tables' locks
+| `Clone`                                              | O(n)       | O(n)       | deep copy under the read lock; keeps size, thresholds and eq/hash
+| `Walk`, `Dump`                                       | O(n)       | O(n)       | read lock held for the whole traversal
+| `All`, `Values`                                      | O(n)       | O(n)       | snapshot copied under the read lock
+| `Scan` (per call)                                    | O(count)   | O(count)   | read lock per batch, none held across calls
+| `Lock` / `Unlock` + `Nl*`                            | O(1)       | O(1)       | to lock; then the Nl body's cost
 |===
 
 == Usage
@@ -290,12 +290,12 @@ no sane fallback, each message naming the fix:
 
 [options="header"]
 |===
-| Call | Why
+| Call                                                                | Why
 
 | `NewHashTabFunc(nil eq, ...)` / `NewHashTabFunc(eq, nil hash, ...)` | nil function, caught at construction time
-| `NewHashTab`/`NewHashTabFunc` with n < 5 | a smaller table has no headroom
-| `Insert` on a nil `*HashTab` | a nil table cannot store an element
-| `Insert` on a zero-value table | no equality/hash functions; the message names the constructors
+| `NewHashTab`/`NewHashTabFunc` with n < 5                            | a smaller table has no headroom
+| `Insert` on a nil `*HashTab`                                        | a nil table cannot store an element
+| `Insert` on a zero-value table                                      | no equality/hash functions; the message names the constructors
 |===
 
 One further, pathological panic exists (raised on the background resizer

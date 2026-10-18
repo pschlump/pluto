@@ -32,13 +32,13 @@ push.  Used at one end only it behaves as a stack; used with
 
 [options="header"]
 |===
-| Operation                    | Description                               | Complexity
+| Operation                    | Description                                  | Complexity
 
-| `PushFront` / `PushBack`     | Insert at the front / back                | O(1)
-| `PopFront` / `PopBack`       | Remove and return from the front / back   | O(1)
-| `PeekFront` / `PeekBack`     | Look at the front / back without removing | O(1)
-| `IsEmpty` / `Len` / `Length` | Size queries                              | O(1)
-| `Truncate`                   | Remove all elements                       | O(1)
+| `PushFront` / `PushBack`     | Insert at the front / back                   | O(1)
+| `PopFront` / `PopBack`       | Remove and return from the front / back      | O(1)
+| `PeekFront` / `PeekBack`     | Look at the front / back without removing    | O(1)
+| `IsEmpty` / `Len` / `Length` | Size queries                                 | O(1)
+| `Truncate`                   | Remove all elements                          | O(1)
 | `All` / `Backward`           | Range-over-func iterators over the live list | O(n)
 |===
 
@@ -80,10 +80,10 @@ The package has exactly *two* panics:
 
 [options="header"]
 |===
-| Call | Why
+| Call                       | Why
 
 | `PushFront` on a nil deque | a nil deque cannot store an element
-| `PushBack` on a nil deque | a nil deque cannot store an element
+| `PushBack` on a nil deque  | a nil deque cannot store an element
 |===
 
 Everything else — including the zero value, which is fully usable

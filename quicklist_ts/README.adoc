@@ -15,12 +15,12 @@ semantics.  This twin changes only the concurrency.
 
 [options="header"]
 |===
-| Methods | Lock
+| Methods                                                                                                          | Lock
 
-| `Len`, `PeekHead`, `PeekTail` | read lock (true reads — the end segments are never stored compressed)
+| `Len`, `PeekHead`, `PeekTail`                                                                                    | read lock (true reads — the end segments are never stored compressed)
 | `PushHead`/`PushTail`, `PopHead`/`PopTail`, `Set`, `InsertBefore`/`InsertAfter`, `Delete`, `DeleteRange`, `Trim` | write lock
-| `At` | *write* lock — a hit can materialize a compressed segment, which mutates
-| `All` / `Backward` / `Range` | write lock held only while the snapshot is materialized; the returned iterator then walks the snapshot
+| `At`                                                                                                             | *write* lock — a hit can materialize a compressed segment, which mutates
+| `All` / `Backward` / `Range`                                                                                     | write lock held only while the snapshot is materialized; the returned iterator then walks the snapshot
 |===
 
 Unlike the plain package's live-walk iterators, the twin's iterators

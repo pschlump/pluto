@@ -40,26 +40,26 @@ appear on pkg.go.dev.
 
 [options="header"]
 |===
-| Operation     | Description                                             | Complexity
+| Operation                         | Description                                                   | Complexity
 
-| `Insert`      | Add interval→value; an equal interval replaces its value | O(log₂ n)
-| `Search`      | Exact-match lookup by interval (same Lo and Hi)          | O(log₂ n)
-| `Delete`      | Remove an interval; reports whether it was found         | O(log₂ n)
-| `AnyOverlap`  | Any one stored interval intersecting the query           | O(log₂ n)
-| `Overlaps`    | Every stored interval intersecting the query, ascending  | O(log₂ n + k)*
-| `Stab`        | Every stored interval containing a point                 | O(log₂ n + k)*
-| `Min` / `Max` | Interval with the smallest / largest (Lo, Hi)            | O(log₂ n)
-| `IsEmpty` / `Len` / `Length` | Size queries                              | O(1)
-| `Truncate`    | Remove everything (the comparison function is kept)      | O(1)
-| `Depth`       | Longest root-to-leaf path, O(log₂ n) by balancing        | O(n)
-| `Dump`        | Indented picture with colors and maxHi, for debugging    | O(n)
-| `All` / `Backward` | Range-over-func iterators in (Lo, Hi) order         | O(n), O(1) space
-| `Contains`    | Exact-match membership predicate (the found flag of `Search`) | O(log₂ n)
-| `ContainsSlice` / `ContainsAny` | Exact-match membership batches: all / at least one | O(k·log₂ n)
-| `DeleteSlice` | Batch delete by exact-match intervals                    | O(k·log₂ n)
-| `DeleteFunc`  | Predicate bulk delete over (interval, value) pairs       | O(n log₂ n)
-| `Slice` / `String` / `StringFunc` | Materialize / render the intervals, ascending | O(n)
-| `Equal` / `Clone` | Same-interval-set equality (keys only) / deep copy    | O(n log₂ n) / O(n)
+| `Insert`                          | Add interval→value; an equal interval replaces its value      | O(log₂ n)
+| `Search`                          | Exact-match lookup by interval (same Lo and Hi)               | O(log₂ n)
+| `Delete`                          | Remove an interval; reports whether it was found              | O(log₂ n)
+| `AnyOverlap`                      | Any one stored interval intersecting the query                | O(log₂ n)
+| `Overlaps`                        | Every stored interval intersecting the query, ascending       | O(log₂ n + k)*
+| `Stab`                            | Every stored interval containing a point                      | O(log₂ n + k)*
+| `Min` / `Max`                     | Interval with the smallest / largest (Lo, Hi)                 | O(log₂ n)
+| `IsEmpty` / `Len` / `Length`      | Size queries                                                  | O(1)
+| `Truncate`                        | Remove everything (the comparison function is kept)           | O(1)
+| `Depth`                           | Longest root-to-leaf path, O(log₂ n) by balancing             | O(n)
+| `Dump`                            | Indented picture with colors and maxHi, for debugging         | O(n)
+| `All` / `Backward`                | Range-over-func iterators in (Lo, Hi) order                   | O(n), O(1) space
+| `Contains`                        | Exact-match membership predicate (the found flag of `Search`) | O(log₂ n)
+| `ContainsSlice` / `ContainsAny`   | Exact-match membership batches: all / at least one            | O(k·log₂ n)
+| `DeleteSlice`                     | Batch delete by exact-match intervals                         | O(k·log₂ n)
+| `DeleteFunc`                      | Predicate bulk delete over (interval, value) pairs            | O(n log₂ n)
+| `Slice` / `String` / `StringFunc` | Materialize / render the intervals, ascending                 | O(n)
+| `Equal` / `Clone`                 | Same-interval-set equality (keys only) / deep copy            | O(n log₂ n) / O(n)
 |===
 
 `Insert` returns `true` when a new node was added and `false` when an

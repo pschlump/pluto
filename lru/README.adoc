@@ -37,17 +37,17 @@ flush, and the flusher shrinks it back under.
 
 [cols="1,2,1",options="header"]
 |===
-| Operation | Description | Complexity
+| Operation                    | Description                                                                              | Complexity
 
-| `NewLru(capacity)`              | Cache with every entry evictable                | O(1)
-| `NewLruFunc(capacity, veto)`    | Cache with an eviction veto callback            | O(1)
-| `Get(key)`                      | Look up; a hit marks most-recently-used         | O(1)
-| `Peek(key)`                     | Look up without changing the recency order      | O(1)
-| `Put(key, value)`               | Insert/update (update marks MRU); evict down to capacity first | O(1) — O(scan) worst case when the veto protects entries
-| `Delete(key)`                   | Remove a key, reporting whether it was present  | O(1)
-| `Len` / `Capacity`              | Size queries (Len may exceed Capacity under the soft cap) | O(1)
-| `Clear`                         | Drop all entries, keep capacity and veto        | O(n)
-| `All` / `Backward`              | Iterators, MRU→LRU / LRU→MRU (`iter.Seq2[K, V]`; a single-variable range yields the KEY) | O(n)
+| `NewLru(capacity)`           | Cache with every entry evictable                                                         | O(1)
+| `NewLruFunc(capacity, veto)` | Cache with an eviction veto callback                                                     | O(1)
+| `Get(key)`                   | Look up; a hit marks most-recently-used                                                  | O(1)
+| `Peek(key)`                  | Look up without changing the recency order                                               | O(1)
+| `Put(key, value)`            | Insert/update (update marks MRU); evict down to capacity first                           | O(1) — O(scan) worst case when the veto protects entries
+| `Delete(key)`                | Remove a key, reporting whether it was present                                           | O(1)
+| `Len` / `Capacity`           | Size queries (Len may exceed Capacity under the soft cap)                                | O(1)
+| `Clear`                      | Drop all entries, keep capacity and veto                                                 | O(n)
+| `All` / `Backward`           | Iterators, MRU→LRU / LRU→MRU (`iter.Seq2[K, V]`; a single-variable range yields the KEY) | O(n)
 |===
 
 `All` and `Backward` walk the live recency list, so the cache must not

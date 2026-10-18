@@ -111,14 +111,14 @@ schemes, not the current code.
 
 [cols="3,2,2",options="header"]
 |===
-| Metric | cuckoo_ts (×2, mask) | cuckoo_grow15_ts (×1.5, mul-shift)
+| Metric         | cuckoo_ts (×2, mask) | cuckoo_grow15_ts (×1.5, mul-shift)
 
-| ns/op          | ~65 ms     | ~73 ms (+10–12%)
-| B/op           | 12.58 MB   | 18.19 MB (+45%)
-| allocs/op      | 16–17      | 23
-| table-grows    | 10–11      | 16–18
-| final-capacity | 262,144    | 252,193
-| final-len      | 96,018     | 96,018
+| ns/op          | ~65 ms               | ~73 ms (+10–12%)
+| B/op           | 12.58 MB             | 18.19 MB (+45%)
+| allocs/op      | 16–17                | 23
+| table-grows    | 10–11                | 16–18
+| final-capacity | 262,144              | 252,193
+| final-len      | 96,018               | 96,018
 |===
 
 Reading of the numbers:
@@ -144,25 +144,25 @@ production default remains `cuckoo_ts` with doubling.
 
 [cols="2,1,1,4",options="header"]
 |===
-| Operation                                | Average | Worst case | Notes
+| Operation                                            | Average    | Worst case | Notes
 
-| `Insert`                                 | O(1)    | O(n)       | a collision-loop resize is synchronous
-| `Search`                                 | O(1)    | O(1)       | exactly four slots are examined
-| `Delete`                                 | O(1)    | O(1)       | clearing a slot repairs nothing
-| `IsEmpty`, `Len`, `Length`, `Capacity`, `Saturation` | O(1) | O(1) |
-| `Contains`                               | O(1)    | O(1)       | the found flag of Search
-| `Truncate`                               | O(n)    | O(n)       | clears all slots for GC
-| `InsertSlice`, `InsertIter`              | O(k)    | O(n·k)     | batch insert, atomic under one write-lock hold
-| `DeleteSlice`                            | O(k)    | O(n·k)     | batch delete, atomic under one write-lock hold
-| `DeleteFunc`                             | O(n)    | O(n²)      | predicate runs unlocked on a snapshot; deletes atomic
-| `ContainsSlice`, `ContainsAny`           | O(k)    | O(k)       | batch membership: all / at least one present
-| `Slice`                                  | O(n)    | O(n)       | snapshot under the read lock; slot order unspecified
-| `String`, `StringFunc`                   | O(n log n) | O(n log n) | formatted strings sorted — deterministic; format runs unlocked
-| `Equal`                                  | O(n)    | O(n)       | membership only; never holds both tables' locks
-| `Clone`                                  | O(n)    | O(n)       | deep copy under the read lock; keeps size, thresholds and eq/hash
-| `Walk`, `Dump`                           | O(n)    | O(n)       | read lock held for the whole traversal
-| `All`, `Values`                          | O(n)    | O(n)       | snapshot copied under the read lock
-| `Lock` / `Unlock` + `Nl*`                | O(1)    | O(1)       | to lock; then the Nl body's cost
+| `Insert`                                             | O(1)       | O(n)       | a collision-loop resize is synchronous
+| `Search`                                             | O(1)       | O(1)       | exactly four slots are examined
+| `Delete`                                             | O(1)       | O(1)       | clearing a slot repairs nothing
+| `IsEmpty`, `Len`, `Length`, `Capacity`, `Saturation` | O(1)       | O(1)       |
+| `Contains`                                           | O(1)       | O(1)       | the found flag of Search
+| `Truncate`                                           | O(n)       | O(n)       | clears all slots for GC
+| `InsertSlice`, `InsertIter`                          | O(k)       | O(n·k)     | batch insert, atomic under one write-lock hold
+| `DeleteSlice`                                        | O(k)       | O(n·k)     | batch delete, atomic under one write-lock hold
+| `DeleteFunc`                                         | O(n)       | O(n²)      | predicate runs unlocked on a snapshot; deletes atomic
+| `ContainsSlice`, `ContainsAny`                       | O(k)       | O(k)       | batch membership: all / at least one present
+| `Slice`                                              | O(n)       | O(n)       | snapshot under the read lock; slot order unspecified
+| `String`, `StringFunc`                               | O(n log n) | O(n log n) | formatted strings sorted — deterministic; format runs unlocked
+| `Equal`                                              | O(n)       | O(n)       | membership only; never holds both tables' locks
+| `Clone`                                              | O(n)       | O(n)       | deep copy under the read lock; keeps size, thresholds and eq/hash
+| `Walk`, `Dump`                                       | O(n)       | O(n)       | read lock held for the whole traversal
+| `All`, `Values`                                      | O(n)       | O(n)       | snapshot copied under the read lock
+| `Lock` / `Unlock` + `Nl*`                            | O(1)       | O(1)       | to lock; then the Nl body's cost
 |===
 
 == Usage
@@ -277,12 +277,12 @@ no sane fallback, each message naming the fix:
 
 [options="header"]
 |===
-| Call | Why
+| Call                                                                | Why
 
 | `NewHashTabFunc(nil eq, ...)` / `NewHashTabFunc(eq, nil hash, ...)` | nil function, caught at construction time
-| `NewHashTab`/`NewHashTabFunc` with n < 5 | a smaller table has no headroom
-| `Insert` on a nil `*HashTab` | a nil table cannot store an element
-| `Insert` on a zero-value table | no equality/hash functions; the message names the constructors
+| `NewHashTab`/`NewHashTabFunc` with n < 5                            | a smaller table has no headroom
+| `Insert` on a nil `*HashTab`                                        | a nil table cannot store an element
+| `Insert` on a zero-value table                                      | no equality/hash functions; the message names the constructors
 |===
 
 One further, pathological panic exists (raised on the background resizer

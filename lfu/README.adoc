@@ -29,16 +29,16 @@ with the keyspace.
 
 [options="header"]
 |===
-| Operation      | Description                                                          | Complexity
+| Operation                                | Description                                                                | Complexity
 
-| `Touch`        | Record an access: decay by elapsed periods, then Incr; returns the counter | O(1) avg
-| `Add`          | Insert key at `InitVal` with the current minute (SET on a new key)   | O(1) avg
-| `Counter`      | Decay-adjusted frequency (the OBJECT FREQ / eviction view), read-only | O(1) avg
-| `IdleMinutes`  | Minutes since the last Touch/Add (the OBJECT IDLETIME signal)        | O(1) avg
-| `Delete`       | Remove a key's entry, reporting presence                             | O(1) avg
-| `Len`          | Number of keys                                                       | O(1)
-| `Truncate`     | Drop every key, keeping the configuration                            | O(n)
-| `MorrisCounter.Incr` / `Decay` / `Value` | The standalone 8-bit counter        | O(1)
+| `Touch`                                  | Record an access: decay by elapsed periods, then Incr; returns the counter | O(1) avg
+| `Add`                                    | Insert key at `InitVal` with the current minute (SET on a new key)         | O(1) avg
+| `Counter`                                | Decay-adjusted frequency (the OBJECT FREQ / eviction view), read-only      | O(1) avg
+| `IdleMinutes`                            | Minutes since the last Touch/Add (the OBJECT IDLETIME signal)              | O(1) avg
+| `Delete`                                 | Remove a key's entry, reporting presence                                   | O(1) avg
+| `Len`                                    | Number of keys                                                             | O(1)
+| `Truncate`                               | Drop every key, keeping the configuration                                  | O(n)
+| `MorrisCounter.Incr` / `Decay` / `Value` | The standalone 8-bit counter                                               | O(1)
 |===
 
 Constructors: `NewLfu(logFactor, decayTimeMinutes)` uses the wall

@@ -49,24 +49,24 @@ on pkg.go.dev.
 
 [cols="2,1,1,4",options="header"]
 |===
-| Operation                                | Average | Worst case | Notes
-| `Insert`                                 | O(1)    | O(n)       | head push after a chain scan for an equal element
-| `Search`                                 | O(1)    | O(n)       | walks the bucket chain
-| `Delete`                                 | O(1)    | O(n)       | chain walk, then an O(1) unlink
-| `Contains`                               | O(1)    | O(n)       | the found flag of Search
-| `IsEmpty`, `Len`, `Length`               | O(1)    | O(1)       |
-| `Truncate`                               | O(k)    | O(k)       | k = bucket count; chains are released for GC
-| `InsertSlice`, `InsertIter`              | O(k)    | O(n·k)     | batch insert, atomic under one write-lock hold
-| `DeleteSlice`                            | O(k)    | O(n·k)     | batch delete, atomic under one write-lock hold
-| `DeleteFunc`                             | O(n)    | O(n²)      | predicate runs unlocked on a snapshot; deletes atomic
-| `ContainsSlice`, `ContainsAny`           | O(k)    | O(n·k)     | batch membership: all / at least one present
-| `Slice`                                  | O(n)    | O(n)       | snapshot under the read lock, bucket order (unspecified)
-| `String`, `StringFunc`                   | O(n log n) | O(n log n) | formatted strings sorted — deterministic; format runs unlocked
-| `Equal`                                  | O(n)    | O(n²)      | membership only; never holds both tables' locks
-| `Clone`                                  | O(n)    | O(n)       | deep copy under the read lock; keeps bucket count and eq/hash
-| `Walk`, `Dump`                           | O(n)    | O(n)       | read lock held for the whole call
-| `All`, `Values`                          | O(n)    | O(n)       | snapshot copied under the read lock
-| `Lock` / `Unlock` + `Nl*`                | O(1)    | O(1)       | compound operations
+| Operation                      | Average    | Worst case | Notes
+| `Insert`                       | O(1)       | O(n)       | head push after a chain scan for an equal element
+| `Search`                       | O(1)       | O(n)       | walks the bucket chain
+| `Delete`                       | O(1)       | O(n)       | chain walk, then an O(1) unlink
+| `Contains`                     | O(1)       | O(n)       | the found flag of Search
+| `IsEmpty`, `Len`, `Length`     | O(1)       | O(1)       |
+| `Truncate`                     | O(k)       | O(k)       | k = bucket count; chains are released for GC
+| `InsertSlice`, `InsertIter`    | O(k)       | O(n·k)     | batch insert, atomic under one write-lock hold
+| `DeleteSlice`                  | O(k)       | O(n·k)     | batch delete, atomic under one write-lock hold
+| `DeleteFunc`                   | O(n)       | O(n²)      | predicate runs unlocked on a snapshot; deletes atomic
+| `ContainsSlice`, `ContainsAny` | O(k)       | O(n·k)     | batch membership: all / at least one present
+| `Slice`                        | O(n)       | O(n)       | snapshot under the read lock, bucket order (unspecified)
+| `String`, `StringFunc`         | O(n log n) | O(n log n) | formatted strings sorted — deterministic; format runs unlocked
+| `Equal`                        | O(n)       | O(n²)      | membership only; never holds both tables' locks
+| `Clone`                        | O(n)       | O(n)       | deep copy under the read lock; keeps bucket count and eq/hash
+| `Walk`, `Dump`                 | O(n)       | O(n)       | read lock held for the whole call
+| `All`, `Values`                | O(n)       | O(n)       | snapshot copied under the read lock
+| `Lock` / `Unlock` + `Nl*`      | O(1)       | O(1)       | compound operations
 |===
 
 Worst case occurs when many keys collide into one chain; average behavior is

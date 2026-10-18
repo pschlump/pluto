@@ -28,25 +28,25 @@ L is the length of the key (or query) in bytes.
 
 [options="header"]
 |===
-| Operation | Description | Complexity
+| Operation                                   | Description                                                          | Complexity
 
-| `Insert(key, value)` | Add key with value; `false` if it replaced an existing value | O(L)
-| `Search(key)`        | Value associated with key, `(T, bool)`                         | O(L)
-| `Contains(key)`      | Is key in the trie?                                            | O(L)
-| `Delete(key)`        | Remove key, pruning dead nodes; `false` if absent              | O(L)
-| `IsEmpty()`          | Is the trie empty?                                             | O(1)
-| `Length()` / `Len()` | Number of keys                                                 | O(1)
-| `LongestPrefixOf(query)` | Longest key that is a prefix of query, `""` if none      | O(L)
-| `KeysWithPrefix(prefix)` | All keys starting with prefix, ascending; nil when none  | O(L + nodes visited)
-| `KeysThatMatch(pattern)` | Keys matching pattern (`.` = any one byte), ascending; nil when none | O(nodes visited)
-| `All()`              | `iter.Seq2[string, T]` over (key, value) pairs, ascending key order | O(nodes)
-| `Keys()`             | All keys, ascending byte order; nil when empty                    | O(nodes)
-| `Values()`           | All values, in ascending key order (aligned with `Keys`)          | O(nodes)
-| `String()` / `StringFunc(f)` | The keys rendered ascending, `"[a b c]"`; `f` formats each key | O(total key bytes)
-| `Equal(other)`       | Same *key set* as other — values are not compared                 | O(n·L)
-| `Clone()`            | Deep copy of every node                                            | O(nodes)
-| `ContainsSlice(keys)` / `ContainsAny(keys)` | Batch membership over keys | O(k·L)
-| `DeleteSlice(keys)`  | Batch delete by keys; `true` if at least one was present           | O(k·L)
+| `Insert(key, value)`                        | Add key with value; `false` if it replaced an existing value         | O(L)
+| `Search(key)`                               | Value associated with key, `(T, bool)`                               | O(L)
+| `Contains(key)`                             | Is key in the trie?                                                  | O(L)
+| `Delete(key)`                               | Remove key, pruning dead nodes; `false` if absent                    | O(L)
+| `IsEmpty()`                                 | Is the trie empty?                                                   | O(1)
+| `Length()` / `Len()`                        | Number of keys                                                       | O(1)
+| `LongestPrefixOf(query)`                    | Longest key that is a prefix of query, `""` if none                  | O(L)
+| `KeysWithPrefix(prefix)`                    | All keys starting with prefix, ascending; nil when none              | O(L + nodes visited)
+| `KeysThatMatch(pattern)`                    | Keys matching pattern (`.` = any one byte), ascending; nil when none | O(nodes visited)
+| `All()`                                     | `iter.Seq2[string, T]` over (key, value) pairs, ascending key order  | O(nodes)
+| `Keys()`                                    | All keys, ascending byte order; nil when empty                       | O(nodes)
+| `Values()`                                  | All values, in ascending key order (aligned with `Keys`)             | O(nodes)
+| `String()` / `StringFunc(f)`                | The keys rendered ascending, `"[a b c]"`; `f` formats each key       | O(total key bytes)
+| `Equal(other)`                              | Same *key set* as other — values are not compared                    | O(n·L)
+| `Clone()`                                   | Deep copy of every node                                              | O(nodes)
+| `ContainsSlice(keys)` / `ContainsAny(keys)` | Batch membership over keys                                           | O(k·L)
+| `DeleteSlice(keys)`                         | Batch delete by keys; `true` if at least one was present             | O(k·L)
 |===
 
 === Set-convenience capabilities

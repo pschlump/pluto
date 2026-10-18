@@ -48,23 +48,23 @@ on pkg.go.dev.
 
 [cols="2,1,1,4",options="header"]
 |===
-| Operation                                | Average | Worst case | Notes
+| Operation                       | Average    | Worst case | Notes
 
-| `Insert`                                 | O(1)    | O(n)       | head push after a chain scan for an equal element
-| `Search`                                 | O(1)    | O(n)       | walks the bucket chain
-| `Delete`                                 | O(1)    | O(n)       | chain walk, then an O(1) unlink
-| `Contains`                               | O(1)    | O(n)       | the found flag of Search
-| `IsEmpty`, `Len`, `Length`               | O(1)    | O(1)       |
-| `Truncate`                               | O(k)    | O(k)       | k = bucket count; chains are released for GC
-| `InsertSlice`, `InsertIter`              | O(k)    | O(n·k)     | batch insert; true if any element was new
-| `DeleteSlice`                            | O(k)    | O(n·k)     | batch delete; true if any was present
-| `DeleteFunc`                             | O(n)    | O(n²)      | bulk delete by predicate, collect-then-delete
-| `ContainsSlice`, `ContainsAny`           | O(k)    | O(n·k)     | batch membership: all / at least one present
-| `Slice`                                  | O(n)    | O(n)       | fresh slice in bucket order (unspecified)
-| `String`, `StringFunc`                   | O(n log n) | O(n log n) | formatted strings sorted — deterministic
-| `Equal`                                  | O(n)    | O(n²)      | same element set, membership only (never order)
-| `Clone`                                  | O(n)    | O(n)       | deep copy; keeps bucket count and eq/hash
-| `Walk`, `Dump`, `All`, `Values`          | O(n)    | O(n)       |
+| `Insert`                        | O(1)       | O(n)       | head push after a chain scan for an equal element
+| `Search`                        | O(1)       | O(n)       | walks the bucket chain
+| `Delete`                        | O(1)       | O(n)       | chain walk, then an O(1) unlink
+| `Contains`                      | O(1)       | O(n)       | the found flag of Search
+| `IsEmpty`, `Len`, `Length`      | O(1)       | O(1)       |
+| `Truncate`                      | O(k)       | O(k)       | k = bucket count; chains are released for GC
+| `InsertSlice`, `InsertIter`     | O(k)       | O(n·k)     | batch insert; true if any element was new
+| `DeleteSlice`                   | O(k)       | O(n·k)     | batch delete; true if any was present
+| `DeleteFunc`                    | O(n)       | O(n²)      | bulk delete by predicate, collect-then-delete
+| `ContainsSlice`, `ContainsAny`  | O(k)       | O(n·k)     | batch membership: all / at least one present
+| `Slice`                         | O(n)       | O(n)       | fresh slice in bucket order (unspecified)
+| `String`, `StringFunc`          | O(n log n) | O(n log n) | formatted strings sorted — deterministic
+| `Equal`                         | O(n)       | O(n²)      | same element set, membership only (never order)
+| `Clone`                         | O(n)       | O(n)       | deep copy; keeps bucket count and eq/hash
+| `Walk`, `Dump`, `All`, `Values` | O(n)       | O(n)       |
 |===
 
 Worst case occurs when many keys collide into one chain; average behavior is

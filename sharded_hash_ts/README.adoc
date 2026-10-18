@@ -70,27 +70,27 @@ under concurrency.
 
 [cols="2,1,1,4",options="header"]
 |===
-| Operation                                | Average | Worst case | Notes
+| Operation                      | Average    | Worst case | Notes
 
-| `Insert`                                 | O(1)    | O(n)       | one stripe write-locked; doubling amortized
-| `Search`                                 | O(1)    | O(n)       | one stripe read-locked
-| `Delete`                                 | O(1)    | O(n)       | one stripe write-locked, atomic search-and-unlink
-| `Contains`                               | O(1)    | O(n)       | the found flag of Search
-| `IsEmpty`, `Len`, `Length`               | O(1)    | O(1)       | lock-free atomic counter
-| `Truncate`                               | O(n)    | O(n)       | clears stripes one at a time
-| `Scan`                                   | O(count)| O(n)       | one stripe read-locked at a time, never across calls
-| `LockKey` + `Nl*`                        | O(1)    | O(1)       | one stripe write-locked
-| `StripeCount`, `StripeLen`               | O(1)    | O(1)       | per-stripe load metrics
-| `Walk`, `All`, `Values`                  | O(n)    | O(n)       | per-stripe snapshots
-| `InsertSlice`, `InsertIter`              | O(k)    | O(n·k)     | grouped by stripe; each stripe's share atomic under its write lock
-| `DeleteSlice`                            | O(k)    | O(n·k)     | grouped by stripe; each stripe's share atomic under its write lock
-| `DeleteFunc`                             | O(n)    | O(n²)      | predicate runs unlocked on a snapshot
-| `ContainsSlice`, `ContainsAny`           | O(k)    | O(n·k)     | batch membership: all / at least one present
-| `Slice`                                  | O(n)    | O(n)       | per-stripe snapshots, stripe order then bucket order
-| `String`, `StringFunc`                   | O(n log n) | O(n log n) | formatted strings sorted — deterministic
-| `Equal`                                  | O(n)    | O(n²)      | membership only; never holds two locks at once
-| `Clone`                                  | O(n)    | O(n)       | deep copy per stripe; keeps stripes and eq/hash
-| `Dump`                                   | O(stripes) | O(stripes) | per-stripe summary
+| `Insert`                       | O(1)       | O(n)       | one stripe write-locked; doubling amortized
+| `Search`                       | O(1)       | O(n)       | one stripe read-locked
+| `Delete`                       | O(1)       | O(n)       | one stripe write-locked, atomic search-and-unlink
+| `Contains`                     | O(1)       | O(n)       | the found flag of Search
+| `IsEmpty`, `Len`, `Length`     | O(1)       | O(1)       | lock-free atomic counter
+| `Truncate`                     | O(n)       | O(n)       | clears stripes one at a time
+| `Scan`                         | O(count)   | O(n)       | one stripe read-locked at a time, never across calls
+| `LockKey` + `Nl*`              | O(1)       | O(1)       | one stripe write-locked
+| `StripeCount`, `StripeLen`     | O(1)       | O(1)       | per-stripe load metrics
+| `Walk`, `All`, `Values`        | O(n)       | O(n)       | per-stripe snapshots
+| `InsertSlice`, `InsertIter`    | O(k)       | O(n·k)     | grouped by stripe; each stripe's share atomic under its write lock
+| `DeleteSlice`                  | O(k)       | O(n·k)     | grouped by stripe; each stripe's share atomic under its write lock
+| `DeleteFunc`                   | O(n)       | O(n²)      | predicate runs unlocked on a snapshot
+| `ContainsSlice`, `ContainsAny` | O(k)       | O(n·k)     | batch membership: all / at least one present
+| `Slice`                        | O(n)       | O(n)       | per-stripe snapshots, stripe order then bucket order
+| `String`, `StringFunc`         | O(n log n) | O(n log n) | formatted strings sorted — deterministic
+| `Equal`                        | O(n)       | O(n²)      | membership only; never holds two locks at once
+| `Clone`                        | O(n)       | O(n)       | deep copy per stripe; keeps stripes and eq/hash
+| `Dump`                         | O(stripes) | O(stripes) | per-stripe summary
 |===
 
 Worst case occurs when many keys collide into one chain.  The load factor

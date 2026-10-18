@@ -45,19 +45,19 @@ it directly.
 
 [options="header"]
 |===
-| Operation        | Description                                              | Complexity
+| Operation           | Description                                                                | Complexity
 
-| `Insert(k, v)`   | Add index `k` with value `v`; *replaces* if `k` present  | O(1)
-| `Change(k, v)`   | Replace the value of a present index, either direction   | O(1) amortized decrease / O(log n) increase
+| `Insert(k, v)`      | Add index `k` with value `v`; *replaces* if `k` present                    | O(1)
+| `Change(k, v)`      | Replace the value of a present index, either direction                     | O(1) amortized decrease / O(log n) increase
 | `DecreaseKey(k, v)` | Replace only when `v` orders before the current value (the Dijkstra shape) | O(1) amortized
-| `Delete(k)`      | Remove index `k`                                         | O(log n) amortized
-| `Contains(k)`    | Is index `k` in the queue                                | O(1)
-| `Value(k)`       | The value associated with index `k`, or `(_, false)`     | O(1)
-| `Peek`           | The minimum `(index, value)`, without removing           | O(1)
-| `Pop`            | Remove and return the minimum `(index, value)`           | O(log n) amortized
-| `All`            | Iterate `(index, value)` in priority order (snapshot)    | O(n log n)
-| `Len` / `IsEmpty`| Size queries                                             | O(1)
-| `Truncate`       | Remove all indices (keeps the ordering and index space)  | O(n)
+| `Delete(k)`         | Remove index `k`                                                           | O(log n) amortized
+| `Contains(k)`       | Is index `k` in the queue                                                  | O(1)
+| `Value(k)`          | The value associated with index `k`, or `(_, false)`                       | O(1)
+| `Peek`              | The minimum `(index, value)`, without removing                             | O(1)
+| `Pop`               | Remove and return the minimum `(index, value)`                             | O(log n) amortized
+| `All`               | Iterate `(index, value)` in priority order (snapshot)                      | O(n log n)
+| `Len` / `IsEmpty`   | Size queries                                                               | O(1)
+| `Truncate`          | Remove all indices (keeps the ordering and index space)                    | O(n)
 |===
 
 The index space `0..n-1` is fixed at construction (`n ≥ 1`).  Indices
@@ -95,12 +95,12 @@ The package panics in exactly four situations — the same shape as
 
 [options="header"]
 |===
-| Call | Why
+| Call                                                       | Why
 
-| `NewIndexFibonacciPQFunc(n, nil)`        | nil comparison function, caught at construction time
+| `NewIndexFibonacciPQFunc(n, nil)`                          | nil comparison function, caught at construction time
 | `NewIndexFibonacciPQ`/`NewIndexFibonacciPQFunc` with n < 1 | no usable index space
-| `Insert`/`Change` on a nil queue         | a nil queue cannot store a value
-| `Insert`/`Change` on a zero-value queue  | no comparison function; the message names the constructors
+| `Insert`/`Change` on a nil queue                           | a nil queue cannot store a value
+| `Insert`/`Change` on a zero-value queue                    | no comparison function; the message names the constructors
 |===
 
 Everything else — including every operation with a bad index —

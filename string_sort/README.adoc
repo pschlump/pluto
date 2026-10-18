@@ -30,11 +30,11 @@ sorting first.
 
 [options="header"]
 |===
-| Operation            | Description                                              | Complexity
+| Operation         | Description                                             | Complexity
 
-| `LSDSort(a, w)`      | Sort fixed-width `[]string` in place, w counting passes   | O(w·(n+R)) time, O(n+R) space
-| `MSDSort(a)`         | Sort `[]string` in place, MSD radix recursion             | between O(n+R) and O(w·(n+R))
-| `Quick3String(a)`    | Sort `[]string` in place, 3-way radix quicksort           | O(n log n) expected, O(n·w) worst
+| `LSDSort(a, w)`   | Sort fixed-width `[]string` in place, w counting passes | O(w·(n+R)) time, O(n+R) space
+| `MSDSort(a)`      | Sort `[]string` in place, MSD radix recursion           | between O(n+R) and O(w·(n+R))
+| `Quick3String(a)` | Sort `[]string` in place, 3-way radix quicksort         | O(n log n) expected, O(n·w) worst
 |===
 
 R is 256.  For MSDSort the complexity depends on how much the keys
@@ -53,13 +53,13 @@ includes the O(n) input clone the benchmark performs per iteration:
 
 [options="header"]
 |===
-| Sorter             | random16 (16 random bytes) | prefixed16 (12 shared + 4) | long64 (48 shared + 16)
+| Sorter            | random16 (16 random bytes) | prefixed16 (12 shared + 4) | long64 (48 shared + 16)
 
-| `slices.Sort`      | 9.4 ms                     | 9.3 ms                     | 11.6 ms
-| `quick_sort.Sort`  | 11.9 ms                    | 11.9 ms                    | 14.5 ms
-| `LSDSort`          | 4.6 ms                     | 6.2 ms                     | 25.3 ms
-| `MSDSort`          | **2.5 ms**                 | 6.3 ms                     | 18.2 ms
-| `Quick3String`     | 6.7 ms                     | **7.9 ms**                 | **11.1 ms**
+| `slices.Sort`     | 9.4 ms                     | 9.3 ms                     | 11.6 ms
+| `quick_sort.Sort` | 11.9 ms                    | 11.9 ms                    | 14.5 ms
+| `LSDSort`         | 4.6 ms                     | 6.2 ms                     | 25.3 ms
+| `MSDSort`         | **2.5 ms**                 | 6.3 ms                     | 18.2 ms
+| `Quick3String`    | 6.7 ms                     | **7.9 ms**                 | **11.1 ms**
 |===
 
 The textbook guidance, confirmed here: **MSD** is the fastest sort in
@@ -91,9 +91,9 @@ positions `0..w-1` of every key):
 
 [options="header"]
 |===
-| Call | Why
+| Call                                      | Why
 
-| `LSDSort(a, w)` with w < 0 | negative key width
+| `LSDSort(a, w)` with w < 0                | negative key width
 | `LSDSort(a, w)` with a key shorter than w | fixed-width precondition violation
 |===
 

@@ -14,16 +14,16 @@ Identical query API to `bellman_ford`:
 
 [options="header"]
 |===
-| Operation                | Description                                          | Complexity
+| Operation                | Description                                                | Complexity
 
-| `NewBellmanFordSP(g, s)` | Shortest paths from `s`, or a reachable negative cycle | O(E·V) worst case
-| `NewAcyclicSP(g, s)`     | Shortest paths from `s` in a DAG                     | O(E+V)
-| `NewAcyclicLP(g, s)`     | Longest paths from `s` in a DAG                      | O(E+V)
+| `NewBellmanFordSP(g, s)` | Shortest paths from `s`, or a reachable negative cycle     | O(E·V) worst case
+| `NewAcyclicSP(g, s)`     | Shortest paths from `s` in a DAG                           | O(E+V)
+| `NewAcyclicLP(g, s)`     | Longest paths from `s` in a DAG                            | O(E+V)
 | `DistTo(v)`              | Shortest/longest distance (`+Inf` / `-Inf` if unreachable) | O(1)
-| `HasPathTo(v)`           | Reachability query                                   | O(1)
-| `PathTo(v)`              | Path source→v, source-first, fresh slice             | O(path length)
-| `HasNegativeCycle()`     | Is a negative cycle reachable from the source        | O(1)
-| `NegativeCycle()`        | One such cycle, in cycle order (nil when none)       | O(cycle length)
+| `HasPathTo(v)`           | Reachability query                                         | O(1)
+| `PathTo(v)`              | Path source→v, source-first, fresh slice                   | O(path length)
+| `HasNegativeCycle()`     | Is a negative cycle reachable from the source              | O(1)
+| `NegativeCycle()`        | One such cycle, in cycle order (nil when none)             | O(cycle length)
 |===
 
 == Usage
@@ -46,12 +46,12 @@ Same contract as `bellman_ford`, with messages prefixed
 
 [options="header"]
 |===
-| Call                                                          | Why
+| Call                                                             | Why
 
 | `NewBellmanFordSP`/`NewAcyclicSP`/`NewAcyclicLP` nil/empty graph | no graph to search
-| the constructors with an out-of-range source                  | no such vertex
-| `NewAcyclicSP`/`NewAcyclicLP` on a digraph with a cycle       | no topological order exists
-| `DistTo`/`PathTo` on a `BellmanFordSP` with a negative cycle  | shortest paths are undefined then
+| the constructors with an out-of-range source                     | no such vertex
+| `NewAcyclicSP`/`NewAcyclicLP` on a digraph with a cycle          | no topological order exists
+| `DistTo`/`PathTo` on a `BellmanFordSP` with a negative cycle     | shortest paths are undefined then
 |===
 
 == Concurrency

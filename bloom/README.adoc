@@ -67,18 +67,18 @@ sweep's gate is ±10%; the frozen examples show 1006 at n=1000 and
 [options="header"]
 |===
 
-| Operation | Description | Complexity
+| Operation                     | Description                                                                                                                                 | Complexity
 
-| `Add` | Set the element's k probe bits; true if any was clear (exactly the inverse of the pre-call `MayContain` — a duplicate always reports false) | O(len(v)+k)
-| `MayContain` | All k probe bits set (never false for an added element) | O(len(v)+k)
-| `TestAndSet` | `MayContain` answered and recorded in one pass (the 2016 operation — false marks the first sighting) | O(len(v)+k)
-| `Merge` | Bitwise OR union with same-shape filters; `added` sums | O(k·m/64)
-| `Count` | ML estimate of distinct elements from the fill ratio | O(1)
-| `Added` | Exact number of `Add`/`TestAndSet` calls (duplicates counted — indetectable) | O(1)
-| `Saturation` | Fraction of bits set (the load signal) | O(1)
-| `BitCount` / `HashCount` | The shape m and k | O(1)
-| `Bytes` / `BloomFromBytes` | Serialize / validate-and-decode | O(m/64)
-| `Clone` / `Reset` / `IsEmpty` | Snapshot copy / empty / no bits set | O(m/64) / O(1)
+| `Add`                         | Set the element's k probe bits; true if any was clear (exactly the inverse of the pre-call `MayContain` — a duplicate always reports false) | O(len(v)+k)
+| `MayContain`                  | All k probe bits set (never false for an added element)                                                                                     | O(len(v)+k)
+| `TestAndSet`                  | `MayContain` answered and recorded in one pass (the 2016 operation — false marks the first sighting)                                        | O(len(v)+k)
+| `Merge`                       | Bitwise OR union with same-shape filters; `added` sums                                                                                      | O(k·m/64)
+| `Count`                       | ML estimate of distinct elements from the fill ratio                                                                                        | O(1)
+| `Added`                       | Exact number of `Add`/`TestAndSet` calls (duplicates counted — indetectable)                                                                | O(1)
+| `Saturation`                  | Fraction of bits set (the load signal)                                                                                                      | O(1)
+| `BitCount` / `HashCount`      | The shape m and k                                                                                                                           | O(1)
+| `Bytes` / `BloomFromBytes`    | Serialize / validate-and-decode                                                                                                             | O(m/64)
+| `Clone` / `Reset` / `IsEmpty` | Snapshot copy / empty / no bits set                                                                                                         | O(m/64) / O(1)
 |===
 
 == Usage

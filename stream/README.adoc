@@ -23,24 +23,24 @@ stores each entry by value.
 
 [options="header"]
 |===
-| Operation                     | Description                                          | Complexity
+| Operation                                       | Description                                        | Complexity
 
-| `Add`                         | Append an entry; AutoSeq assigns the sequence part   | O(log₂ n) expected
-| `Len` / `IsEmpty`             | Number of entries / emptiness                        | O(1)
-| `FirstID`                     | Smallest entry ID                                    | O(1)
-| `LastID`                      | Last assigned ID (survives trim/delete)             | O(1)
-| `Range` / `RevRange`          | Iterate start ≤ id ≤ end, ascending / descending    | O(log₂ n + m)
-| `Delete`                      | Remove one entry; group PELs unaffected             | O(log₂ n) expected
-| `TrimMaxLen` / `TrimMinID`    | Evict oldest / everything below an ID               | O(log₂ n + k)
-| `SetLastID`                   | Move the last-assigned ID (XSETID)                   | O(1)
-| `CreateGroup` / `DestroyGroup`| Consumer group lifecycle                            | O(1)
-| `GroupNames` / `GroupConsumers` / `GroupLastID` | The XINFO surface | O(g log g) / O(c log c) / O(1)
-| `ReadGroup`                   | Deliver new (or replayed) entries to a consumer     | O(log₂ n + m·log₂ p)
-| `Ack`                         | Remove IDs from a group's pending list              | O(k·log₂ p)
-| `Pending` / `PendingRange`    | Pending summary / ID-range detail                   | O(p) / O(log₂ p + m)
-| `Claim` / `AutoClaim`         | Transfer idle pending entries to a consumer         | O(k·(log₂ p + log₂ n)) / O(examined·(log₂ p + log₂ n))
-| `GroupSetID`                  | Reposition a group's next `>` read                  | O(1)
-| `GroupCreateConsumer` / `GroupDeleteConsumer` | Consumer lifecycle | O(1) / O(p)
+| `Add`                                           | Append an entry; AutoSeq assigns the sequence part | O(log₂ n) expected
+| `Len` / `IsEmpty`                               | Number of entries / emptiness                      | O(1)
+| `FirstID`                                       | Smallest entry ID                                  | O(1)
+| `LastID`                                        | Last assigned ID (survives trim/delete)            | O(1)
+| `Range` / `RevRange`                            | Iterate start ≤ id ≤ end, ascending / descending   | O(log₂ n + m)
+| `Delete`                                        | Remove one entry; group PELs unaffected            | O(log₂ n) expected
+| `TrimMaxLen` / `TrimMinID`                      | Evict oldest / everything below an ID              | O(log₂ n + k)
+| `SetLastID`                                     | Move the last-assigned ID (XSETID)                 | O(1)
+| `CreateGroup` / `DestroyGroup`                  | Consumer group lifecycle                           | O(1)
+| `GroupNames` / `GroupConsumers` / `GroupLastID` | The XINFO surface                                  | O(g log g) / O(c log c) / O(1)
+| `ReadGroup`                                     | Deliver new (or replayed) entries to a consumer    | O(log₂ n + m·log₂ p)
+| `Ack`                                           | Remove IDs from a group's pending list             | O(k·log₂ p)
+| `Pending` / `PendingRange`                      | Pending summary / ID-range detail                  | O(p) / O(log₂ p + m)
+| `Claim` / `AutoClaim`                           | Transfer idle pending entries to a consumer        | O(k·(log₂ p + log₂ n)) / O(examined·(log₂ p + log₂ n))
+| `GroupSetID`                                    | Reposition a group's next `>` read                 | O(1)
+| `GroupCreateConsumer` / `GroupDeleteConsumer`   | Consumer lifecycle                                 | O(1) / O(p)
 |===
 
 == IDs

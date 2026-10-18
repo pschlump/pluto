@@ -45,17 +45,17 @@ precedent: a sketch never stores, compares or boxes an element.
 
 [options="header"]
 |===
-| Operation           | Description                                            | Complexity
+| Operation                | Description                                          | Complexity
 
-| `Add`               | Hash v, raise one register; true if anything changed   | O(len(v)) + O(1)
-| `Count`             | Estimated distinct count (cached after first call)     | O(m), then O(1)
-| `Merge`             | Register-wise max union with the others                | O(k·m)
-| `MergeMax`          | Lock-free union core (no cache handling)               | O(m)
-| `Reset`             | Empty the sketch                                       | O(m)
-| `IsEmpty`           | Every register zero                                    | O(m) early exit
-| `Bytes` / `HllFromBytes` | Serialize / validate-and-decode the dense form     | O(m)
-| `Clone`             | Independent point-in-time copy, cache cleared          | O(m)
-| `Invalidate`        | Drop the cached estimate                              | O(1)
+| `Add`                    | Hash v, raise one register; true if anything changed | O(len(v)) + O(1)
+| `Count`                  | Estimated distinct count (cached after first call)   | O(m), then O(1)
+| `Merge`                  | Register-wise max union with the others              | O(k·m)
+| `MergeMax`               | Lock-free union core (no cache handling)             | O(m)
+| `Reset`                  | Empty the sketch                                     | O(m)
+| `IsEmpty`                | Every register zero                                  | O(m) early exit
+| `Bytes` / `HllFromBytes` | Serialize / validate-and-decode the dense form       | O(m)
+| `Clone`                  | Independent point-in-time copy, cache cleared        | O(m)
+| `Invalidate`             | Drop the cached estimate                             | O(1)
 |===
 
 == Usage

@@ -22,14 +22,14 @@ call).
 
 [options="header"]
 |===
-| Operation                          | Description                                        | Complexity
+| Operation                    | Description                                         | Complexity
 
-| `Sort(data)`                       | Stable sort `[]T` (`cmp.Ordered`), top-down        | O(n log₂ n) always, O(n) space
-| `SortFunc(data, fn)`               | Stable sort `[]T` (any type) by a comparison fn    | O(n log₂ n) always, O(n) space
-| `SortBottomUp(data)`               | Stable bottom-up variant (widths 1, 2, 4, ...)     | O(n log₂ n) always, O(n) space
-| `SortBottomUpFunc(data, fn)`       | The bottom-up variant with a comparison fn         | O(n log₂ n) always, O(n) space
-| `Inversions(data)`                 | Count out-of-order pairs (i < j, data[i] > data[j]) | O(n log₂ n), input unmodified
-| `InversionsFunc(data, fn)`         | The count with a comparison fn                     | O(n log₂ n), input unmodified
+| `Sort(data)`                 | Stable sort `[]T` (`cmp.Ordered`), top-down         | O(n log₂ n) always, O(n) space
+| `SortFunc(data, fn)`         | Stable sort `[]T` (any type) by a comparison fn     | O(n log₂ n) always, O(n) space
+| `SortBottomUp(data)`         | Stable bottom-up variant (widths 1, 2, 4, ...)      | O(n log₂ n) always, O(n) space
+| `SortBottomUpFunc(data, fn)` | The bottom-up variant with a comparison fn          | O(n log₂ n) always, O(n) space
+| `Inversions(data)`           | Count out-of-order pairs (i < j, data[i] > data[j]) | O(n log₂ n), input unmodified
+| `InversionsFunc(data, fn)`   | The count with a comparison fn                      | O(n log₂ n), input unmodified
 |===
 
 `Inversions` is the classic mergesort rider: the count is computed by
@@ -65,7 +65,7 @@ no sane fallback:
 
 [options="header"]
 |===
-| Call | Why
+| Call                                                                                | Why
 
 | `SortFunc(data, nil)` / `SortBottomUpFunc(data, nil)` / `InversionsFunc(data, nil)` | nil comparison function
 |===

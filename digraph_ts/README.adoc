@@ -15,12 +15,12 @@ constructor-style query objects — the identical public API behind a
 
 [options="header"]
 |===
-| Operation                              | Locking
+| Operation                                                                                                                                                                   | Locking                                                                                                          |
 
-| `AddEdge`                              | write lock
-| `V` / `Len` / `E` / `OutDegree` / `InDegree` / `HasEdge` | read lock, released before returning
-| `Adj`                                  | snapshot of the one adjacency list copied under the read lock, then iterated lock-free
-| `Reverse`                              | snapshot of the adjacency under the read lock, built into an independent copy
+| `AddEdge`                                                                                                                                                                   | write lock                                                                                                       |
+| `V` / `Len` / `E` / `OutDegree` / `InDegree` / `HasEdge`                                                                                                                    | read lock, released before returning                                                                             |
+| `Adj`                                                                                                                                                                       | snapshot of the one adjacency list copied under the read lock, then iterated lock-free                           |
+| `Reverse`                                                                                                                                                                   | snapshot of the adjacency under the read lock, built into an independent copy                                    |
 | `NewDirectedDFS` / `NewDFSDirectedPaths` / `NewBFSDirectedPaths` / `NewDirectedCycle` / `NewDepthFirstOrder` / `NewTopological` / `NewKosarajuSCC` / `NewTransitiveClosure` | snapshot of the whole adjacency structure under the read lock, then the traversal runs lock-free on the snapshot |
 |===
 
@@ -57,13 +57,13 @@ prefixed `digraph_ts:`):
 
 [options="header"]
 |===
-| Call                                                | Why
+| Call                                                                           | Why
 
-| `NewDigraph(n < 1)`                                 | a digraph needs at least one vertex
-| `AddEdge` on a nil digraph                          | a nil digraph cannot store an edge
+| `NewDigraph(n < 1)`                                                            | a digraph needs at least one vertex
+| `AddEdge` on a nil digraph                                                     | a nil digraph cannot store an edge
 | `NewDirectedDFS`/`NewDFSDirectedPaths`/`NewBFSDirectedPaths` nil/empty digraph | no source vertex exists to search from
 | `NewDirectedDFS`/`NewDFSDirectedPaths`/`NewBFSDirectedPaths` bad source        | out-of-range source is a programmer error
-| `NewDirectedDFS` with no sources                    | nothing to search from
+| `NewDirectedDFS` with no sources                                               | nothing to search from
 |===
 
 Everything else tolerates a nil or zero-value digraph as an empty digraph

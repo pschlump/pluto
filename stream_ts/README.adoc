@@ -24,11 +24,11 @@ for everything except `Add` and `CreateGroup` (panic naming the method,
 
 [options="header"]
 |===
-| Class        | Operations                                                              | Lock
-| Read         | `Len`, `IsEmpty`, `FirstID`, `LastID`, `GroupNames`, `GroupLastID`, `GroupConsumers`, `Pending`, `PendingRange` | read
-| Write        | `Add`, `Delete`, `TrimMaxLen`, `TrimMinID`, `SetLastID`, `CreateGroup`, `DestroyGroup`, `GroupSetID`, `GroupCreateConsumer`, `GroupDeleteConsumer` | write
-| Deliver      | `ReadGroup`, `Ack`, `Claim`, `AutoClaim` — they move entries onto pending lists | write
-| Snapshot     | `Range`, `RevRange` — collected under the read lock, yielded after release | read (during collection)
+| Class    | Operations                                                                                                                                         | Lock
+| Read     | `Len`, `IsEmpty`, `FirstID`, `LastID`, `GroupNames`, `GroupLastID`, `GroupConsumers`, `Pending`, `PendingRange`                                    | read
+| Write    | `Add`, `Delete`, `TrimMaxLen`, `TrimMinID`, `SetLastID`, `CreateGroup`, `DestroyGroup`, `GroupSetID`, `GroupCreateConsumer`, `GroupDeleteConsumer` | write
+| Deliver  | `ReadGroup`, `Ack`, `Claim`, `AutoClaim` — they move entries onto pending lists                                                                    | write
+| Snapshot | `Range`, `RevRange` — collected under the read lock, yielded after release                                                                         | read (during collection)
 |===
 
 `Range`/`RevRange` are *eager snapshots* taken at call time: safe to

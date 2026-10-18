@@ -26,31 +26,31 @@ on pkg.go.dev.
 
 [options="header"]
 |===
-| Operation                    | Description                                      | Complexity
+| Operation                         | Description                                       | Complexity
 
-| `Insert`                     | Add an item; duplicates replace the stored value | O(log₂ n) expected
-| `Delete`                     | Remove an item; reports whether it was found     | O(log₂ n) expected
-| `Search`                     | Return the stored item equal to the probe        | O(log₂ n) expected
-| `FindMin` / `DeleteAtHead`   | Smallest item / remove it                        | O(1) / O(1) amortized
-| `FindMax` / `DeleteAtTail`   | Largest item / remove it                         | O(log₂ n) expected
-| `Rank`                       | 0-based position of a key (exact match only)    | O(log₂ n) expected
-| `AtIndex`                    | Element at a 0-based position                    | O(log₂ n) expected
-| `Ceil` / `Floor`             | Smallest element ≥ key / largest ≤ key           | O(log₂ n) expected
-| `CountRange`                 | Number of elements with lo ≤ x ≤ hi             | O(log₂ n) expected
-| `Range` / `RangeBackward`    | Iterators over lo ≤ x ≤ hi, with global ranks   | O(log₂ n + m)
-| `DeleteRange`                | Remove all x with lo ≤ x ≤ hi, returning count  | O(log₂ n + m)
-| `DeleteByRank`               | Remove ranks [start, stop] inclusive             | O(log₂ n + m)
-| `IsEmpty` / `Len` / `Length` | Size queries                                     | O(1)
-| `Truncate`                   | Remove all items                                 | O(1)
-| `Dump`                       | Per-level picture of the list, for debugging     | O(n)
-| `All`                        | Ascending range-over-func iterator               | O(n), O(1) space
-| `Backward`                   | Descending range-over-func iterator              | O(n), O(n) space
-| `Contains`                   | Membership predicate (the found flag of `Search`) | O(log₂ n) expected
-| `ContainsSlice` / `ContainsAny` | Membership batches: all / at least one        | O(k·log₂ n) expected
-| `InsertSlice` / `InsertIter` | Batch insert (slice / range-over-func)           | O(k·log₂ n) expected
-| `DeleteSlice` / `DeleteFunc` | Batch / predicate bulk delete                    | O(k·log₂ n) / O(n log₂ n) expected
-| `Slice` / `String` / `StringFunc` | Materialize / render, ascending              | O(n)
-| `Equal` / `Clone`            | Same-set equality / deep copy                    | O(n log₂ n) expected
+| `Insert`                          | Add an item; duplicates replace the stored value  | O(log₂ n) expected
+| `Delete`                          | Remove an item; reports whether it was found      | O(log₂ n) expected
+| `Search`                          | Return the stored item equal to the probe         | O(log₂ n) expected
+| `FindMin` / `DeleteAtHead`        | Smallest item / remove it                         | O(1) / O(1) amortized
+| `FindMax` / `DeleteAtTail`        | Largest item / remove it                          | O(log₂ n) expected
+| `Rank`                            | 0-based position of a key (exact match only)      | O(log₂ n) expected
+| `AtIndex`                         | Element at a 0-based position                     | O(log₂ n) expected
+| `Ceil` / `Floor`                  | Smallest element ≥ key / largest ≤ key            | O(log₂ n) expected
+| `CountRange`                      | Number of elements with lo ≤ x ≤ hi               | O(log₂ n) expected
+| `Range` / `RangeBackward`         | Iterators over lo ≤ x ≤ hi, with global ranks     | O(log₂ n + m)
+| `DeleteRange`                     | Remove all x with lo ≤ x ≤ hi, returning count    | O(log₂ n + m)
+| `DeleteByRank`                    | Remove ranks [start, stop] inclusive              | O(log₂ n + m)
+| `IsEmpty` / `Len` / `Length`      | Size queries                                      | O(1)
+| `Truncate`                        | Remove all items                                  | O(1)
+| `Dump`                            | Per-level picture of the list, for debugging      | O(n)
+| `All`                             | Ascending range-over-func iterator                | O(n), O(1) space
+| `Backward`                        | Descending range-over-func iterator               | O(n), O(n) space
+| `Contains`                        | Membership predicate (the found flag of `Search`) | O(log₂ n) expected
+| `ContainsSlice` / `ContainsAny`   | Membership batches: all / at least one            | O(k·log₂ n) expected
+| `InsertSlice` / `InsertIter`      | Batch insert (slice / range-over-func)            | O(k·log₂ n) expected
+| `DeleteSlice` / `DeleteFunc`      | Batch / predicate bulk delete                     | O(k·log₂ n) / O(n log₂ n) expected
+| `Slice` / `String` / `StringFunc` | Materialize / render, ascending                   | O(n)
+| `Equal` / `Clone`                 | Same-set equality / deep copy                     | O(n log₂ n) expected
 |===
 
 `Insert` returns `true` when a new node was added and `false` when a
