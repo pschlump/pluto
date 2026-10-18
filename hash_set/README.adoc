@@ -1,0 +1,103 @@
+= hash_set
+
+`HashSet[T]` — the algs4 `HashSET` analog — is a mathematical set of
+unique elements with the full set surface: core membership, batch
+operations, the set algebra (union, intersection, minus, symmetric
+difference), the subset/disjoint relations, and the set-convenience
+capabilities (materialization, rendering, deep copy, equality).  It is a
+thin facade over the general-purpose hash engine `hash_grow.HashTab`
+(auto-growing open addressing), composed the way `priority_queue`
+composes `heap` — the set is the table plus the surface, not a
+re-implementation.  Elements are stored and returned by value (`T`, not
+`*T`), never boxed into an interface, and ordering or equality never
+goes through an interface method: the struct stores one equality
+function and one hash function.
+
+== Construction
+
+Two constructor forms, like every ordering-or-equality-based package in
+pluto:
+
+[source,go]
+----
+// Element types comparable with == (scalars, strings, pointers, arrays,
+// structs of comparable fields) — hashed with the stdlib hash/maphash
+// under a per-set random seed.
+ss := hash_set.NewHashSet[string]()
+
+// Any element type, with caller supplied functions.  eq and hash must
+// agree: whenever eq(a, b) is true, hash(a) == hash(b).
+ss := hash_set.NewHashSetFunc(eq, hash)
+
+// From-slice convenience forms (duplicates collapse; empty is fine).
+ss := hash_set.FromSlice([]int{1, 2, 2, 3})            // -> {1, 2, 3}
+ss := hash_set.FromSliceFunc(eq, hash, items)
+----
+
+The initial table capacity and saturation threshold are internal
+defaults; the table doubles on its own, so no options machinery is
+exposed.
+
+== Operations
+
+[cols="3,1,1,3",options="header"]
+|===
+|Operation |Average |Worst case |Notes
+|Insert / Delete |O(1) |O(n) |Insert replaces an equal element and reports false.
+|Search / Contains |O(1) |O(n) |Search returns `(T, bool)`, never a pointer.
+|Len / IsEmpty |O(1) |O(1) |
+|Truncate |O(n) |O(n) |Keeps capacity and the eq/hash pair; the set stays usable.
+|InsertSlice / InsertIter |O(k) |O(n) per element |InsertIter drains the iterator before inserting (self-feeding is safe).
+|DeleteSlice / DeleteFunc |O(k) / O(n) |O(n) per element |DeleteFunc is collect-then-delete — mandatory under backward-shift deletion.
+|ContainsSlice / ContainsAny |O(k) |O(n) per element |Vacuity: an empty items slice is contained by everything and contains nothing.
+|Slice |O(n) |O(n) |UNSPECIFIED order (per-set random hash seed).  Sort when order matters.
+|String / StringFunc |O(n log n) |O(n log n) |Sorts the FORMATTED strings, so the rendering is deterministic run to run.
+|Equal |O(n) |O(n) |Membership comparison, never iteration order.
+|Clone |O(n) |O(n) |Deep copy; keeps the eq/hash pair; zero value clones to a fresh zero value.
+|Union / Intersect / Minus / SymmetricDifference |O(n+m) expected |— |The algebra; see below.
+|IsSubsetOf / IsProperSubsetOf / IsSupersetOf / IsProperSupersetOf / IsDisjointWith |O(n) |— |Receiver-first.  Proper = subset and strictly shorter.  Two empty sets are disjoint; empty ⊆ anything.
+|All |O(n) |O(n) |Range-over-func iteration, unspecified order.
+|Walk |O(n) |O(n) |Callback returning false stops the walk.
+|MarshalJSON / UnmarshalJSON |O(n) |O(n) |Array of elements; unmarshal replaces contents and KEEPS the eq/hash pair.
+|===
+
+== The set algebra
+
+The algebra follows the `avl_tree` set-operation contract: destination
+form (`ss` is truncated and rebuilt as the result), the operands are
+snapshotted first so either may alias the receiver (`s.Union(s, s)` is
+legal), and a zero-value receiver adopts an operand's equality/hash pair
+(`yy`'s first, then `zz`'s).  A nil receiver is a no-op, like the tree
+contract; nil operands contribute nothing.
+
+All four methods — and `Equal` and the relations — share one documented,
+unchecked precondition: the sets involved must use consistent equality
+and hash functions.  Functions are not comparable, so this cannot be
+checked; two sets built by the same constructor over the same element
+type always satisfy it.
+
+== Panics
+
+Exactly the insert contract, every message naming the fix:
+
+- `NewHashSetFunc` / `FromSliceFunc` with a nil equality or hash
+  function — caught at construction.
+- `Insert` (and `InsertSlice` / `InsertIter` / `UnmarshalJSON` when they
+  would actually store an element) on a nil set — a nil set cannot store
+  an element.
+- The same storing operations on a zero-value set — no equality/hash
+  functions; the message names the constructors.
+
+Everything else is a total function: a nil `*HashSet` and the zero value
+both behave as an empty set for every read (searches report not-found,
+deletes return false, the iterators visit nothing, `String` renders
+`[]`).  These are tested contracts — see `TestHashSetNilAndZeroValuePanics`
+and the randomized model tests (fixed seeds 42 and 7) in
+link:hash_set_test.go[`hash_set_test.go`], and the per-method examples
+in link:example_test.go[`example_test.go`].
+
+== Concurrency
+
+Not suitable for concurrent use.  A mutex-guarded thread-safe twin,
+`hash_set_ts`, has the same interface plus `Lock`/`Unlock` and the
+`Nl`-prefixed single-element methods.

@@ -1,0 +1,78 @@
+= hash_set_ts
+
+`hash_set_ts.HashSet[T]` is the thread-safe twin of
+link:../hash_set/README.adoc[hash_set] — the identical public surface
+(the full set menu: core membership, batches, the set algebra, the
+subset/disjoint relations, the set-convenience capabilities, JSON)
+guarding a plain `hash_set.HashSet` value with a single
+`sync.RWMutex` (the kd_tree_ts wrapper-twin pattern: no locks inside
+the borrowed structure, one lock around it).  See the hash_set README
+for the set semantics; this page covers the concurrency.
+
+== Concurrency model
+
+- Every method self-locks.  Reads take the read lock, single-step
+  writes the write lock, and multi-step operations (the batches, the
+  algebra, JSON unmarshal) hold the write lock for the whole compound —
+  concurrent readers observe `InsertSlice` all-or-nothing.
+- `Lock` / `Unlock` expose the write lock for caller-built compounds;
+  both are no-ops on a nil set.  Inside a compound use the
+  `Nl`-prefixed methods: `NlInsert`, `NlDelete` (write lock held),
+  `NlSearch`, `NlLen`, `NlIsEmpty` (either lock held).  There are no
+  other `Nl` methods.  Calling a regular locking method while the lock
+  is held deadlocks.
+- Snapshot methods — `Slice`, `String`, `StringFunc`, `Equal`, `Clone`,
+  `All`, the relations, the algebra's operands — copy under the read
+  lock and then work on the copy with no lock held.  Two consequences:
+  `StringFunc`'s and `DeleteFunc`'s callbacks may safely call back into
+  the set, and iteration (`All`) is a snapshot, safe under concurrent
+  mutation.
+- `Walk` is the one exception: it holds the read lock for the whole
+  walk, so its callback must NOT call back into the set (deadlock
+  hazard — the hash_grow_ts Walk contract).  Snapshot with `Slice` or
+  `All` and walk the copy when the callback needs the set.
+- Two-set operations (`Equal`, the relations, the algebra) never hold
+  two locks at once: each set is snapshotted under its own lock,
+  released before the other is touched; the algebra then computes on
+  local sets with no lock held and swaps the receiver under one write
+  lock.  Two goroutines may compare or combine the same pair of sets in
+  opposite directions without deadlock.
+
+== Locking table
+
+[cols="2,1,4",options="header"]
+|===
+|Method |Lock |Notes
+|Insert / Delete / Truncate |write |Insert applies the insert contract with hash_set_ts messages.
+|Search / Contains / Len / IsEmpty / Eq / Hash |read |
+|InsertSlice / InsertIter / DeleteSlice |write (one) |The whole batch is atomic to readers.  InsertIter drains the iterator BEFORE taking the lock.
+|DeleteFunc |read → none → write |Snapshot, fx runs UNLOCKED (may call back in), one write lock deletes the doomed.
+|ContainsSlice / ContainsAny |read (one) |Consistent snapshot answer.
+|Slice / String / StringFunc |read → none |Snapshot then compute; format callback unlocked.
+|Equal |read each |Receiver snapshot, other probed one call at a time — never two locks.
+|Clone |read |Deep copy under the read lock.
+|Union / Intersect / Minus / SymmetricDifference |read each → none → write |Operands snapshotted under their own locks, computed locally, swapped in atomically.  Zero-value receiver adopts an operand's eq/hash pair.
+|IsSubsetOf / … / IsDisjointWith |read each |Both sides snapshotted, computed with no lock held.
+|All |read |Snapshot iterator: copied under the lock, yielded after release.
+|Walk |read (held) |Callback must not call back into the set.
+|MarshalJSON / UnmarshalJSON |read / write (one) |Unmarshal replaces contents atomically and keeps the eq/hash pair.
+|Lock / Unlock / Nl* |caller |See above.
+|===
+
+== Panics
+
+The hash_set insert contract, spelled `hash_set_ts`: the constructors
+panic on a nil equality or hash function; the storing operations
+(`Insert`, `InsertSlice` / `InsertIter` when they would store an
+element, `UnmarshalJSON` with elements to store) panic on a nil set and
+on a zero-value set with no equality/hash functions.  Every read is a
+total function — a nil `*HashSet` and the zero value behave as an empty
+set (nil guards run before any lock acquisition, the kd_tree_ts
+pattern).  The `Nl` methods are direct inner calls, so an insert
+contract violated through `NlInsert` panics with the wrapped plain
+set's message (same fix named).
+
+The concurrency battery — the race trio, plain-vs-twin parity, batch
+atomicity, no-deadlock in opposite directions — lives in
+link:hash_set_ts_test.go[`hash_set_ts_test.go`]; run it under
+`-race` (`make race` from the repo root).
