@@ -41,6 +41,13 @@ The *empty key is rejected* (algs4 throws on it; pluto reports):
 | `KeysWithPrefix`   | All keys with a prefix, ascending (nil when none)  | O(L + m) — m = total matched length
 | `KeysThatMatch`    | All keys matching a `.` wildcard pattern, ascending | O(m)
 | `All`              | Iterate `(key, value)` pairs, ascending key order  | O(n·L)
+| `Keys()`           | All keys, ascending byte order; nil when empty (snapshot under the read lock) | O(n·L)
+| `Values()`         | All values, in ascending key order, aligned with `Keys` (snapshot under the read lock) | O(n·L)
+| `String()` / `StringFunc(f)` | The keys rendered ascending, `"[a b c]"`; `f` formats each key (snapshot, `f` runs unlocked) | O(total key bytes)
+| `Equal(other)`     | Same *key set* as other — values are not compared (never holds two locks) | O(n·(L + ln n)) average
+| `Clone()`          | Deep copy of every node (read lock held for the whole copy) | O(n·L)
+| `ContainsSlice(keys)` / `ContainsAny(keys)` | Batch membership over keys (one read-lock hold for the whole batch) | O(k·(L + ln n)) average
+| `DeleteSlice(keys)` | Batch delete by keys; `true` if at least one was present (atomic under one write-lock hold) | O(k·(L + ln n)) average
 | `Lock` / `Unlock` + `Nl*` | Compound multi-step operations            | O(1) to lock
 |===
 
@@ -52,6 +59,12 @@ to its zero shape.
 
 `All` is an `iter.Seq2[string, T]` — a single-variable `range` yields
 the KEY (a string).
+
+The go-set-style surface (`Keys`, `Values`, the batches, `String`,
+`Equal`, `Clone`) behaves exactly as documented in the
+link:../tst/[tst README] — the string-set ergonomics with keys-only
+`Equal` and the empty-key rejection carried through; `capabilities.go`
+adds it behind the locks described below.
 
 == Usage
 
@@ -91,7 +104,12 @@ The panic fires *before* any lock acquisition.  A nil `*Tst` and the
 zero value behave as an *empty* trie for every other operation:
 `Search` returns `(zero, false)`, `Contains`/`Delete` return `false`,
 `Length`/`Len` return 0, `LongestPrefixOf` returns `""`, the key
-queries return nil, and `All` visits nothing.
+queries return nil, and `All` visits nothing.  The set-convenience
+capabilities (`Keys`, `Values`, `String`, `StringFunc`, `Equal`,
+`Clone`, `ContainsSlice`, `ContainsAny`, `DeleteSlice`) are total
+functions — none of them panics: `Keys`/`Values` of nil are nil,
+`String` of nil is `[]`, `Equal` of nil is equality with an empty trie,
+`Clone` of nil is nil, and `DeleteSlice` on nil returns `false`.
 
 == Concurrency
 
@@ -110,6 +128,17 @@ The whole API is guarded by one `sync.RWMutex`:
   safe to iterate concurrently with any trie operation — including
   mutating the trie from inside the `All` loop — and never observes
   later modifications.
+* *The set-convenience capabilities follow the same discipline*: `Keys`
+  and `Values` snapshot under the read lock; `String`/`StringFunc`/
+  `Equal` compute after the snapshot, so a caller format function runs
+  without any lock held and may safely call back into the trie; the
+  membership batches `ContainsSlice`/`ContainsAny` hold the read lock
+  for the whole batch, so the answer describes one consistent snapshot.
+* *`DeleteSlice` is atomic*: it holds the write lock once for the whole
+  batch — an interleaved reader sees none or all of it, never part.
+* *`Equal` never holds two locks*: it snapshots one side and probes the
+  other key by key, so two goroutines comparing the same pair of tries
+  in opposite directions cannot deadlock.
 
 `Lock` and `Unlock` expose the *real* write lock (no-ops on a nil trie)
 for compound multi-step operations, together with the `Nl`-prefixed

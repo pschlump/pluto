@@ -40,7 +40,30 @@ L is the length of the key (or query) in bytes.
 | `KeysWithPrefix(prefix)` | All keys starting with prefix, ascending; nil when none  | O(L + nodes visited)
 | `KeysThatMatch(pattern)` | Keys matching pattern (`.` = any one byte), ascending; nil when none | O(nodes visited)
 | `All()`              | `iter.Seq2[string, T]` over (key, value) pairs, ascending key order | O(nodes)
+| `Keys()`             | All keys, ascending byte order; nil when empty                    | O(nodes)
+| `Values()`           | All values, in ascending key order (aligned with `Keys`)          | O(nodes)
+| `String()` / `StringFunc(f)` | The keys rendered ascending, `"[a b c]"`; `f` formats each key | O(total key bytes)
+| `Equal(other)`       | Same *key set* as other — values are not compared                 | O(n·L)
+| `Clone()`            | Deep copy of every node                                            | O(nodes)
+| `ContainsSlice(keys)` / `ContainsAny(keys)` | Batch membership over keys | O(k·L)
+| `DeleteSlice(keys)`  | Batch delete by keys; `true` if at least one was present           | O(k·L)
 |===
+
+=== Set-convenience capabilities
+
+The tries *are* pluto's string sets, so `capabilities.go` layers the
+hashicorp/go-set ergonomics directly on the trie: `Keys`/`Values`
+materialization, `String`/`StringFunc` rendering, `Clone` deep copy and
+the key batches `ContainsSlice`/`ContainsAny`/`DeleteSlice`.  Ordering
+comes free — the byte-order walk is ascending key order, so every one
+of these is deterministic with no sorting.  Two rules to know:
+
+* `Equal` compares *key sets only*: values are `T any` and comparing two
+  arbitrary values is not expressible without boxing them into an
+  interface, so two tries with identical keys and different values are
+  `Equal` (the doc comment carries this; no `EqualKeys` alias exists).
+* Batch insert is deliberately absent — a map-shaped batch would need
+  key/value pairs; callers loop over `Insert`.
 
 `All()` visits the *live* trie in ascending key order — do not modify
 the trie while iterating.  A single-variable range over it yields the
@@ -94,7 +117,12 @@ A nil `*Trie` and the zero value behave as an *empty* trie for every
 other operation: `Search` returns `(zero, false)`, `Contains`/`Delete`
 return `false`, `IsEmpty` returns `true`, `Length`/`Len` return 0,
 `LongestPrefixOf` returns `""`, `KeysWithPrefix`/`KeysThatMatch` return
-nil, and `All` visits nothing.
+nil, and `All` visits nothing.  The set-convenience capabilities
+(`Keys`, `Values`, `String`, `StringFunc`, `Equal`, `Clone`,
+`ContainsSlice`, `ContainsAny`, `DeleteSlice`) are total functions —
+none of them panics: `Keys`/`Values` of nil are nil, `String` of nil is
+`[]`, `Equal` of nil is equality with an empty trie, `Clone` of nil is
+nil, and `DeleteSlice` on nil returns `false`.
 
 == Concurrency
 

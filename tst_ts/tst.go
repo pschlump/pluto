@@ -32,6 +32,17 @@ BSD 3 Clause Licensed.
 //	All — iterate (key, value) pairs in ascending key order.  O(n·L)
 //	Lock / Unlock + Nl* — compound multi-step operations.		O(1) to lock
 //
+// Set-convenience capabilities (capabilities.go) — the tries are pluto's
+// string sets:
+//
+//	Keys — all keys, ascending byte order.						O(n·L)
+//	Values — all values, in ascending key order.				O(n·L)
+//	String / StringFunc — render the keys, ascending: "[a b c]".	O(total key bytes)
+//	Equal — same key set as another trie (values NOT compared).	O(n·(L + ln n))
+//	Clone — deep copy of every node.							O(n·L)
+//	ContainsSlice / ContainsAny — batch membership over keys.	O(k·(L + ln n))
+//	DeleteSlice — batch delete by keys.						O(k·(L + ln n))
+//
 // The empty key is REJECTED: Insert("") returns false and changes
 // nothing, Search("")/Contains("") report not-found, Delete("") returns
 // false.  (algs4 throws an exception on the empty key; pluto reports.)
@@ -43,7 +54,9 @@ BSD 3 Clause Licensed.
 //
 // A nil *Tst and the zero value behave as an empty trie for every other
 // operation: searches report not-found, Delete returns false, the key
-// queries return nil, and All visits nothing.
+// queries return nil, and All visits nothing.  The set-convenience
+// capabilities of capabilities.go are total functions: none of them
+// panics, on a nil trie or anywhere else.
 //
 // Concurrency model:
 //
@@ -56,6 +69,12 @@ BSD 3 Clause Licensed.
 //	they are called, then release it — so they are safe to use
 //	concurrently with any trie operation, including mutating the trie
 //	from inside the All loop, and never observe later modifications.
+//	The set-convenience capabilities follow the same discipline: Keys
+//	and Values snapshot under the read lock; String/StringFunc/Equal
+//	compute after the snapshot (a caller format function runs without
+//	the lock and may call back into the trie); the batches hold one lock
+//	for the whole batch — DeleteSlice is atomic — and Equal never holds
+//	two locks at once.
 //
 // Lock and Unlock expose the real write lock for compound multi-step
 // operations (an atomic NlSearch followed by NlDelete, say): hold Lock

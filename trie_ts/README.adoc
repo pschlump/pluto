@@ -39,12 +39,24 @@ L is the length of the key (or query) in bytes.
 | `KeysWithPrefix(prefix)` | All keys starting with prefix, ascending; nil when none (snapshot under the read lock) | O(L + nodes visited)
 | `KeysThatMatch(pattern)` | Keys matching pattern (`.` = any one byte), ascending; nil when none (snapshot under the read lock) | O(nodes visited)
 | `All()`              | `iter.Seq2[string, T]` over (key, value) pairs, ascending key order (snapshot under the read lock) | O(nodes)
+| `Keys()`             | All keys, ascending byte order; nil when empty (snapshot under the read lock) | O(nodes)
+| `Values()`           | All values, in ascending key order, aligned with `Keys` (snapshot under the read lock) | O(nodes)
+| `String()` / `StringFunc(f)` | The keys rendered ascending, `"[a b c]"`; `f` formats each key (snapshot, `f` runs unlocked) | O(total key bytes)
+| `Equal(other)`       | Same *key set* as other — values are not compared (never holds two locks) | O(n·L)
+| `Clone()`            | Deep copy of every node (read lock held for the whole copy)        | O(nodes)
+| `ContainsSlice(keys)` / `ContainsAny(keys)` | Batch membership over keys (one read-lock hold for the whole batch) | O(k·L)
+| `DeleteSlice(keys)`  | Batch delete by keys; `true` if at least one was present (atomic under one write-lock hold) | O(k·L)
 | `Lock()` / `Unlock()` + `Nl*` | Compound multi-step operations                       | O(1) to lock
 |===
 
 `All()` visits the pairs in ascending key order.  A single-variable
 range over it yields the *key*, not the value; use
 `for key, value := range tr.All()`.
+
+The go-set-style surface (`Keys`, `Values`, the batches, `String`,
+`Equal`, `Clone`) behaves exactly as documented in the
+link:../trie/[trie README] — the string-set ergonomics with keys-only
+`Equal`; `capabilities.go` adds it behind the locks described below.
 
 == Locking behavior
 
@@ -60,6 +72,17 @@ lock is held and returned or yielded after it is released.  It is safe
 to mutate the trie while iterating — including from inside the `All`
 loop — and an iterator never observes modifications made after it was
 created.
+* *The set-convenience capabilities follow the same discipline*: `Keys`
+and `Values` snapshot under the read lock; `String`/`StringFunc`/`Equal`
+compute after the snapshot, so a caller format function runs without
+any lock held and may safely call back into the trie; the membership
+batches `ContainsSlice`/`ContainsAny` hold the read lock for the whole
+batch, so the answer describes one consistent snapshot.
+* *`DeleteSlice` is atomic*: it holds the write lock once for the whole
+batch — an interleaved reader sees none or all of it, never part.
+* *`Equal` never holds two locks*: it snapshots one side and probes the
+other key by key, so two goroutines comparing the same pair of tries in
+opposite directions cannot deadlock.
 
 [source,go]
 ----
@@ -132,7 +155,12 @@ A nil `*Trie` and the zero value behave as an *empty* trie for every
 other operation: `Search` returns `(zero, false)`, `Contains`/`Delete`
 return `false`, `IsEmpty` returns `true`, `Length`/`Len` return 0,
 `LongestPrefixOf` returns `""`, `KeysWithPrefix`/`KeysThatMatch` return
-nil, and `All` visits nothing.
+nil, and `All` visits nothing.  The set-convenience capabilities
+(`Keys`, `Values`, `String`, `StringFunc`, `Equal`, `Clone`,
+`ContainsSlice`, `ContainsAny`, `DeleteSlice`) are total functions —
+none of them panics: `Keys`/`Values` of nil are nil, `String` of nil is
+`[]`, `Equal` of nil is equality with an empty trie, `Clone` of nil is
+nil, and `DeleteSlice` on nil returns `false`.
 
 === Memory trade-off
 

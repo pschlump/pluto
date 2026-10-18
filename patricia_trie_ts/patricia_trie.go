@@ -45,6 +45,17 @@ BSD 3 Clause Licensed.
 //	Backward — Iterate (key, value) pairs in descending key order.			O(n)
 //	Lock / Unlock + Nl* — compound multi-step operations.					O(1) to lock
 //
+// Set-convenience capabilities (capabilities.go) — the tries are pluto's
+// string sets:
+//
+//	Keys — All keys, ascending byte order.							O(n)
+//	Values — All values, in ascending key order.					O(n)
+//	String / StringFunc — Render the keys, ascending: "[a b c]".	O(total key bytes)
+//	Equal — Same key set as another trie (values NOT compared).		O(n·w)
+//	Clone — Deep copy of every node.								O(n)
+//	ContainsSlice / ContainsAny — Batch membership over keys.		O(k·w)
+//	DeleteSlice — Batch delete by keys.							O(k·w)
+//
 // The element type needs no constraints at all.  Elements are stored
 // and returned by value.
 //
@@ -56,7 +67,9 @@ BSD 3 Clause Licensed.
 // A nil *PatriciaTrie and the zero value behave as an empty trie for
 // every other operation: searches report not-found, Delete returns
 // false, the key queries return nil/empty, and the iterators visit
-// nothing.
+// nothing.  The set-convenience capabilities of capabilities.go are
+// total functions: none of them panics, on a nil trie or anywhere
+// else.
 //
 // Concurrency model:
 //
@@ -73,6 +86,12 @@ BSD 3 Clause Licensed.
 //	differ).  KeysWithPrefix returns an eager slice and is a snapshot
 //	by construction.  Dump holds the read lock for the whole traversal,
 //	so the callback must not touch the trie.
+//	The set-convenience capabilities follow the same discipline: Keys
+//	and Values snapshot under the read lock; String/StringFunc/Equal
+//	compute after the snapshot (a caller format function runs without
+//	the lock and may call back into the trie); the batches hold one
+//	lock for the whole batch — DeleteSlice is atomic — and Equal never
+//	holds two locks at once.
 //
 // Lock and Unlock expose the real write lock for compound multi-step
 // operations (an atomic NlSearch followed by NlDelete, say): hold Lock

@@ -32,6 +32,17 @@ BSD 3 Clause Licensed.
 //	All — Iterate (key, value) pairs in ascending key order.				O(nodes)
 //	Lock / Unlock + Nl* — compound multi-step operations.					O(1) to lock
 //
+// Set-convenience capabilities (capabilities.go) — the tries are pluto's
+// string sets:
+//
+//	Keys — All keys, ascending byte order.							O(nodes)
+//	Values — All values, in ascending key order.						O(nodes)
+//	String / StringFunc — Render the keys, ascending: "[a b c]".		O(total key bytes)
+//	Equal — Same key set as another trie (values NOT compared).		O(n·L)
+//	Clone — Deep copy of every node.									O(nodes)
+//	ContainsSlice / ContainsAny — Batch membership over keys.			O(k·L)
+//	DeleteSlice — Batch delete by keys.								O(k·L)
+//
 // Concurrency model:
 //
 //	Reads (Search, Contains, IsEmpty, Length, Len, LongestPrefixOf) take
@@ -45,6 +56,12 @@ BSD 3 Clause Licensed.
 //	use concurrently with any trie operation — including mutating the
 //	trie from inside the All loop — and never observe later
 //	modifications.
+//	The set-convenience capabilities follow the same discipline: Keys and
+//	Values snapshot under the read lock; String/StringFunc/Equal compute
+//	after the snapshot (a caller format function runs without the lock
+//	and may call back into the trie); the batches hold one lock for the
+//	whole batch — DeleteSlice is atomic — and Equal never holds two
+//	locks at once.
 //
 // The element type needs no constraints at all and the zero value of
 // Trie is an empty trie ready to use (including Insert) — no
@@ -53,7 +70,9 @@ BSD 3 Clause Licensed.
 // A nil *Trie behaves as an empty trie for every operation except
 // Insert — a nil trie cannot store a value, and that call panics with a
 // message naming the method.  This is the package's only panic.  The
-// nil guard runs before any lock acquisition.
+// nil guard runs before any lock acquisition.  The set-convenience
+// capabilities of capabilities.go are total functions: none of them
+// panics, on a nil trie or anywhere else.
 //
 // The memory trade-off of an R-way trie: every node carries a
 // [256]*trieNode children array — 2 KiB of pointers per node, allocated

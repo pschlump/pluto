@@ -63,12 +63,36 @@ key; n is the number of keys.
 | `KeysThatMatch(pattern)` | `iter.Seq2[string, T]` over keys matching a Redis glob, ascending | O(w + k·m)
 | `All()`              | `iter.Seq2[string, T]` over (key, value) pairs, ascending key order | O(n)
 | `Backward()`         | `iter.Seq2[string, T]` over (key, value) pairs, descending key order | O(n)
+| `Keys()`             | All keys, ascending byte order; nil when empty                   | O(n)
+| `Values()`           | All values, in ascending key order (aligned with `Keys`)         | O(n)
+| `String()` / `StringFunc(f)` | The keys rendered ascending, `"[a b c]"`; `f` formats each key | O(total key bytes)
+| `Equal(other)`       | Same *key set* as other — values are not compared                | O(n·w)
+| `Clone()`            | Deep copy of every node                                          | O(n)
+| `ContainsSlice(keys)` / `ContainsAny(keys)` | Batch membership over keys | O(k·w)
+| `DeleteSlice(keys)`  | Batch delete by keys; `true` if at least one was present         | O(k·w)
 | `Dump(w)`            | Indented structural listing to an `io.Writer` (debug aid)      | O(n)
 |===
 
 `All()`, `Backward()` and `KeysThatMatch()` visit the *live* trie — do
 not modify the trie while iterating.  A single-variable range over them
 yields the *key*, not the value; use `for key, value := range pt.All()`.
+
+=== Set-convenience capabilities
+
+The tries *are* pluto's string sets, so `capabilities.go` layers the
+hashicorp/go-set ergonomics directly on the Patricia trie: `Keys`/
+`Values` materialization, `String`/`StringFunc` rendering, `Clone` deep
+copy and the key batches `ContainsSlice`/`ContainsAny`/`DeleteSlice`.
+Ordering comes free — the in-order walk is ascending key order, so
+every one of these is deterministic with no sorting.  Two rules to
+know:
+
+* `Equal` compares *key sets only*: values are `T any` and comparing two
+  arbitrary values is not expressible without boxing them into an
+  interface, so two tries with identical keys and different values are
+  `Equal` (the doc comment carries this; no `EqualKeys` alias exists).
+* Batch insert is deliberately absent — a map-shaped batch would need
+  key/value pairs; callers loop over `Insert`.
 
 == Prefix and glob queries
 
@@ -180,7 +204,12 @@ every other operation: `Search` returns `(zero, false)`,
 `Contains`/`Delete` return `false`, `IsEmpty` returns `true`,
 `Length`/`Len` return 0, `KeysWithPrefix` returns nil,
 `LongestPrefixOf` reports not-found, `KeysThatMatch`/`All`/`Backward`
-visit nothing, and `Truncate`/`Dump` are harmless.
+visit nothing, and `Truncate`/`Dump` are harmless.  The
+set-convenience capabilities (`Keys`, `Values`, `String`, `StringFunc`,
+`Equal`, `Clone`, `ContainsSlice`, `ContainsAny`, `DeleteSlice`) are
+total functions — none of them panics: `Keys`/`Values` of nil are nil,
+`String` of nil is `[]`, `Equal` of nil is equality with an empty trie,
+`Clone` of nil is nil, and `DeleteSlice` on nil returns `false`.
 
 == Concurrency
 

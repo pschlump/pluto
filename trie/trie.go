@@ -27,13 +27,26 @@ BSD 3 Clause Licensed.
 //	KeysThatMatch(pattern) — All keys matching pattern ('.' = any byte).	O(nodes visited)
 //	All — Iterate (key, value) pairs in ascending key order.				O(nodes)
 //
+// Set-convenience capabilities (capabilities.go) — the tries are pluto's
+// string sets:
+//
+//	Keys — All keys, ascending byte order.							O(nodes)
+//	Values — All values, in ascending key order.						O(nodes)
+//	String / StringFunc — Render the keys, ascending: "[a b c]".		O(total key bytes)
+//	Equal — Same key set as another trie (values NOT compared).		O(n·L)
+//	Clone — Deep copy of every node.									O(nodes)
+//	ContainsSlice / ContainsAny — Batch membership over keys.			O(k·L)
+//	DeleteSlice — Batch delete by keys.								O(k·L)
+//
 // The element type needs no constraints at all and the zero value of
 // Trie is an empty trie ready to use (including Insert) — no
 // constructor required.  Elements are stored and returned by value.
 //
 // A nil *Trie behaves as an empty trie for every operation except
 // Insert — a nil trie cannot store a value, and that call panics with a
-// message naming the method.  This is the package's only panic.
+// message naming the method.  This is the package's only panic.  The
+// set-convenience capabilities of capabilities.go are total functions:
+// none of them panics, on a nil trie or anywhere else.
 //
 // The memory trade-off of an R-way trie: every node carries a
 // [256]*trieNode children array — 2 KiB of pointers per node, allocated

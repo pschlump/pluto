@@ -28,6 +28,17 @@ BSD 3 Clause Licensed.
 //	KeysThatMatch — all keys matching a '.' wildcard pattern. O(matches)
 //	All — iterate (key, value) pairs in ascending key order.  O(n·L)
 //
+// Set-convenience capabilities (capabilities.go) — the tries are pluto's
+// string sets:
+//
+//	Keys — all keys, ascending byte order.							O(n·L)
+//	Values — all values, in ascending key order.					O(n·L)
+//	String / StringFunc — render the keys, ascending: "[a b c]".		O(total key bytes)
+//	Equal — same key set as another trie (values NOT compared).		O(n·(L + ln n))
+//	Clone — deep copy of every node.								O(n·L)
+//	ContainsSlice / ContainsAny — batch membership over keys.		O(k·(L + ln n))
+//	DeleteSlice — batch delete by keys.							O(k·(L + ln n))
+//
 // The empty key is REJECTED: Insert("") returns false and changes
 // nothing, Search("")/Contains("") report not-found, Delete("") returns
 // false.  (algs4 throws an exception on the empty key; pluto reports.)
@@ -39,7 +50,9 @@ BSD 3 Clause Licensed.
 //
 // A nil *Tst and the zero value behave as an empty trie for every other
 // operation: searches report not-found, Delete returns false, the key
-// queries return nil, and All visits nothing.
+// queries return nil, and All visits nothing.  The set-convenience
+// capabilities of capabilities.go are total functions: none of them
+// panics, on a nil trie or anywhere else.
 //
 // The structure is not safe for concurrent use; see the _ts twin.
 package tst

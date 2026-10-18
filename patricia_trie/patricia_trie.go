@@ -44,6 +44,17 @@ BSD 3 Clause Licensed.
 //	All — Iterate (key, value) pairs in ascending key order.				O(n)
 //	Backward — Iterate (key, value) pairs in descending key order.			O(n)
 //
+// Set-convenience capabilities (capabilities.go) — the tries are pluto's
+// string sets:
+//
+//	Keys — All keys, ascending byte order.							O(n)
+//	Values — All values, in ascending key order.					O(n)
+//	String / StringFunc — Render the keys, ascending: "[a b c]".	O(total key bytes)
+//	Equal — Same key set as another trie (values NOT compared).		O(n·w)
+//	Clone — Deep copy of every node.								O(n)
+//	ContainsSlice / ContainsAny — Batch membership over keys.		O(k·w)
+//	DeleteSlice — Batch delete by keys.							O(k·w)
+//
 // The element type needs no constraints at all and the zero value of
 // PatriciaTrie is an empty trie ready to use (including Insert) — no
 // constructor required.  Elements are stored and returned by value.
@@ -51,6 +62,8 @@ BSD 3 Clause Licensed.
 // A nil *PatriciaTrie behaves as an empty trie for every operation
 // except Insert — a nil trie cannot store a value, and that call panics
 // with a message naming the method.  This is the package's only panic.
+// The set-convenience capabilities of capabilities.go are total
+// functions: none of them panics, on a nil trie or anywhere else.
 //
 // The structure is not safe for concurrent use.
 package patricia_trie

@@ -48,6 +48,13 @@ key; n is the number of keys.
 | `KeysThatMatch(pattern)` | `iter.Seq2[string, T]` over keys matching a Redis glob, ascending | O(w + k·m)
 | `All()`              | `iter.Seq2[string, T]` over (key, value) pairs, ascending key order  | O(n)
 | `Backward()`         | `iter.Seq2[string, T]` over (key, value) pairs, descending key order | O(n)
+| `Keys()`             | All keys, ascending byte order; nil when empty (snapshot under the read lock) | O(n)
+| `Values()`           | All values, in ascending key order, aligned with `Keys` (snapshot under the read lock) | O(n)
+| `String()` / `StringFunc(f)` | The keys rendered ascending, `"[a b c]"`; `f` formats each key (snapshot, `f` runs unlocked) | O(total key bytes)
+| `Equal(other)`       | Same *key set* as other — values are not compared (never holds two locks) | O(n·w)
+| `Clone()`            | Deep copy of every node (read lock held for the whole copy)     | O(n)
+| `ContainsSlice(keys)` / `ContainsAny(keys)` | Batch membership over keys (one read-lock hold for the whole batch) | O(k·w)
+| `DeleteSlice(keys)`  | Batch delete by keys; `true` if at least one was present (atomic under one write-lock hold) | O(k·w)
 | `Dump(w)`            | Indented structural listing to an `io.Writer` (debug aid)      | O(n)
 | `Lock()` / `Unlock()` | Expose the write lock for compound `Nl*` sections             | O(1) to lock
 | `NlInsert` / `NlSearch` / `NlDelete` / `NlIsEmpty` / `NlLen` | The same operations without locking | —
@@ -55,6 +62,12 @@ key; n is the number of keys.
 
 A single-variable range over the iterators yields the *key*, not the
 value; use `for key, value := range pt.All()`.
+
+The go-set-style surface (`Keys`, `Values`, the batches, `String`,
+`Equal`, `Clone`) behaves exactly as documented in the
+link:../patricia_trie/[patricia_trie README] — the string-set
+ergonomics with keys-only `Equal`; `capabilities.go` adds it behind the
+locks described below.
 
 == Usage
 
@@ -97,7 +110,12 @@ and the zero value behave as an *empty* trie for every other operation:
 `Search` returns `(zero, false)`, `Contains`/`Delete` return `false`,
 `IsEmpty` returns `true`, `Length`/`Len` return 0, `KeysWithPrefix`
 returns nil, `LongestPrefixOf` reports not-found, the iterators visit
-nothing, and `Truncate`/`Dump` are harmless.
+nothing, and `Truncate`/`Dump` are harmless.  The set-convenience
+capabilities (`Keys`, `Values`, `String`, `StringFunc`, `Equal`,
+`Clone`, `ContainsSlice`, `ContainsAny`, `DeleteSlice`) are total
+functions — none of them panics: `Keys`/`Values` of nil are nil,
+`String` of nil is `[]`, `Equal` of nil is equality with an empty trie,
+`Clone` of nil is nil, and `DeleteSlice` on nil returns `false`.
 
 == Concurrency
 
@@ -114,6 +132,18 @@ operation, including mutating the trie from inside the loop, and never
 observing later modifications.  (This is the opposite of the plain
 package's live-walk contract.)  `KeysWithPrefix` returns an eager slice
 and is a snapshot by construction.
+
+The set-convenience capabilities follow the same discipline: `Keys` and
+`Values` snapshot under the read lock; `String`/`StringFunc`/`Equal`
+compute after the snapshot, so a caller format function runs without
+any lock held and may safely call back into the trie; the membership
+batches `ContainsSlice`/`ContainsAny` hold the read lock for the whole
+batch, so the answer describes one consistent snapshot.  `DeleteSlice`
+is *atomic* — it holds the write lock once for the whole batch, so an
+interleaved reader sees none or all of it, never part.  And `Equal`
+never holds two locks: it snapshots one side and probes the other key
+by key, so two goroutines comparing the same pair of tries in opposite
+directions cannot deadlock.
 
 `Lock`/`Unlock` expose the real write lock; inside the critical section
 use only the `Nl*` methods — an atomic `NlSearch`-then-`NlDelete`, say.

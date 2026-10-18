@@ -1,7 +1,7 @@
 # Set capabilities & set packages — implementation plan
 
-Status: **phases 0–2 complete** (2026-10-17); phases 3–8 not started — pick up
-at **phase 3** (string-keyed tries, §4.3 menu). Phase 0 added
+Status: **phases 0–3 complete** (2026-10-17); phases 4–8 not started — pick up
+at **phase 4** (sequences, §4.4 menu). Phase 0 added
 `g_lib.FormatSorted`; phase 1 added the full §4.1 menu to all 12 hash
 packages — each package got `capabilities.go`, a mirrored
 `capabilities_test.go` (twins append the concurrency block),
@@ -17,8 +17,15 @@ plus the avl riders `SymmetricDifference` (avl family) and `Floor`/`Ceil`
 precedent), `skip_list.Clone` rebuilds by re-insertion (fresh tower
 heights, documented), and every batch mutator returns "receiver changed"
 with the insert panic contract carried to the batch inserters only where
-a batch can store. Gates green at each phase commit: `make build test vet
-race lint`, `gofmt -l .` empty, `go mod tidy` leaves no root go.sum.
+a batch can store. Phase 3 added the §4.3 menu to all 6 string-keyed
+tries (trie(+_ts), tst(+_ts), patricia_trie(+_ts)) the same way —
+`Keys`/`Values`, `String`/`StringFunc` (byte order), keys-only `Equal`,
+deep-copy `Clone`, `ContainsSlice`/`ContainsAny`, `DeleteSlice`; no
+batch insert, no `DeleteFunc` (map-shaped), `tst`'s empty-key rejection
+carried through, and the twins' batches hold one lock per batch with
+snapshot/compute-after-snapshot discipline. Gates green at each phase
+commit: `make build test vet race lint`, `gofmt -l .` empty, `go mod
+tidy` leaves no root go.sum.
 
 Source of the capability list: hashicorp/go-set `hashset.go` / `set.go`
 (MPL-2.0). What that library offers that pluto does not — verified by a full
