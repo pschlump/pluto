@@ -25,6 +25,22 @@ BSD 3 Clause Licensed.
 //	Truncate() — Removes all elements from the queue.						O(1)
 //	All()/Backward() — Range-over-func iterators over the queue.			O(n)
 //
+//	Set-convenience capabilities (capabilities.go):
+//
+//	Slice — Fresh []T of the elements, FIFO order (head first).		O(n)
+//	String / StringFunc — Render the elements: "[a b c]".			O(n)
+//	Equal — Same sequence as another queue (ORDER-SENSITIVE).			O(n)
+//	Clone — Deep copy of the queue, its own backing storage.			O(n)
+//
+// The capability methods are total functions — none of them panics on a
+// nil queue.  Equal is the one order-sensitive Equal in pluto: a queue
+// holding [a b] is not equal to a queue holding [b a].  It compares
+// elements pairwise with Go's == through interface conversion, so a
+// non-comparable element type panics (with the runtime comparison
+// panic) only when two elements are actually compared — queues of
+// different lengths, and nil or empty queues, are answered without
+// touching an element.
+//
 // The element type needs no constraints at all: there is no ordering and
 // no equality to supply, and the zero value of Queue is an empty queue
 // ready to use — no constructor required.

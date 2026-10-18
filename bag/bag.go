@@ -35,6 +35,22 @@ BSD 3 Clause Licensed.
 //	Truncate() — Removes all elements from the bag.							O(1)
 //	All()/Backward() — Range-over-func iterators over the live list.		O(n)
 //
+//	Set-convenience capabilities (capabilities.go):
+//
+//	Slice — Fresh []T of the elements, insertion order.				O(n)
+//	String / StringFunc — Render the elements: "[a b c]".			O(n)
+//	Equal — Same sequence as another bag (ORDER-SENSITIVE).			O(n)
+//	Clone — Deep copy of the bag, its own node chain.					O(n)
+//
+// The capability methods are total functions — none of them panics on a
+// nil bag.  Equal is the one order-sensitive Equal in pluto: the SAME
+// multiset added in a different order is a different bag ([a b] is not
+// [b a]).  It compares elements pairwise with Go's == through interface
+// conversion, so a non-comparable element type panics (with the runtime
+// comparison panic) only when two elements are actually compared — bags
+// of different lengths, and nil or empty bags, are answered without
+// touching an element.
+//
 // A nil *Bag behaves as an empty bag for every operation except Add —
 // a nil bag cannot store an element, and that call panics with a
 // message naming the method.  This is the package's only panic.

@@ -29,6 +29,19 @@ for _, v := range q.All() {
 }
 ----
 
+== Set-convenience capabilities
+
+The capabilities of link:capabilities.go[`capabilities.go`] — `Slice`,
+`String`/`StringFunc`, `Equal`, `Clone` — mirror `queue`'s exactly (the
+minimal sequence menu and the order-sensitive `Equal`; the
+link:../queue/[queue README] documents the semantics):
+
+* `Slice` and `String` snapshot under the *read* lock; the `StringFunc`
+  format callback runs outside the lock.
+* `Clone` takes the *write* lock.
+* `Equal` snapshots each side separately — one lock is held at a time,
+  so comparing two queues from concurrent goroutines cannot deadlock.
+
 == Errors and panics
 
 Identical to `queue`: `ErrEmptyQueue` (compare with `errors.Is`) reports

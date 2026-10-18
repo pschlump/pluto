@@ -33,6 +33,23 @@ BSD 3 Clause Licensed.
 //	stack operation — including mutating the stack from inside the loop —
 //	and never observe later modifications.
 //
+//	Set-convenience capabilities (capabilities.go):
+//
+//	Slice — Fresh []T snapshot of the elements, TOP DOWN.			O(n)
+//	String / StringFunc — Render the elements: "[a b c]".			O(n)
+//	Equal — Same sequence as another stack (ORDER-SENSITIVE).			O(n)
+//	Clone — Deep copy of the stack, its own backing storage.			O(n)
+//
+// Slice and String snapshot under the read lock (StringFunc runs the
+// format callback outside the lock); Clone takes the write lock.  Equal
+// snapshots each side separately — one lock is held at a time, so two
+// stacks can be compared from concurrent goroutines without deadlock.
+// The capability methods are total functions — none panics on a nil
+// stack.  Equal is the one order-sensitive Equal in pluto ([a b] is not
+// [b a], top down) and compares elements pairwise with Go's == through
+// interface conversion, so a non-comparable element type panics only
+// when two elements are actually compared.
+//
 // The element type needs no constraints at all: there is no ordering and
 // no equality to supply, and the zero value of Stack is an empty stack
 // ready to use — no constructor required.

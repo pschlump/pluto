@@ -48,6 +48,25 @@ BSD 3 Clause Licensed.
 //	MarshalJSON (json.go) snapshots under the read lock and encodes
 //	without it; UnmarshalJSON (json.go) decodes before taking the write
 //	lock and then replaces the contents under one hold of it.
+//	The set-convenience capabilities (capabilities.go) snapshot under the
+//	read lock and compute without it (StringFunc's format function may
+//	safely call back into the list); Equal snapshots each list under its
+//	own lock, never two locks at once, so it cannot deadlock even when
+//	two goroutines compare the same pair in opposite directions.
+//
+// Set-convenience capabilities (capabilities.go) — the minimal sequence
+// menu of set-capabilities plan §4.4:
+//
+//	Slice — All elements, head to tail (the order All yields).			O(n)
+//	String / StringFunc — Render the elements: "[a b c]".				O(n)
+//	Equal — Same elements in the same order, via the stored eq.		O(n)
+//	Clone — Deep copy: fresh nodes, same eq, same sequence.			O(n)
+//
+// Equal is sequence equality — order-sensitive ([a b] != [b a]), unlike
+// the set-shaped packages' membership Equal — and it compares elements
+// through the list's equality function (NewDll/NewDllFunc).  There is
+// deliberately no membership predicate or batch insert/delete: an O(n)
+// scan over a sequence would be a footgun.
 //
 // Errors, not panics, report empty-list, not-found and out-of-range
 // conditions: ErrEmptyDll, ErrNotFound, ErrOutOfRange and ErrInternalDll.
@@ -67,7 +86,10 @@ BSD 3 Clause Licensed.
 // The insert family is InsertBeforeHead, Push, AppendAtTail, Enqueue,
 // Concat (which appends) and UnmarshalJSON (when the data holds
 // elements).  The list implements the json.Marshaler and
-// json.Unmarshaler interfaces — see json.go.
+// json.Unmarshaler interfaces — see json.go.  The set-convenience
+// capabilities of capabilities.go are total functions: none of them
+// panics, on a nil list or anywhere else — Equal compares lengths first,
+// so a zero-value list's nil equality function is never consulted.
 package dll_ts
 
 import (

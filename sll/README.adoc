@@ -42,11 +42,47 @@ on pkg.go.dev.
 | `Dump`                                          | One line per element, for debugging            | O(n)
 | `Front`/`Current` + `Next`/`Done`/`Pos`/`Value` | Cursor iterator                                | O(n) total
 | `IterateOver`                                   | `iter.Seq2[int, T]`, head to tail              | O(n)
+| `Slice`                                         | Fresh `[]T`, head→tail (the order `IterateOver` yields) | O(n)
+| `String` / `StringFunc`                         | Render the elements: `[a b c]`                 | O(n)
+| `Equal`                                         | Same sequence (ORDER-SENSITIVE), via the stored eq | O(n)
+| `Clone`                                         | Deep copy keeping the equality function        | O(n)
 |===
 
 Note that `DeleteFound` — unlike in the `dll` package — is a value-based
 re-search, not a direct splice: it removes the first element whose data
 equals the found element's data, in O(n).
+
+== Set-convenience capabilities
+
+Sequences get the minimal menu only — `Slice`, `String`/`StringFunc`,
+`Equal` and `Clone`, in link:capabilities.go[`capabilities.go`].
+Sequences are not sets, so there is deliberately no `Contains`, no batch
+insert/delete and no predicate bulk delete: an O(n) membership scan over
+a sequence would be a footgun.
+
+[source,go]
+----
+list := sll.NewSll[string]()
+list.InsertAfterTail("a")
+list.InsertAfterTail("b")
+
+fmt.Println(list.String())   // [a b]
+fmt.Println(list.Slice())    // [a b]
+dup := list.Clone()
+fmt.Println(list.Equal(dup)) // true
+----
+
+`Equal` is the one *order-sensitive* `Equal` in pluto — `[a b]` is not
+equal to `[b a]`; every set-shaped package compares membership instead.
+Unlike the constraint-free sequences, elements are compared through the
+list's own equality function (the `NewSll`/`NewSllFunc` function), so
+`Equal` honors field-based equality and never needs the element type to
+be comparable.  Both lists must use consistent equality functions — two
+lists built by the same constructor over the same element type always do.
+
+All four are total functions: none of them panics on a nil list, which
+behaves as an empty list.  `Equal` compares lengths first, so the
+zero-value list's nil equality function is never consulted.
 
 == Errors
 
@@ -120,5 +156,7 @@ with no sane fallback:
 |===
 
 The insert family is `InsertBeforeHead`, `InsertAfterTail` and `Push`.
-Everything else tolerates a nil list and the zero value as an empty list.
+Everything else tolerates a nil list and the zero value as an empty
+list — including the set-convenience capabilities, which are total
+functions: none of them panics, on a nil list or anywhere else.
 

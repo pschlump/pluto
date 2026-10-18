@@ -44,6 +44,10 @@ list with both ends exposed.
 | `IsEmpty` / `Len` / `Length` | Size queries                                 | O(1)
 | `Truncate`                   | Remove all elements                          | O(1)
 | `All` / `Backward`           | Range-over-func iterators over the live list | O(n)
+| `Slice`                      | Fresh `[]T`, FIFO order (head first)         | O(n)
+| `String` / `StringFunc`      | Render the elements: `[a b c]`               | O(n)
+| `Equal`                      | Same sequence (ORDER-SENSITIVE)              | O(n)
+| `Clone`                      | Deep copy                                    | O(n)
 |===
 
 `All` iterates from the *head* (index 0, next to be dequeued) to the
@@ -68,6 +72,37 @@ for _, v := range q.All() {
 }
 ----
 
+== Set-convenience capabilities
+
+Sequences get the minimal menu only — `Slice`, `String`/`StringFunc`,
+`Equal` and `Clone`, in link:capabilities.go[`capabilities.go`].
+Sequences are not sets, so there is deliberately no `Contains`, no batch
+insert/delete and no predicate bulk delete: an O(n) membership scan over
+a sequence would be a footgun.
+
+[source,go]
+----
+q.Push(1)
+q.Push(2)
+
+fmt.Println(q.String())   // [1 2]
+fmt.Println(q.Slice())    // [1 2]
+dup := q.Clone()
+fmt.Println(q.Equal(dup)) // true
+----
+
+`Equal` is the one *order-sensitive* `Equal` in pluto — `[1 2]` is not
+equal to `[2 1]`; every set-shaped package compares membership instead.
+It compares elements pairwise with Go's `==` through interface
+conversion, so the element type must be comparable: a non-comparable
+element type (a slice, map or function) panics with Go's runtime
+comparison panic, but only when two elements are actually compared —
+queues of different lengths, and nil or empty queues, are answered
+without touching any element.
+
+All four are total functions: none of them panics on a nil queue, which
+behaves as an empty queue.
+
 == Errors and panics
 
 The empty queue is reported with an error (compare with `errors.Is`):
@@ -90,7 +125,10 @@ The package has exactly *one* panic:
 
 Everything else — including the zero value, which is fully usable
 because there is no comparison or equality function to configure —
-tolerates a nil queue as an empty queue.
+tolerates a nil queue as an empty queue.  The capability methods add no
+panics of their own; the only caveat is `Equal`, which inherits Go's
+runtime comparison panic when the element type is non-comparable and two
+elements are actually compared (see above).
 
 == Usage
 

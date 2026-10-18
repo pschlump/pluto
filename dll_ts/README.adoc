@@ -77,6 +77,25 @@ for _, v := range list.All() {
 }
 ----
 
+== Set-convenience capabilities
+
+The capabilities of link:capabilities.go[`capabilities.go`] — `Slice`,
+`String`/`StringFunc`, `Equal`, `Clone` — mirror `dll`'s exactly (the
+minimal sequence menu and the order-sensitive `Equal` comparing through
+the stored equality function; the link:../dll/[dll README] documents
+the semantics):
+
+* `Slice`, `String` and `Clone` snapshot under the *read* lock and
+  compute afterwards without the lock; the `StringFunc` format callback
+  runs outside the lock, so it may safely call back into the list.
+* `Equal` snapshots each side separately — one lock is held at a time,
+  so comparing two lists from concurrent goroutines cannot deadlock,
+  not even when two goroutines compare the same pair in opposite
+  directions.
+
+Like `dll`'s, all four are total functions: none of them panics on a nil
+list.
+
 == Errors and panics
 
 Identical to `dll`.  Empty-list, not-found and out-of-range conditions
@@ -96,7 +115,9 @@ exactly three situations, all programmer errors:
 The insert family is `InsertBeforeHead`, `Push`, `AppendAtTail`,
 `Enqueue`, `Concat` (only when the source has elements), and
 `UnmarshalJSON` (when the data holds elements).  Everything
-else tolerates a nil list and the zero value as an empty list.
+else tolerates a nil list and the zero value as an empty list —
+including the set-convenience capabilities, which are total functions:
+none of them panics, on a nil list or anywhere else.
 
 The JSON support (`MarshalJSON`/`UnmarshalJSON`) is otherwise identical
 to dll's — the list encodes as a JSON array of its elements, head to

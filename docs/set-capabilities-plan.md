@@ -1,7 +1,7 @@
 # Set capabilities & set packages — implementation plan
 
-Status: **phases 0–3 complete** (2026-10-17); phases 4–8 not started — pick up
-at **phase 4** (sequences, §4.4 menu). Phase 0 added
+Status: **phases 0–4 complete** (2026-10-17); phases 5–8 not started — pick up
+at **phase 5**. Phase 0 added
 `g_lib.FormatSorted`; phase 1 added the full §4.1 menu to all 12 hash
 packages — each package got `capabilities.go`, a mirrored
 `capabilities_test.go` (twins append the concurrency block),
@@ -23,7 +23,26 @@ tries (trie(+_ts), tst(+_ts), patricia_trie(+_ts)) the same way —
 deep-copy `Clone`, `ContainsSlice`/`ContainsAny`, `DeleteSlice`; no
 batch insert, no `DeleteFunc` (map-shaped), `tst`'s empty-key rejection
 carried through, and the twins' batches hold one lock per batch with
-snapshot/compute-after-snapshot discipline. Gates green at each phase
+snapshot/compute-after-snapshot discipline. Phase 4 added the §4.4
+minimal sequence menu to all 16 sequence packages (queue(+_ts),
+queue_dll, stack, stack_ts, stack_sll_ts, dqueue(+_ts), quicklist(+_ts),
+bag(+_ts), dll(+_ts), sll(+_ts)) the same way — `Slice` (All's order),
+`String`/`StringFunc`, **order-sensitive** `Equal` (the one pluto family
+where equality is sequence equality) and `Clone`; no `Contains`, no
+batches, no `DeleteFunc` (O(n) membership over a sequence is a footgun).
+The 12 constraint-free packages compare elements with Go's `==` via
+interface conversion (`any(a) == any(b)`, the approved decision — a
+non-comparable element type panics only when two elements are actually
+compared); dll/sll and their twins use their stored `eq` with a
+length-check-first short-circuit.  The twins snapshot (`Slice` under the
+read lock, except quicklist_ts whose four capabilities are At-shaped and
+take the write lock), take sequential snapshots in `Equal` (never two
+locks), and run the `StringFunc` callback unlocked; their tests append
+the concurrency hammer + no-deadlock pair but no batch-atomicity test
+(there are no batches).  quicklist reads compressed segments
+transparently and `Clone` carries the whole config via the
+depth-zeroing deferred-recompress rebuild; quicklist_ts `Clone`
+delegates to the plain package's `Clone`. Gates green at each phase
 commit: `make build test vet race lint`, `gofmt -l .` empty, `go mod
 tidy` leaves no root go.sum.
 
@@ -31,22 +50,22 @@ Source of the capability list: hashicorp/go-set `hashset.go` / `set.go`
 (MPL-2.0). What that library offers that pluto does not — verified by a full
 API inventory of every pluto package (`go doc` + grep of non-test sources):
 
-| hashicorp/go-set capability | pluto today |
-|---|---|
-| `Slice() []T` (materialize elements) | **missing everywhere** — all containers expose only `All()`/`Values()` as `iter.Seq`/`iter.Seq2`; the only slice-returning queries are the tries' `KeysWithPrefix`/`KeysThatMatch` |
-| `String()` / `StringFunc()` (`fmt.Stringer`) | **missing everywhere** (only `bloom`, `stream.ID`, `g_lib.Point2D` implement Stringer) |
-| `Equal` / `EqualSet` / `EqualSlice` | **missing everywhere** — no content-equality method exists on any container (only the free `g_lib.EqualSlice`) |
-| `Copy()` | only `avl_tree`/`avl_tree_ts` `Copy(yy)` (destination form) and `hyperloglog`/`bloom_ts` `Clone()` |
-| `InsertSlice` / `RemoveSlice` (batch) | **missing everywhere** |
-| `ContainsSlice` / `ContainsAny` | **missing everywhere** |
-| `RemoveFunc` (predicate bulk delete) | **missing everywhere** (nearest: `binary_tree.DeleteMatch`, which is custom-compare delete) |
-| `Subset` / `ProperSubset` / superset / disjoint predicates | **missing everywhere** |
-| `Union` / `Intersect` / `Difference` | **only** `avl_tree` + `avl_tree_ts`: `Union(yy, zz)`, `Intersect(yy, zz)`, `Minus(yy, zz)` (avl_tree/avl_tree.go:741-806) |
-| `SymmetricDifference` | **missing everywhere** (new even for the avl family) |
-| `Size()` / `Empty()` | already present house-style as `Len`/`Length`/`IsEmpty` — no change |
-| `MarshalJSON` / `UnmarshalJSON` | **already present on every container** — no change |
-| `Items() iter.Seq[T]` | **already present** as `All()`/`Values()` range-over-func iterators — no change |
-| `From`/`FromSlice` constructors | missing (new set packages get them) |
+| hashicorp/go-set capability                                | pluto today                                                                                                                                                                        |
+|------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Slice() []T` (materialize elements)                       | **missing everywhere** — all containers expose only `All()`/`Values()` as `iter.Seq`/`iter.Seq2`; the only slice-returning queries are the tries' `KeysWithPrefix`/`KeysThatMatch` |
+| `String()` / `StringFunc()` (`fmt.Stringer`)               | **missing everywhere** (only `bloom`, `stream.ID`, `g_lib.Point2D` implement Stringer)                                                                                             |
+| `Equal` / `EqualSet` / `EqualSlice`                        | **missing everywhere** — no content-equality method exists on any container (only the free `g_lib.EqualSlice`)                                                                     |
+| `Copy()`                                                   | only `avl_tree`/`avl_tree_ts` `Copy(yy)` (destination form) and `hyperloglog`/`bloom_ts` `Clone()`                                                                                 |
+| `InsertSlice` / `RemoveSlice` (batch)                      | **missing everywhere**                                                                                                                                                             |
+| `ContainsSlice` / `ContainsAny`                            | **missing everywhere**                                                                                                                                                             |
+| `RemoveFunc` (predicate bulk delete)                       | **missing everywhere** (nearest: `binary_tree.DeleteMatch`, which is custom-compare delete)                                                                                        |
+| `Subset` / `ProperSubset` / superset / disjoint predicates | **missing everywhere**                                                                                                                                                             |
+| `Union` / `Intersect` / `Difference`                       | **only** `avl_tree` + `avl_tree_ts`: `Union(yy, zz)`, `Intersect(yy, zz)`, `Minus(yy, zz)` (avl_tree/avl_tree.go:741-806)                                                          |
+| `SymmetricDifference`                                      | **missing everywhere** (new even for the avl family)                                                                                                                               |
+| `Size()` / `Empty()`                                       | already present house-style as `Len`/`Length`/`IsEmpty` — no change                                                                                                                |
+| `MarshalJSON` / `UnmarshalJSON`                            | **already present on every container** — no change                                                                                                                                 |
+| `Items() iter.Seq[T]`                                      | **already present** as `All()`/`Values()` range-over-func iterators — no change                                                                                                    |
+| `From`/`FromSlice` constructors                            | missing (new set packages get them)                                                                                                                                                |
 
 Two things hashicorp has that pluto must **not** copy verbatim, per the design
 contract: the `Collection[T]` interface (cross-container ops) and the
@@ -237,6 +256,13 @@ subset predicates would be footguns.
 
 - `Equal` is documented as order-sensitive (a queue [a b] ≠ [b a]) — the one
   family where equality is sequence equality, not set equality.
+- Element comparison (decided): the 12 constraint-free packages have no
+  stored `eq`, so `Equal` compares elements with Go's `==` via interface
+  conversion (`any(a) == any(b)`) — a non-comparable element type panics
+  with the runtime comparison panic only when two elements are actually
+  compared (the length check runs first, so different lengths and
+  nil/empty never touch an element).  `dll`/`sll` and their twins use
+  their stored `eq`, length check first.
 - `bag` is add-only: no `DeleteFunc`/`DeleteSlice` (nothing to delete with);
   `Slice` is insertion order (its `All()` order — deliberately kept).
 - `dll`/`sll` are error-based APIs; the four additions are total functions

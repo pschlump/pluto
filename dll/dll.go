@@ -75,6 +75,20 @@ BSD 3 Clause Licensed.
 //	Backward — iter.Seq2[int, T] from tail to head.												O(n)
 //	IterateOver — legacy name for All.															O(n)
 //
+// Set-convenience capabilities (capabilities.go) — the minimal sequence
+// menu of set-capabilities plan §4.4:
+//
+//	Slice — All elements, head to tail (the order All yields).			O(n)
+//	String / StringFunc — Render the elements: "[a b c]".				O(n)
+//	Equal — Same elements in the same order, via the stored eq.		O(n)
+//	Clone — Deep copy: fresh nodes, same eq, same sequence.			O(n)
+//
+// Equal is sequence equality — order-sensitive ([a b] != [b a]), unlike
+// the set-shaped packages' membership Equal — and it compares elements
+// through the list's equality function (NewDll/NewDllFunc).  There is
+// deliberately no membership predicate or batch insert/delete: an O(n)
+// scan over a sequence would be a footgun.
+//
 // Errors, not panics, report empty-list, not-found and out-of-range
 // conditions: ErrEmptyDll, ErrNotFound, ErrOutOfRange and ErrInternalDll.
 // Compare them with errors.Is.
@@ -92,7 +106,10 @@ BSD 3 Clause Licensed.
 //
 // The insert family is InsertBeforeHead, Push, AppendAtTail, Enqueue,
 // Concat (which appends) and UnmarshalJSON (when the data holds
-// elements).
+// elements).  The set-convenience capabilities of capabilities.go are
+// total functions: none of them panics, on a nil list or anywhere else —
+// Equal compares lengths first, so a zero-value list's nil equality
+// function is never consulted.
 //
 // This version of the DLL is not suitable for concurrent usage; a mutex
 // guarded thread-safe twin has the exact same interface.

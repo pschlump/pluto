@@ -30,6 +30,19 @@ for _, v := range stk.All() {
 }
 ----
 
+== Set-convenience capabilities
+
+The capabilities of link:capabilities.go[`capabilities.go`] — `Slice`,
+`String`/`StringFunc`, `Equal`, `Clone` — mirror `stack`'s exactly (the
+minimal sequence menu, top-down `Slice`, and the order-sensitive
+`Equal`; the link:../stack/[stack README] documents the semantics):
+
+* `Slice` and `String` snapshot under the *read* lock; the `StringFunc`
+  format callback runs outside the lock.
+* `Clone` takes the *write* lock.
+* `Equal` snapshots each side separately — one lock is held at a time,
+  so comparing two stacks from concurrent goroutines cannot deadlock.
+
 == Errors and panics
 
 Identical to `stack`: `ErrEmptyStack` (compare with `errors.Is`) reports

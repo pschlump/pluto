@@ -22,6 +22,22 @@ BSD 3 Clause Licensed.
 //	Truncate — Removes all elements.										O(1)
 //	All / Backward — Range-over-func iterators over the stack.			O(n)
 //
+//	Set-convenience capabilities (capabilities.go):
+//
+//	Slice — Fresh []T of the elements, TOP DOWN (All's order).		O(n)
+//	String / StringFunc — Render the elements: "[a b c]".			O(n)
+//	Equal — Same sequence as another stack (ORDER-SENSITIVE).			O(n)
+//	Clone — Deep copy of the stack, its own backing storage.			O(n)
+//
+// The capability methods are total functions — none of them panics on a
+// nil stack.  Equal is the one order-sensitive Equal in pluto: a stack
+// holding [a b] (top down) is not equal to a stack holding [b a].  It
+// compares elements pairwise with Go's == through interface conversion,
+// so a non-comparable element type panics (with the runtime comparison
+// panic) only when two elements are actually compared — stacks of
+// different lengths, and nil or empty stacks, are answered without
+// touching an element.
+//
 // The element type needs no constraints at all: there is no ordering and
 // no equality to supply, and the zero value of Stack is an empty stack
 // ready to use — no constructor required.

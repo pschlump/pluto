@@ -36,6 +36,10 @@ install options.
 | `Trim(start, stop)`          | Keep only the inclusive range (LTRIM)                | O(S removed + fill)
 | `Range` / `All` / `Backward` | Range-over-func iterators over the live list         | O(S + m)
 | `MoveHeadToTail(src, dst)`   | Move src's head to dst's tail (RPOPLPUSH/LMOVE)      | amortized O(1)
+| `Slice`                      | Fresh `[]T`, head to tail                            | O(S + n)
+| `String` / `StringFunc`      | Render the elements: `[a b c]`                       | O(S + n)
+| `Equal`                      | Same sequence (ORDER-SENSITIVE)                      | O(S + n)
+| `Clone`                      | Deep copy carrying the whole configuration           | O(S + n)
 |===
 
 S is the number of segments; `fill` is the (constant) segment capacity.
@@ -91,6 +95,33 @@ Mutating the list from inside the loop is at the caller's risk, as with
 the other plain pluto packages; the `quicklist_ts` twin iterates a
 snapshot instead.
 
+== Set-convenience capabilities
+
+Sequences get the minimal menu only — `Slice`, `String`/`StringFunc`,
+`Equal` and `Clone`, in link:capabilities.go[`capabilities.go`].
+Sequences are not sets, so there is deliberately no `Contains`, no batch
+insert/delete and no predicate bulk delete: an O(n) membership scan over
+a sequence would be a footgun.
+
+The reads walk the segments exactly as the iterators do — compressed
+segments are read through transparently (materialized and re-packed by
+the walk), so the compression windows are unchanged.  `Clone` carries
+the receiver's whole configuration (fill target, byte cap, codec,
+depth, `enc`/`dec`) and suspends the per-push compression sweep during
+the rebuild, running it once at the end (the `UnmarshalJSON` precedent),
+so the copy is O(S + n).
+
+`Equal` is the one *order-sensitive* `Equal` in pluto — `[a b]` is not
+equal to `[b a]`; every set-shaped package compares membership instead.
+It compares elements pairwise with Go's `==` through interface
+conversion, so the element type must be comparable: a non-comparable
+element type (a slice, map or function) panics with Go's runtime
+comparison panic, but only when two elements are actually compared —
+lists of different lengths, and nil or empty lists, are answered
+without touching any element.
+
+All four are total functions: none of them panics on a nil list.
+
 == Nil and panics
 
 A nil `*QuickList` behaves as an empty list for every operation that
@@ -101,3 +132,8 @@ method:
 
 * `PushHead` on a nil list
 * `PushTail` on a nil list
+
+The capability methods add no panics of their own; the only caveat is
+`Equal`, which inherits Go's runtime comparison panic when the element
+type is non-comparable and two elements are actually compared (see
+above).

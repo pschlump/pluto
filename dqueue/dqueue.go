@@ -33,6 +33,22 @@ BSD 3 Clause Licensed.
 //	Truncate — Removes all elements.										O(1)
 //	All / Backward — Range-over-func iterators over the live list.		O(n)
 //
+//	Set-convenience capabilities (capabilities.go):
+//
+//	Slice — Fresh []T of the elements, front to back.					O(n)
+//	String / StringFunc — Render the elements: "[a b c]".			O(n)
+//	Equal — Same sequence as another deque (ORDER-SENSITIVE).			O(n)
+//	Clone — Deep copy of the deque, its own node chain.				O(n)
+//
+// The capability methods are total functions — none of them panics on a
+// nil deque.  Equal is the one order-sensitive Equal in pluto: a deque
+// holding [a b] is not equal to a deque holding [b a].  It compares
+// elements pairwise with Go's == through interface conversion, so a
+// non-comparable element type panics (with the runtime comparison
+// panic) only when two elements are actually compared — deques of
+// different lengths, and nil or empty deques, are answered without
+// touching an element.
+//
 // Because the deque is built on a linked list (not a slice window like
 // the queue package), pushes and pops never reallocate: memory use is
 // stable across arbitrary push/pop patterns, at the cost of one small

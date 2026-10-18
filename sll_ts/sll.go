@@ -45,6 +45,25 @@ BSD 3 Clause Licensed.
 //	stable view.
 //	Dump holds the read lock for the whole dump, so the writer must not
 //	call methods on the same list.
+//	The set-convenience capabilities (capabilities.go) snapshot under the
+//	read lock and compute without it (StringFunc's format function may
+//	safely call back into the list); Equal snapshots each list under its
+//	own lock, never two locks at once, so it cannot deadlock even when
+//	two goroutines compare the same pair in opposite directions.
+//
+// Set-convenience capabilities (capabilities.go) — the minimal sequence
+// menu of set-capabilities plan §4.4:
+//
+//	Slice — All elements, head to tail (the order IterateOver yields).	O(n)
+//	String / StringFunc — Render the elements: "[a b c]".				O(n)
+//	Equal — Same elements in the same order, via the stored eq.		O(n)
+//	Clone — Deep copy: fresh nodes, same eq, same sequence.			O(n)
+//
+// Equal is sequence equality — order-sensitive ([a b] != [b a]), unlike
+// the set-shaped packages' membership Equal — and it compares elements
+// through the list's equality function (NewSll/NewSllFunc).  There is
+// deliberately no membership predicate or batch insert/delete: an O(n)
+// scan over a sequence would be a footgun.
 //
 // Errors, not panics, report empty-list and not-found conditions:
 // ErrEmptySll and ErrNotFound.  Compare them with errors.Is.
@@ -61,6 +80,10 @@ BSD 3 Clause Licensed.
 //	Insert-family on a zero-value list — no equality function; the message names the constructors.
 //
 // The insert family is InsertBeforeHead, InsertAfterTail and Push.
+// The set-convenience capabilities of capabilities.go are total
+// functions: none of them panics, on a nil list or anywhere else — Equal
+// compares lengths first, so a zero-value list's nil equality function
+// is never consulted.
 package sll_ts
 
 import (

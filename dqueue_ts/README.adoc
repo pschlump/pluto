@@ -44,6 +44,10 @@ push.  Used at one end only it behaves as a stack; used with
 | `IsEmpty` / `Len` / `Length` | Size queries                              | O(1)
 | `Truncate`                   | Remove all elements                       | O(1)
 | `All` / `Backward`           | Range-over-func iterators over a snapshot | O(n)
+| `Slice`                      | Fresh `[]T` snapshot, front to back       | O(n)
+| `String` / `StringFunc`      | Render the elements: `[a b c]`            | O(n)
+| `Equal`                      | Same sequence (ORDER-SENSITIVE)           | O(n)
+| `Clone`                      | Deep copy                                 | O(n)
 |===
 
 `All` iterates from the *front* (index 0) to the back; `Backward`
@@ -71,6 +75,41 @@ for _, v := range q.All() {
 }
 ----
 
+== Set-convenience capabilities
+
+Sequences get the minimal menu only — `Slice`, `String`/`StringFunc`,
+`Equal` and `Clone`, in link:capabilities.go[`capabilities.go`].
+Sequences are not sets, so there is deliberately no `Contains`, no batch
+insert/delete and no predicate bulk delete: an O(n) membership scan over
+a sequence would be a footgun.
+
+[source,go]
+----
+q.PushBack(1)
+q.PushBack(2)
+
+fmt.Println(q.String())   // [1 2]
+fmt.Println(q.Slice())    // [1 2] — front to back
+dup := q.Clone()
+fmt.Println(q.Equal(dup)) // true
+----
+
+`Equal` is the one *order-sensitive* `Equal` in pluto — `[1 2]` is not
+equal to `[2 1]`; every set-shaped package compares membership instead.
+It compares elements pairwise with Go's `==` through interface
+conversion, so the element type must be comparable: a non-comparable
+element type (a slice, map or function) panics with Go's runtime
+comparison panic, but only when two elements are actually compared —
+deques of different lengths, and nil or empty deques, are answered
+without touching any element.
+
+All four are total functions — none panics on a nil deque — and all four
+follow the lock discipline above: `Slice`, `String`/`StringFunc` and
+`Clone` snapshot under the read lock and compute outside it (the format
+callback may call back into the deque), and `Equal` snapshots each side
+separately, one lock at a time, so two deques can be compared from
+concurrent goroutines without deadlock.
+
 == Errors and panics
 
 The empty deque is reported with an error (compare with `errors.Is`):
@@ -94,7 +133,10 @@ The package has exactly *two* panics:
 
 Everything else — including the zero value, which is fully usable
 because there is no comparison or equality function to configure —
-tolerates a nil deque as an empty deque.
+tolerates a nil deque as an empty deque.  The capability methods add no
+panics of their own; the only caveat is `Equal`, which inherits Go's
+runtime comparison panic when the element type is non-comparable and two
+elements are actually compared (see above).
 
 == Usage
 

@@ -49,6 +49,24 @@ BSD 3 Clause Licensed.
 // trades CPU for memory on every operation — leave it off (the default)
 // for hot lists.
 //
+//	Set-convenience capabilities (capabilities.go):
+//
+//	Slice — Fresh []T of the elements, head to tail.				O(S + n)
+//	String / StringFunc — Render the elements: "[a b c]".			O(S + n)
+//	Equal — Same sequence as another list (ORDER-SENSITIVE).			O(S + n)
+//	Clone — Deep copy carrying the whole configuration.				O(S + n)
+//
+// The capability methods are total functions — none of them panics on a
+// nil list.  Equal is the one order-sensitive Equal in pluto: a list
+// holding [a b] is not equal to a list holding [b a].  It compares
+// elements pairwise with Go's == through interface conversion, so a
+// non-comparable element type panics (with the runtime comparison
+// panic) only when two elements are actually compared — lists of
+// different lengths, and nil or empty lists, are answered without
+// touching an element.  The reads walk compressed segments transparently
+// exactly as At does, and Clone carries the receiver's whole
+// configuration (fill target, byte cap, codec, depth, enc/dec).
+//
 // The element type needs no constraints at all: there is no ordering and
 // no equality to supply.  The zero value of QuickList is an empty list
 // with the default fill target, ready to use; NewQuickList exists to

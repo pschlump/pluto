@@ -19,6 +19,8 @@ zero value of `Bag` is an empty bag ready to use without a constructor.
 | `Truncate`                      | write           | Remove all elements, O(1)
 | `IsEmpty` / `Len` / `Length`    | read            | Size queries, O(1)
 | `All` / `Backward`              | read (snapshot) | Range-over-func iterators, O(n)
+| `Slice` / `String` / `StringFunc` / `Clone` | read (snapshot) | Set-convenience capabilities, O(n)
+| `Equal`                         | read (each side separately) | Same sequence (ORDER-SENSITIVE), O(n)
 | `MarshalJSON` / `UnmarshalJSON` | read / write    | JSON array encode/decode
 |===
 
@@ -35,6 +37,43 @@ unmarshalers must not run under the bag lock), then replaces the
 contents under one lock hold.  The bag encodes as a JSON array of its
 elements in insertion order.
 
+== Set-convenience capabilities
+
+Sequences get the minimal menu only — `Slice`, `String`/`StringFunc`,
+`Equal` and `Clone`, in link:capabilities.go[`capabilities.go`].
+Sequences are not sets, so there is deliberately no `Contains`, no batch
+insert/delete and no predicate bulk delete: an O(n) membership scan over
+a sequence would be a footgun (and a bag is a multiset — `Slice` keeps
+duplicates).
+
+[source,go]
+----
+b.Add(1)
+b.Add(2)
+
+fmt.Println(b.String())   // [1 2] — insertion order
+fmt.Println(b.Slice())    // [1 2]
+dup := b.Clone()
+fmt.Println(b.Equal(dup)) // true
+----
+
+`Equal` is the one *order-sensitive* `Equal` in pluto — the *same
+multiset* added in a different order is a different bag (`[1 2]` is not
+`[2 1]`); every set-shaped package compares membership instead.  It
+compares elements pairwise with Go's `==` through interface conversion,
+so the element type must be comparable: a non-comparable element type
+(a slice, map or function) panics with Go's runtime comparison panic,
+but only when two elements are actually compared — bags of different
+lengths, and nil or empty bags, are answered without touching any
+element.
+
+All four are total functions — none panics on a nil bag — and all four
+follow the concurrency model above: `Slice`, `String`/`StringFunc` and
+`Clone` snapshot under the read lock and compute outside it (the format
+callback may call back into the bag), and `Equal` snapshots each side
+separately, one lock at a time, so two bags can be compared from
+concurrent goroutines without deadlock.
+
 == Panics
 
 The package has exactly *one* panic:
@@ -49,6 +88,10 @@ The package has exactly *one* panic:
 The nil guard runs *before* the lock is acquired (a nil-receiver lock
 operation would itself panic), and the panic message carries the
 `bag_ts:` prefix.  Everything else tolerates a nil bag as an empty bag.
+The capability methods add no panics of their own; the only caveat is
+`Equal`, which inherits Go's runtime comparison panic when the element
+type is non-comparable and two elements are actually compared (see
+above).
 
 == Usage
 

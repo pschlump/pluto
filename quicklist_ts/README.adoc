@@ -21,6 +21,7 @@ semantics.  This twin changes only the concurrency.
 | `PushHead`/`PushTail`, `PopHead`/`PopTail`, `Set`, `InsertBefore`/`InsertAfter`, `Delete`, `DeleteRange`, `Trim` | write lock
 | `At`                                                                                                             | *write* lock — a hit can materialize a compressed segment, which mutates
 | `All` / `Backward` / `Range`                                                                                     | write lock held only while the snapshot is materialized; the returned iterator then walks the snapshot
+| `Slice`, `String`/`StringFunc`, `Equal`, `Clone`                                                                 | *write* lock — At-shaped reads (see below)
 |===
 
 Unlike the plain package's live-walk iterators, the twin's iterators
@@ -28,6 +29,16 @@ operate on a *snapshot* taken when they are called (one O(n) copy), so
 they are safe to use concurrently with any operation — including
 mutating the list from inside the loop — and never observe later
 modifications.
+
+The set-convenience capabilities of
+link:capabilities.go[`capabilities.go`] — `Slice`, `String`/`StringFunc`,
+`Equal`, `Clone` — mirror the plain package's exactly (the minimal
+sequence menu and the order-sensitive `Equal`; the
+link:../quicklist/README.adoc[plain README] documents the semantics) and
+are At-shaped reads: with compression enabled the walk materializes
+segments, so they take the *write* lock and return snapshots.  `Equal`
+snapshots each side separately — one lock is held at a time, so two
+lists can be compared from concurrent goroutines without deadlock.
 
 == Compound operations
 
@@ -55,6 +66,9 @@ concurrent moves in opposite directions cannot deadlock; with
 A nil `*QuickList` behaves as an empty list for every operation with a
 sane answer, exactly as in the plain package.  The package panics only
 on `PushHead`/`PushTail` with a nil receiver, with a message naming the
-method.
+method.  The capability methods add no panics of their own; the only
+caveat is `Equal`, which inherits Go's runtime comparison panic when
+the element type is non-comparable and two elements are actually
+compared.
 
 Run the tests with `-race`.

@@ -23,6 +23,23 @@ BSD 3 Clause Licensed.
 //	with any bag operation — including mutating the bag from inside
 //	the loop — and never observe later modifications.
 //
+//	Set-convenience capabilities (capabilities.go):
+//
+//	Slice — Fresh []T snapshot of the elements, insertion order.		O(n)
+//	String / StringFunc — Render the elements: "[a b c]".			O(n)
+//	Equal — Same sequence as another bag (ORDER-SENSITIVE).			O(n)
+//	Clone — Deep copy of the bag, its own node chain.				O(n)
+//
+// Slice, StringFunc and Clone snapshot under the read lock (the format
+// callback runs outside the lock); Equal snapshots each side separately
+// — one lock is held at a time, so two bags can be compared from
+// concurrent goroutines without deadlock.  The capability methods are
+// total functions — none panics on a nil bag.  Equal is the one
+// order-sensitive Equal in pluto (the SAME multiset added in a
+// different order is a different bag) and compares elements pairwise
+// with Go's == through interface conversion, so a non-comparable
+// element type panics only when two elements are actually compared.
+//
 // The element type needs no constraints at all: there is no ordering
 // and no equality to supply, and the zero value of Bag is an empty bag
 // ready to use — no constructor required.

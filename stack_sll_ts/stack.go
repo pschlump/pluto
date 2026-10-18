@@ -25,6 +25,23 @@ BSD 3 Clause Licensed.
 //	Truncate — Removes all elements.										O(1)
 //	All / Backward — Range-over-func iterators over a snapshot.			O(n)
 //
+//	Set-convenience capabilities (capabilities.go):
+//
+//	Slice — Fresh []T snapshot of the elements, TOP DOWN.			O(n)
+//	String / StringFunc — Render the elements: "[a b c]".			O(n)
+//	Equal — Same sequence as another stack (ORDER-SENSITIVE).			O(n)
+//	Clone — Deep copy of the stack, its own node chain.				O(n)
+//
+// Slice, StringFunc and Clone snapshot under the read lock (the format
+// callback runs outside the lock); Equal snapshots each side separately
+// — one lock is held at a time, so two stacks can be compared from
+// concurrent goroutines without deadlock.  The capability methods are
+// total functions — none panics on a nil stack.  Equal is the one
+// order-sensitive Equal in pluto ([a b] is not [b a], top down) and
+// compares elements pairwise with Go's == through interface conversion,
+// so a non-comparable element type panics only when two elements are
+// actually compared.
+//
 // Because the stack is built on a linked list (not a slice window like
 // the stack package), pushes and pops never reallocate: memory use is
 // stable across arbitrary push/pop patterns, at the cost of one small

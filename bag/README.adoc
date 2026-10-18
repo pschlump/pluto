@@ -35,6 +35,10 @@ package pins the friendlier convention as a contract.
 | `IsEmpty` / `Len` / `Length` | Size queries                                       | O(1)
 | `Truncate`                   | Remove all elements                                | O(1)
 | `All` / `Backward`           | Range-over-func iterators over the live list       | O(n)
+| `Slice`                      | Fresh `[]T`, insertion order                       | O(n)
+| `String` / `StringFunc`      | Render the elements: `[a b c]`                    | O(n)
+| `Equal`                      | Same sequence (ORDER-SENSITIVE)                   | O(n)
+| `Clone`                      | Deep copy                                         | O(n)
 |===
 
 `All` iterates in insertion order; `Backward` from the most recently
@@ -50,6 +54,39 @@ pointers from the head in O(1) extra space.  The price is the usual one
 for a plain package: the bag must not be modified while an iterator is
 running.  (The link:../bag_ts/[`bag_ts`] twin snapshots instead.)
 
+== Set-convenience capabilities
+
+Sequences get the minimal menu only — `Slice`, `String`/`StringFunc`,
+`Equal` and `Clone`, in link:capabilities.go[`capabilities.go`].
+Sequences are not sets, so there is deliberately no `Contains`, no batch
+insert/delete and no predicate bulk delete: an O(n) membership scan over
+a sequence would be a footgun (and a bag is a multiset — `Slice` keeps
+duplicates).
+
+[source,go]
+----
+b.Add(1)
+b.Add(2)
+
+fmt.Println(b.String())   // [1 2] — insertion order
+fmt.Println(b.Slice())    // [1 2]
+dup := b.Clone()
+fmt.Println(b.Equal(dup)) // true
+----
+
+`Equal` is the one *order-sensitive* `Equal` in pluto — the *same
+multiset* added in a different order is a different bag (`[1 2]` is not
+`[2 1]`); every set-shaped package compares membership instead.  It
+compares elements pairwise with Go's `==` through interface conversion,
+so the element type must be comparable: a non-comparable element type
+(a slice, map or function) panics with Go's runtime comparison panic,
+but only when two elements are actually compared — bags of different
+lengths, and nil or empty bags, are answered without touching any
+element.
+
+All four are total functions: none of them panics on a nil bag, which
+behaves as an empty bag.
+
 == Panics
 
 The package has exactly *one* panic:
@@ -63,7 +100,10 @@ The package has exactly *one* panic:
 
 Everything else — including the zero value, which is fully usable
 because there is no comparison or equality function to configure —
-tolerates a nil bag as an empty bag.
+tolerates a nil bag as an empty bag.  The capability methods add no
+panics of their own; the only caveat is `Equal`, which inherits Go's
+runtime comparison panic when the element type is non-comparable and two
+elements are actually compared (see above).
 
 == JSON
 

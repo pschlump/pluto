@@ -26,6 +26,25 @@ BSD 3 Clause Licensed.
 //	            observes later modifications.  This differs from the
 //	            plain package, whose iterators walk the live segments.
 //
+//	Set-convenience capabilities (capabilities.go):
+//
+//	Slice — Fresh []T snapshot of the elements, head to tail.		O(S + n)
+//	String / StringFunc — Render the elements: "[a b c]".			O(S + n)
+//	Equal — Same sequence as another list (ORDER-SENSITIVE).			O(S + n)
+//	Clone — Deep copy carrying the whole configuration.				O(S + n)
+//
+// The four are At-shaped reads: with compression enabled the walk
+// materializes segments, so they take the WRITE lock (like At/Set) and
+// return snapshots that never alias live segments.  Equal snapshots each
+// side separately — one lock is held at a time, so two lists can be
+// compared from concurrent goroutines without deadlock.  The capability
+// methods are total functions — none panics on a nil list.  Equal is the
+// one order-sensitive Equal in pluto ([a b] is not [b a]) and compares
+// elements pairwise with Go's == through interface conversion, so a
+// non-comparable element type panics only when two elements are actually
+// compared.  Clone carries the receiver's whole configuration (fill
+// target, byte cap, codec, depth, enc/dec).
+//
 // The Lock/Unlock pair takes the real write lock for compound
 // operations — the Nl* methods run unlocked while it is held.  The
 // canonical compound is the atomic LPOS-style scan: Lock, walk with
