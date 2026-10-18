@@ -93,6 +93,7 @@ with an identical public API.
 | link:bellman_ford_ts/[bellman_ford_ts]     | Thread-safe Bellman-Ford / acyclic shortest paths (snapshot adjacency; searches run lock-free on a snapshot).
 | link:maxflow/[maxflow]                     | Max-flow / min-cut on a flow network (Ford-Fulkerson with Edmonds-Karp BFS; Sedgwick §6.4).
 | link:bipartite/[bipartite]                 | Maximum bipartite matching + König minimum vertex cover (Kuhn augmenting paths and Hopcroft-Karp; Sedgwick §6.4).
+| link:assignment_problem/[assignment_problem] | Minimum-weight perfect matching on an n×n weight matrix (successive shortest paths, optimality-certifying duals; Sedgewick §6.5).
 | link:fenwick_tree/[fenwick_tree]           | Fenwick (binary indexed) tree, generic over numeric types (prefix sums, point updates; Sedgwick "Beyond").
 | link:fenwick_tree_ts/[fenwick_tree_ts]     | Thread-safe Fenwick tree (RWMutex, Lock+Nl* compound ops).
 | link:segment_tree/[segment_tree]           | Segment tree, generic range-combine queries (sum via numeric constraint, min/max/gcd via combine func).
@@ -1596,6 +1597,45 @@ naming themselves); nil/empty graphs yield the empty matching (the
 `NewCC` precedent), nil results tolerate every read, out-of-range
 vertices report the same as unmatched. No `_ts` twin (immutable
 results — the `maxflow` precedent).
+
+== Assignment Problem — `assignment_problem/`
+
+Sedgwick's §6.5 `AssignmentProblem`: the n×n minimum-weight perfect
+matching — pair each row with its own column so the n chosen entries
+sum least — as one constructor-style immutable query object.
+`NewAssignmentProblem(w)` runs the successive shortest paths
+algorithm: an empty matching grows one edge per round, each round a
+Dijkstra over reduced costs (weight minus row/column duals, shifted by
+the minimum weight so costs are non-negative — negative weights are
+legal input) on the residual alternating-path graph, flipping the
+shortest augmenting path and shifting the duals by the computed
+distances. Where algs4 materializes that graph as an
+`EdgeWeightedDigraph` and runs its `DijkstraSP` per round
+(O(n³ log n)), pluto scans the matrix directly — the dense-graph
+Dijkstra, no allocation per round, O(n³) — and the benchmark
+settles why: 2.6–2.9× faster and three orders of magnitude lighter
+on memory (0.4 MB vs 500 MB at n=200; the composition allocates the
+graph anew every round).
+
+The object also exposes the optimal duals, translated back to the
+caller's weights, carrying the LP-duality certificate verbatim:
+`DualRow(i) + DualCol(j) ≤ w[i][j]` with equality on matched pairs,
+the dual sum equal to `Weight()` — together a proof of optimality the
+test suite checks on every instance, on top of a permutation brute
+force and an independent Bellman-Ford (SPFA) reference solver.
+
+* Good: certificate-backed correctness (duals prove the optimum),
+negative weights handled, zero per-round allocations, deterministic
+tie-breaking.
+* Bad: O(n²) memory for the matrix copy; NaN/±Inf entries panic
+(encode forbidden pairs as a large finite penalty); rectangular
+instances need the documented pad-to-square recipe.
+
+Panic contract: exactly the constructor on a ragged matrix or a
+non-finite entry, naming the row or cell; nil/empty matrix yields the
+empty assignment, nil results tolerate every read, out-of-range
+indices report -1/0. No `_ts` twin (immutable results — the
+`maxflow` precedent).
 
 == Supporting Packages
 

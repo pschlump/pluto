@@ -194,7 +194,7 @@ Small constructor-style query objects added to the existing packages (and mirror
 | 11 | `shell_sort` | `Shell.java` (§2.1) | **DONE 2026-10-15** (`shell_sort/`) — 3x+1 gaps exactly as algs4, hoisted-value inner loop; the 3x+1-vs-Knuth bench comparison was not done | S |
 | 12 | `stable_pq` | `StableMinPQ` (§2.4 ex.) | **DONE 2026-10-17** (`stable_pq/`) — stamp + (key, seq) lexicographic on `pluto/heap`; no `_ts` twin (documented) | S |
 | 13 | `bipartite` matching | `BipartiteMatching`, `HopcroftKarp` (§6.4) | **DONE 2026-10-17** (`bipartite/`) — direct augmenting paths picked (6–35× over maxflow composition, benched); König min vertex cover as the certificate; no `_ts` twin | M |
-| 14 | `assignment_problem` | `AssignmentProblem` (§6.4) | Hungarian/successive-shortest-paths n×n assignment | M/L |
+| 14 | `assignment_problem` | `AssignmentProblem` (§6.5) | **DONE 2026-10-18** (`assignment_problem/`) — successive shortest paths with a dense in-matrix Dijkstra (O(n³); benched 2.6–2.9× faster and ~1300× lighter than the algs4-style dijkstra composition); duals translated back to the caller's weights so the LP-duality certificate is the test oracle; no `_ts` twin (maxflow precedent) | M/L |
 | 15 | `floyd_warshall` | `FloydWarshall` (§4.4) | All-pairs SP, negatives OK (detects negative cycles); V×V matrix query object, own small pkg | S/M |
 | 16 | `boruvka_mst` | `BoruvkaMST` (§4.3) | Completes the MST quartet (lazy/eager Prim, Kruskal done); UF-driven | S |
 | 17 | `global_mincut` | `GlobalMincut` (§6.4) | Global min cut over `maxflow` (n−1 maxflows) or Stoer–Wagner; pick after benchmark | M |

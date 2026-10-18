@@ -1,0 +1,149 @@
+= assignment_problem
+
+Minimum-weight perfect matching on an n-by-n weight matrix — Sedgwick's
+§6.5 `AssignmentProblem` — as one constructor-style immutable query
+object: pair each row with its own column so the n chosen entries sum
+as small as possible (assign tasks to workers, keys to slots, samples
+to centers).
+
+The implementation is the *successive shortest paths* algorithm: the
+matching starts empty and grows one edge per round; each round runs
+Dijkstra over *reduced costs* (weight minus the row and column duals,
+shifted by the minimum weight so every cost is non-negative) on the
+residual alternating-path graph, flips the shortest augmenting path,
+and shifts the duals by the computed distances.  n rounds, O(n³) total.
+algs4 builds the residual graph as an explicit `EdgeWeightedDigraph`
+and runs its `DijkstraSP` on it every round (O(n³ log n), n² edge
+allocations per round); here the Dijkstra scans the matrix directly —
+the dense-graph form — with no allocation per round (see the benchmark
+below).
+
+Alongside the matching, the object exposes the *optimal dual variables*
+`DualRow`/`DualCol`, translated back to the caller's weights, so the
+textbook LP-duality certificate holds verbatim on the input matrix:
+
+. `Sol` is a permutation (`RowOf` its inverse);
+. `DualRow(i) + DualCol(j) <= weight[i][j]` for every pair (dual
+  feasibility);
+. equality on every matched pair (complementary slackness);
+. the dual sum equals `Weight()` (strong duality).
+
+Those four conditions *prove* the reported assignment optimal — no
+oracle needed — and the test suite checks exactly that certificate on
+every instance, on top of a permutation brute force (small n) and an
+independent SPFA (queue-based Bellman-Ford) reference solver.
+
+Negative weights are legal input (the solver shifts by the minimum
+weight internally — despite algs4's javadoc claiming non-negative
+weights are required, its code does the same shifting).  NaN and ±Inf
+are rejected at construction naming the cell: encode a "forbidden
+pair" as a large finite penalty instead.  For a rectangular m×n
+instance (m < n), pad to square with a constant c — every complete
+matching pays exactly m·c more, so the optimum is preserved.
+
+Results are computed from a copy of the matrix: later mutation of the
+caller's slice is not reflected, and there is no `_ts` twin — the
+link:../maxflow/[`maxflow`] immutability precedent.
+
+== Operations
+
+[options="header"]
+|===
+| Operation                          | Description                                          | complexity
+
+| `NewAssignmentProblem(w)`          | Solve w, an n-by-n matrix of finite weights          | O(n³) time, O(n²) space
+| `Sol(i)`                           | The column matched to row i, or -1 (out of range / nil) | O(1)
+| `RowOf(j)`                         | The row matched to column j — Sol's inverse, or -1   | O(1)
+| `Weight()`                         | The total of the n matched entries of w              | O(n)
+| `DualRow(i)`                       | Row dual u_i of the certificate (0 out of range / nil) | O(1)
+| `DualCol(j)`                       | Column dual v_j of the certificate (0 out of range / nil) | O(1)
+|===
+
+== Usage
+
+[source,go]
+----
+cost := [][]float64{
+    {9, 2, 7, 8},
+    {6, 4, 3, 7},
+    {5, 8, 1, 8},
+    {7, 6, 9, 4},
+}
+
+ap := assignment_problem.NewAssignmentProblem(cost)
+ap.Weight()  // 13
+ap.Sol(0)    // 1 — row 0 takes column 1 (the 2)
+ap.Sol(1)    // 0
+ap.Sol(2)    // 2
+ap.Sol(3)    // 3
+
+// The duals certify it: u_i + v_j <= cost[i][j], tight on the pairs
+// above, and they sum to 13 — so nothing cheaper exists.
+----
+
+== Panics
+
+[options="header"]
+|===
+| Call                                                | Why
+
+| `NewAssignmentProblem` on a ragged matrix           | a non-square matrix has no well-defined assignment; the message names the row
+| `NewAssignmentProblem` on a NaN / ±Inf entry        | a non-finite cost has no sane optimum; the message names the cell (use a large finite penalty for forbidden pairs)
+|===
+
+Everything else tolerates: a nil or empty matrix yields the empty
+assignment, a nil result object reports -1 / 0 everywhere, and
+out-of-range indices report the same as a nil receiver.  There are no
+other panics.
+
+== Scanning the matrix vs composing dijkstra's DijkstraSP
+
+algs4's `AssignmentProblem` materializes the residual graph as an
+`EdgeWeightedDigraph` each round and runs `DijkstraSP` on it.  pluto
+runs the same Dijkstra directly on the matrix — the dense-graph linear
+scan — per the backlog's "compose or go direct — bench once, pick"
+instruction.  Measured once (M4 Max, `bench_test.go`, PCG-fixed
+3-digit integer matrices):
+
+[options="header"]
+|===
+| n        | direct scan            | dijkstra composition
+
+| 100      | 4.1 ms, 99 KB          | 10.6 ms, 63.5 MB
+| 200      | 29.7 ms, 376 KB        | 85.6 ms, 499.7 MB
+| 400      | 219 ms, 1.3 MB         | (not run)
+|===
+
+The composition is 2.6–2.9× slower and allocates the graph anew every
+round — three orders of magnitude more memory at n=200 (500 MB vs
+0.4 MB, ~400k allocations vs ~200) — which pushes GC pressure onto the
+caller for no algorithmic gain.  The direct scan ships; the composition
+is kept in `bench_test.go` as the reference.
+
+== Concurrency
+
+The constructor solves from a snapshot copy, so the caller's matrix
+must not be mutated concurrently while it runs (the copy itself is
+atomic from the caller's perspective).  The result object is immutable
+and safe for concurrent reads.  No `_ts` twin, per the
+link:../maxflow/[`maxflow`] immutability precedent.
+
+== Tests
+
+`thorough_test.go` verifies every result by *certificate*
+(`checkCertificate`): permutation matching, dual feasibility,
+complementary slackness, strong duality — together a proof of
+optimality.  On top of that:
+
+* `TestRandomizedModel` (fixed seeds) cross-checks random integer
+  instances — several weight ranges, ties included — against an
+  independent SPFA (queue-based Bellman-Ford) reference, and against an
+  enumerate-all-permutations brute force wherever feasible (n <= 7).
+* `TestFloatWeights` repeats with non-integral weights and tolerances.
+* `TestRoundByRoundDualInvariants` runs the solver one round at a time
+  and checks the dual invariants before every augment (algs4's
+  constructor asserts).
+* `TestAdversarialShapes`: massive ties (constant, identical rows),
+  unique optima (identity and anti-diagonal pricing), 12-decade
+  magnitude spreads, and integers near algs4's documented 2^52
+  exactness ceiling.
