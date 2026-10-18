@@ -1,7 +1,7 @@
 # Set capabilities & set packages — implementation plan
 
-Status: **phases 0–4 complete** (2026-10-17); phases 5–8 not started — pick up
-at **phase 5**. Phase 0 added
+Status: **phases 0–5 complete** (2026-10-17); phases 6–8 not started — pick up
+at **phase 6**. Phase 0 added
 `g_lib.FormatSorted`; phase 1 added the full §4.1 menu to all 12 hash
 packages — each package got `capabilities.go`, a mirrored
 `capabilities_test.go` (twins append the concurrency block),
@@ -42,7 +42,28 @@ the concurrency hammer + no-deadlock pair but no batch-atomicity test
 (there are no batches).  quicklist reads compressed segments
 transparently and `Clone` carries the whole config via the
 depth-zeroing deferred-recompress rebuild; quicklist_ts `Clone`
-delegates to the plain package's `Clone`. Gates green at each phase
+delegates to the plain package's `Clone`. Phase 5 added the §4.5 menu
+to all 10 heap/PQ packages (heap(+_ts), priority_queue(+_ts),
+index_pq(+_ts), fib_heap, multiway_pq, stable_pq, binomial_queue) the
+same way — `Slice`/`String`/`StringFunc` in the package's backing order,
+`Equal`, `Clone`; no batches, no `DeleteFunc` (a heap is a multiset with
+a pop order, not a set).  Equal compares **through the stored
+comparator, never Go's `==`**, so §4.5 has no comparability caveat at
+all (the advantage over the §4.4 sequence family).  The per-package
+exceptions: `priority_queue`(+_ts) materialize in sorted order (their
+`All` is sorted) so `Equal` walks the two ordered sequences directly,
+no re-sort; `index_pq`(+_ts) and `fib_heap` are map-shaped — `Slice`
+yields the values and `Equal` compares the **index→value bindings**
+(same value multiset with values swapped between indices is NOT equal);
+`stable_pq` `Equal` ignores the FIFO stamps while `Clone` preserves
+them (pop order survives, drain-witness-tested); `multiway_pq` mirrors
+heap exactly (array-copy Clone preserving layout and `d`, d-blind
+Equal); `binomial_queue` `Equal` is merge-history-blind and `Clone`
+rebuilds by re-insertion (forest shape not claimed); heap/heap_ts
+`Clone` copies the backing array — the heap property survives exactly,
+no re-heapify.  The twins take sequential snapshots in `Equal` (never
+two locks), snapshot in `Slice`, run the `StringFunc` callback
+unlocked, and add no new `Nl*`.  Gates green at each phase
 commit: `make build test vet race lint`, `gofmt -l .` empty, `go mod
 tidy` leaves no root go.sum.
 
@@ -288,9 +309,17 @@ binomial_queue)
   internal arrangements — Equal compares the *sorted value sequence*, so
   ties are safe (the `multiway_pq` tie-safe model-test precedent).
   `stable_pq`: compare key sequences, ignore FIFO stamps (they differ
-  between equal multisiset insertions).
+  between equal multiset insertions).
 - `heap_sort` is excluded — it is functions over caller slices, not a
   container.
+- Delivered (phase 5): Equal compares through the stored comparator,
+  never Go's `==` — no comparability caveat anywhere in this family.
+  The indexed PQs (`index_pq`(+_ts), `fib_heap`) are map-shaped: Equal
+  compares the index→value bindings (a value swap between indices is
+  NOT equal), Slice yields the values alone.  `stable_pq` Clone
+  preserves the stamps and the stamp counter.  `multiway_pq` Equal is
+  d-blind; its Clone preserves layout and `d`.  `binomial_queue` Equal
+  is merge-history-blind; its Clone rebuilds by re-insertion.
 
 #### 4.6 Explicitly excluded
 

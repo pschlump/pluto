@@ -56,6 +56,23 @@ if v, pos, found := pq.NlSearch(Task{Priority: 20}); found {
 pq.Unlock()
 ----
 
+== Set-convenience capabilities
+
+The same minimal menu as `priority_queue` — `Slice`,
+`String`/`StringFunc`, `Equal` and `Clone`, in
+link:capabilities.go[`capabilities.go`] — with the twin's locking
+rules.  `Slice` and `String` materialize in priority order (this
+queue's `All` is sorted — the one §4.5 package whose order is sorted),
+via the snapshot `All` takes; `StringFunc` runs the format callback
+outside the lock, so it may safely call back into the queue.  `Equal`
+is multiset equality — same length and the same priority-ordered
+sequence — and snapshots each side separately, one lock at a time, so
+two queues can be compared from concurrent goroutines in opposite
+directions without deadlock.  `Clone` copies the underlying backing
+array, preserving the exact layout and pop sequence.  None of them
+panics on a nil or zero-value queue, and no new `Nl*` methods are
+added — the capabilities are self-locking, not compounds.
+
 == Errors and panics
 
 Identical to `priority_queue`: no errors — every empty or out-of-range

@@ -17,6 +17,19 @@
 // and returned by value, and empty/minimum lookups report not-found
 // instead of panicking.
 //
+// Set-convenience capabilities (capabilities.go): Slice, String,
+// StringFunc, Equal and Clone.  Slice and String materialize the
+// elements in internal forest order — the order All yields and the JSON
+// marshal uses, NOT sorted order; DeleteMin is the sorted drain.  Equal
+// is MULTISET equality — same length and the same sorted value
+// sequence, so queues built from the same elements in any insertion or
+// merge history are equal — and is non-destructive; it compares through
+// the stored comparison function, never Go's ==, so a non-comparable
+// element type is fine.  Clone rebuilds by re-insertion, so the clone's
+// forest shape may differ (unobservable — the multiset and the sorted
+// drain survive).  The capability methods are total functions — none of
+// them panics on a nil or zero-value queue.
+//
 // A BinomialQueue is not safe for concurrent use.
 //
 // Copyright (C) Philip Schlump, 2012-2026.

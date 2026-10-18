@@ -35,6 +35,9 @@ queue (the reversal applies to the key only — ties stay FIFO).
 | `All`                        | Iterate in (key, insertion) order — the exact `Pop` order, non-destructive snapshot | O(n log n)
 | `Len` / `Length` / `IsEmpty` | Size queries                                                                        | O(1)
 | `Truncate`                   | Remove everything, releasing storage (the stamp keeps counting)                     | O(1)
+| `Slice` / `String` / `StringFunc` | Materialize/render in (key, insertion) order — the exact `Pop` order           | O(n log n)
+| `Equal`                      | Key-multiset equality via the stored comparison function (stamps ignored)           | O(n log n)
+| `Clone`                      | Deep copy; the stamps survive, so the FIFO tie order survives                       | O(n log n)
 | `Lock` / `Unlock`            | No-op pair kept for API compatibility                                               | O(1)
 |===
 
@@ -46,6 +49,44 @@ The surface is deliberately lean — algs4's own `StableMinPQ` is
 `insert`/`delMin`/`min`/`size`/`isEmpty`; the indexed/positional
 machinery of `heap` and `priority_queue` is intentionally not mirrored,
 because a "position" behind an unexported stamp is not a useful handle.
+
+== Set-convenience capabilities
+
+Stable queues get the minimal §4.5 menu only — `Slice`,
+`String`/`StringFunc`, `Equal` and `Clone`, in
+link:capabilities.go[`capabilities.go`].  No membership batch and no
+predicate bulk delete — a priority queue is a multiset with a pop
+order, not a set.
+
+`Slice` and `String` materialize in (key, insertion) order — minimum
+key first, ties oldest first — the exact order `Pop` produces.  For
+keys this is sorted order, and the stability makes it deterministic
+even under duplicates:
+
+[source,go]
+----
+pq.Insert(2)
+pq.Insert(1)
+pq.Insert(2)
+pq.Insert(1)
+
+fmt.Println(pq.Slice()) // [1 1 2 2] — (key, insertion) order
+----
+
+`Equal` compares the **key multiset and deliberately ignores the
+insertion stamps**: the stamps are the internal tie-breaking
+bookkeeping, not content, so two queues over the same key multiset
+inserted in different orders — hence with different stamps — are
+equal.  It is non-destructive and compares through the stored
+comparison function, *never Go's `==`* (non-comparable key types are
+fine).  Ties are safe by construction.
+
+`Clone` copies the stamps *and* the stamp counter: the clone's pop
+order — FIFO among ties included — and the stamps its future `Insert`
+calls hand out are the receiver's.
+
+All of them are total functions: none panics on a nil queue or a
+zero-value queue, which behave as empty.
 
 == Usage
 
@@ -76,7 +117,8 @@ The package panics in exactly three situations — the same shape as
 |===
 
 Everything else tolerates a nil `*StablePQ` and the zero value as an
-empty queue (`Pop`/`Peek` report not-found, `All` iterates nothing).
+empty queue (`Pop`/`Peek` report not-found, `All` iterates nothing,
+every set-convenience capability included).
 
 == Concurrency
 

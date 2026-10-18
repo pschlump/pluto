@@ -24,6 +24,18 @@ BSD 3 Clause Licensed.
 //	All      — iterate in (key, insertion) order, non-destructive.		O(n log n)
 //	Len / Length / IsEmpty / Truncate — size and reset.			O(1)
 //
+// Set-convenience capabilities (capabilities.go): Slice, String,
+// StringFunc, Equal and Clone.  Slice and String materialize the keys
+// in (key, insertion) order — minimum key first, ties oldest first, the
+// exact order Pop would produce.  Equal compares the KEY multiset and
+// deliberately ignores the insertion stamps — the stamps are internal
+// tie-breaking bookkeeping, not content — and goes through the stored
+// comparison function, never Go's ==, so a non-comparable key type is
+// fine.  Clone copies the stamps and the stamp counter too, so the
+// clone's pop order (FIFO among ties included) is the receiver's.  The
+// capability methods are total functions — none of them panics on a nil
+// or zero-value queue.
+//
 // The element type never implements an interface: queues of naturally
 // ordered types (all integers, floats and strings) are created with
 // NewStablePQ, which orders by the built-in < and > operators; queues

@@ -23,6 +23,24 @@ BSD 3 Clause Licensed.
 //	Len / IsEmpty — size queries.									O(1)
 //	Truncate     — remove all values.								O(n)
 //
+//	Set-convenience capabilities (capabilities.go):
+//
+//	Slice — Fresh []T of the values, backing (index-heap) order.		O(n)
+//	String / StringFunc — Render the values: "[a b c]".				O(n)
+//	Equal — Same index→value bindings as another queue.				O(n)
+//	Clone — Deep copy of the queue, bindings rebuilt pair by pair.	O(n log n)
+//
+// An IndexPQ is map-shaped, so the capabilities follow map semantics:
+// Equal compares the index→value bindings, NOT the value multiset —
+// swapping the values of two indices leaves the multiset unchanged but
+// changes the content, and such queues are not equal.  The index space
+// itself is capacity, not content.  Slice and String use the backing
+// order — the breadth-first order of the index heap — not priority
+// order; All yields the (index, value) pairs in priority order.  Equal
+// compares through the stored comparison function, never Go's ==, so a
+// non-comparable value type is fine.  The capability methods are total
+// functions — none of them panics on a nil or zero-value queue.
+//
 // The queue is self-contained rather than a composition over
 // pluto/heap: an indexed priority queue needs the inverse position map
 // (qp) maintained inside the heap's swim/sink, which a plain heap does

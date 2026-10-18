@@ -35,6 +35,9 @@ assertions.  Values are stored and returned *by value* (`T`, not `*T`).
 | `All`            | Iterate `(index, value)` in priority order (snapshot)    | O(n log n)
 | `Len` / `IsEmpty`| Size queries                                             | O(1)
 | `Truncate`       | Remove all indices (keeps the ordering and index space)  | O(n)
+| `Slice` / `String` / `StringFunc` | Materialize/render the *values* in backing order — *not* priority order | O(n)
+| `Equal`                      | Same index→value *bindings* (a value swap between indices ⇒ not equal) | O(n)
+| `Clone`                      | Deep copy over the same index space; bindings rebuilt pair by pair | O(n log n)
 |===
 
 The index space `0..n-1` is fixed at construction (`n ≥ 1`).  Indices
@@ -49,6 +52,41 @@ return `false` for an absent or out-of-range `k`, and
 *private snapshot copy* taken when it is called — the queue is unchanged
 afterwards, later modifications are not observed, and mutating the queue
 from inside the loop is safe.
+
+== Set-convenience capabilities
+
+The minimal menu — `Slice`, `String`/`StringFunc`, `Equal` and `Clone`
+in link:capabilities.go[`capabilities.go`] — with map semantics: an
+IndexPQ is map-shaped (index → value), so `Equal` compares the
+index→value *bindings*, not the value multiset.
+
+`Slice` and `String` materialize the values in *backing* order — the
+breadth-first order of the internal index heap, *not* priority order
+(`All` yields the `(index, value)` pairs in priority order).
+
+[source,go]
+----
+q.Insert(0, 5)
+q.Insert(1, 3)
+q.Insert(2, 4)
+
+fmt.Println(q.Slice()) // [3 5 4] — backing order, not sorted
+----
+
+`Equal` is *binding* equality: same length, and every index present in
+one queue carries a value that compares equal — through the stored
+comparison function, never Go's `==` — in the other.  Swapping the
+values of two indices leaves the multiset unchanged but changes the
+content: such queues are NOT equal.  The index space itself is
+capacity, not content: queues over different `n` with the same
+bindings are equal.  Duplicate values cannot mismatch (bindings
+compare per index).
+
+`Clone` rebuilds the bindings pair by pair on a fresh queue over the
+same index space.
+
+All of them are total functions: none panics on a nil queue or a
+zero-value queue, which behave as empty.
 
 == Usage
 

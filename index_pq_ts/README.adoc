@@ -43,6 +43,20 @@ if v, found := q.NlValue(k); found && v > threshold {
 q.Unlock()
 ----
 
+== Set-convenience capabilities
+
+The same minimal menu as `index_pq` — `Slice`, `String`/`StringFunc`,
+`Equal` and `Clone` in link:capabilities.go[`capabilities.go`] — with
+the same map semantics (`Equal` compares the index→value bindings, not
+the value multiset; `Slice`/`String` use the backing order, not
+priority order) and the twin's locking rules: `Slice` snapshots under
+the read lock, `StringFunc` runs the format callback outside the lock,
+`Equal` touches each side under its own lock — one lock at a time, so
+opposite-direction comparisons cannot deadlock — and `Clone`
+snapshots under the read lock, then rebuilds the bindings locally.
+None of them panics on a nil or zero-value queue, and no new `Nl*`
+methods are added — the capabilities are self-locking, not compounds.
+
 == Errors and panics
 
 Identical to `index_pq`: no errors — every empty, absent or out-of-range

@@ -21,6 +21,18 @@
 // and returned by value, and the out-of-range index operations report
 // not-found instead of panicking.
 //
+// Set-convenience capabilities (capabilities.go): Slice, String,
+// StringFunc, Equal and Clone.  Slice and String materialize the
+// elements in internal breadth-first backing order — the order All
+// yields, NOT sorted order; Pop is the sorted drain.  Equal is MULTISET
+// equality — same length and the same sorted value sequence, so heaps
+// built from the same elements in any insertion order (at any branching
+// factor d) are equal — and is non-destructive; it compares through the
+// stored comparison function, never Go's ==, so a non-comparable
+// element type is fine.  Clone copies the backing array, preserving the
+// exact layout and pop sequence.  The capability methods are total
+// functions — none of them panics on a nil or zero-value heap.
+//
 // A DHeap is not safe for concurrent use.
 //
 // Copyright (C) Philip Schlump, 2012-2026.

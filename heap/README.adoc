@@ -30,6 +30,9 @@ not `*T`).
 | `Truncate`                   | Remove all elements                                           | O(1)
 | `All`                        | Iterate internal (breadth-first) order — *not sorted*         | O(n)
 | `Dump`                       | Indexed internal-order listing, for debugging                 | O(n)
+| `Slice` / `String` / `StringFunc` | Materialize/render in backing (breadth-first) order — *not sorted* | O(n)
+| `Equal`                      | Multiset equality via the stored comparison function          | O(n log n)
+| `Clone`                      | Deep copy; the exact backing layout and pop sequence survive  | O(n)
 |===
 
 Indexes come from `Search`, `GetValue`, or `All`; `Delete`, `Fix`,
@@ -43,6 +46,43 @@ a `Push`.
 
 `All` yields elements in internal heap order, which is *not* sorted;
 repeatedly calling `Pop` is the way to consume a heap in sorted order.
+
+== Set-convenience capabilities
+
+Heaps get the minimal menu only — `Slice`, `String`/`StringFunc`,
+`Equal` and `Clone`, in link:capabilities.go[`capabilities.go`].  A
+heap is a multiset with a pop order, not a set and not a sequence, so
+there is deliberately no membership batch and no predicate bulk
+delete.
+
+`Slice` and `String` materialize in the internal breadth-first backing
+order — the same order `All` yields and the JSON marshal emits — *not*
+sorted order; `Pop` is the sorted drain.
+
+[source,go]
+----
+hp.Push(3)
+hp.Push(1)
+hp.Push(2)
+
+fmt.Println(hp.Slice())  // [1 3 2] — backing order, not sorted
+fmt.Println(hp.String()) // [1 3 2]
+----
+
+`Equal` is *multiset* equality: same length and the same sorted value
+sequence, so two heaps built from the same elements in any insertion
+order — different internal arrangements — are equal.  It is
+non-destructive (neither side is reordered) and compares through the
+stored comparison function, *never Go's `==`*, so a non-comparable
+element type is fine — unlike the sequence family's `Equal`, this one
+never boxes an element.  Ties are safe by construction.
+
+`Clone` copies the backing array, which preserves the heap property
+exactly: the clone has the same breadth-first layout and the same pop
+sequence as the receiver.
+
+All of them are total functions: none panics on a nil heap or a
+zero-value heap, which behave as empty.
 
 == Usage
 
@@ -91,9 +131,9 @@ with no sane fallback:
 | `Push`/`AppendHeap` on a zero-value heap | no comparison function; the message names the constructors 
 |===
 
-Everything else — including every indexed operation with a bad index —
-tolerates a nil heap and the zero value as an empty heap and reports
-`false`.
+Everything else — including every indexed operation with a bad index
+and every set-convenience capability — tolerates a nil heap and the
+zero value as an empty heap and reports `false`.
 
 `Lock`/`Unlock` are no-ops kept for API compatibility with the
 mutex-guarded twin, link:../heap_ts[`heap_ts`]; this package is not

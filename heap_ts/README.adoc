@@ -28,6 +28,18 @@ modifications made after it was created.  `All` yields internal
 breadth-first order, *not* sorted order.
 * *`Dump` holds the read lock for the whole dump*, so the writer must
 not call methods on the same heap.
+* *The set-convenience capabilities snapshot* (`Slice`, `String`,
+`StringFunc`, `Equal`, `Clone`, in link:capabilities.go[`capabilities.go`]):
+`Slice`/`String` copy under the read lock — `StringFunc` runs the
+format callback outside it — and `Equal` snapshots each side
+separately, one lock at a time, so two heaps can be compared from
+concurrent goroutines in opposite directions without deadlock.
+`Slice`/`String` use internal breadth-first order (*not* sorted;
+`Pop` is the sorted drain).  `Equal` is *multiset* equality — the
+same elements in any insertion order are equal — through the stored
+comparison function, never Go's `==`, so a non-comparable element
+type is fine.  `Clone` snapshots and rebuilds a local heap with the
+same backing layout.
 * *`Lock`/`Unlock` expose the write lock* for compound operations that
 must be atomic.  While the lock is held, only the `Nl*` methods may be
 called — calling a regular method will deadlock:
@@ -57,7 +69,8 @@ Identical to `heap`: no errors — every empty or out-of-range outcome is a
 | `Push`/`AppendHeap` on a zero-value heap | no comparison function; the message names the constructors
 |===
 
-Everything else tolerates a nil heap and the zero value as an empty heap.
+Everything else — including every set-convenience capability —
+tolerates a nil heap and the zero value as an empty heap.
 
 == Usage
 

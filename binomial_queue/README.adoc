@@ -37,6 +37,9 @@ dynamic dispatch, no type assertions.  Elements are stored and returned
 | `Truncate`                   | Remove all elements                                            | O(1)
 | `All` / `Backward`           | Iterate internal forest order — *not sorted*                   | O(n)
 | `Dump`                       | Indented per-tree listing, for debugging                       | O(n)
+| `Slice` / `String` / `StringFunc` | Materialize/render in internal forest order — *not sorted* | O(n)
+| `Equal`                      | Multiset equality via the stored comparison function           | O(n log n)
+| `Clone`                      | Deep copy by re-insertion; the sorted drain survives           | O(n) amortized
 |===
 
 The element-returning operations (`DeleteMin`, `Peek`, `FindMin`) return
@@ -51,6 +54,45 @@ reverse of `All`, with indexes counting down from `Length()-1`, so each
 element gets the same index from both iterators.  A single-variable
 range yields the index.  The queue must not be modified while an
 iterator is running.
+
+== Set-convenience capabilities
+
+Binomial queues get the minimal §4.5 menu only — `Slice`,
+`String`/`StringFunc`, `Equal` and `Clone`, in
+link:capabilities.go[`capabilities.go`].  No membership batch and no
+predicate bulk delete — a priority queue is a multiset with a pop
+order, not a set.
+
+`Slice` and `String` materialize in the internal forest order — the
+same order `All` yields and the JSON marshal emits — *not* sorted
+order; `DeleteMin` is the sorted drain.
+
+[source,go]
+----
+q.Insert(3)
+q.Insert(1)
+q.Insert(2)
+
+fmt.Println(q.Slice())  // [2 1 3] — forest order [B0:2, B1:(1 [3])]
+fmt.Println(q.String()) // [2 1 3]
+----
+
+`Equal` is *multiset* equality: same length and the same sorted value
+sequence, so two queues built from the same elements in any insertion
+order — or by any *merge history*, which shapes the forest differently
+— are equal.  It is non-destructive (neither side is reordered) and
+compares through the stored comparison function, *never Go's `==`*, so
+a non-comparable element type is fine.  Ties are safe by construction.
+
+`Clone` rebuilds by re-insertion, so the clone's forest shape may
+differ from the receiver's — unobservable, since only the multiset and
+the sorted drain are content, and both survive.  A zero-value queue
+clones to a fresh queue still without a comparison function, but it
+remains usable as a `Merge` target (which adopts the operand's
+comparison function).
+
+All of them are total functions: none panics on a nil queue or a
+zero-value queue, which behave as empty.
 
 == Usage
 
@@ -110,10 +152,10 @@ with no sane fallback:
 
 Everything else tolerates a nil queue and the zero value as an empty
 queue and reports not-found / no-op: `DeleteMin`, `Peek`, `FindMin`,
-`Len`, `Length`, `IsEmpty`, `Truncate`, `Dump`, `All`, `Backward`, and a
-`Merge` whose other side is empty or nil.  Merging into a zero-value
-receiver adopts the other queue's comparison function; merging a queue
-into itself is a no-op.
+`Len`, `Length`, `IsEmpty`, `Truncate`, `Dump`, `All`, `Backward`,
+every set-convenience capability, and a `Merge` whose other side is
+empty or nil.  Merging into a zero-value receiver adopts the other
+queue's comparison function; merging a queue into itself is a no-op.
 
 == Concurrency
 

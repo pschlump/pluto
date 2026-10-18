@@ -24,6 +24,18 @@
 // dispatch, no type assertions.  Values are stored and returned by
 // value (T, not *T).
 //
+// Set-convenience capabilities (capabilities.go): Slice, String,
+// StringFunc, Equal and Clone.  Slice and String materialize the values
+// in priority order — minimum first, the order All yields, the order
+// Pop would produce.  Equal compares the index→value BINDINGS (same
+// length, and every present index holds a value that compares equal
+// through the stored comparison function — never Go's ==): the
+// map-shaped exception within the heaps menu, because an indexed
+// queue's content is the association, not just the value multiset.
+// Clone rebuilds a fresh queue over the same index space with the same
+// bindings.  The capability methods are total functions — none of them
+// panics on a nil or zero-value queue.
+//
 // An IndexFibonacciPQ is not safe for concurrent use.
 //
 // Copyright (C) Philip Schlump, 2012-2026.

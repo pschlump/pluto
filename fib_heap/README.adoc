@@ -58,6 +58,9 @@ it directly.
 | `All`               | Iterate `(index, value)` in priority order (snapshot)                      | O(n log n)
 | `Len` / `IsEmpty`   | Size queries                                                               | O(1)
 | `Truncate`          | Remove all indices (keeps the ordering and index space)                    | O(n)
+| `Slice` / `String` / `StringFunc` | Materialize/render the *values* in priority order            | O(n log n)
+| `Equal`             | Same index→value bindings (the map-shaped exception)                       | O(n)
+| `Clone`             | Deep copy; same index space, ordering function and bindings                | O(n)
 |===
 
 The index space `0..n-1` is fixed at construction (`n ≥ 1`).  Indices
@@ -74,6 +77,42 @@ when the new value does not order strictly before the current one.
 unchanged afterwards, later modifications are not observed, and
 mutating the queue from inside the loop is safe.  Ties may yield in
 any order.
+
+== Set-convenience capabilities
+
+Indexed queues get the minimal §4.5 menu only — `Slice`,
+`String`/`StringFunc`, `Equal` and `Clone`, in
+link:capabilities.go[`capabilities.go`].
+
+`Slice` and `String` materialize the *values* (not the pairs) in
+priority order — minimum first, `All`'s order, the order `Pop` would
+produce; pair the values with their indices by ranging over `All`
+directly.
+
+[source,go]
+----
+q.Insert(0, 30)
+q.Insert(1, 10)
+q.Insert(2, 20)
+
+fmt.Println(q.Slice())  // [10 20 30] — priority order
+fmt.Println(q.String()) // [10 20 30]
+----
+
+`Equal` compares the index→value *bindings*, not just the value
+multiset — the **map-shaped exception** within the heaps menu: an
+indexed queue's content is the association, so swapping the values of
+two present indices keeps the multiset but changes the content, and
+the queues are *not* equal.  Same bindings in any insertion order are
+equal.  The comparison goes through the stored comparison function,
+*never Go's `==`* (non-comparable value types are fine).
+
+`Clone` rebuilds a fresh queue over the same index space with the same
+ordering function and the same bindings; the internal forest shape may
+differ, which is unobservable.
+
+All of them are total functions: none panics on a nil queue or a
+zero-value queue, which behave as empty.
 
 == Usage
 
@@ -103,9 +142,9 @@ The package panics in exactly four situations — the same shape as
 | `Insert`/`Change` on a zero-value queue                    | no comparison function; the message names the constructors
 |===
 
-Everything else — including every operation with a bad index —
-tolerates a nil queue and the zero value as an empty queue and reports
-`false`.
+Everything else — including every operation with a bad index and every
+set-convenience capability — tolerates a nil queue and the zero value
+as an empty queue and reports `false`.
 
 == Concurrency
 

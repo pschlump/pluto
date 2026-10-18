@@ -23,6 +23,25 @@ BSD 3 Clause Licensed.
 //	All            — iterate in priority order (non-destructive).		O(n log n)
 //	Len / Length / IsEmpty / Truncate — size and reset.					O(1)
 //
+//	Set-convenience capabilities (capabilities.go):
+//
+//	Slice — Fresh []T of the elements, PRIORITY order (sorted).		O(n log n)
+//	String / StringFunc — Render the elements: "[a b c]".				O(n log n)
+//	Equal — Same multiset as another queue (via the comparator).		O(n log n)
+//	Clone — Deep copy of the queue, its own backing storage.			O(n)
+//
+// priority_queue is the one §4.5 package whose Slice and String order
+// is sorted: its All drains a private snapshot heap in priority order,
+// and that — minimum first, the JSON marshal's order too — is the order
+// Slice and String use.  Equal is multiset equality — same length and
+// the same priority-ordered sequence, so queues built from the same
+// elements in any insertion order are equal; it is non-destructive and
+// compares through the stored comparison function, never Go's ==, so a
+// non-comparable element type is fine.  Clone copies the underlying
+// backing array, preserving the exact layout and pop sequence.  The
+// capability methods are total functions — none of them panics on a nil
+// or zero-value queue.
+//
 // The element type never implements an interface: queues of naturally
 // ordered types (all integers, floats and strings) are created with
 // NewPriorityQueue, which orders by the built-in < and > operators;

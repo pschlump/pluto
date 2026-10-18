@@ -26,6 +26,9 @@ returned *by value* (`T`, not `*T`).
 | `All`                        | Iterate in *priority order* (non-destructive) | O(n log n) snapshot
 | `Len` / `Length` / `IsEmpty` | Size queries                                  | O(1)
 | `Truncate`                   | Remove all elements                           | O(1)
+| `Slice` / `String` / `StringFunc` | Materialize/render in *priority order* (sorted) | O(n log n)
+| `Equal`                      | Multiset equality via the stored comparison function | O(n log n)
+| `Clone`                      | Deep copy; the exact layout and pop sequence survive | O(n)
 |===
 
 Positions come from `Search` and compose with `UpdatePriority` and
@@ -40,6 +43,44 @@ heap's `All`, this one _is_ sorted — by draining a private copy of the
 heap taken when `All` is called: the iteration is non-destructive, the
 queue is unchanged afterwards, and mutating the queue from inside the
 loop is safe.
+
+== Set-convenience capabilities
+
+Priority queues get the minimal menu only — `Slice`,
+`String`/`StringFunc`, `Equal` and `Clone`, in
+link:capabilities.go[`capabilities.go`].  A priority queue is a
+multiset with a pop order, not a set and not a sequence, so there is
+deliberately no membership batch and no predicate bulk delete.
+
+This is the one §4.5 package whose materialization order is *sorted*:
+`Slice` and `String` yield the elements in priority order, minimum
+first — the same order `All` iterates in and the JSON marshal emits
+(this queue's `All` is sorted, unlike the heap's).
+
+[source,go]
+----
+pq.Insert(3)
+pq.Insert(1)
+pq.Insert(2)
+
+fmt.Println(pq.Slice())  // [1 2 3] — priority order
+fmt.Println(pq.String()) // [1 2 3]
+----
+
+`Equal` is *multiset* equality: same length and the same
+priority-ordered sequence, so two queues built from the same elements
+in any insertion order are equal.  Because both sides materialize
+already sorted by the comparator, no re-sorting happens — and ties are
+safe by construction.  It is non-destructive and compares through the
+stored comparison function, *never Go's `==`*, so a non-comparable
+element type is fine.
+
+`Clone` copies the underlying backing array, which preserves the heap
+property exactly: the clone has the same priority order and the same
+pop sequence as the receiver.
+
+All of them are total functions: none panics on a nil queue or a
+zero-value queue, which behave as empty.
 
 == Usage
 
