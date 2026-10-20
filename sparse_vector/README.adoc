@@ -1,0 +1,83 @@
+= sparse_vector
+
+Dimension-indexed sparse vectors of any numeric type — Sedgwick &
+Wayne's §3.5 `SparseVector` — a d-dimensional vector stored as a
+link:https://go.dev/ref/spec#Map_types[plain map] from dimension index
+to the nonzero entries, generic over link:../g_lib/[`g_lib`]'s
+`Numeric` (so defined numeric types pass too).  This is the container
+sparse Gaussian elimination and simplex are built from: dot products
+that cost O(nnz), not O(d), and the in-place row operation.
+
+The stored form is *canonical*: `Put(i, 0)` removes the entry, so a
+zero is never stored and `NNz` is exactly the count of nonzero
+dimensions — an entry that cancels to zero in `Axpy`/`Plus` is pruned
+automatically.
+
+== Operations
+
+[options="header"]
+|===
+| Operation             | Description                                          | Complexity
+
+| `NewSparseVector(d)`  | The zero vector of dimension d (d ≥ 1)               | O(1)
+| `Put(i, value)`       | Assigns value to dimension i (zero removes); false if i is out of range | O(1) avg
+| `Get(i)`              | The entry at i and whether one is stored             | O(1) avg
+| `NNz()`               | Number of stored (nonzero) entries                   | O(1)
+| `Dimension()`         | The dimension d, fixed at construction               | O(1)
+| `Each(fx)`            | Visits the entries in ascending index order; true stops | O(nnz log nnz)
+| `Dot(y []T)`          | Sparse · dense product                               | O(nnz)
+| `DotSparse(y)`        | Sparse · sparse product, iterating the sparser side  | O(min nnz) avg
+| `Scale(alpha)`        | Returns α·v as a new vector                          | O(nnz)
+| `Plus(y)`             | Returns v + y as a new vector                        | O(nnz v + nnz y)
+| `Axpy(alpha, x)`      | v += α·x IN PLACE — the BLAS row operation           | O(nnz x) avg
+| `Clone()`             | Independent copy                                     | O(nnz)
+| `Dense()`             | Materializes the full []T of length d                | O(d)
+|===
+
+== Usage
+
+[source,go]
+----
+a := sparse_vector.NewSparseVector[float64](10)
+a.Put(3, 0.50)
+a.Put(9, 0.75)
+b := sparse_vector.NewSparseVector[float64](10)
+b.Put(3, 0.60)
+b.Put(4, 0.90)
+
+a.DotSparse(b)  // 0.3
+a.Plus(b)       // (3, 1.1) (4, 0.9) (9, 0.75)
+
+x := sparse_vector.NewSparseVector[int](5)
+x.Put(1, 1)
+y := sparse_vector.NewSparseVector[int](5)
+y.Put(1, 2)
+y.Axpy(-2, x)   // y = y - 2x; the canceled entry is pruned to canonical form
+----
+
+== Panics
+
+[options="header"]
+|===
+| Call                                    | Why
+
+| `NewSparseVector(d)` with d < 1          | a vector over no dimensions is meaningless
+| `Put`/`Axpy` on a nil `*SparseVector`    | the writes with no sane answer
+| `Dot` with `len(y) != d`; `DotSparse`/`Plus`/`Axpy` with an operand of a different dimension | not defined on mismatched dimensions
+|===
+
+That is the whole panic surface.  Everything else reports: `Put`
+returns false for an out-of-range index (the `heap`/`fenwick_tree`
+convention), `Get` reports ok=false, and a nil vector or the zero
+value behaves as the zero vector of dimension 0 for every read — a
+nil operand in `DotSparse`/`Axpy` is the zero vector, `Plus(nil)`
+clones the receiver, `Each` visits nothing.
+
+== Concurrency
+
+Not safe for concurrent use.  Use link:../sparse_vector_ts/[`sparse_vector_ts`],
+the same API behind a `sync.RWMutex`; its `Each` snapshots and runs
+callbacks outside the lock, and its two-vector operations
+(`DotSparse`/`Plus`/`Axpy`) snapshot the operand under the operand's
+own lock so no two locks are ever held at once (aliases like
+`v.Axpy(α, v)` are legal).

@@ -100,6 +100,8 @@ with an identical public API.
 | link:fenwick_tree_ts/[fenwick_tree_ts]     | Thread-safe Fenwick tree (RWMutex, Lock+Nl* compound ops).
 | link:segment_tree/[segment_tree]           | Segment tree, generic range-combine queries (sum via numeric constraint, min/max/gcd via combine func).
 | link:segment_tree_ts/[segment_tree_ts]     | Thread-safe segment tree (RWMutex, Lock+Nl* compound ops).
+| link:sparse_vector/[sparse_vector]         | Sparse vector, generic over numeric types — canonical map of nonzeros, dot/axpy for sparse elimination (§3.5).
+| link:sparse_vector_ts/[sparse_vector_ts]   | Thread-safe sparse vector (RWMutex, snapshot Each, operand-snapshot two-vector ops).
 | link:trie/[trie]                           | String-keyed R-way trie symbol table (prefix/wildcard queries, Sedgwick §5.4 TrieST).
 | link:trie_ts/[trie_ts]                     | Thread-safe R-way trie (RWMutex, snapshot iterators, Lock+Nl* compound ops).
 | link:tst/[tst]                             | String-keyed ternary search trie (memory-efficient trie, Sedgwick §5.5 TST).
@@ -181,7 +183,8 @@ per-call read lock.
 `priority_queue_ts`, `heap_sort_ts`, the hash-table twins
 (`hash_grow_ts`, `hash_tab_ts`, `hash_tab_bt_ts`, `hash_tab_dll_ts`,
 `cuckoo_ts`, `cuckoo_grow15_ts`, `sharded_hash_ts`), `skip_list_ts`,
-`index_pq_ts`, `fenwick_tree_ts`, `segment_tree_ts`, `trie_ts`,
+`index_pq_ts`, `fenwick_tree_ts`, `segment_tree_ts`, `sparse_vector_ts`,
+`trie_ts`,
 `tst_ts`, `stream_ts`, `hyperloglog_ts`, `lfu_ts`, `lru_ts` and
 `bloom_ts` — expose the
 *real `Lock`/`Unlock`* plus `Nl`-prefixed no-lock methods
@@ -1378,6 +1381,35 @@ The `_ts` twins add the RWMutex: reads under the read lock, writes
 under the write lock, nil guards before lock acquisition, and the real
 `Lock`/`Unlock` plus `Nl*` methods (`NlSum`/`NlRangeSum`/`NlAdd`... /
 `NlQuery`/`NlUpdate`) for atomic read-modify-write compounds.
+
+== Sparse Vector — `sparse_vector/`, `sparse_vector_ts/`
+
+Sedgwick & Wayne's §3.5 `SparseVector`: a d-dimensional vector, generic
+over `g_lib.Numeric`, stored as a `map[int]T` of the nonzero entries —
+the container sparse Gaussian elimination and simplex are built from.
+The stored form is canonical (`Put(i, 0)` removes the entry, and
+`Axpy`/`Plus` prune entries that cancel to zero), so `NNz` is always
+exactly the count of nonzero dimensions. `Dot` (sparse·dense) costs
+O(nnz) — benched 32× faster than the dense loop at d=2²⁰/nnz=1000 —
+`DotSparse` iterates the sparser side, `Scale`/`Plus` are functional
+(new vectors), and `Axpy(α, x)` is the in-place BLAS row operation.
+`Each` visits ascending by index; the whole surface follows the
+heap/fenwick report-don't-panic convention (out-of-range `Put` →
+false, `Get` → ok=false, nil → the zero vector), panicking only on
+`d < 1`, nil `Put`/`Axpy`, and dimension mismatches.
+
+* Good: arithmetic proportional to the nonzeros, not the dimension;
+canonical form makes emptiness checks O(1).
+* Bad: `Each`/`String` pay an O(nnz log nnz) sort per call (the map is
+unordered); the dimension is fixed at construction.
+
+`sparse_vector_ts` is the twin: `Put`/`Axpy` under the write lock,
+`Dimension` lock-free (immutable after construction), `Each`
+snapshot-then-callback-outside-the-lock, and the two-vector operations
+(`DotSparse`/`Plus`/`Axpy`) snapshot the operand under its own lock so
+no two locks are ever held at once — aliases like `v.Axpy(α, v)` are
+legal, and the deadlock that naive cross-locking would cause is
+documented in docs/packages/sparse_vector.md.
 
 == Quicksort — `quick_sort/`
 

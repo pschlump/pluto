@@ -1,0 +1,65 @@
+= sparse_vector_ts
+
+The thread-safe twin of link:../sparse_vector/[`sparse_vector`]:
+dimension-indexed sparse vectors of any numeric type — Sedgwick &
+Wayne's §3.5 `SparseVector` — with the identical API over a map of the
+nonzero entries, behind a `sync.RWMutex`.  The stored form is
+canonical (`Put(i, 0)` removes the entry); the panic and nil-tolerance
+contracts are identical, with messages prefixed `sparse_vector_ts:`.
+
+== Operations
+
+[options="header"]
+|===
+| Operation             | Description                                          | Complexity
+
+| `NewSparseVector(d)`  | The zero vector of dimension d (d ≥ 1)               | O(1)
+| `Put(i, value)`       | Assigns value to dimension i (zero removes); false if i is out of range | O(1) avg
+| `Get(i)`              | The entry at i and whether one is stored             | O(1) avg
+| `NNz()`               | Number of stored (nonzero) entries                   | O(1)
+| `Dimension()`         | The dimension d, fixed at construction (no lock)     | O(1)
+| `Each(fx)`            | SNAPS the entries, then visits them ascending outside the lock | O(nnz log nnz)
+| `Dot(y []T)`          | Sparse · dense product                               | O(nnz)
+| `DotSparse(y)`        | Sparse · sparse product (both sides snapshotted)     | O(nnz v + nnz y)
+| `Scale(alpha)`        | Returns α·v as a new vector                          | O(nnz)
+| `Plus(y)`             | Returns v + y as a new vector (both sides snapshotted) | O(nnz v + nnz y)
+| `Axpy(alpha, x)`      | v += α·x IN PLACE (x snapshotted first)              | O(nnz x)
+| `Clone()`             | Independent copy                                     | O(nnz)
+| `Dense()`             | Materializes the full []T of length d                | O(d)
+|===
+
+== Panics
+
+[options="header"]
+|===
+| Call                                    | Why
+
+| `NewSparseVector(d)` with d < 1          | a vector over no dimensions is meaningless
+| `Put`/`Axpy` on a nil `*SparseVector`    | the writes with no sane answer
+| `Dot` with `len(y) != d`; `DotSparse`/`Plus`/`Axpy` with an operand of a different dimension | not defined on mismatched dimensions
+|===
+
+That is the whole panic surface.  Everything else reports: `Put`
+returns false for an out-of-range index, `Get` reports ok=false, and a
+nil vector behaves as the zero vector of dimension 0 for every read.
+
+== Concurrency
+
+`Put` and `Axpy` take the WRITE lock; the reads take the read lock.
+`Dimension` takes no lock — the dimension is fixed at construction.
+`Each` snaps its entries under the read lock and runs the callbacks
+*outside* it, so a callback may call any method, including on the same
+vector.  The two-vector operations (`DotSparse`, `Plus`, `Axpy`) never
+hold two locks at once: the operand is snapshotted under its own read
+lock first, then the computation (or, for `Axpy`, the mutation under
+the receiver's write lock) runs on the snapshot — aliases such as
+`v.DotSparse(v)` and `v.Axpy(α, v)` are legal.  `Dot` references the
+caller's dense slice: the caller must not mutate it concurrently.
+
+For compound operations take the real `Lock` and use the `Nl`-prefixed
+methods (`NlDimension`, `NlNNz`, `NlGet`, `NlPut`, `NlEach`, `NlDot`);
+calling a regular method while the lock is held will deadlock.
+`NlEach` is the one live walk — its callbacks must not call methods
+that lock.  `Axpy`/`DotSparse`/`Plus` have no `Nl` forms: a second
+vector's lock cannot safely nest inside a held write lock, and their
+regular forms are already atomic.  Run the tests with `-race`.
