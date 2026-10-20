@@ -91,6 +91,8 @@ with an identical public API.
 | link:mst_ts/[mst_ts]                       | Thread-safe MST queries on dijkstra_ts's EdgeWeightedGraph (snapshot adjacency; searches run lock-free on a snapshot).
 | link:bellman_ford/[bellman_ford]           | Bellman-Ford shortest paths with negative-cycle detection, plus DAG shortest/longest paths (Sedgwick §4.10–4.11).
 | link:bellman_ford_ts/[bellman_ford_ts]     | Thread-safe Bellman-Ford / acyclic shortest paths (snapshot adjacency; searches run lock-free on a snapshot).
+| link:floyd_warshall/[floyd_warshall]       | Floyd-Warshall all-pairs shortest paths with negative weights and whole-graph negative-cycle detection (Sedgwick §4.4; dense-graph alternative to V Dijkstras).
+| link:floyd_warshall_ts/[floyd_warshall_ts] | Thread-safe Floyd-Warshall all-pairs shortest paths (snapshot adjacency; the O(V³) search runs lock-free on a snapshot).
 | link:maxflow/[maxflow]                     | Max-flow / min-cut on a flow network (Ford-Fulkerson with Edmonds-Karp BFS; Sedgwick §6.4).
 | link:bipartite/[bipartite]                 | Maximum bipartite matching + König minimum vertex cover (Kuhn augmenting paths and Hopcroft-Karp; Sedgwick §6.4).
 | link:assignment_problem/[assignment_problem] | Minimum-weight perfect matching on an n×n weight matrix (successive shortest paths, optimality-certifying duals; Sedgewick §6.5).
@@ -1197,6 +1199,39 @@ non-negative and `AcyclicSP` when the digraph is a DAG.
 `*dijkstra_ts.EdgeWeightedDigraph`, snapshot the adjacency per vertex
 under the read lock (same atomicity caveat as `mst_ts`), then compute
 lock-free; the result objects are immutable.
+
+== Floyd-Warshall All-Pairs — `floyd_warshall/`, `floyd_warshall_ts/`
+
+Sedgwick's §4.4 `FloydWarshall`: all-pairs shortest paths over
+`dijkstra`'s `EdgeWeightedDigraph`, negative weights legal, in O(V³)
+regardless of E — the dense-graph alternative to
+`NewDijkstraAllPairsSP` (O(V·E log V)), and the only one of the two
+that tolerates negatives. `NewFloydWarshall(g)` builds the V×V
+distance and predecessor matrices (O(V²) memory — the price of the
+algorithm; parallel edges collapse to the minimum per pair, a
+non-negative self-loop never beats the diagonal 0). The query surface
+is dijkstra's all-pairs naming (`Dist`/`HasPath`/`Path`, source-first
+paths whose weights sum to `Dist`) plus bellman_ford's cycle surface
+(`HasNegativeCycle`/`NegativeCycle`, cycle order, fresh slice). Unlike
+`bellman_ford`, the negative-cycle detection covers the whole graph —
+a cycle in a component no candidate source can reach is still found.
+When one exists, `Dist`/`HasPath`/`Path` panic naming the method
+(algs4 throws `UnsupportedOperationException`). Verified against
+`dijkstra` (tinyEWD), `bellman_ford` from every source (tinyEWDn), a
+super-source relax-everything reference at fixed seeds 42/7, and the
+triangle inequality over all V³ triples as the optimality
+certificate.
+
+* Good: the all-pairs answer with negative weights and whole-graph
+  negative-cycle detection; O(1) distance queries afterwards; benched
+  1.4–1.8× faster than V Dijkstras on dense graphs (V=100–500).
+* Bad: O(V³) time and O(V²) memory regardless of E — sparse
+  non-negative graphs belong to `NewDijkstraAllPairsSP`.
+
+`floyd_warshall_ts` is the twin whose constructor takes
+`*dijkstra_ts.EdgeWeightedDigraph`, snapshots the adjacency per vertex
+under the read lock (same atomicity caveat as `mst_ts`), then runs the
+O(V³) dynamic program lock-free; the query object is immutable.
 
 == R-way Tries — `trie/`, `trie_ts/`
 

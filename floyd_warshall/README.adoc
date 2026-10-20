@@ -1,0 +1,90 @@
+= floyd_warshall
+
+The *Floyd-Warshall* all-pairs shortest-path algorithm (Sedgwick,
+Algorithms §4.4 `FloydWarshall`) over the edge-weighted digraphs of
+link:../dijkstra/[pluto/dijkstra].  *Negative edge weights are legal* —
+that is the point of the package — and the algorithm detects a negative
+cycle *anywhere in the graph*, unlike link:../bellman_ford/[bellman_ford]
+whose source-rooted search only sees cycles reachable from the source.
+
+The query object is a constructor-style *immutable snapshot* of the
+graph at construction time, exactly like `dijkstra`'s query objects.
+It is the dense-graph alternative to `dijkstra`'s
+`NewDijkstraAllPairsSP`: O(V³) regardless of E versus O(V·E log V) —
+and the only one of the two that tolerates negative weights.  On dense
+graphs (E close to V²) Floyd-Warshall is the faster choice; on sparse
+ones run V Dijkstras instead.  The price is the O(V²) distance and
+predecessor matrices.
+
+== Operations
+
+[options="header"]
+|===
+| Operation                 | Description                                          | Complexity
+
+| `NewFloydWarshall(g)`     | All-pairs shortest paths, or a negative cycle        | O(V³) time, O(V²) space
+| `Dist(v, w)`              | Shortest v→w distance (`+Inf` if unreachable)        | O(1)
+| `HasPath(v, w)`           | Reachability query                                   | O(1)
+| `Path(v, w)`              | Path v→w, source-first, fresh slice                  | O(path length)
+| `HasNegativeCycle()`      | Is there a negative cycle anywhere in the graph      | O(1)
+| `NegativeCycle()`         | One such cycle, in cycle order (nil when none)       | O(cycle length)
+|===
+
+`Path` returns `nil` when there is no path and an empty non-nil slice
+for the path from a vertex to itself; the weights along a returned path
+always sum to the reported distance.  Parallel edges collapse to the
+minimum-weight one per vertex pair (Sedgwick's adjacency-matrix input
+cannot even represent parallels), and a non-negative self-loop never
+beats the diagonal 0.
+
+== Usage
+
+[source,go]
+----
+g := dijkstra.NewEdgeWeightedDigraph(4)
+g.AddEdge(dijkstra.DirectedEdge{From: 0, To: 2, Weight: 1})
+g.AddEdge(dijkstra.DirectedEdge{From: 2, To: 1, Weight: 1})
+g.AddEdge(dijkstra.DirectedEdge{From: 1, To: 3, Weight: 2})
+g.AddEdge(dijkstra.DirectedEdge{From: 2, To: 0, Weight: -1}) // negative weights are legal
+
+fw := floyd_warshall.NewFloydWarshall(g)
+fw.HasNegativeCycle() // false
+fw.Dist(0, 3)         // 4 — via 2 and 1
+fw.Path(0, 3)         // [{0 2 1} {2 1 1} {1 3 2}], source first
+----
+
+When the graph contains a negative cycle the shortest-path questions
+are undefined: `HasNegativeCycle` reports it, `NegativeCycle` exhibits
+one (in cycle order — each edge's `From` is the previous edge's `To`),
+and `Dist`/`HasPath`/`Path` panic naming the method and the cycle
+(algs4 throws `UnsupportedOperationException`; pluto panics).  The
+cycle detection covers the *whole* graph, so a cycle living in a
+component no candidate source can reach is still found.
+
+== Panics
+
+The package panics in exactly these situations — all programmer errors
+with no sane fallback:
+
+[options="header"]
+|===
+| Call                                              | Why
+
+| `NewFloydWarshall` on a nil or empty graph        | no graph to search
+| `NewFloydWarshall` with a NaN or ±Inf edge weight | negative weights are legal, degenerate floats are not
+| `Dist`/`HasPath`/`Path` with a negative cycle     | shortest paths are undefined then
+|===
+
+Each panic message is prefixed `floyd_warshall:`, names the method, and
+says why.  Everything else tolerates nil and zero-value receivers: a
+nil query object reports `+Inf` / `false` / `nil` (and no negative
+cycle) for every question.
+
+== Concurrency
+
+This package is *not* safe for concurrent use.  The mutex-guarded twin
+link:../floyd_warshall_ts/[`floyd_warshall_ts`] has the identical API over
+link:../dijkstra_ts/[`dijkstra_ts`] graphs: the constructor snapshots
+the adjacency under the graph's lock and then computes lock-free on the
+snapshot.  `Lock`/`Unlock` here are no-ops kept for API compatibility
+with the twin.

@@ -1,0 +1,91 @@
+= floyd_warshall_ts
+
+The thread-safe twin of link:../floyd_warshall/[pluto/floyd_warshall]:
+the *Floyd-Warshall* all-pairs shortest-path algorithm (Sedgwick,
+Algorithms §4.4 `FloydWarshall`) over the edge-weighted digraphs of
+link:../dijkstra_ts/[pluto/dijkstra_ts].  *Negative edge weights are
+legal* — that is the point of the package — and the algorithm detects a
+negative cycle *anywhere in the graph*, unlike `bellman_ford_ts` whose
+source-rooted search only sees cycles reachable from the source.
+
+The constructor snapshots the graph's adjacency under the read lock
+(`dijkstra_ts`'s `Adj` returns a snapshot copy per vertex) and then
+computes the O(V³) dynamic program lock-free on the snapshot — no lock
+is held during the search.  The snapshot is consistent per vertex;
+under concurrent `AddEdge` calls different vertices' adjacency lists
+may reflect slightly different points in time, but the result is always
+correct for some state of the graph (the same caveat as `bellman_ford_ts`
+and `mst_ts` — `dijkstra_ts` exports no whole-graph snapshot).  The
+query object is immutable after construction and safe for concurrent
+reads.
+
+It is the dense-graph alternative to `dijkstra_ts`'s
+`NewDijkstraAllPairsSP`: O(V³) regardless of E versus O(V·E log V) —
+and the only one of the two that tolerates negative weights.
+
+== Operations
+
+[options="header"]
+|===
+| Operation                 | Description                                          | Complexity
+
+| `NewFloydWarshall(g)`     | All-pairs shortest paths, or a negative cycle        | O(V³) + O(V+E) snapshot, O(V²) space
+| `Dist(v, w)`              | Shortest v→w distance (`+Inf` if unreachable)        | O(1)
+| `HasPath(v, w)`           | Reachability query                                   | O(1)
+| `Path(v, w)`              | Path v→w, source-first, fresh slice                  | O(path length)
+| `HasNegativeCycle()`      | Is there a negative cycle anywhere in the graph      | O(1)
+| `NegativeCycle()`         | One such cycle, in cycle order (nil when none)       | O(cycle length)
+|===
+
+`Path` returns `nil` when there is no path and an empty non-nil slice
+for the path from a vertex to itself; the weights along a returned path
+always sum to the reported distance.  Parallel edges collapse to the
+minimum-weight one per vertex pair, and a non-negative self-loop never
+beats the diagonal 0.
+
+When the graph contains a negative cycle the shortest-path questions
+are undefined: `HasNegativeCycle` reports it, `NegativeCycle` exhibits
+one, and `Dist`/`HasPath`/`Path` panic naming the method and the cycle
+(algs4 throws `UnsupportedOperationException`; pluto panics).
+
+== Usage
+
+[source,go]
+----
+g := dijkstra_ts.NewEdgeWeightedDigraph(4)
+g.AddEdge(dijkstra_ts.DirectedEdge{From: 0, To: 2, Weight: 1})
+g.AddEdge(dijkstra_ts.DirectedEdge{From: 2, To: 1, Weight: 1})
+g.AddEdge(dijkstra_ts.DirectedEdge{From: 1, To: 3, Weight: 2})
+g.AddEdge(dijkstra_ts.DirectedEdge{From: 2, To: 0, Weight: -1}) // negative weights are legal
+
+fw := floyd_warshall_ts.NewFloydWarshall(g) // snapshots, then computes lock-free
+fw.HasNegativeCycle() // false
+fw.Dist(0, 3)         // 4 — via 2 and 1
+----
+
+== Panics
+
+The package panics in exactly these situations — all programmer errors
+with no sane fallback:
+
+[options="header"]
+|===
+| Call                                              | Why
+
+| `NewFloydWarshall` on a nil or empty graph        | no graph to search
+| `NewFloydWarshall` with a NaN or ±Inf edge weight | negative weights are legal, degenerate floats are not
+| `Dist`/`HasPath`/`Path` with a negative cycle     | shortest paths are undefined then
+|===
+
+Each panic message is prefixed `floyd_warshall_ts:`, names the method,
+and says why.  Everything else tolerates nil and zero-value receivers:
+a nil query object reports `+Inf` / `false` / `nil` (and no negative
+cycle) for every question.
+
+== Concurrency
+
+Safe for concurrent use.  The graph types come from
+link:../dijkstra_ts/[`dijkstra_ts`] — calling any of *their* public
+methods while their `Lock` is held deadlocks (see that package's docs).
+The query object here is immutable, so its `Lock`/`Unlock` are no-ops
+kept for API parity with the plain package.  Run the tests with `-race`.
