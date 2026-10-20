@@ -86,9 +86,9 @@ func benchmarkGraph(n, m int, seed int64) *dijkstra.EdgeWeightedGraph {
 	return g
 }
 
-// TestMSTRandomizedAgreement runs all three algorithms on many small
+// TestMSTRandomizedAgreement runs all four algorithms on many small
 // random graphs — parallel edges, self-loops and negative weights
-// included — and cross-checks: (a) all three weights against each
+// included — and cross-checks: (a) all four weights against each
 // other, (b) every weight against the independent brute-force
 // reference, and (c) the forest property of every edge set.  Weights
 // are integers in float64, so all comparisons are exact.
@@ -111,6 +111,7 @@ func TestMSTRandomizedAgreement(t *testing.T) {
 		lp := NewLazyPrimMST(g)
 		pr := NewPrimMST(g)
 		kr := NewKruskalMST(g)
+		bo := NewBoruvkaMST(g)
 
 		if lp.Weight() != want {
 			t.Fatalf("trial %d: LazyPrimMST weight %v, reference says %v", trial, lp.Weight(), want)
@@ -121,11 +122,15 @@ func TestMSTRandomizedAgreement(t *testing.T) {
 		if kr.Weight() != want {
 			t.Fatalf("trial %d: KruskalMST weight %v, reference says %v", trial, kr.Weight(), want)
 		}
+		if bo.Weight() != want {
+			t.Fatalf("trial %d: BoruvkaMST weight %v, reference says %v", trial, bo.Weight(), want)
+		}
 
 		checkForest(t, "LazyPrimMST", n, g, lp.Edges())
 		checkForest(t, "PrimMST", n, g, pr.Edges())
 		checkForest(t, "KruskalMST", n, g, kr.Edges())
-		if lp.Len() != len(lp.Edges()) || pr.Len() != len(pr.Edges()) || kr.Len() != len(kr.Edges()) {
+		checkForest(t, "BoruvkaMST", n, g, bo.Edges())
+		if lp.Len() != len(lp.Edges()) || pr.Len() != len(pr.Edges()) || kr.Len() != len(kr.Edges()) || bo.Len() != len(bo.Edges()) {
 			t.Fatalf("trial %d: Len disagrees with len(Edges)", trial)
 		}
 	}

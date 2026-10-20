@@ -4,7 +4,7 @@ Copyright (C) Philip Schlump, 2012-2026.
 BSD 3 Clause Licensed.
 */
 
-// Package mst_ts implements the three classic minimum-spanning-tree
+// Package mst_ts implements the four classic minimum-spanning-tree
 // algorithms of Sedgwick & Wayne, Algorithms, 4th ed. §4.3, over
 // pluto/dijkstra_ts's EdgeWeightedGraph — the thread-safe twin of
 // github.com/pschlump/pluto/mst, with the identical API over the
@@ -13,8 +13,9 @@ BSD 3 Clause Licensed.
 //	NewLazyPrimMST(g) — lazy Prim's algorithm, on pluto/priority_queue.	O(E log E)
 //	NewPrimMST(g)     — eager Prim's algorithm, on pluto/index_pq.	O(E log V)
 //	NewKruskalMST(g)  — Kruskal's algorithm, on pluto/union_find.	O(E log E)
+//	NewBoruvkaMST(g)  — Borůvka's algorithm, on pluto/union_find.	O(E log V)
 //
-// All three result types share one surface: Edges returns the tree
+// All four result types share one surface: Edges returns the tree
 // edges, Weight their total weight, Len their count.
 //
 // Concurrency model: each constructor reads the graph's adjacency
@@ -60,7 +61,7 @@ func compareEdgeByWeight(a, b dijkstra_ts.Edge) int {
 	}
 }
 
-// checkGraph enforces the panic contract shared by the three
+// checkGraph enforces the panic contract shared by the four
 // constructors; who names the constructor for the panic message.
 func checkGraph(who string, g *dijkstra_ts.EdgeWeightedGraph) {
 	if g == nil || g.V() == 0 {

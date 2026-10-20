@@ -243,19 +243,27 @@ func TestTinyEWGKruskal(t *testing.T) {
 	checkTinyEWG(t, "KruskalMST", g, mst.Edges(), mst.Weight(), mst.Len())
 }
 
-// TestTinyEWGAgreement checks that all three algorithms agree on the
+func TestTinyEWGBoruvka(t *testing.T) {
+	g := parseEdgeWeightedGraph(t, tinyEWGData)
+	mst := NewBoruvkaMST(g)
+	checkTinyEWG(t, "BoruvkaMST", g, mst.Edges(), mst.Weight(), mst.Len())
+}
+
+// TestTinyEWGAgreement checks that all four algorithms agree on the
 // total weight — and, since tinyEWG's MST is unique, on the edge set.
 func TestTinyEWGAgreement(t *testing.T) {
 	g := parseEdgeWeightedGraph(t, tinyEWGData)
 	lp := NewLazyPrimMST(g)
 	pr := NewPrimMST(g)
 	kr := NewKruskalMST(g)
-	if !almostEqual(lp.Weight(), pr.Weight()) || !almostEqual(pr.Weight(), kr.Weight()) {
-		t.Errorf("Weights disagree: lazy %v, eager %v, kruskal %v", lp.Weight(), pr.Weight(), kr.Weight())
+	bo := NewBoruvkaMST(g)
+	if !almostEqual(lp.Weight(), pr.Weight()) || !almostEqual(pr.Weight(), kr.Weight()) || !almostEqual(kr.Weight(), bo.Weight()) {
+		t.Errorf("Weights disagree: lazy %v, eager %v, kruskal %v, boruvka %v",
+			lp.Weight(), pr.Weight(), kr.Weight(), bo.Weight())
 	}
 	for p := range edgeSet(lp.Edges()) {
-		if !edgeSet(pr.Edges())[p] || !edgeSet(kr.Edges())[p] {
-			t.Errorf("Edge %v not produced by all three algorithms.", p)
+		if !edgeSet(pr.Edges())[p] || !edgeSet(kr.Edges())[p] || !edgeSet(bo.Edges())[p] {
+			t.Errorf("Edge %v not produced by all four algorithms.", p)
 		}
 	}
 }
@@ -281,11 +289,12 @@ func TestDisconnectedForest(t *testing.T) {
 		length int
 		edges  []dijkstra_ts.Edge
 	}
-	lp, pr, kr := NewLazyPrimMST(g), NewPrimMST(g), NewKruskalMST(g)
+	lp, pr, kr, bo := NewLazyPrimMST(g), NewPrimMST(g), NewKruskalMST(g), NewBoruvkaMST(g)
 	for _, r := range []result{
 		{"LazyPrimMST", lp.Weight(), lp.Len(), lp.Edges()},
 		{"PrimMST", pr.Weight(), pr.Len(), pr.Edges()},
 		{"KruskalMST", kr.Weight(), kr.Len(), kr.Edges()},
+		{"BoruvkaMST", bo.Weight(), bo.Len(), bo.Edges()},
 	} {
 		if r.length != 3 { // 6 vertices, 3 components
 			t.Errorf("%s: Len = %d, expected 3 (V - components)", r.name, r.length)
@@ -306,11 +315,12 @@ func TestSelfLoopAndParallelEdges(t *testing.T) {
 	g.AddEdge(dijkstra_ts.Edge{V: 0, W: 1, Weight: 4}) // parallel, cheaper
 	g.AddEdge(dijkstra_ts.Edge{V: 1, W: 2, Weight: 3})
 
-	lp, pr, kr := NewLazyPrimMST(g), NewPrimMST(g), NewKruskalMST(g)
+	lp, pr, kr, bo := NewLazyPrimMST(g), NewPrimMST(g), NewKruskalMST(g), NewBoruvkaMST(g)
 	for name, edges := range map[string][]dijkstra_ts.Edge{
 		"LazyPrimMST": lp.Edges(),
 		"PrimMST":     pr.Edges(),
 		"KruskalMST":  kr.Edges(),
+		"BoruvkaMST":  bo.Edges(),
 	} {
 		if len(edges) != 2 {
 			t.Errorf("%s: Len = %d, expected 2", name, len(edges))
@@ -320,8 +330,8 @@ func TestSelfLoopAndParallelEdges(t *testing.T) {
 			t.Errorf("%s: edges = %v, expected 0--1(4) and 1--2(3)", name, edges)
 		}
 	}
-	if lp.Weight() != 7 || pr.Weight() != 7 || kr.Weight() != 7 {
-		t.Errorf("Weights = %v/%v/%v, expected 7", lp.Weight(), pr.Weight(), kr.Weight())
+	if lp.Weight() != 7 || pr.Weight() != 7 || kr.Weight() != 7 || bo.Weight() != 7 {
+		t.Errorf("Weights = %v/%v/%v/%v, expected 7", lp.Weight(), pr.Weight(), kr.Weight(), bo.Weight())
 	}
 }
 
@@ -336,14 +346,15 @@ func TestNegativeWeights(t *testing.T) {
 
 	// MST: 1--2(-5), 0--1(1), 2--3(2) = -2.
 	want := []edgePair{{1, 2, -5}, {0, 1, 1}, {2, 3, 2}}
-	lp, pr, kr := NewLazyPrimMST(g), NewPrimMST(g), NewKruskalMST(g)
-	if lp.Weight() != -2 || pr.Weight() != -2 || kr.Weight() != -2 {
-		t.Errorf("Weights = %v/%v/%v, expected -2", lp.Weight(), pr.Weight(), kr.Weight())
+	lp, pr, kr, bo := NewLazyPrimMST(g), NewPrimMST(g), NewKruskalMST(g), NewBoruvkaMST(g)
+	if lp.Weight() != -2 || pr.Weight() != -2 || kr.Weight() != -2 || bo.Weight() != -2 {
+		t.Errorf("Weights = %v/%v/%v/%v, expected -2", lp.Weight(), pr.Weight(), kr.Weight(), bo.Weight())
 	}
 	for name, edges := range map[string][]dijkstra_ts.Edge{
 		"LazyPrimMST": lp.Edges(),
 		"PrimMST":     pr.Edges(),
 		"KruskalMST":  kr.Edges(),
+		"BoruvkaMST":  bo.Edges(),
 	} {
 		set := edgeSet(edges)
 		if len(edges) != 3 {
@@ -361,11 +372,16 @@ func TestNegativeWeights(t *testing.T) {
 // edges, an empty tree of weight 0.
 func TestSingleVertex(t *testing.T) {
 	g := dijkstra_ts.NewEdgeWeightedGraph(1)
-	lp, pr, kr := NewLazyPrimMST(g), NewPrimMST(g), NewKruskalMST(g)
+	lp, pr, kr, bo := NewLazyPrimMST(g), NewPrimMST(g), NewKruskalMST(g), NewBoruvkaMST(g)
 	for name, m := range map[string]struct {
 		w float64
 		l int
-	}{"LazyPrimMST": {lp.Weight(), lp.Len()}, "PrimMST": {pr.Weight(), pr.Len()}, "KruskalMST": {kr.Weight(), kr.Len()}} {
+	}{
+		"LazyPrimMST": {lp.Weight(), lp.Len()},
+		"PrimMST":     {pr.Weight(), pr.Len()},
+		"KruskalMST":  {kr.Weight(), kr.Len()},
+		"BoruvkaMST":  {bo.Weight(), bo.Len()},
+	} {
 		if m.w != 0 || m.l != 0 {
 			t.Errorf("%s: Weight/Len = %v/%d, expected 0/0", name, m.w, m.l)
 		}
@@ -400,6 +416,8 @@ func TestMSTPanics(t *testing.T) {
 	expectPanic(t, "NewPrimMST on a zero-value graph", "nil or empty graph", func() { NewPrimMST(zeroGraph) })
 	expectPanic(t, "NewKruskalMST on a nil graph", "mst_ts: NewKruskalMST", func() { NewKruskalMST(nilGraph) })
 	expectPanic(t, "NewKruskalMST on a zero-value graph", "NewKruskalMST", func() { NewKruskalMST(zeroGraph) })
+	expectPanic(t, "NewBoruvkaMST on a nil graph", "mst_ts: NewBoruvkaMST", func() { NewBoruvkaMST(nilGraph) })
+	expectPanic(t, "NewBoruvkaMST on a zero-value graph", "nil or empty graph", func() { NewBoruvkaMST(zeroGraph) })
 }
 
 // TestMSTNilTolerated verifies that nil result objects answer every
@@ -416,5 +434,9 @@ func TestMSTNilTolerated(t *testing.T) {
 	var nilKR *KruskalMST
 	if nilKR.Edges() != nil || nilKR.Weight() != 0 || nilKR.Len() != 0 {
 		t.Errorf("Expected a nil KruskalMST to report nil/0/0.")
+	}
+	var nilBO *BoruvkaMST
+	if nilBO.Edges() != nil || nilBO.Weight() != 0 || nilBO.Len() != 0 {
+		t.Errorf("Expected a nil BoruvkaMST to report nil/0/0.")
 	}
 }

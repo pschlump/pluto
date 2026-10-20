@@ -71,6 +71,30 @@ func ExampleNewPrimMST() {
 	// 3 edges, total weight 6
 }
 
+// Borůvka's algorithm on a small hand-built graph: in one round every
+// component merges over its cheapest edge, so several tree edges are
+// picked per round and the result is NOT in ascending weight order
+// (unlike KruskalMST) — here round one takes 0--3(2) and 1--2(1),
+// round two the 0--1(4) that ties the pieces together.
+func ExampleNewBoruvkaMST() {
+	g := dijkstra.NewEdgeWeightedGraph(4)
+	g.AddEdge(dijkstra.Edge{V: 0, W: 1, Weight: 4})
+	g.AddEdge(dijkstra.Edge{V: 1, W: 2, Weight: 1})
+	g.AddEdge(dijkstra.Edge{V: 2, W: 3, Weight: 5})
+	g.AddEdge(dijkstra.Edge{V: 0, W: 3, Weight: 2})
+
+	mst := mst.NewBoruvkaMST(g)
+	for _, e := range mst.Edges() { // in merge order, not weight order
+		fmt.Printf("%d--%d (%g)\n", e.V, e.W, e.Weight)
+	}
+	fmt.Printf("total weight %g\n", mst.Weight())
+	// Output:
+	// 0--3 (2)
+	// 1--2 (1)
+	// 0--1 (4)
+	// total weight 7
+}
+
 // On a disconnected graph every constructor produces the minimum
 // spanning FOREST — one tree per component, so fewer than V-1 edges.
 func ExampleNewLazyPrimMST() {

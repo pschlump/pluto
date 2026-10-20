@@ -87,7 +87,7 @@ with an identical public API.
 | link:digraph_ts/[digraph_ts]               | Thread-safe digraph (RWMutex, snapshot adjacency; traversals run lock-free on a snapshot).
 | link:dijkstra/[dijkstra]                   | Edge-weighted digraph/graph with Dijkstra shortest paths (single-source, undirected, all-pairs; Sedgwick §4.4).
 | link:dijkstra_ts/[dijkstra_ts]             | Thread-safe Dijkstra shortest paths (RWMutex, snapshot adjacency; searches run lock-free on a snapshot).
-| link:mst/[mst]                             | Minimum spanning trees on dijkstra's EdgeWeightedGraph (lazy Prim, eager Prim, Kruskal; Sedgwick §4.7–4.8).
+| link:mst/[mst]                             | Minimum spanning trees on dijkstra's EdgeWeightedGraph (lazy Prim, eager Prim, Kruskal, Borůvka; Sedgwick §4.7–4.8).
 | link:mst_ts/[mst_ts]                       | Thread-safe MST queries on dijkstra_ts's EdgeWeightedGraph (snapshot adjacency; searches run lock-free on a snapshot).
 | link:bellman_ford/[bellman_ford]           | Bellman-Ford shortest paths with negative-cycle detection, plus DAG shortest/longest paths (Sedgwick §4.10–4.11).
 | link:bellman_ford_ts/[bellman_ford_ts]     | Thread-safe Bellman-Ford / acyclic shortest paths (snapshot adjacency; searches run lock-free on a snapshot).
@@ -1137,15 +1137,18 @@ objects are immutable, so they are safe for concurrent reads.
 == Minimum Spanning Trees — `mst/`, `mst_ts/`
 
 Sedgwick's §4.7–4.8 minimum spanning trees over `dijkstra`'s
-`EdgeWeightedGraph` — three algorithms, each a constructor-style
+`EdgeWeightedGraph` — four algorithms, each a constructor-style
 immutable result object with the same surface (`Edges` — the tree
 edges, `Weight` — their sum, `Len`): `NewLazyPrimMST` (crossing edges
 in `pluto/priority_queue`, stale edges discarded on pop),
 `NewPrimMST` (eager — `pluto/index_pq`, decrease-key via `Change`),
-and `NewKruskalMST` (edges sorted with `slices.SortFunc`, cycle check
-via `pluto/union_find`) — three intra-pluto compositions on one graph
-type. Eager Prim is O(E log V), lazy Prim O(E log E), Kruskal
-O(E log E). Any edge weights are legal (negative edges are no problem
+`NewKruskalMST` (edges sorted with `slices.SortFunc`, cycle check
+via `pluto/union_find`), and `NewBoruvkaMST` (rounds in which every
+component merges over its cheapest crossing edge — several tree edges
+per round, `Edges` in merge order rather than weight order) — four
+intra-pluto compositions on one graph type. Eager Prim is
+O(E log V), lazy Prim O(E log E), Kruskal O(E log E), Borůvka
+O(E log V). Any edge weights are legal (negative edges are no problem
 for MSTs — only the Dijkstra constructors reject them); a disconnected
 graph yields the minimum spanning *forest* (fewer than V-1 edges).
 Constructors panic on a nil or empty graph; verified edge-for-edge
@@ -1154,8 +1157,8 @@ against each other plus an in-test brute-force reference at fixed
 seed.
 
 * Good: pick the algorithm that fits — eager Prim for dense graphs,
-lazy Prim for code clarity, Kruskal when edges come pre-sorted; all
-three agree, tested so.
+lazy Prim for code clarity, Kruskal when edges come pre-sorted,
+Borůvka when the merge rounds parallelize; all four agree, tested so.
 * Bad: undirected only (an MST is inherently undirected); the graph
 type is borrowed from `dijkstra` — no weighted-graph container of its
 own.

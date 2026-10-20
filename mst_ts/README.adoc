@@ -3,7 +3,7 @@
 The thread-safe twin of link:../mst/[`mst`]: minimum spanning trees of an
 edge-weighted *undirected graph* — Sedgwick's §4.3 — as constructor-style
 query objects over link:../dijkstra_ts/[`dijkstra_ts`]'s
-`EdgeWeightedGraph`.  Same three algorithms, same API:
+`EdgeWeightedGraph`.  Same four algorithms, same API:
 
 * `LazyPrimMST` — lazy Prim's algorithm, crossing edges on a
   link:../priority_queue/[`priority_queue`].
@@ -11,6 +11,9 @@ query objects over link:../dijkstra_ts/[`dijkstra_ts`]'s
   link:../index_pq/[`index_pq`] (`Change` is the decrease-key).
 * `KruskalMST` — Kruskal's algorithm, cycle detection with a
   link:../union_find/[`union_find`].
+* `BoruvkaMST` — Borůvka's algorithm, rounds of parallel component
+  merges over link:../union_find/[`union_find`]; `Edges` returns them in
+  merge order, not ascending weight order.
 
 Each result is computed eagerly in the constructor and is an *immutable
 snapshot*, safe for concurrent reads.  On a disconnected graph every
@@ -28,12 +31,13 @@ never joins a tree and the cheapest of parallel edges wins.
 | `NewLazyPrimMST(g)`  | MST/MSF via lazy Prim's algorithm             | O(E log E) + O(V+E) snapshot
 | `NewPrimMST(g)`      | MST/MSF via eager Prim's algorithm            | O(E log V) + O(V+E) snapshot
 | `NewKruskalMST(g)`   | MST/MSF via Kruskal's algorithm               | O(E log E) + O(V+E) snapshot
+| `NewBoruvkaMST(g)`   | MST/MSF via Borůvka's algorithm               | O(E log V) + O(V+E) snapshot
 | `Edges()`            | The tree edges, a fresh slice                 | O(Len)
 | `Weight()`           | Total weight of the tree (forest)             | O(1)
 | `Len()`              | Number of tree edges (`V-1` when connected)   | O(1)
 |===
 
-All three algorithms produce the same total weight; when the MST is
+All four algorithms produce the same total weight; when the MST is
 unique (distinct edge weights) they produce the same edge set, too.
 
 == Usage
@@ -60,7 +64,7 @@ mst.Len()                         // 3 — V-1 on a connected graph
 |===
 | Call                                    | Why
 
-| `NewLazyPrimMST`/`NewPrimMST`/`NewKruskalMST` on a nil or empty graph | no spanning tree exists to compute
+| `NewLazyPrimMST`/`NewPrimMST`/`NewKruskalMST`/`NewBoruvkaMST` on a nil or empty graph | no spanning tree exists to compute
 |===
 
 That is the whole panic surface; the messages are prefixed `mst_ts:`.

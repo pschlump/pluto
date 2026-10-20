@@ -74,9 +74,9 @@ func referenceMSTWeight(n int, edges []refEdge) float64 {
 // Randomized verification against the reference (fixed seed)
 // -------------------------------------------------------------------------------------------------------
 
-// TestMSTRandomizedAgreement runs all three algorithms on many small
+// TestMSTRandomizedAgreement runs all four algorithms on many small
 // random graphs — parallel edges, self-loops and negative weights
-// included — and cross-checks: (a) all three weights against each
+// included — and cross-checks: (a) all four weights against each
 // other, (b) every weight against the independent brute-force
 // reference, and (c) the forest property of every edge set.  Weights
 // are integers in float64, so all comparisons are exact.
@@ -99,6 +99,7 @@ func TestMSTRandomizedAgreement(t *testing.T) {
 		lp := NewLazyPrimMST(g)
 		pr := NewPrimMST(g)
 		kr := NewKruskalMST(g)
+		bo := NewBoruvkaMST(g)
 
 		if lp.Weight() != want {
 			t.Fatalf("trial %d: LazyPrimMST weight %v, reference says %v", trial, lp.Weight(), want)
@@ -109,11 +110,15 @@ func TestMSTRandomizedAgreement(t *testing.T) {
 		if kr.Weight() != want {
 			t.Fatalf("trial %d: KruskalMST weight %v, reference says %v", trial, kr.Weight(), want)
 		}
+		if bo.Weight() != want {
+			t.Fatalf("trial %d: BoruvkaMST weight %v, reference says %v", trial, bo.Weight(), want)
+		}
 
 		checkForest(t, "LazyPrimMST", n, g, lp.Edges())
 		checkForest(t, "PrimMST", n, g, pr.Edges())
 		checkForest(t, "KruskalMST", n, g, kr.Edges())
-		if lp.Len() != len(lp.Edges()) || pr.Len() != len(pr.Edges()) || kr.Len() != len(kr.Edges()) {
+		checkForest(t, "BoruvkaMST", n, g, bo.Edges())
+		if lp.Len() != len(lp.Edges()) || pr.Len() != len(pr.Edges()) || kr.Len() != len(kr.Edges()) || bo.Len() != len(bo.Edges()) {
 			t.Fatalf("trial %d: Len disagrees with len(Edges)", trial)
 		}
 	}
@@ -140,8 +145,10 @@ func TestMSTConcurrent(t *testing.T) {
 	lp := NewLazyPrimMST(g)
 	pr := NewPrimMST(g)
 	kr := NewKruskalMST(g)
-	if lp.Weight() != n-1 || pr.Weight() != n-1 || kr.Weight() != n-1 {
-		t.Fatalf("Initial MST weights = %v/%v/%v, expected %d", lp.Weight(), pr.Weight(), kr.Weight(), n-1)
+	bo := NewBoruvkaMST(g)
+	if lp.Weight() != n-1 || pr.Weight() != n-1 || kr.Weight() != n-1 || bo.Weight() != n-1 {
+		t.Fatalf("Initial MST weights = %v/%v/%v/%v, expected %d",
+			lp.Weight(), pr.Weight(), kr.Weight(), bo.Weight(), n-1)
 	}
 
 	var wg sync.WaitGroup
@@ -162,9 +169,12 @@ func TestMSTConcurrent(t *testing.T) {
 				lp.Weight()
 				pr.Edges()
 				kr.Len()
+				bo.Edges()
+				bo.Weight()
 				NewLazyPrimMST(g).Weight()
 				NewPrimMST(g).Len()
 				NewKruskalMST(g).Edges()
+				NewBoruvkaMST(g).Weight()
 			}
 		}()
 	}
@@ -183,11 +193,11 @@ func TestMSTConcurrent(t *testing.T) {
 
 	wg.Wait()
 
-	// Afterwards, single-threaded: all three algorithms must still
+	// Afterwards, single-threaded: all four algorithms must still
 	// agree on the weight of whatever the graph has become.
-	w1, w2, w3 := NewLazyPrimMST(g).Weight(), NewPrimMST(g).Weight(), NewKruskalMST(g).Weight()
-	if w1 != w2 || w2 != w3 {
-		t.Errorf("Post-hammer weights disagree: lazy %v, eager %v, kruskal %v", w1, w2, w3)
+	w1, w2, w3, w4 := NewLazyPrimMST(g).Weight(), NewPrimMST(g).Weight(), NewKruskalMST(g).Weight(), NewBoruvkaMST(g).Weight()
+	if w1 != w2 || w2 != w3 || w3 != w4 {
+		t.Errorf("Post-hammer weights disagree: lazy %v, eager %v, kruskal %v, boruvka %v", w1, w2, w3, w4)
 	}
 	if NewKruskalMST(g).Len() != n-1 { // the writers never disconnect the chain
 		t.Errorf("Post-hammer Len = %d, expected %d (connected graph)", NewKruskalMST(g).Len(), n-1)

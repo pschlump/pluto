@@ -56,6 +56,30 @@ func ExampleNewKruskalMST() {
 	// total weight 6
 }
 
+// Borůvka's algorithm over the mutex-guarded graph type: in one round
+// every component merges over its cheapest edge, so several tree edges
+// are picked per round and the result is NOT in ascending weight order
+// (unlike KruskalMST) — here round one takes 0--3(2) and 1--2(1),
+// round two the 0--1(4) that ties the pieces together.
+func ExampleNewBoruvkaMST() {
+	g := dijkstra_ts.NewEdgeWeightedGraph(4)
+	g.AddEdge(dijkstra_ts.Edge{V: 0, W: 1, Weight: 4})
+	g.AddEdge(dijkstra_ts.Edge{V: 1, W: 2, Weight: 1})
+	g.AddEdge(dijkstra_ts.Edge{V: 2, W: 3, Weight: 5})
+	g.AddEdge(dijkstra_ts.Edge{V: 0, W: 3, Weight: 2})
+
+	mst := mst_ts.NewBoruvkaMST(g)
+	for _, e := range mst.Edges() { // in merge order, not weight order
+		fmt.Printf("%d--%d (%g)\n", e.V, e.W, e.Weight)
+	}
+	fmt.Printf("total weight %g\n", mst.Weight())
+	// Output:
+	// 0--3 (2)
+	// 1--2 (1)
+	// 0--1 (4)
+	// total weight 7
+}
+
 // The eager version of Prim's algorithm answers the same queries on the
 // same graph.
 func ExampleNewPrimMST() {
