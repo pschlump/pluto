@@ -21,7 +21,7 @@ constructor-style query objects — the identical public API behind a
 | `V` / `Len` / `E` / `OutDegree` / `InDegree` / `HasEdge`                                                                                                                    | read lock, released before returning                                                                             |
 | `Adj`                                                                                                                                                                       | snapshot of the one adjacency list copied under the read lock, then iterated lock-free                           |
 | `Reverse`                                                                                                                                                                   | snapshot of the adjacency under the read lock, built into an independent copy                                    |
-| `NewDirectedDFS` / `NewDFSDirectedPaths` / `NewBFSDirectedPaths` / `NewDirectedCycle` / `NewDepthFirstOrder` / `NewTopological` / `NewKosarajuSCC` / `NewTransitiveClosure` | snapshot of the whole adjacency structure under the read lock, then the traversal runs lock-free on the snapshot |
+| `NewDirectedDFS` / `NewDFSDirectedPaths` / `NewBFSDirectedPaths` / `NewDirectedCycle` / `NewDepthFirstOrder` / `NewTopological` / `NewKosarajuSCC` / `NewTarjanSCC` / `NewGabowSCC` / `NewTransitiveClosure` / `NewDirectedEulerianCycle` / `NewDirectedEulerianPath` | snapshot of the whole adjacency structure under the read lock, then the traversal runs lock-free on the snapshot |
 |===
 
 Because `Adj` and the query constructors work on snapshots, they are safe
@@ -29,7 +29,7 @@ to use concurrently with any digraph operation — including mutating the
 digraph from inside an `Adj` loop — and they never observe later
 modifications.  No lock is held during a traversal.  The query objects
 (`DirectedDFS`, `DFSDirectedPaths`, `BFSDirectedPaths`, `DirectedCycle`,
-`DepthFirstOrder`, `Topological`, `KosarajuSCC`, `TransitiveClosure`)
+`DepthFirstOrder`, `Topological`, `KosarajuSCC`, `TarjanSCC`, `GabowSCC`, `TransitiveClosure`, `DirectedEulerianCycle`, `DirectedEulerianPath`)
 are immutable and safe for concurrent reads.
 
 The BFS traversal queue is pluto's own link:../queue/[`queue`] (the plain
@@ -42,10 +42,12 @@ Identical to link:../digraph/[`digraph`]:
 `HasEdge`/`Reverse` (AddEdge O(1)); `NewDirectedDFS`/
 `NewDFSDirectedPaths`/`NewBFSDirectedPaths`/`NewDirectedCycle`/
 `NewDepthFirstOrder`/`NewTopological`/`NewKosarajuSCC`/
-`NewTransitiveClosure` with
+`NewTarjanSCC`/`NewGabowSCC`/`NewTransitiveClosure`/
+`NewDirectedEulerianCycle`/`NewDirectedEulerianPath` with
 `Marked`/`Count`/`HasPathTo`/`PathTo`/`DistTo`/`HasCycle`/`Cycle`/
 `Pre`/`Post`/`ReversePost`/`HasOrder`/`Order`/`StronglyConnected`/`ID`/
-`Count`/`Reachable` (traversals O(V+E); the closure O(V·(V+E)) time,
+`Count`/`Reachable`/`HasEulerianCycle`/`Cycle`/`HasEulerianPath`/`Path`
+(traversals O(V+E); the closure O(V·(V+E)) time,
 O(V²) space).  Self-loops count once in
 `E`, once in `OutDegree`, and once in `InDegree`; parallel edges are
 allowed; there is deliberately no `RemoveEdge`.

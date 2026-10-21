@@ -16,14 +16,14 @@ API behind a `sync.RWMutex` (Sedgwick's §4.1 `Graph`,
 | `AddEdge`                                                            | write lock
 | `V` / `Len` / `E` / `Degree` / `HasEdge`                             | read lock, released before returning
 | `Adj`                                                                | snapshot of the one adjacency list copied under the read lock, then iterated lock-free
-| `NewDFSPaths` / `NewBFSPaths` / `NewCC` / `NewCycle` / `NewTwoColor` | snapshot of the whole adjacency structure under the read lock, then the traversal runs lock-free on the snapshot
+| `NewDFSPaths` / `NewBFSPaths` / `NewCC` / `NewCycle` / `NewTwoColor` / `NewEulerianCycle` / `NewEulerianPath` | snapshot of the whole adjacency structure under the read lock, then the traversal runs lock-free on the snapshot
 |===
 
 Because `Adj` and the query constructors work on snapshots, they are safe
 to use concurrently with any graph operation — including mutating the
 graph from inside an `Adj` loop — and they never observe later
 modifications.  No lock is held during a traversal.  The query objects
-(`DFSPaths`, `BFSPaths`, `CC`, `Cycle`, `TwoColor`) are immutable and
+(`DFSPaths`, `BFSPaths`, `CC`, `Cycle`, `TwoColor`, `EulerianCycle`, `EulerianPath`) are immutable and
 safe for concurrent reads.
 
 The BFS traversal queue is pluto's own link:../queue/[`queue`] (the plain
@@ -33,8 +33,10 @@ one — nothing but the constructing goroutine ever touches it).
 
 Identical to link:../graph/[`graph`]: `NewGraph`/`AddEdge`/`V`/`Len`/`E`/
 `Degree`/`Adj`/`HasEdge` (AddEdge O(1)); `NewDFSPaths`/`NewBFSPaths`/
-`NewCC`/`NewCycle`/`NewTwoColor` with `HasPathTo`/`PathTo`/`DistTo`/
-`Connected`/`ID`/`Count`/`HasCycle`/`Cycle`/`IsBipartite`/`Color`
+`NewCC`/`NewCycle`/`NewTwoColor`/`NewEulerianCycle`/`NewEulerianPath` with
+`HasPathTo`/`PathTo`/`DistTo`/`Connected`/`ID`/`Count`/`HasCycle`/
+`Cycle`/`IsBipartite`/`Color`/`HasEulerianCycle`/`Cycle`/`HasEulerianPath`/
+`Path`
 (DFS/BFS/cycle/color O(V+E), space O(V)).  Self-loops count once in `E`
 and twice in `Degree`; parallel edges are allowed; there is deliberately
 no `RemoveEdge`.

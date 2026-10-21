@@ -192,3 +192,40 @@ func ExampleGraph_UnmarshalJSON() {
 	// 1: 2
 	// 2: 0 1
 }
+
+// An Eulerian cycle: every degree even and the edge-bearing vertices
+// connected, so one closed walk crosses every edge exactly once (two
+// triangles joined at vertex 1).
+func ExampleNewEulerianCycle() {
+	g := graph.NewGraph(5)
+	for _, e := range [][2]int{{0, 1}, {1, 2}, {2, 0}, {1, 3}, {3, 4}, {4, 1}} {
+		g.AddEdge(e[0], e[1])
+	}
+
+	ec := graph.NewEulerianCycle(g)
+	fmt.Println("has cycle:", ec.HasEulerianCycle())
+	fmt.Println("cycle:", ec.Cycle())
+	// Output:
+	// has cycle: true
+	// cycle: [0 1 3 4 1 2 0]
+}
+
+// An Eulerian path: exactly two odd-degree vertices (0 and 3), so a
+// walk crosses every edge exactly once from one odd vertex to the
+// other.
+func ExampleNewEulerianPath() {
+	g := graph.NewGraph(4)
+	for _, e := range [][2]int{{0, 1}, {1, 2}, {2, 3}} {
+		g.AddEdge(e[0], e[1])
+	}
+
+	ec := graph.NewEulerianCycle(g)
+	ep := graph.NewEulerianPath(g)
+	fmt.Println("has cycle:", ec.HasEulerianCycle())
+	fmt.Println("has path:", ep.HasEulerianPath())
+	fmt.Println("path:", ep.Path())
+	// Output:
+	// has cycle: false
+	// has path: true
+	// path: [0 1 2 3]
+}

@@ -211,3 +211,95 @@ func ExampleDigraph_UnmarshalJSON() {
 	// 0 -> 2
 	// 1 -> 2
 }
+
+// Tarjan's single-pass SCC on the same digraph as the Kosaraju example
+// (the two agree on the partition; the component ids come out in
+// retreat order here, which happens to match).
+func ExampleNewTarjanSCC() {
+	g := digraph.NewDigraph(5)
+	for _, e := range [][2]int{{0, 1}, {1, 2}, {2, 0}, {2, 3}, {3, 4}} {
+		g.AddEdge(e[0], e[1])
+	}
+
+	scc := digraph.NewTarjanSCC(g)
+	fmt.Println(scc.Count(), "strong components")
+	for id := 0; id < scc.Count(); id++ {
+		fmt.Printf("component %d:", id)
+		for v := 0; v < g.V(); v++ {
+			if vid, _ := scc.ID(v); vid == id {
+				fmt.Printf(" %d", v)
+			}
+		}
+		fmt.Println()
+	}
+	fmt.Println("0 strongly connected to 2:", scc.StronglyConnected(0, 2))
+	fmt.Println("0 strongly connected to 3:", scc.StronglyConnected(0, 3))
+	// Output:
+	// 3 strong components
+	// component 0: 4
+	// component 1: 3
+	// component 2: 0 1 2
+	// 0 strongly connected to 2: true
+	// 0 strongly connected to 3: false
+}
+
+// Gabow's path-based SCC on the same digraph.
+func ExampleNewGabowSCC() {
+	g := digraph.NewDigraph(5)
+	for _, e := range [][2]int{{0, 1}, {1, 2}, {2, 0}, {2, 3}, {3, 4}} {
+		g.AddEdge(e[0], e[1])
+	}
+
+	scc := digraph.NewGabowSCC(g)
+	fmt.Println(scc.Count(), "strong components")
+	for id := 0; id < scc.Count(); id++ {
+		fmt.Printf("component %d:", id)
+		for v := 0; v < g.V(); v++ {
+			if vid, _ := scc.ID(v); vid == id {
+				fmt.Printf(" %d", v)
+			}
+		}
+		fmt.Println()
+	}
+	fmt.Println("0 strongly connected to 2:", scc.StronglyConnected(0, 2))
+	fmt.Println("0 strongly connected to 3:", scc.StronglyConnected(0, 3))
+	// Output:
+	// 3 strong components
+	// component 0: 4
+	// component 1: 3
+	// component 2: 0 1 2
+	// 0 strongly connected to 2: true
+	// 0 strongly connected to 3: false
+}
+
+// A directed Eulerian cycle: every vertex balanced, every edge used
+// exactly once by a closed walk.
+func ExampleNewDirectedEulerianCycle() {
+	g := digraph.NewDigraph(4)
+	for _, e := range [][2]int{{0, 1}, {1, 2}, {2, 0}, {0, 3}, {3, 0}} {
+		g.AddEdge(e[0], e[1])
+	}
+
+	ec := digraph.NewDirectedEulerianCycle(g)
+	fmt.Println("has cycle:", ec.HasEulerianCycle())
+	fmt.Println("cycle:", ec.Cycle())
+	// Output:
+	// has cycle: true
+	// cycle: [0 1 2 0 3 0]
+}
+
+// A directed Eulerian path: one start (out-in = 1), one end
+// (in-out = 1), every other vertex balanced.
+func ExampleNewDirectedEulerianPath() {
+	g := digraph.NewDigraph(4)
+	for _, e := range [][2]int{{0, 1}, {1, 2}, {2, 0}, {0, 3}} {
+		g.AddEdge(e[0], e[1])
+	}
+
+	ep := digraph.NewDirectedEulerianPath(g)
+	fmt.Println("has path:", ep.HasEulerianPath())
+	fmt.Println("path:", ep.Path())
+	// Output:
+	// has path: true
+	// path: [0 1 2 0 3]
+}

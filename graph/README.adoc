@@ -3,9 +3,9 @@
 An *undirected graph* on the integer vertices `0..n-1` with adjacency
 lists — Sedgwick's §4.1 `Graph` — plus the fundamental graph queries as
 constructor-style query objects in the same package: depth-first paths,
-breadth-first paths, connected components, cycle detection, and
-bipartiteness.  The vertices *are* the indices, like Sedgwick; there is
-no element type.
+breadth-first paths, connected components, cycle detection,
+bipartiteness, and Eulerian cycle/path.  The vertices *are* the
+indices, like Sedgwick; there is no element type.
 
 Self-loops and parallel edges are allowed: `AddEdge(v, v)` counts once in
 `E` and twice in `Degree(v)`, exactly like Sedgwick.  There is
@@ -50,12 +50,16 @@ not reflected.
 | `NewCC(g)`                                   | Connected components                     | O(V+E)
 | `NewCycle(g)`                                | A cycle, if one exists                   | O(V+E)
 | `NewTwoColor(g)`                             | Bipartiteness (2-coloring)               | O(V+E)
+| `NewEulerianCycle(g)`                        | A closed walk using every edge once      | O(V+E)
+| `NewEulerianPath(g)`                         | A walk using every edge once, open ends  | O(V+E)
 | `HasPathTo(v)`                               | Is v reachable from the source           | O(1)
 | `PathTo(v)`                                  | Path source→v, source first, fresh slice | O(path length)
 | `DistTo(v)` (BFS only)                       | Edges on a shortest path to v            | O(1)
 | `Connected(v, w)` / `ID` / `Count` (CC only) | Component queries                        | O(1)
 | `HasCycle` / `Cycle` (Cycle only)            | Cycle queries, fresh slice               | O(1) / O(cycle)
 | `IsBipartite` / `Color(v)` (TwoColor only)   | Bipartition queries                      | O(1)
+| `HasEulerianCycle` / `Cycle` (Eulerian)      | Walk presence / the closed walk          | O(1) / O(E)
+| `HasEulerianPath` / `Path` (Eulerian)        | Walk presence / the walk, start to end   | O(1) / O(E)
 |===
 
 The BFS traversal queue is pluto's own link:../queue/[`queue`] — an
@@ -69,6 +73,14 @@ see them).  `TwoColor` colors the graph by DFS; the two colors are the
 two `bool` values and are meaningful only when `IsBipartite()` is true.
 A self-loop is an odd cycle (never bipartite); parallel edges are an
 even one (never break bipartiteness).
+
+`EulerianCycle` and `EulerianPath` run Hierholzer's walk.  A cycle
+needs every degree even and the edge-bearing vertices connected; a path
+allows exactly zero or two odd-degree vertices (the odd pair are the
+walk's endpoints — zero odd means the graph also has a cycle).  A graph
+with no edges has neither (the algs4 convention — an Eulerian walk
+needs at least one edge); self-loops (`[v v]`) and parallel edges
+(`[v w v]`) are legal single steps of the walk.
 
 == Usage
 
@@ -93,6 +105,12 @@ cyc.Cycle()                // [3 2 4 3] — 3-4 edge closes the 3-2-4 path
 tc := graph.NewTwoColor(g)
 tc.IsBipartite()           // false — the graph has odd cycles
 
+ec := graph.NewEulerianCycle(g)
+ec.HasEulerianCycle()      // false — vertices 0 and 3 have odd degree
+
+ep := graph.NewEulerianPath(g)
+ep.HasEulerianPath()       // true — exactly two odd vertices, 0 and 3
+
 for w := range g.Adj(0) {  // 5 1 2 — insertion order
     ...
 }
@@ -116,7 +134,10 @@ reports 0 components, `NewCycle` reports no cycle, `NewTwoColor` reports
 a vacuously bipartite graph, and `AddEdge` on a zero-value graph returns
 false (every vertex is out of range).  A nil `*DFSPaths`/`*BFSPaths`/`*CC`
 answers every query with not-found; a nil `*Cycle` answers no-cycle, a
-nil `*TwoColor` not-bipartite.
+nil `*TwoColor` not-bipartite.  `NewEulerianCycle` and
+`NewEulerianPath` tolerate a nil or empty graph too (no walk — an
+Eulerian walk needs at least one edge), and a nil `*EulerianCycle` /
+`*EulerianPath` answers no-walk.
 
 == Concurrency
 

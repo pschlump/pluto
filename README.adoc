@@ -82,9 +82,9 @@ with an identical public API.
 | link:fib_heap/[fib_heap]                   | Generic indexed Fibonacci priority queue (amortized O(1) decrease-key, Fredman–Tarjan; algs4 §9).
 | link:multiway_pq/[multiway_pq]             | Generic d-ary heap (branching factor d ≥ 2 at construction; cheaper decrease-key, shallower tree; algs4 §9 MultiwayMinPQ).
 | link:stable_pq/[stable_pq]                 | Generic stable min-priority queue (equal keys pop FIFO via insertion stamps; Sedgwick §2.4 ex. StableMinPQ).
-| link:graph/[graph]                         | Undirected graph with DFS/BFS paths, connected components, cycle detection, bipartiteness (Sedgwick §4.1–4.2).
+| link:graph/[graph]                         | Undirected graph with DFS/BFS paths, connected components, cycle detection, bipartiteness, Eulerian cycle/path (Sedgwick §4.1–4.2).
 | link:graph_ts/[graph_ts]                   | Thread-safe graph (RWMutex, snapshot adjacency; traversals run lock-free on a snapshot).
-| link:digraph/[digraph]                     | Directed graph with DFS/BFS reachability, cycle detection, topological order, Kosaraju SCC, transitive closure (Sedgwick §4.4–4.6).
+| link:digraph/[digraph]                     | Directed graph with DFS/BFS reachability, cycle detection, topological order, Kosaraju/Tarjan/Gabow SCC, transitive closure, directed Eulerian cycle/path (Sedgwick §4.4–4.6).
 | link:digraph_ts/[digraph_ts]               | Thread-safe digraph (RWMutex, snapshot adjacency; traversals run lock-free on a snapshot).
 | link:dijkstra/[dijkstra]                   | Edge-weighted digraph/graph with Dijkstra shortest paths (single-source, undirected, all-pairs; Sedgwick §4.4).
 | link:dijkstra_ts/[dijkstra_ts]             | Thread-safe Dijkstra shortest paths (RWMutex, snapshot adjacency; searches run lock-free on a snapshot).
@@ -1053,7 +1053,11 @@ unweighted edges), `NewCC(g)` (`Connected`, `ID`, `Count`),
 `NewCycle(g)` (`HasCycle`, `Cycle` — self-loop/parallel-edge aware,
 first vertex repeated at the end) and `NewTwoColor(g)`
 (`IsBipartite`, `Color` — DFS 2-coloring; a self-loop is an odd
-cycle, parallel edges an even one).
+cycle, parallel edges an even one), plus the Eulerian walks
+`NewEulerianCycle(g)` / `NewEulerianPath(g)` (`HasEulerianCycle`,
+`Cycle`, `HasEulerianPath`, `Path` — Hierholzer's walk over a
+shared-edge view; a cycle needs all degrees even, a path 0 or 2 odd
+degrees; an edgeless graph has neither).
 `AddEdge` O(1); the traversals O(V+E) time and O(V) space. Result
 objects are immutable snapshots of the graph at call time — later
 `AddEdge` calls are not reflected — and there is no `RemoveEdge`
@@ -1062,7 +1066,7 @@ internally (an intra-pluto composition).
 
 * Good: the classic graph traversals with pluto's value semantics and
 panic contracts; BFS shortest paths, connected components, cycle
-detection and bipartiteness out of the box.
+detection, bipartiteness and Eulerian walks out of the box.
 * Bad: undirected only — the directed sibling is `digraph`; int
 vertices — a symbol layer is a possible later package; no edge
 removal.
@@ -1087,18 +1091,28 @@ adds `DistTo` — `pluto/queue` internally, like `graph`),
 `NewDirectedCycle(g)` (`HasCycle`, `Cycle` — on-stack DFS marking),
 `NewDepthFirstOrder(g)` (`Pre`, `Post`, `ReversePost`),
 `NewTopological(g)` (`HasOrder`, `Order` — cycle check plus reverse
-postorder), `NewKosarajuSCC(g)` (`StronglyConnected`, `ID`, `Count`)
+postorder), the three strong-component algorithms — `NewKosarajuSCC(g)`
+(reverse graph + reverse postorder), `NewTarjanSCC(g)` (single-pass
+low-link DFS) and `NewGabowSCC(g)` (single-pass path-based DFS), all
+with `StronglyConnected`, `ID`, `Count` and the identical partition,
+the single-pass pair roughly 5× faster to build at n=1000 —
 and `NewTransitiveClosure(g)` (`Reachable(v, w)` — one DFS per vertex
 into a V×V boolean matrix, O(V·(V+E)) time / O(V²) space, the
 sparse-friendly alternative to Warshall's O(V³); every vertex reaches
-itself). All traversals O(V+E). Sourced constructors panic on a
+itself), plus the Eulerian walks `NewDirectedEulerianCycle(g)` /
+`NewDirectedEulerianPath(g)` (`HasEulerianCycle`, `Cycle`,
+`HasEulerianPath`, `Path` — Hierholzer's walk; a cycle needs every
+vertex balanced, a path one start/end pair). All traversals O(V+E).
+Sourced constructors panic on a
 nil/empty graph or out-of-range source; the source-less queries
-(`DirectedCycle`, `DepthFirstOrder`, `Topological`, `KosarajuSCC`,
-`TransitiveClosure`) tolerate empty graphs — an empty digraph has a
+(`DirectedCycle`, `DepthFirstOrder`, `Topological`, the SCC triple,
+`TransitiveClosure`, the Eulerian pair) tolerate empty graphs — an
+empty digraph has a
 sane answer, the `NewCC` precedent.
 
 * Good: the full §4.4–4.6 toolkit — reachability, paths, cycle
-detection, topological sort, strong components and transitive closure —
+detection, topological sort, strong components three ways, transitive
+closure and Eulerian walks —
 with pluto's panic contracts and immutable result objects; verified
 against the algs4 tinyDG/tinyDAG datasets.
 * Bad: int vertices (a symbol layer is a possible later package); no
