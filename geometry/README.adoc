@@ -1,0 +1,111 @@
+= geometry
+
+The §9 computational-geometry query objects of Sedgwick & Wayne —
+`GrahamScan` (convex hull), `ClosestPair` (closest pair by
+divide-and-conquer) and `FarthestPair` (farthest pair by hull +
+rotating calipers) — over the plain
+link:../g_lib/[`g_lib`] `Point2D` value type.  Not the
+link:../geo/[`geo`] package (Redis geohash bit compatibility); the
+names share three letters and nothing else.
+
+All three are constructor-built immutable query objects in the
+link:../substring/[`substring`] / link:../suffix_array/[`suffix_array`]
+shape: one constructor runs the algorithm on a private copy of the
+points (the input is never modified), the queries are O(1) or O(h)
+afterwards, and concurrent reads are safe — no `_ts` twin.
+
+== Operations
+
+[options="header"]
+|===
+| Type / call                                             | Description                                              | Complexity
+
+| `NewGrahamScan(pts)`                                    | Convex hull (corner-only, ccw, lowest point first)       | O(n log n)
+| `(*GrahamScan).Hull()`                                  | The hull vertices, ccw; a fresh slice per call           | O(h)
+| `(*GrahamScan).Len()`                                   | Number of hull vertices                                  | O(1)
+| `NewClosestPair(pts)`                                   | Closest pair, divide-and-conquer with the 7-point strip  | O(n log n)
+| `(*ClosestPair).Pair()`                                 | The pair as `(p, q, found)`                              | O(1)
+| `(*ClosestPair).Distance()`                             | The pair's distance, +Inf when there is no pair          | O(1)
+| `NewFarthestPair(pts)`                                  | Farthest pair: Graham hull + rotating calipers           | O(n log n)
+| `(*FarthestPair).Pair()`                                | The pair as `(p, q, found)` — two hull vertices          | O(1)
+| `(*FarthestPair).Distance()`                            | The pair's distance, 0 when there is no pair             | O(1)
+|===
+
+Degenerates are contracts, not accidents: a fully collinear input
+has a two-endpoint hull and its endpoints as the farthest pair;
+duplicate points collapse (a single distinct point reports no
+farthest pair); coincident points are a legal closest pair at
+distance 0; fewer than two points report no pairs, with `Distance`
+returning the min/max identity (+Inf / 0).  A nil or zero-value
+query object behaves as the empty case everywhere.
+
+== Usage
+
+[source,go]
+----
+pts := []g_lib.Point2D{{1, 1}, {2, 0}, {2, 2}, {0, 2}, {0, 0}, {1, 0}}
+hull := geometry.NewGrahamScan(pts).Hull()
+// [(0, 0) (2, 0) (2, 2) (0, 2)] — ccw, corner-only: the point on the
+// bottom edge is not a vertex
+
+p, q, _ := geometry.NewClosestPair(pts).Pair()   // (0, 0) (1, 1)
+a, b, _ := geometry.NewFarthestPair(pts).Pair()  // a diagonal pair
+----
+
+== Panics
+
+The package panics in exactly one class — a programmer error with no
+sane fallback:
+
+[options="header"]
+|===
+| Call                                | Why
+
+| `NewGrahamScan` / `NewClosestPair` / `NewFarthestPair` with a NaN coordinate in the input | NaN poisons `CCW`'s cross product into a false "collinear" (the `kd_tree` precedent)
+|===
+
+Each panic message names its constructor.  Everything else — nil
+slices, empty input, all-duplicate input — is tolerated.
+
+== Robustness (the honest float caveat)
+
+With integer coordinates (|values| < 2²⁶) every predicate is exact:
+the results are the mathematical hull and pairs, verified against a
+Jarvis-march oracle and O(n²) brute force.  With general floats,
+nearly-collinear triples make `CCW`'s sign rounding noise: a
+near-collinear vertex may survive on the hull, and an extremal pair
+may be reported by a different pair of the same distance.  The
+algorithms still terminate on every NaN-free input — the scan cannot
+pop past its base vertex (the algs4 original underflows its stack in
+this regime; pluto degrades instead of crashing).
+
+The planar predicates in `g_lib` (`CCW`, `Area2`,
+`DistanceSquaredTo`) pin their products unfused via `math.FMA(x, y,
+0)` — the `geo` package's contract — because Go's permitted FMA
+contraction otherwise makes `CCW(a, b, b)` return the multiply's
+rounding error instead of 0 on arm64 (observed), corrupting every
+degenerate-turn decision.  Do not rewrite those expressions.
+
+== Thread safety
+
+The query objects are immutable after construction: all methods are
+pure reads, safe for concurrent use.  No `_ts` twin exists or is
+needed.
+
+== Deviations from the algs4 reference
+
+* *Stable polar sort*: Java's `Arrays.sort` is a stable mergesort and
+  GrahamScan's all-collinear case depends on it — the Go port uses
+  `slices.SortStableFunc` where a naive `slices.SortFunc` would
+  produce a wrong degenerate hull.
+* *Base-vertex guard*: the scan's pop loop stops at the base point —
+  a checked invariant that exact arithmetic never reaches but
+  nearly-collinear float noise would (the algs4 original throws
+  `EmptyStackException` there).
+* *Unfused predicates*: `CCW`/`Area2` pin their products (see
+  Robustness); the Java original has each operation separately
+  rounded by construction.
+* `FarthestPair` checks the parallel-edge tie pairs of the calipers
+  walk in addition to the algs4 pairs, keeping the diameter correct
+  on tie-dense hulls (rectangles, regular polygons) — verified by
+  the brute-force oracle.

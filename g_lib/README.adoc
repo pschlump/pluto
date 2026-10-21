@@ -96,12 +96,22 @@ link:../kd_tree/[kd_tree] and the geometry batch to come — plain
 comparable structs, not interfaces, per the house rule.
 
 * `Point2D{X, Y float64}` — `String` ("(x, y)"), `DistanceSquaredTo`,
-`DistanceTo`.  Comparable, so it works as a map key (the kd_tree
-contract).
+`DistanceTo`, the orientation predicate `CCW` (+1 ccw / -1 cw / 0
+collinear), `Area2` (its raw magnitude), the axis orders `CompareXY`
+/ `CompareYX`, and `PolarOrder()` — a comparator closure sorting by
+polar angle around the point (algs4 `polarOrder`), the Graham scan's
+sort.  Comparable, so it works as a map key (the kd_tree contract).
 * `RectHV{Xmin, Ymin, Xmax, Ymax float64}` — `Contains` (boundary
 inclusive), `Intersects`, `DistanceSquaredTo` (per-axis clamp).
+* The float predicates (`CCW`, `Area2`, `DistanceSquaredTo`) pin
+  their products unfused via `math.FMA(x, y, 0)` — the geo package's
+  contract — because Go's permitted FMA contraction would otherwise
+  make `CCW(a, b, b)` return the multiply's rounding error instead of
+  0 (observed on arm64).  Do not rewrite those expressions.
 * NaN is tolerated everywhere (no method panics; NaN coordinates never
-  order and NaN rectangles contain/intersect nothing); inverted
+  order and NaN rectangles contain/intersect nothing — `CCW` reports
+  "collinear" on NaN, which is why the geometry package rejects NaN
+  input at construction); inverted
   rectangles contain nothing; `kd_tree` uses ±Inf bounds as the whole
   plane.
 

@@ -59,6 +59,7 @@ with an identical public API.
 | link:quick_sort/[quick_sort]               | In-place 3-way quicksort on slices (median-of-3, insertion cutoff; Sedgwick §2.3).
 | link:shell_sort/[shell_sort]               | In-place shellsort on slices (3x+1 gap sequence 1,4,13,40,…; Sedgwick §2.1).
 | link:merge_sort/[merge_sort]               | Stable mergesort on slices (top-down with insertion cutoff, bottom-up, Inversions count; Sedgwick §2.2).
+| link:multiway_merge/[multiway_merge]       | Stable k-way merge of sorted slices on pluto/index_pq (O(n log k); Sedgwick §2.4 Multiway).
 | link:binomial_queue/[binomial_queue]       | Generic mergeable priority queue (forest of heap-ordered binomial trees, O(log n) Merge; Sedgwick §9).
 | link:hash_tab/[hash_tab]                   | Generic fixed-size hash table (separate chaining, == or eq+hash funcs).
 | link:hash_tab_ts/[hash_tab_ts]             | Thread-safe fixed-size hash table (RWMutex, snapshot iterators, Lock+Nl* compound ops).
@@ -115,6 +116,7 @@ with an identical public API.
 | link:run_length/[run_length]               | Run-length encoding over byte slices (alternating count bytes, 255/0 saturation split; Sedgwick §5.5; pure functions, concurrent-use safe).
 | link:string_sort/[string_sort]              | LSD/MSD/3-way-radix string sorts on `[]string` in place (key-indexed counting, 256-byte alphabet; Sedgwick §5.1; pure functions, concurrent-use safe).
 | link:kd_tree/[kd_tree]                     | 2-d k-d tree over `g_lib.Point2D`: nearest, k-nearest, orthogonal range (alternating x/y splits, rectangle pruning; Sedgwick "5. Nearest Neighbor Search"; constructor-free) — with the brute-force `PointSet` oracle.
+| link:geometry/[geometry]                   | §9 geometry query objects on `g_lib.Point2D`: GrahamScan convex hull (ccw corner-only), ClosestPair (divide-and-conquer), FarthestPair (hull + rotating calipers); immutable, no twin.
 | link:kd_tree_ts/[kd_tree_ts]               | Thread-safe 2-d k-d tree (RWMutex wrapper, snapshot `All`, Lock+Nl* compound ops).
 | link:stream/[stream]                       | Redis-style stream: append-oriented log of `<ms>-<seq>` ID entries with consumer groups and PEL tracking (on pluto/skip_list).
 | link:stream_ts/[stream_ts]                 | Thread-safe stream (RWMutex, snapshot iterators, Lock+Nl* compound ops).
@@ -1467,6 +1469,28 @@ O(n) auxiliary slice. The single panic class is a nil comparison
 function in the `*Func` forms. Stateless functions — safe for
 concurrent use on disjoint slices; no `_ts` twin.
 
+== Multiway Merge — `multiway_merge/`
+
+Sedgwick's §2.4 `Multiway.java` as two stateless functions: `MergeK[T
+cmp.Ordered](streams ...[]T)` / `MergeKFunc[T any](fx, streams
+...) []T` merge any number of *already-sorted* slices into one sorted
+slice at O(n log₂ k) compares for n elements over k non-empty
+streams — the external-sort run-merge pattern (it beats a full
+O(n log₂ n) sort of the concatenation at small k; benched 2.1× at
+k=2, crossover ≈ k=8 against a specialized int sort).  The head of
+every stream sits in an `index_pq` indexed priority queue (index =
+stream id); the minimum is emitted and its stream's next element
+replaces it via the queue's decrease-key `Change` — one sift where
+the algs4 client pays a delete plus an insert.  The merge is
+*stable* like `merge_sort`: equal elements keep stream order (a
+private value+stream wrapper breaks ties inside the queue, which
+bare values could not), so `MergeK(a, b)` is exactly the two-run
+merge generalized to k runs.  Result freshly allocated; inputs never
+modified; nil/empty/no streams tolerated (empty non-nil result).
+Single panic class: nil comparison function in `MergeKFunc`.
+Stateless — safe for concurrent use on disjoint slices; no `_ts`
+twin.
+
 == Substring Search — `substring/`
 
 Sedgwick's §5.3 substring search as three constructor-style,
@@ -1573,6 +1597,38 @@ MSD pays a 256-count pass per shared-prefix level and recurses one
 level per key byte; none is stable except LSD/MSD, and none carries
 satellite data (sort `[]string`, or sort indices into a payload
 slice).
+
+== Geometry — `geometry/`
+
+The §9 computational-geometry query objects (backlog item 19) over
+`g_lib.Point2D` — not the `geo` package (Redis geohash): `GrahamScan`
+(the convex hull — y-sort, a STABLE polar sort around the base point
+where Java's stable `Arrays.sort` is load-bearing for the
+all-collinear case, pop-on-non-left-turn; corner-only vertices,
+ccw, lowest point first), `ClosestPair` (the divide-and-conquer —
+x-sort, recurse on halves, merge by y, then a ≤7-point vertical
+strip; O(n log n) where brute force is O(n²) — benched ~15× at
+n=10k, with the brute force already losing at n=2k) and
+`FarthestPair` (the diameter — Graham hull + rotating calipers over
+the antipodal pairs, with the parallel-edge tie pairs checked so
+rectangles and cocircular sets are exact; O(n log n)). Immutable
+constructor-built query objects (the `substring`/`suffix_array`
+shape): input never modified, O(1) queries, concurrent reads safe,
+no `_ts` twin. Degenerates are contracts (collinear input →
+two-endpoint hull; coincident points a legal 0-distance closest
+pair; no-pair queries return the min/max identity, +Inf / 0), and
+the single panic class is a NaN coordinate at construction — NaN
+poisons the orientation predicate into a false "collinear"
+(`kd_tree` precedent). Two float contracts are pinned and must not
+be rewritten: the planar predicates in `g_lib` (`CCW`/`Area2`/
+`DistanceSquaredTo`) hold their products unfused via `math.FMA(x, y,
+0)` — the `geo` FMA contract — because Go's permitted contraction
+otherwise makes `CCW(a, b, b)` return the multiply's rounding error
+instead of 0 on arm64 (observed); and the scan's pop loop guards its
+base vertex so nearly-collinear float noise degrades the hull
+instead of crashing (the algs4 original throws there). Integer
+coordinates (|v| < 2²⁶) are exact end to end — verified against a
+Jarvis-march oracle and O(n²) brute force at fixed seeds.
 
 == k-d Tree — `kd_tree/`, `kd_tree_ts/`
 

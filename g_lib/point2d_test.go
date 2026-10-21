@@ -8,6 +8,7 @@ package g_lib
 
 import (
 	"math"
+	"slices"
 	"testing"
 )
 
@@ -36,6 +37,74 @@ func TestPoint2DStringComparable(t *testing.T) {
 	}
 	if got := (Point2D{X: 0.5, Y: -1.25}).String(); got != "(0.5, -1.25)" {
 		t.Fatalf("String = %q", got)
+	}
+}
+
+func TestCompareXYCompareYX(t *testing.T) {
+	pts := []Point2D{{2, 1}, {1, 2}, {1, 1}, {1, 1}, {2, 2}, {1, 2}}
+	slices.SortFunc(pts, CompareXY)
+	want := []Point2D{{1, 1}, {1, 1}, {1, 2}, {1, 2}, {2, 1}, {2, 2}}
+	if !slices.Equal(pts, want) {
+		t.Fatalf("CompareXY: got %v, want %v", pts, want)
+	}
+	slices.SortFunc(pts, CompareYX)
+	want = []Point2D{{1, 1}, {1, 1}, {2, 1}, {1, 2}, {1, 2}, {2, 2}}
+	if !slices.Equal(pts, want) {
+		t.Fatalf("CompareYX: got %v, want %v", pts, want)
+	}
+}
+
+func TestCCW(t *testing.T) {
+	o, east, north := Point2D{0, 0}, Point2D{1, 0}, Point2D{0, 1}
+	if CCW(o, east, north) != 1 {
+		t.Errorf("CCW(east then north) = %d, want +1 (counterclockwise)", CCW(o, east, north))
+	}
+	if CCW(o, north, east) != -1 {
+		t.Errorf("CCW(north then east) = %d, want -1 (clockwise)", CCW(o, north, east))
+	}
+	// Collinear: on the ray, between, and on the opposite ray.
+	for _, c := range []Point2D{{2, 0}, {0.5, 0}, {-3, 0}} {
+		if CCW(o, east, c) != 0 {
+			t.Errorf("CCW(o, east, %v) = %d, want 0 (collinear)", c, CCW(o, east, c))
+		}
+	}
+	// Integer coordinates: the cross product is exact, a property the
+	// geometry oracles lean on.
+	if CCW(Point2D{0, 0}, Point2D{1, 1}, Point2D{2, 2}) != 0 {
+		t.Errorf("CCW diagonal collinear = %d, want 0", CCW(Point2D{0, 0}, Point2D{1, 1}, Point2D{2, 2}))
+	}
+	// A NaN coordinate poisons the product and CCW reports 0 — the
+	// documented reason the geometry constructors reject NaN input.
+	if got := CCW(o, east, Point2D{math.NaN(), 0}); got != 0 {
+		t.Errorf("CCW with NaN = %d, want 0 (documented NaN behavior)", got)
+	}
+}
+
+func TestPolarOrder(t *testing.T) {
+	p := Point2D{0, 0}
+	// Angles 0°, 90°, 180°, 270° must come out in ccw order.
+	pts := []Point2D{{0, -1}, {-1, 0}, {0, 1}, {1, 0}} // 270, 180, 90, 0 degrees
+	slices.SortFunc(pts, p.PolarOrder())
+	want := []Point2D{{1, 0}, {0, 1}, {-1, 0}, {0, -1}}
+	if !slices.Equal(pts, want) {
+		t.Fatalf("PolarOrder: got %v, want %v (ccw from angle 0)", pts, want)
+	}
+
+	// Same-angle points compare equal (the collinear tie rule).
+	q := Point2D{X: 1, Y: 1}
+	fx := q.PolarOrder()
+	for _, pair := range [][2]Point2D{{{2, 2}, {3, 3}}, {{0, 0}, {-1, -1}}, {{2, 2}, {1, 1}}} {
+		if got := fx(pair[0], pair[1]); got != 0 {
+			t.Errorf("PolarOrder tie %v vs %v = %d, want 0", pair[0], pair[1], got)
+		}
+	}
+	// The horizontal branch: right of the base sorts before left.
+	if got := fx(Point2D{2, 1}, Point2D{0, 1}); got != -1 {
+		t.Errorf("PolarOrder horizontal right-vs-left = %d, want -1", got)
+	}
+	// Below the base vs above: above first.
+	if got := fx(Point2D{1, 2}, Point2D{1, 0}); got != -1 {
+		t.Errorf("PolarOrder above-vs-below = %d, want -1", got)
 	}
 }
 
