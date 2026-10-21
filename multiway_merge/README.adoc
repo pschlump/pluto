@@ -1,0 +1,97 @@
+= multiway_merge
+
+A generic *k-way merge* — Sedgwick's algs4 §2.4 `Multiway.java`: the
+head of every sorted input stream sits in an
+link:../index_pq/[`index_pq`] indexed priority queue, the minimum
+head is emitted, and that stream's next element takes its place.
+`MergeK` merges any number of sorted slices of a naturally ordered
+element type (all integers, floats, strings — `cmp.Ordered`) by the
+built-in `<` / `>` operators, and `MergeKFunc` merges slices of any
+type by a caller supplied comparison function — no boxing, no dynamic
+dispatch, no type assertions.  There is no merge object, no
+constructor and no stored state.
+
+With k non-empty streams and n total elements the merge costs
+O(n log₂ k) compares — for k far below n this beats the full
+O(n log₂ n) sort of the concatenation, which is why the pattern backs
+external sorting (merging sorted runs) and log-structured storage.
+
+The merge is *stable* in the link:../merge_sort/[`merge_sort`] sense:
+of elements that compare equal, those from earlier streams come first
+(and within one stream the input order is kept) — `MergeK(a, b)` is
+exactly `merge_sort`'s two-run merge generalized to k runs.
+Stability rides a private value+stream wrapper compared
+lexicographically inside the queue; a bare value cannot tell the
+comparator which stream it came from.
+
+== Operations
+
+[options="header"]
+|===
+| Operation                     | Description                                             | Complexity
+
+| `MergeK(s0, s1, …)`           | Merge sorted `[]T` streams (`cmp.Ordered`), stable      | O(n log₂ k), O(n + k) space
+| `MergeKFunc(fn, s0, s1, …)`   | Merge sorted `[]T` streams (any type) by a comparison fn| O(n log₂ k), O(n + k) space
+|===
+
+The result is a freshly allocated slice of copies; the inputs are
+never modified.  Nil streams, empty streams and a call with no
+streams at all are tolerated — they contribute nothing, and merging
+no elements returns an empty, non-nil slice.  Each input must already
+be sorted by the same order (the result of merging unsorted input is
+unspecified); a reversed comparison function returns a descending
+merge.
+
+== Usage
+
+[source,go]
+----
+runs := [][]int{{1, 4, 7}, {2, 5, 8}, {3, 6, 9, 12}}
+merged := multiway_merge.MergeK(runs...) // [1 2 3 4 5 6 7 8 9 12]
+
+// Any type, ordered by a comparison function — stable across runs:
+type Finish struct { Lane, Time int }
+r0 := []Finish{{Lane: 1, Time: 41}, {Lane: 2, Time: 41}}
+r1 := []Finish{{Lane: 4, Time: 39}, {Lane: 5, Time: 41}}
+mergedF := multiway_merge.MergeKFunc(
+	func(a, b Finish) int { return a.Time - b.Time }, r0, r1)
+// [{39 4} {41 1} {41 2} {41 5}] — lanes in run order within each time
+----
+
+== Panics
+
+The package panics in exactly one situation — a programmer error with
+no sane fallback:
+
+[options="header"]
+|===
+| Call                        | Why
+
+| `MergeKFunc(nil, …)`        | nil comparison function
+|===
+
+The panic message names its function.  Everything else — including
+nil and empty streams — is tolerated.
+
+== Thread safety
+
+Both functions are *stateless*: they keep no package state and touch
+only the slices they are given (plus their private workspace).  They
+are safe for concurrent use on disjoint slices.  Because there is no
+shared state to guard, *no `_ts` twin exists or is needed*.
+
+== Deviations from the algs4 reference
+
+The queue discipline is `Multiway.java`'s, with two adopted
+improvements:
+
+* *Decrease-key instead of delete+insert*: the algs4 client does
+  `delMin` then `insert` per element; pluto peeks the minimum stream
+  and `Change`s its head — one sift instead of two (the
+  link:../dijkstra/[`dijkstra`] pattern for the same queue).
+* *Stability*: `IndexMinPQ` breaks equal keys by incidental heap
+  order, so `Multiway.java` is not stable; pluto's wrapper compares
+  (value, stream id) lexicographically, making the merge stable.
+* The inputs are materialized sorted slices rather than pull streams
+  (`In` readers); merging lazy streams is the caller's iterator
+  pattern around the same queue.
