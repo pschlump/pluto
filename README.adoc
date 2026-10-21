@@ -133,6 +133,7 @@ with an identical public API.
 | link:crc/[crc]                             | Table-driven CRC-32/CRC-64 checksums (IEEE, Castagnoli, Koopman, ECMA, ISO; pure functions, concurrent-use safe).
 | link:geo/[geo]                             | Redis GEO geohash math: 52-bit Encode/Decode (bit-compatible with Redis), Neighbors, radius/box score ranges, haversine Distance, m/km/ft/mi units (pure functions, concurrent-use safe).
 | link:fft/[fft]                             | Radix-2 Cooley–Tukey FFT, inverse FFT, and circular/linear convolution over `[]complex128` (Sedgwick §9; stateless functions, concurrent-use safe).
+| link:gauss/[gauss]                         | Solve Ax = b by elimination with partial pivoting: GaussianElimination (rectangular, back substitution) and GaussJordanElimination (square, full reduction, Farkas infeasibility certificate) (Sedgwick §9.5; constructor snapshots, concurrent reads safe).
 | link:g_lib/[g_lib]                         | Generic utility functions (min/max, slice ops, set/map conversion, numeric constraints) and the `Point2D`/`RectHV` geometry value types.
 |===
 
@@ -1667,6 +1668,36 @@ tolerated (nil in, nil out); inputs are never mutated.  Verified
 against the definitional O(n²) DFT and naive convolution sums at
 fixed seeds — the naive DFT at n=256 costs what `FFT` costs at
 n=16384 (64× the points), which is the n log n gap made concrete.
+
+== Gauss — `gauss/`
+
+The §9.5 linear-system solvers over the minimal matrix story
+(`[][]float64` coefficients, `[]float64` right-hand side), both with
+partial pivoting and the algs4 1e-8 singular threshold:
+`GaussianElimination` (forward elimination to row echelon form, then
+back substitution — rectangular m×n systems included, redundant
+overdetermined rows checked, free variables reported as zero) and
+`GaussJordanElimination` (full reduction over a square system,
+carrying an identity block so an *infeasible* system yields a Farkas
+certificate y with yA = 0, yb ≠ 0 via `Dual`; `IsNonsingular` is the
+pluto addition for singular detection).  Constructor snapshots over a
+private copy — A and b never modified, concurrent reads safe, no `_ts`
+twin — with per-position panics on mismatched dimensions, ragged
+rows, non-square Jordan input, and NaN/±Inf entries (pivoting
+compares magnitudes, so a NaN pivot would otherwise slip through and
+poison the elimination silently).  One reference corner kept
+faithfully and documented: in an underdetermined system (m < n) the
+variables at columns m..n−1 never pivot and stay zero, so a row
+needing one of them nonzero reports inconsistent even when a solution
+exists (`[[0, 5]]·x = 10` is the minimal example; square systems are
+immune — back substitution balances the earlier rows against the
+solved variables).  Verified assumption-free, the algs4
+certifySolution as tests: feasible answers satisfy A·x = b against
+generated systems carrying an exact integer solution; infeasible
+answers carry a valid dual; both families agree on square systems.
+Benchmarks: Gaussian 213µs at n=100 / 6.0ms at n=300, Jordan ~6×
+that — Gaussian is the default solver unless the certificate is
+needed.
 
 == k-d Tree — `kd_tree/`, `kd_tree_ts/`
 

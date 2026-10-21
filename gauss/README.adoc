@@ -1,0 +1,114 @@
+= gauss — Solving Linear Systems by Elimination
+
+:toc:
+
+== Overview
+
+`gauss` solves systems of linear equations Ax = b by elimination with
+partial pivoting (Sedgewick & Wayne, Algorithms 4th ed., §9.5,
+`GaussianElimination.java` and `GaussJordanElimination.java`).  The
+matrix story is minimal: `[][]float64` coefficients, `[]float64`
+right-hand side.
+
+Two query objects:
+
+* **`GaussianElimination`** — forward elimination to row echelon form,
+  then back substitution.  Accepts rectangular m×n systems
+  (overdetermined and underdetermined included).
+* **`GaussJordanElimination`** — full reduction (eliminates above and
+  below, scales each pivot row), over a square n×n system, carrying an
+  identity block so that an *infeasible* system yields a certificate
+  y with **yA = 0, yb ≠ 0** (`Dual` — the Farkas certificate).
+
+Both copy the input into an internal augmented matrix — A and b are
+never modified — and the finished object is immutable, so concurrent
+reads are safe with no locking (the `maxflow`/`global_mincut`
+precedent; no `_ts` twin).
+
+== Operations
+
+[cols="1,3,1",options="header"]
+|===
+| Operation                              | Description                                                     | Complexity
+
+| `NewGaussianElimination(A, b)`         | Reduce the m×n system to row echelon form                       | O(m·n·min(m,n))
+| `(*GaussianElimination).Primal()`      | Solution (unique, or particular with free vars zero); false ⇔ inconsistent | O(n²) square
+| `(*GaussianElimination).IsFeasible()`  | Has at least one solution                                       | as Primal
+| `NewGaussJordanElimination(A, b)`      | Fully reduce the n×n system (A \| identity \| b)                | O(n³)
+| `(*GaussJordanElimination).Primal()`   | Solution (unique, or particular with free vars zero); false ⇔ inconsistent | O(n)
+| `(*GaussJordanElimination).Dual()`     | Certificate y: yA = 0, yb ≠ 0 (false when feasible)            | O(n)
+| `(*GaussJordanElimination).IsFeasible()`  | Has at least one solution                                    | O(n)
+| `(*GaussJordanElimination).IsNonsingular()` | Every column pivoted (a pluto addition over the algs4 surface) | O(n)
+|===
+
+A pivot of magnitude at or below 1e-8 (the algs4 epsilon, both
+classes) is treated as zero: its column is skipped, its variable is a
+free variable reported as zero, and a zeroed row with a non-zero
+right-hand side makes the system infeasible.
+
+== Semantics
+
+* **Rectangular systems** — `GaussianElimination` handles m > n
+  (redundant rows are checked against the computed solution) and
+  m < n (variables beyond the pivoted range are free and zero).
+* **The reference corner (documented, kept faithfully)** — back
+  substitution assigns each variable at its own row index, so in an
+  underdetermined system (m < n) the variables at columns m..n−1 never
+  pivot and stay zero; a row needing one of them nonzero to balance is
+  reported inconsistent even when a solution exists — `[[0, 5]] · x =
+  10` is the minimal example.  Square and overdetermined systems have
+  no such gap (the same leading zero column in a square system solves
+  fine).
+* **Determinism** — partial pivoting breaks ties toward the first row,
+  so repeated runs return the same solution and the same certificate.
+* **Inputs never modified**; nil and the zero value behave as an empty
+  system — solvable, with the empty solution.
+
+== Usage
+
+[source,go]
+----
+import "github.com/pschlump/pluto/gauss"
+
+A := [][]float64{{2, 1}, {1, 3}}
+b := []float64{5, 10}
+x, ok := gauss.NewGaussianElimination(A, b).Primal() // x = [1, 3], ok = true
+
+// An inconsistent system, with the certificate that proves it:
+gj := gauss.NewGaussJordanElimination([][]float64{{1, 2}, {2, 4}}, []float64{1, 3})
+gj.IsFeasible() // false
+y, _ := gj.Dual() // yA = 0, yb ≠ 0
+----
+
+Runnable, tested examples live in link:example_test.go[`example_test.go`].
+
+== Panics
+
+[options="header"]
+|===
+| Call                                             | Why
+
+| `NewGaussianElimination` with len(b) != len(A)   | b must have one entry per row
+| `NewGaussianElimination` with ragged rows        | all rows of A must have the same length
+| Either constructor on a NaN / ±Inf entry         | pivoting compares magnitudes, so a NaN pivot would poison the elimination silently; the panic names the position
+| `NewGaussJordanElimination` with a non-square A  | the Jordan reduction is defined on n×n systems
+|===
+
+Every other operation tolerates nil and zero values as an empty
+system.
+
+== Thread safety
+
+Not safe for concurrent *writes* — but there are none: each object is
+an immutable snapshot built by its constructor, so concurrent reads
+are safe with no locking (the `maxflow`/`suffix_array` precedent — no
+`_ts` twin).
+
+== Benchmark reality
+
+Measured (M4 Max): `GaussianElimination` 213µs at n=100, 6.0ms at
+n=300; `GaussJordanElimination` 1.36ms at n=100, 34.7ms at n=300 —
+roughly 6× apart and both tracking n³ (28× for 3× n).  Jordan pays
+for the above-and-below elimination over 2n+1 columns instead of n+1;
+it earns it back only through `Dual`, so Gaussian is the default
+solver unless the infeasibility certificate is needed.
