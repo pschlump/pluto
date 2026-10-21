@@ -1,0 +1,94 @@
+= fft — Fast Fourier Transform and Convolution
+
+:toc:
+
+== Overview
+
+`fft` computes the discrete Fourier transform and its inverse via the
+radix-2 Cooley–Tukey fast Fourier transform (Sedgewick & Wayne,
+Algorithms 4th ed., §9, `FFT.java`), plus circular and linear
+convolution built on it — all as stateless functions over
+`[]complex128`, the `geo`-package precedent: no state, no
+constructor, safe for concurrent use, no `_ts` twin.
+
+== Operations
+
+[cols="1,3,1",options="header"]
+|===
+| Operation          | Description                                                        | Complexity
+
+| `FFT(x)`           | Discrete Fourier transform, `X[k] = Σ x[t]·e^{-2πikt/n}`           | O(n log n)
+| `IFFT(x)`          | Inverse transform — conjugate, forward transform, conjugate, 1/n    | O(n log n)
+| `CConvolve(x, y)`  | Circular convolution (same power-of-2 lengths)                     | O(n log n)
+| `Convolve(x, y)`   | Linear convolution (polynomial product) via zero-padding           | O(n log n)
+|===
+
+== Semantics
+
+* **Length contract** — `FFT`, `IFFT` and `CConvolve` require a
+  power-of-2 length (`n == 1` included) and panic otherwise, the panic
+  naming the function and the offending length (the algs4
+  `IllegalArgumentException` contract).
+* **Empty input is tolerated** — a nil or empty slice transforms to a
+  nil slice, no panic (the house "no sane answer exists" rule stops at
+  the length contract).
+* **Inputs are never modified** — every function returns a fresh
+  slice; the input slices are copied before any recursion touches
+  them.
+* **Real signals** work directly: pass `complex128(v, 0)` values in,
+  read `real(...)` out — the complex transform is the general form
+  (algs4's own usage).
+
+== Usage
+
+[source,go]
+----
+import "github.com/pschlump/pluto/fft"
+
+// (1 + 2x + 3x²) · (4 + x) = 4 + 9x + 14x² + 3x³ — polynomial
+// multiplication IS linear convolution of the coefficient vectors.
+product := fft.Convolve([]complex128{1, 2, 3}, []complex128{4, 1})
+// product = [(4+0i) (9+0i) (14+0i) (3+0i)]
+
+// Filter a signal: y = IFFT(FFT(x) · FFT(h)) with both padded first.
+----
+
+Runnable, tested examples live in link:example_test.go[`example_test.go`].
+
+== Panics
+
+[options="header"]
+|===
+| Call                          | Why
+
+| `FFT(x)` with len(x) not a power of 2 | radix-2 Cooley–Tukey splits in half; pad (or see `Convolve`)
+| `IFFT(x)` with len(x) not a power of 2 | same contract, the panic names IFFT
+| `CConvolve(x, y)` with unequal lengths | circular convolution is defined on equal lengths
+| `CConvolve(x, y)` both non-power-of-2  | same length contract, the panic names CConvolve
+|===
+
+== Deviations from the algs4 reference
+
+* **`Convolve` fixes the reference's fragile contract.**  algs4's
+  `convolve` requires two *equal power-of-2* lengths, always pads to
+  exactly twice that, and returns the padded length with trailing
+  zeros — correct only when the caller pre-arranges the lengths.
+  pluto's `Convolve` takes any two lengths, pads both to the smallest
+  power of 2 at least `len(x)+len(y)-1` (where circular convolution
+  has no wrap-around), and returns the trimmed `len(x)+len(y)-1`
+  result — the polynomial product, always.
+
+== Thread safety
+
+Stateless pure functions over their arguments — safe for concurrent
+use with no locking, the `geo` precedent; no `_ts` twin.
+
+== Benchmark reality
+
+Measured (M4 Max): `FFT` 67µs at n=1024, 1.43ms at n=16384; the
+definitional O(n²) DFT at n=256 already costs 486µs — the n log n
+versus n² gap in one line.  The recursion allocates ~2.2 slices per
+point (2302 allocs at n=1024): that is the faithful algs4 shape —
+every level builds its even/odd halves and output — and an iterative
+in-place butterfly FFT would trade it away, at the cost of no longer
+being the reference's algorithm.

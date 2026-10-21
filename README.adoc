@@ -132,6 +132,7 @@ with an identical public API.
 | link:bitmap/[bitmap]                       | Redis bit operations on byte slices: GETBIT/SETBIT, BITCOUNT, BITPOS (end-given semantics), BITOP AND/OR/XOR/NOT, BITFIELD GET/SET/INCRBY with WRAP/SAT/FAIL overflow (Redis-exact, word-wise; pure functions, concurrent-use safe).
 | link:crc/[crc]                             | Table-driven CRC-32/CRC-64 checksums (IEEE, Castagnoli, Koopman, ECMA, ISO; pure functions, concurrent-use safe).
 | link:geo/[geo]                             | Redis GEO geohash math: 52-bit Encode/Decode (bit-compatible with Redis), Neighbors, radius/box score ranges, haversine Distance, m/km/ft/mi units (pure functions, concurrent-use safe).
+| link:fft/[fft]                             | Radix-2 Cooley–Tukey FFT, inverse FFT, and circular/linear convolution over `[]complex128` (Sedgwick §9; stateless functions, concurrent-use safe).
 | link:g_lib/[g_lib]                         | Generic utility functions (min/max, slice ops, set/map conversion, numeric constraints) and the `Point2D`/`RectHV` geometry value types.
 |===
 
@@ -1644,6 +1645,28 @@ base vertex so nearly-collinear float noise degrades the hull
 instead of crashing (the algs4 original throws there). Integer
 coordinates (|v| < 2²⁶) are exact end to end — verified against a
 Jarvis-march oracle and O(n²) brute force at fixed seeds.
+
+== FFT — `fft/`
+
+The §9 fast Fourier transform (`FFT.java`) as stateless functions
+over `[]complex128` — the `geo` pure-function precedent: `FFT` (the
+recursive radix-2 Cooley–Tukey core, even/odd split, per-k twiddle
+factors, the reference's single-scratch-buffer trick), `IFFT`
+(conjugate → forward transform → conjugate → 1/n, sharing the one
+core), and the convolution theorem on top: `CConvolve` (circular,
+equal power-of-2 lengths) and `Convolve` (linear — the polynomial
+product).  `Convolve` deliberately fixes the reference's fragile
+contract: algs4 demands equal power-of-2 input lengths, pads to
+exactly twice, and returns the padded length with trailing zeros;
+pluto takes any two lengths, pads to the smallest power of 2 at
+least `len(x)+len(y)-1` (where circular convolution provably cannot
+wrap), and returns the trimmed product — `Convolve(x, [1]) == x`
+always.  Power-of-2 violations panic naming the function and length
+(the algs4 IllegalArgumentException contract); nil/empty input is
+tolerated (nil in, nil out); inputs are never mutated.  Verified
+against the definitional O(n²) DFT and naive convolution sums at
+fixed seeds — the naive DFT at n=256 costs what `FFT` costs at
+n=16384 (64× the points), which is the n log n gap made concrete.
 
 == k-d Tree — `kd_tree/`, `kd_tree_ts/`
 
