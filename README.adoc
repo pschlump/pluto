@@ -95,6 +95,7 @@ with an identical public API.
 | link:floyd_warshall/[floyd_warshall]       | Floyd-Warshall all-pairs shortest paths with negative weights and whole-graph negative-cycle detection (Sedgwick §4.4; dense-graph alternative to V Dijkstras).
 | link:floyd_warshall_ts/[floyd_warshall_ts] | Thread-safe Floyd-Warshall all-pairs shortest paths (snapshot adjacency; the O(V³) search runs lock-free on a snapshot).
 | link:maxflow/[maxflow]                     | Max-flow / min-cut on a flow network (Ford-Fulkerson with Edmonds-Karp BFS; Sedgwick §6.4).
+| link:global_mincut/[global_mincut]         | Minimum global cut of an undirected weighted graph (Stoer-Wagner over dijkstra's EdgeWeightedGraph; Sedgwick §6.4).
 | link:bipartite/[bipartite]                 | Maximum bipartite matching + König minimum vertex cover (Kuhn augmenting paths and Hopcroft-Karp; Sedgwick §6.4).
 | link:assignment_problem/[assignment_problem] | Minimum-weight perfect matching on an n×n weight matrix (successive shortest paths, optimality-certifying duals; Sedgewick §6.5).
 | link:fenwick_tree/[fenwick_tree]           | Fenwick (binary indexed) tree, generic over numeric types (prefix sums, point updates; Sedgwick "Beyond").
@@ -1701,6 +1702,34 @@ arithmetic on integer capacities.
 * Bad: Edmonds-Karp is the simple heuristic — no scaling or
 push-relabel; float capacities make the result
 data-dependent-terminating.
+
+== Global Min Cut — `global_mincut/`
+
+Sedgwick's §6.4 *global* minimum cut — the bipartition of an undirected
+edge-weighted graph with the least total crossing weight — via the
+Stoer-Wagner algorithm, as one constructor-style immutable query object
+over `dijkstra`'s `EdgeWeightedGraph` (the `mst` container precedent).
+`NewGlobalMincut(g)` runs V−1 merge phases, each a maximum-adjacency
+search whose last vertex yields a candidate cut; `Weight()` is the
+crossing total, `Cut()` one sorted side, `InCut(v)` membership.
+O(V³) time, O(V²) space; ties break toward the smallest vertex id, so
+the result is deterministic. Parallel edges sum (capacity semantics),
+self-loops never cross a cut, a disconnected graph reports weight 0
+with a whole component as the side. Panics: nil/empty graph, and any
+negative/NaN/±Inf weight (named, like dijkstra — NaN is rejected
+explicitly). No `_ts` twin (immutable result — the `maxflow`
+precedent).
+
+The alternative composition — n−1 `maxflow` runs, one per sink — was
+benched as the backlog asked: 5.7× slower at n=60 and 3× at n=150
+(mostly n−1 `FlowNetwork` constructions), so Stoer-Wagner is the
+implementation and the max-flow route survives in the test file as the
+cross-check oracle beside an all-bipartitions brute force.
+
+* Good: no source pair needed (unlike max-flow min cut), deterministic
+output, certificate-verified against two independent oracles.
+* Bad: the O(V³) matrix form — fine to a few hundred vertices, not the
+O(VE + V² log V) heap form; cut weights must be finite non-negative.
 
 == Bipartite Matching — `bipartite/`
 
