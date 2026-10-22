@@ -35,6 +35,7 @@ with an identical public API.
 | link:tree_set/[tree_set]                   | Generic sorted set on pluto/avl_tree (algebra, relations, Floor/Ceil/Index/Range; algs4 SET).
 | link:tree_set_ts/[tree_set_ts]             | Thread-safe sorted set (RWMutex, snapshot iterators, Lock+Nl* compound ops).
 | link:binary_search_st/[binary_search_st]   | Generic ordered symbol table on parallel sorted arrays — binary-search reads, shift writes (Put/Get, Rank/AtIndex, Floor/Ceil, Range; algs4 §3.1 BinarySearchST).
+| link:binary_search_st_ts/[binary_search_st_ts] | Thread-safe ordered symbol table (RWMutex wrapper twin, snapshot iterators, Lock+Nl* compounds).
 | link:dll/[dll]                             | Generic doubly linked list (stack/queue/list, JSON array marshal/unmarshal).
 | link:dll_ts/[dll_ts]                       | Thread-safe doubly linked list (RWMutex, snapshot iterators, JSON array marshal/unmarshal).
 | link:sll/[sll]                             | Generic singly linked list (stack/FIFO list).
@@ -82,6 +83,7 @@ with an identical public API.
 | link:index_pq_ts/[index_pq_ts]             | Thread-safe indexed priority queue (RWMutex, snapshot All, Lock+Nl* compound ops).
 | link:fib_heap/[fib_heap]                   | Generic indexed Fibonacci priority queue (amortized O(1) decrease-key, Fredman–Tarjan; algs4 §9).
 | link:multiway_pq/[multiway_pq]             | Generic d-ary heap (branching factor d ≥ 2 at construction; cheaper decrease-key, shallower tree; algs4 §9 MultiwayMinPQ).
+| link:multiway_pq_ts/[multiway_pq_ts]       | Thread-safe d-ary heap (RWMutex, snapshot All, Lock+Nl* compounds).
 | link:stable_pq/[stable_pq]                 | Generic stable min-priority queue (equal keys pop FIFO via insertion stamps; Sedgwick §2.4 ex. StableMinPQ).
 | link:graph/[graph]                         | Undirected graph with DFS/BFS paths, connected components, cycle detection, bipartiteness, Eulerian cycle/path (Sedgwick §4.1–4.2).
 | link:graph_ts/[graph_ts]                   | Thread-safe graph (RWMutex, snapshot adjacency; traversals run lock-free on a snapshot).
@@ -192,8 +194,8 @@ per-call read lock.
 `cuckoo_ts`, `cuckoo_grow15_ts`, `sharded_hash_ts`), `skip_list_ts`,
 `index_pq_ts`, `fenwick_tree_ts`, `segment_tree_ts`, `sparse_vector_ts`,
 `trie_ts`,
-`tst_ts`, `stream_ts`, `hyperloglog_ts`, `lfu_ts`, `lru_ts` and
-`bloom_ts` — expose the
+`tst_ts`, `stream_ts`, `hyperloglog_ts`, `lfu_ts`, `lru_ts`,
+`bloom_ts`, `multiway_pq_ts` and `binary_search_st_ts` — expose the
 *real `Lock`/`Unlock`* plus `Nl`-prefixed no-lock methods
 (`NlLen`, `NlSearch`, `NlInsert`, ...) so a search-then-update
 sequence can run atomically (and `dll_ts` exposes `Lock`/`Unlock`).
@@ -825,8 +827,9 @@ the port. Practical reading: d=4 keeps Pop within ~7% of binary while
 making decreases 17% cheaper; d=8–16 for decrease-dominated workloads
 (the dense-Dijkstra / large-scheduler shape); the k-way sorted-stream
 merge (algs4 `Multiway.java`) rides the same heap as a checked
-example. No `_ts` twin yet (the backlog lists `d_heap_ts` as possible
-later work; shared-heap callers use `heap_ts`).
+example. The `multiway_pq_ts` twin carries the same d-ary heap behind
+an RWMutex with the `heap_ts` lock surface (`NlAppendHeap` +
+`NlHeapify` make the bulk build atomic).
 
 === Stable Priority Queue — `stable_pq/`
 

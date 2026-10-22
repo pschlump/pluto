@@ -278,12 +278,14 @@ func (dh *DHeap[T]) IsEmpty() bool {
 	return dh == nil || len(dh.data) == 0
 }
 
-// Lock is a no-op provided for API compatibility with a thread-safe
-// d-heap twin.  This implementation is not safe for concurrent use.
+// Lock is a no-op kept for source compatibility with the heap_ts
+// surface shape.  This implementation is not safe for concurrent use —
+// the multiway_pq_ts twin has the real lock.
 func (dh *DHeap[T]) Lock() {}
 
-// Unlock is a no-op provided for API compatibility with a thread-safe
-// d-heap twin.  This implementation is not safe for concurrent use.
+// Unlock is a no-op kept for source compatibility with the heap_ts
+// surface shape.  This implementation is not safe for concurrent use —
+// the multiway_pq_ts twin has the real lock.
 func (dh *DHeap[T]) Unlock() {}
 
 // up sifts j toward the root while it orders before its parent — one

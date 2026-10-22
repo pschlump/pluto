@@ -88,8 +88,9 @@ nothing.
 
 == Thread safety
 
-Not safe for concurrent use.  There is no `_ts` twin yet (the
-link:../multiway_pq/[`multiway_pq`] precedent); run it single-threaded.
+Not safe for concurrent use.  The link:../binary_search_st_ts/[`binary_search_st_ts`]
+twin is the thread-safe wrapper (RWMutex, snapshot iterators, the
+`Nl*` compound surface).
 
 == Benchmark reality
 

@@ -1,0 +1,112 @@
+= binary_search_st_ts
+
+The thread-safe twin of link:../binary_search_st/[binary_search_st] — the same
+ordered symbol table surface (parallel sorted arrays, binary-search reads,
+shift writes, the skip_list riders) behind a single `sync.RWMutex`, plus the
+compound-operation `Nl*` methods.
+
+== Composition
+
+A **wrapper over a plain binary_search_st value** (the tree_set_ts pattern,
+not a re-implementation):
+
+[source,go]
+----
+type BinarySearchST[K, V any] struct {
+    inner binary_search_st.BinarySearchST[K, V]
+    lock  sync.RWMutex
+    cmp   func(a, b K) int // the twin's own copy: the write-contract check
+}
+----
+
+* The twin keeps its **own copy of the comparison function** —
+  binary_search_st does not export its comparator.  The write-contract check
+  and `Clone` read it (under the write and read lock respectively);
+  invariant: `cmp != nil` exactly when the twin was built by a constructor,
+  exactly when `inner` can store.
+* Nil guards come **before** lock acquisition (a nil-receiver
+  `lock.RLock()` would itself panic); write-contract panics carry the
+  `binary_search_st_ts:` prefix.  A store through `NlPut` on a zero-value
+  twin reaches the plain package's own contract and carries the
+  `binary_search_st:` prefix.
+
+== Locking behavior
+
+* **Reads** — `Get`, `Contains`, `FindMin`, `FindMax`, `Floor`, `Ceil`,
+  `Rank`, `AtIndex`, `CountRange`, `Len`, `Length`, `IsEmpty`, `Keys`,
+  `MarshalJSON`, `Clone` — take the read lock for the whole call: a
+  consistent answer.
+* **Writes** — `Put`, `Delete`, `DeleteAtHead`, `DeleteAtTail`,
+  `DeleteRange`, `Truncate`, `PutIter`, `DeleteFunc`, `UnmarshalJSON` —
+  take the write lock once for the whole operation: a batch is atomic to
+  concurrent readers.
+* **Iterators yield snapshots**: `All`, `Backward` and `Range` copy the
+  entries under the read lock when iteration starts and yield the copy —
+  the table may be freely mutated, even from inside the loop body (the
+  inverted contract from the plain package's captured-arrays iterators).
+* **Callbacks run unlocked on a snapshot**: `StringFunc`'s format function
+  and `DeleteFunc`'s predicate may safely call back into the table.
+  `DeleteFunc` rebuilds the survivors under one hold of the write lock
+  (O(n log₂ n) — the plain package's in-place compaction cannot run a
+  caller callback under the lock); entries inserted after its snapshot
+  are never judged and always survive.
+* `PutIter` drains its iterator before the write lock is acquired, so
+  feeding a table its own `All()` is safe.
+
+== The canonical compound
+
+The `Nl*` forms — `NlPut`, `NlGet`, `NlDelete`, `NlContains`, `NlLen`,
+`NlIsEmpty` — take no lock, for multi-step sequences run under one hold of
+`Lock`:
+
+[source,go]
+----
+st.Lock()
+if _, found := st.NlGet(key); !found {
+    st.NlPut(key, val) // the check-and-insert pair is one atomic step
+}
+st.Unlock()
+----
+
+== Operations
+
+Same semantics as link:../binary_search_st/[binary_search_st] — `Put`/
+`PutIter`/`UnmarshalJSON` write, everything else reads — with these twin
+costs on top of the plain package's:
+
+[cols="1,3"]
+|===
+|Operation |Complexity (twin)
+
+|`Put`, `Delete`, `DeleteAtHead/Tail`, `DeleteRange`, `Truncate`
+|O(log₂ n + n) shift + the write lock
+|`Get`, `Contains`, `Floor`, `Ceil`, `Rank`, `CountRange`
+|O(log₂ n) + the read lock
+|`AtIndex`, `FindMin`, `FindMax`, `Len`, `IsEmpty`
+|O(1) + the read lock
+|`All` / `Backward` / `Range`
+|O(n) snapshot + O(m) walk (m = entries visited)
+|`Keys`, `String`, `Clone`, `MarshalJSON`
+|O(n) under the read lock
+|`PutIter` (k pairs)
+|O(k·(log₂ n + n)) — one write-lock hold, atomic
+|`DeleteFunc`
+|O(n·log₂ n) snapshot + atomic rebuild
+|`UnmarshalJSON` (k pairs)
+|O(k·(log₂ n + n)) — one write-lock hold, atomic
+|===
+
+== Panics
+
+The same contract as the plain package, with twin-named messages:
+`NewBinarySearchSTFunc(nil)` at construction, and storing (`Put`,
+`PutIter` — even on an empty sequence — and `UnmarshalJSON` with pairs)
+on a nil table or a zero-value table.  Every read treats both as the
+empty table.
+
+== Thread safety
+
+Safe for concurrent use by multiple goroutines.  Run the package's tests
+with `-race` (`make race` from the repo root) — the battery includes
+concurrent producers against a snapshot-iterating reader and an exact
+head/tail drain accounting.

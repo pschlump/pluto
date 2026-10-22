@@ -60,8 +60,8 @@ The measured table below shows exactly this three-way trade-off.
 
 `Pop`/`Delete` zero the vacated slot and release the backing array on a
 full drain (memory behavior identical to `heap`).  The `Lock`/`Unlock`
-pair is a no-op kept for API compatibility with a prospective
-`d_heap_ts` twin.
+pair is a no-op kept for source compatibility with the heap_ts surface
+shape — the real lock lives in link:../multiway_pq_ts/[`multiway_pq_ts`].
 
 == Set-convenience capabilities
 
@@ -144,9 +144,8 @@ an empty heap and reports `false`.
 
 == Concurrency
 
-Not safe for concurrent use.  No `_ts` twin exists yet (the backlog
-lists `d_heap_ts` as a possible later addition); shared-heap callers
-should use link:../heap_ts/[`heap_ts`] or wrap in their own mutex.
+Not safe for concurrent use.  The link:../multiway_pq_ts/[`multiway_pq_ts`]
+twin is this heap behind an RWMutex with the heap_ts lock surface.
 
 == Benchmarks (Apple M4 Max)
 

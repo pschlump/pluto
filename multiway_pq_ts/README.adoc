@@ -1,0 +1,85 @@
+= multiway_pq_ts
+
+The thread-safe twin of link:../multiway_pq/[multiway_pq] — the same
+generic d-ary min-heap surface (`DHeap[T]`, the branching factor d fixed
+at construction) behind a single `sync.RWMutex`, plus the
+compound-operation `Nl*` methods.  Everything else about the structure
+is the plain package's: the d-ary addressing (children `d*i+1 .. d*i+d`,
+parent `(i-1)/d`), the O(log_d n) sift-up vs O(d·log_d n) sift-down
+trade, the memory behavior (slots zeroed, backing array released on a
+full drain), the panic contract, the capabilities menu and the JSON
+array form — see link:../multiway_pq/[multiway_pq] for all of it.
+
+== Locking behavior
+
+* **Reads** — `Peek`, `GetValue`, `Search`, `Len`, `Length`, `IsEmpty`,
+  `D`, `Slice`, `String`, `StringFunc`, `Equal`, `Clone`, `All`, the
+  JSON marshal — take the read lock for the whole call (or a snapshot
+  under it); the element or slice returned is an independent copy.
+* **Writes** — `Push`, `Pop`, `Truncate`, `Delete`, `Fix`, `SetValue`,
+  `AppendHeap`, `Heapify`, the JSON unmarshal — take the write lock
+  once for the whole operation.
+* `D()` needs no lock: d (like cmp) is fixed at construction and never
+  mutates.
+* **Iterators and callbacks never hold the lock across caller code**:
+  `All` yields a snapshot; `StringFunc`'s format function runs on the
+  snapshot without the lock and may safely call back into the heap;
+  `UnmarshalJSON` decodes with no lock held (a decode error leaves the
+  heap untouched) and then replaces + rebuilds under one hold of the
+  write lock.
+* **Equal never holds two locks at once**: each side is snapshotted
+  under its own lock, released, and the copies compared — two
+  goroutines may compare the same pair of heaps in opposite directions
+  without deadlock.  Equal stays d-blind (a d=2 and a d=8 heap over the
+  same multiset are equal); Clone preserves d and the exact layout.
+* `Dump` holds the read lock for the whole dump — the writer must not
+  call methods on the same heap.
+
+== The canonical compounds
+
+The `Nl*` forms — `NlLen`, `NlGetValue`, `NlPush`, `NlPop`,
+`NlDelete`, `NlFix`, `NlAppendHeap`, `NlHeapify` — take no lock, for
+multi-step sequences run under one hold of `Lock` (the heap_ts
+surface).  Two shapes worth naming:
+
+[source,go]
+----
+// Atomic check-and-mutate:
+h.Lock()
+if _, found := h.NlGetValue(0); found {
+    h.NlFix(0, newValue)
+}
+h.Unlock()
+
+// Atomic bulk build (the heap_sort_ts precedent): NlAppendHeap leaves
+// a non-heap; the sweep rebuilds it under the SAME hold of Lock.
+h.Lock()
+h.NlAppendHeap(x)
+for i := (h.NlLen()-2)/h.D(); i >= 0; i-- {
+    h.NlHeapify(h.NlLen(), i)
+}
+h.Unlock()
+----
+
+== Operations
+
+Same semantics and orders as link:../multiway_pq/[multiway_pq]
+(sift-up O(log_d n), sift-down O(d·log_d n), `Search` O(n), `AppendHeap`
+O(m), the O(n) Heapify rebuild sweep) with the twin's lock traffic on
+top.
+
+== Panics
+
+The same four `heap`-shaped situations plus `d < 2` as the plain
+package, with `multiway_pq_ts:` prefixes: `NewDHeapFunc(nil)`,
+`d < 2` at construction, and storing (`Push`, `AppendHeap`, a storing
+`UnmarshalJSON`) on a nil heap or a zero-value heap.  Every other
+operation treats both as an empty heap.
+
+== Thread safety
+
+Safe for concurrent use by multiple goroutines.  Run the package's
+tests with `-race` (`make race` from the repo root) — the battery
+includes concurrent producers against a snapshot-iterating reader, an
+exact pop accounting against the 1..n multiset, and the
+opposite-direction `Equal` no-deadlock pair.

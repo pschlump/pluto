@@ -57,8 +57,8 @@ BSD 3 Clause Licensed.
 // table (no comparison function); each message names the operation and
 // the fix (the binary_tree insert contract).
 //
-// A BinarySearchST is not safe for concurrent use.  It has no _ts twin
-// yet (the multiway_pq precedent) — run it single-threaded.
+// A BinarySearchST is not safe for concurrent use.  The
+// binary_search_st_ts twin is the thread-safe wrapper.
 package binary_search_st
 
 import (

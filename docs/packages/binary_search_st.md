@@ -64,10 +64,19 @@ comparator.
   iteration start — reallocation is invisible, but an in-place
   `slices.Insert` shift during iteration is unspecified.  Documented as
   "the contract does not cover mutating while iterating".
-- No `_ts` twin yet (multiway_pq precedent).  If one is added it should
-  be a wrapper twin (tree_set_ts pattern) with snapshot iterators —
-  `All`/`Range` must copy, since a live shift under iteration would be
-  data race soup.
+- `_ts` twin: `binary_search_st_ts` (added 2026-10-22), the wrapper
+  twin this file predicted — a plain value + RWMutex + the twin's own
+  cmp copy (the write-contract check and Clone read it), snapshot
+  iterators (`All`/`Backward`/`Range` copy under the read lock — a
+  live shift under iteration would be data race soup), `PutIter`
+  drained before the write lock, `DeleteFunc` rebuilt atomically
+  (snapshot + predicate unlocked + Truncate + ascending re-Put,
+  O(n log₂ n) — the plain in-place compaction cannot run a caller
+  callback under the lock), JSON decode outside the lock, and the
+  tree_set_ts Nl* surface (`NlPut`/`NlGet`/`NlDelete`/`NlContains`/
+  `NlLen`/`NlIsEmpty`); twin-named panic messages; a store through
+  `NlPut` on a zero-value twin reaches the plain prefix (tree_set_ts
+  precedent).
 
 ## Test-oracle expectations
 
