@@ -1,0 +1,36 @@
+= testgraphs (internal)
+
+*algs4 graph and digraph generators as shared test helpers* — the
+`GraphGenerator` and `DigraphGenerator` statics (Sedgewick & Wayne,
+Algorithms 4th ed., §4.1/§4.2), ported into `internal/` so they are
+importable by any package's tests but never part of the module's public
+API.  This is not a data structure; there is no public surface, no
+`_ts` question, and no entry in the root package table.
+
+Three design rules make the helpers usable everywhere:
+
+* Generators return *edge lists* (`G{V, Edges [][2]int}`), never pluto
+structures — the package imports only `math/rand` and `fmt`, so even
+in-package tests (`package graph`, `package digraph`, …) can import it
+without a cycle.
+* Randomness is a caller-supplied `*rand.Rand`; tests pass a fixed-seed
+source and stay deterministic.  Where algs4's only randomness is a
+vertex-label shuffle, a `nil` rand means *identity order* — those
+generators (Path, Cycle, Star, Wheel, BinaryTree, …) are deterministic
+without a seed.
+* Documented deviations from algs4 make the output a better test
+*oracle*: `Bipartite` keeps the two sides contiguous (`[0,V1)` vs
+`[V1,V)`), `DAG` and the rooted DAGs use the identity vertex order (so
+`0..V-1` is itself a topological order and the roots are the
+endpoints), and `Strong` pins all `c` component labels (so the SCC
+count is exactly `c` and the label partition is the known answer).
+
+Impossible arguments panic with a message naming the generator and the
+problem — a wrong generator call is a test bug, and failing loudly
+beats a test that quietly tests nothing.
+
+The consumers so far: `graph/generated_test.go` (guaranteed-positive
+Eulerian inputs), `digraph/generated_test.go` (the first external SCC
+oracle, topological orders on generated DAGs, directed Eulerian walks),
+and `bipartite/generated_test.go` (matchings on known-sided graphs).
+`Grid` is the backlog's own addition (algs4 has no grid generator).
