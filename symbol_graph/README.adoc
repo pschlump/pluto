@@ -1,0 +1,81 @@
+= symbol_graph
+
+*String vertex names over integer-vertex graphs* — the algs4
+`SymbolGraph` and `SymbolDigraph` (Sedgewick & Wayne, Algorithms 4th
+ed., §4.1/§4.2).  Every graph client wants this layer: the query
+objects in link:../graph/[`graph`] and link:../digraph/[`digraph`] run
+on `int` vertices, and a symbol graph is the name↔index translation
+that lets them run on strings.
+
+The input is algs4's: a list of lines, each split on a single delimiter
+into fields.  Every field of every line is a vertex — indices 0, 1, 2, …
+are assigned in order of first appearance — and field 0 of a line is
+connected to every other field of that line: `"JFK MCO ORD"` connects
+JFK–MCO and JFK–ORD, *not* MCO–ORD (the digraph form points field 0 *at*
+the other fields).
+
+* Blank lines name no vertex; a single-token line is a vertex with no
+edges; adjacent delimiters produce empty-string names (Java's `split`
+behaves the same — the delimiter is the caller's responsibility).
+* Duplicate lines, parallel edges and self-loops are legal and stored
+exactly as the underlying package stores them.
+* The name→index mapping is *frozen at construction*; `Graph()` /
+`Digraph()` return the live structure, so query objects can be built on
+it directly and caller-added edges keep every index valid.
+
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and appear
+on pkg.go.dev.
+
+== Operations
+
+[options="header"]
+|===
+| Operation                                   | Description                                       | Complexity
+
+| `NewSymbolGraph` / `NewSymbolDigraph`       | Build from `[]string` lines + delimiter           | O(L)
+| `NewSymbolGraphReader` / `NewSymbolDigraphReader` | Build from an `io.Reader` (read errors returned) | O(L)
+| `Contains`                                  | Is a name a vertex                                | O(1) expected
+| `Index`                                     | The vertex index of a name                        | O(1) expected
+| `Name`                                      | The name at a vertex index                        | O(1)
+| `Graph` / `Digraph`                         | The built structure for the query objects         | O(1)
+|===
+
+== Usage
+
+[source,go]
+----
+sg := symbol_graph.NewSymbolGraph(lines, " ")  // or NewSymbolGraphReader(r, " ")
+jfk, _ := sg.Index("JFK")
+lax, _ := sg.Index("LAX")
+bfs := graph.NewBFSPaths(sg.Graph(), jfk)
+if path, ok := bfs.PathTo(lax); ok {
+    for _, v := range path {
+        name, _ := sg.Name(v)
+        fmt.Print(name, " ")
+    }
+}
+----
+
+== Panics
+
+One, caught at construction: `NewSymbolGraph` / `NewSymbolDigraph` with
+an empty delimiter (which would otherwise silently split every line into
+single characters).  The reader constructors report read errors (a nil
+reader, or a line over 1 MiB) as errors instead.  Everything else is
+panic-free: methods on a nil `SymbolGraph`/`SymbolDigraph` read as an
+empty graph.
+
+== Thread safety
+
+Concurrent reads are safe exactly as far as the caller does not mutate —
+the underlying `graph`/`digraph` contract.  There is no `_ts` twin (the
+link:../gauss/[`gauss`]/link:../maxflow/[`maxflow`] precedent: the
+mapping is constructor-built and immutable afterwards).
+
+== Benchmark reality
+
+Construction is two linear passes plus one map insert per distinct name:
+a 1000-line × 4-field input builds in well under a millisecond; the
+reader form adds the line scan.  `Index` and `Contains` are single map
+operations and dwarf everything else in any client that uses them.

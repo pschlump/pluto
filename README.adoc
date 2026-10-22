@@ -34,6 +34,7 @@ with an identical public API.
 | link:skip_list_ts/[skip_list_ts]           | Thread-safe skip list (RWMutex, snapshot iterators, Nl* compounds).
 | link:tree_set/[tree_set]                   | Generic sorted set on pluto/avl_tree (algebra, relations, Floor/Ceil/Index/Range; algs4 SET).
 | link:tree_set_ts/[tree_set_ts]             | Thread-safe sorted set (RWMutex, snapshot iterators, Lock+Nl* compound ops).
+| link:binary_search_st/[binary_search_st]   | Generic ordered symbol table on parallel sorted arrays — binary-search reads, shift writes (Put/Get, Rank/AtIndex, Floor/Ceil, Range; algs4 §3.1 BinarySearchST).
 | link:dll/[dll]                             | Generic doubly linked list (stack/queue/list, JSON array marshal/unmarshal).
 | link:dll_ts/[dll_ts]                       | Thread-safe doubly linked list (RWMutex, snapshot iterators, JSON array marshal/unmarshal).
 | link:sll/[sll]                             | Generic singly linked list (stack/FIFO list).
@@ -86,6 +87,7 @@ with an identical public API.
 | link:graph_ts/[graph_ts]                   | Thread-safe graph (RWMutex, snapshot adjacency; traversals run lock-free on a snapshot).
 | link:digraph/[digraph]                     | Directed graph with DFS/BFS reachability, cycle detection, topological order, Kosaraju/Tarjan/Gabow SCC, transitive closure, directed Eulerian cycle/path (Sedgwick §4.4–4.6).
 | link:digraph_ts/[digraph_ts]               | Thread-safe digraph (RWMutex, snapshot adjacency; traversals run lock-free on a snapshot).
+| link:symbol_graph/[symbol_graph]           | Symbol graph: string vertex names ↔ indices over graph/digraph, frozen at construction (algs4 SymbolGraph/SymbolDigraph).
 | link:dijkstra/[dijkstra]                   | Edge-weighted digraph/graph with Dijkstra shortest paths (single-source, undirected, all-pairs; Sedgwick §4.4).
 | link:dijkstra_ts/[dijkstra_ts]             | Thread-safe Dijkstra shortest paths (RWMutex, snapshot adjacency; searches run lock-free on a snapshot).
 | link:mst/[mst]                             | Minimum spanning trees on dijkstra's EdgeWeightedGraph (lazy Prim, eager Prim, Kruskal, Borůvka; Sedgwick §4.7–4.8).
