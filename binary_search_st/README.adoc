@@ -1,0 +1,103 @@
+= binary_search_st
+
+An *ordered symbol table* (key → value) on two parallel arrays kept
+sorted by key — the algs4 `BinarySearchST` (Sedgewick & Wayne, Algorithms
+4th ed., §3.1).  Every lookup is one binary search over contiguous
+memory: no per-entry allocation, no pointers followed, ordering never
+goes through an interface.
+
+* Keys and values are stored and returned *by value*, never boxed; a key
+type does not even have to be comparable — a slice key ordered by
+`slices.Compare` works.
+* Keys of naturally ordered types (integers, floats, strings) take
+`binary_search_st.NewBinarySearchST[string, int]()`; any other key type
+takes a plain comparison function:
+`binary_search_st.NewBinarySearchSTFunc[MyKey, MyVal](func(a, b MyKey) int { ... })`.
+
+The classic array-ST trade: reads are *O(log₂ n)* with very small
+constants, writes *O(n)* (Put and Delete shift the tail).  It is the
+structure to reach for when the table is built once and read many times;
+see link:../skip_list/[`skip_list`] and the trees for O(log₂ n) writes.
+
+Runnable, tested copies of the examples live in
+link:example_test.go[`example_test.go`] — they run under `go test` and appear
+on pkg.go.dev.
+
+== Operations
+
+[options="header"]
+|===
+| Operation                         | Description                                        | Complexity
+
+| `Put`                             | Add a key and value; equal key replaces the value  | O(log₂ n + n)
+| `Get`                             | The value bound to a key                           | O(log₂ n)
+| `Delete`                          | Remove a key and its value, reports found          | O(log₂ n + n)
+| `Contains`                        | Membership predicate (the found flag of `Get`)     | O(log₂ n)
+| `FindMin` / `DeleteAtHead`        | Smallest entry / remove it                         | O(1) / O(n)
+| `FindMax` / `DeleteAtTail`        | Largest entry / remove it                          | O(1) / O(1)
+| `Rank`                            | 0-based position of a key (exact match only)       | O(log₂ n)
+| `AtIndex`                         | The entry at a 0-based position (`Rank`'s inverse) | O(1)
+| `Ceil` / `Floor`                  | Smallest key ≥ key / largest ≤ key                 | O(log₂ n)
+| `CountRange`                      | Number of keys with lo ≤ key ≤ hi                  | O(log₂ n)
+| `Range`                           | Iterate lo ≤ key ≤ hi, ascending, (key, value)     | O(log₂ n + m)
+| `DeleteRange`                     | Remove all keys with lo ≤ key ≤ hi                 | O(log₂ n + n)
+| `All` / `Backward`                | Ascending / descending range-over-func iteration   | O(n)
+| `IsEmpty` / `Len` / `Length`      | Size queries                                       | O(1)
+| `Truncate`                        | Remove all entries, keep the comparison function   | O(1)
+| `Keys` / `String` / `StringFunc`  | Materialize / render, ascending                    | O(n)
+| `Clone`                           | Deep copy, no backing array shared                 | O(n)
+| `PutIter`                         | Store every pair of an `iter.Seq2`                 | O(k·(log₂ n + n))
+| `DeleteFunc`                      | Remove entries matching a predicate                | O(n)
+| `MarshalJSON` / `UnmarshalJSON`   | `[{"k":key,"v":val},…]` in ascending key order     | O(n) / O(n²)
+|===
+
+`Put` on an equal key replaces the value in place — the table is a map,
+not a multiset.  `Rank` uses the link:../skip_list/[`skip_list`]
+convention: it reports the 0-based position of a *present* key and
+`(0, false)` for a missing one.
+
+== Usage
+
+[source,go]
+----
+st := binary_search_st.NewBinarySearchST[string, int]()
+st.Put("it", 1)
+if v, found := st.Get("it"); found {
+    st.Put("it", v+1)
+}
+for k, v := range st.All() {
+    fmt.Println(k, v)
+}
+----
+
+JSON round-trips through a pair array in ascending key order; duplicate
+keys in a document follow the `Put` convention (last pair wins).
+
+== Panics
+
+Exactly two non-constructor situations, the
+link:../binary_tree/[`binary_tree`] insert contract:
+
+* `NewBinarySearchSTFunc(nil)`.
+* `Put` — directly or through `PutIter` or `UnmarshalJSON` — on a nil
+  table or on a zero-value table (no comparison function).
+
+Every other operation treats a nil table and the zero value as an empty
+table: `Get` reports not-found, `Delete` returns false, iteration yields
+nothing.
+
+== Thread safety
+
+Not safe for concurrent use.  There is no `_ts` twin yet (the
+link:../multiway_pq/[`multiway_pq`] precedent); run it single-threaded.
+
+== Benchmark reality
+
+At 1000 entries on an Apple M4 Max (see `bench_test.go`): `Get` hits run
+118 ns against 128 ns for the same probe on `skip_list` — both O(log₂ n)
+and allocation-free, the array's locality buying a small but consistent
+edge; misses and `Floor` come out the same way.  Writes are the honest
+cost: a `Put`+`Delete` pair at a random position costs ~810 ns against
+~360 ns for the equivalent skip-list pair, and the shift grows linearly
+with n (sorted insertion order is the worst case).  Use this package for
+read-mostly tables, or as the classic teaching shape it is.
