@@ -1,0 +1,59 @@
+= lru_disk_ts
+
+The capacity-bounded LRU cache whose VALUES live on disk — one file per
+entry under a caller-given directory — behind one `sync.RWMutex`, with
+the `lru_ts`-shaped API (`Get`/`Peek`/`Put`/`Delete`/`PopOldest`, the
+`Lock`/`Unlock` + `Nl*` compound forms). Thread-safe, persistence-
+backed: entries survive the process (the directory is reindexed on
+open, recency from file mtime, dropping back to capacity), evictions
+and deletes remove the files, and writes are atomic (temp file +
+rename). Keys are strings (they travel in the file header, which is
+what makes restart recovery possible); values pass through caller
+codecs.
+
+Built for the glasm engine's on-disk script-artifact cache
+(`wazero-performance-001`), standing next to wazero's own machine-code
+compilation cache.
+
+== Semantics you must know
+
+- **Keyed by string, values by codec.** `NewLruDisk[V](capacity, dir,
+  encode, decode)`: `encode` turns a V into the file payload, `decode`
+  turns it back. The key rides the file header; the filename is
+  sha256(key), so any string key maps to a safe filename.
+- **Restart = reindex.** A fresh `NewLruDisk` over a used directory
+  rebuilds the index from the files: recency is file mtime (ties are
+  arbitrary — best-effort recency, not a journal), and entries beyond
+  the newest `capacity` are deleted.
+- **I/O errors surface where `lru_ts` has none.** `Put`/`Delete`
+  return the error; `NewLruDisk` errors instead of panicking on
+  directory trouble (but still panics on `capacity < 1`, a logic
+  error). `Get` treats an unreadable or undecodable entry as a miss and
+  REMOVES it — a torn or foreign file cannot poison the key.
+- **This package owns the `.ldc` suffix** in its directory: a file with
+  that suffix and an unreadable header is a crashed write and is
+  deleted at open. Foreign files are ignored.
+- **File I/O happens under the lock** — this is a local-disk cache,
+  not a network store.
+
+== Which method takes which lock
+
+[options="header"]
+|===
+| Method                          | Lock     | Why
+
+| `Get`                           | *write*  | a hit re-marks the entry most-recently-used, and the first hit decodes-and-caches the payload
+| `Peek`, `Len`, `Capacity`       | read     | true reads (`Peek` always decodes fresh — it never caches the decode)
+| `Put`, `Delete`, `Clear`        | write    | mutations (evictions and deletes remove files)
+| `Lock`/`Unlock` + `Nl*`         | held     | compound operations, the `_ts` convention
+|===
+
+== Notable edges
+
+- `Put` on a full cache evicts the LRU entry and deletes its file
+  BEFORE writing the new one (unless the victim IS the key being
+  rewritten — an overwrite never deletes its own file).
+- A `Put` whose file write fails still updates the in-memory index; the
+  next `Get` of that key self-heals into a miss.
+- The zero value reads as an empty cache; `Put` on it errors; nil
+  receivers no-op for `Lock`/`Unlock` (matching `lru_ts`).
