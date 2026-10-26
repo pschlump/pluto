@@ -133,6 +133,7 @@ with an identical public API.
 | link:lfu_ts/[lfu_ts]                       | Thread-safe LFU frequency counters (RWMutex, Lock+Nl* compound ops).
 | link:lru/[lru]                             | Generic capacity-bounded LRU cache (eviction veto callback, soft cap).
 | link:lru_ts/[lru_ts]                       | Thread-safe capacity-bounded LRU cache (RWMutex; Get takes the write lock, snapshot iterators, Lock+Nl* compound ops).
+| link:lru_disk_ts/[lru_disk_ts]             | Thread-safe two-tier LRU cache: optional in-memory hot tier over a file-per-entry disk cache (atomic writes, restart reindex; WithMemCapacity, default 0 = pure disk).
 | link:bitmap/[bitmap]                       | Redis bit operations on byte slices: GETBIT/SETBIT, BITCOUNT, BITPOS (end-given semantics), BITOP AND/OR/XOR/NOT, BITFIELD GET/SET/INCRBY with WRAP/SAT/FAIL overflow (Redis-exact, word-wise; pure functions, concurrent-use safe).
 | link:crc/[crc]                             | Table-driven CRC-32/CRC-64 checksums (IEEE, Castagnoli, Koopman, ECMA, ISO; pure functions, concurrent-use safe).
 | link:geo/[geo]                             | Redis GEO geohash math: 52-bit Encode/Decode (bit-compatible with Redis), Neighbors, radius/box score ranges, haversine Distance, m/km/ft/mi units (pure functions, concurrent-use safe).
@@ -679,6 +680,25 @@ loop), and the real `Lock`/`Unlock` + `Nl*` surface — the atomic
 batch put with eviction-to-capacity is the canonical compound. The
 veto callback runs with the write lock held: it must not call back
 into the cache (deadlock), which the twin's docs state prominently.
+
+=== Disk-backed, two-tier — `lru_disk_ts/`
+
+The persistence-backed LRU: one file per entry under a caller-given
+directory (sha256 filenames, atomic temp+rename writes, keys riding
+the file header), so entries survive the process — a fresh
+`NewLruDisk` reindexes the directory, recency from file mtime,
+evicting beyond capacity to the newest. On top of the disk tier sits
+an optional in-memory tier (`WithMemCapacity(n)`, default 0 = the
+historic pure-disk behavior): the decoded values of the n most
+recently used entries, where memory is a cache *for* the disk cache —
+a tier miss reads and promotes; a full tier demotes (the value leaves
+RAM but the file stays, a slower hit, never a miss); only disk-tier
+eviction deletes files. `Get` self-heals torn/undecodable entries into
+misses, `Put`/`Delete` surface I/O errors, and the `lru_ts`-shaped
+`Lock`/`Unlock` + `Nl*` compound forms are all there. See
+link:lru_disk_ts/README.adoc[lru_disk_ts/README.adoc] for the
+measured 50×300 KB Zipf numbers (~4.2× per Get with the tier sized to
+the hot set).
 
 == Heaps and Priority Queues
 

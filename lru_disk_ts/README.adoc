@@ -1,35 +1,66 @@
 = lru_disk_ts
 
-The capacity-bounded LRU cache whose VALUES live on disk — one file per
-entry under a caller-given directory — behind one `sync.RWMutex`, with
-the `lru_ts`-shaped API (`Get`/`Peek`/`Put`/`Delete`/`PopOldest`, the
-`Lock`/`Unlock` + `Nl*` compound forms). Thread-safe, persistence-
-backed: entries survive the process (the directory is reindexed on
-open, recency from file mtime, dropping back to capacity), evictions
-and deletes remove the files, and writes are atomic (temp file +
-rename). Keys are strings (they travel in the file header, which is
-what makes restart recovery possible); values pass through caller
-codecs.
+A two-tier, capacity-bounded LRU cache behind one `sync.RWMutex`: an
+optional *in-memory tier* (the fast path — the decoded values of the
+most recently used entries) in front of the *disk tier* (one file per
+entry under a caller-given directory), with the `lru_ts`-shaped API
+(`Get`/`Peek`/`Put`/`Delete`/`PopOldest`, the `Lock`/`Unlock` + `Nl*`
+compound forms). Keys are strings (they travel in the file header,
+which is what makes restart recovery possible); values pass through
+caller codecs; writes are atomic (temp file + rename).
 
-Built for the glasm engine's on-disk script-artifact cache
-(`wazero-performance-001`), standing next to wazero's own machine-code
-compilation cache.
+Memory is a high-speed cache *for* the disk cache, not a second
+cap: a `Get` that misses the memory tier reads and decodes the file
+and promotes the value into the tier; when the tier is full the
+least-recently-used *resident* value is demoted — removed from memory
+but its file stays, so the next `Get` of it is a slower hit, never a
+miss. Only disk-tier eviction (disk at capacity) deletes a file and
+loses the entry.
+
+== Configuring the two bounds
+
+- **Disk** — the constructor's `capacity`, in entries: at most that
+  many files; a further `Put` evicts the globally least-recently-used
+  entry and deletes its file.
+- **Memory** — `WithMemCapacity(n)`, in entries (bytes are n × value
+  size for the caller to budget): at most n decoded values held in
+  RAM. `n <= 0` (the default) leaves the tier **off**, and
+  `NewLruDisk(capacity, dir, encode, decode)` behaves exactly as it
+  always has — every `Get` reads and decodes the file, nothing is
+  retained. The tier is opt-in:
+
+```go
+// pure disk (the historic default; no values retained in RAM)
+c, err := lru_disk_ts.NewLruDisk[[]byte](50, dir, enc, dec)
+
+// 50 entries on disk, the hottest 20 decoded values in RAM
+c, err := lru_disk_ts.NewLruDisk[[]byte](50, dir, enc, dec,
+	lru_disk_ts.WithMemCapacity(20))
+```
+
+`MemLen`/`MemCapacity` report the tier's occupancy and bound;
+`Len`/`Capacity` report the whole cache (a resident entry is one
+entry, not two). A memory capacity at or above the disk capacity is
+legal — every entry ends up resident after its first access.
 
 == Semantics you must know
 
-- **Keyed by string, values by codec.** `NewLruDisk[V](capacity, dir,
-  encode, decode)`: `encode` turns a V into the file payload, `decode`
-  turns it back. The key rides the file header; the filename is
-  sha256(key), so any string key maps to a safe filename.
+- **Keyed by string, values by codec.** `encode` turns a V into the
+  file payload, `decode` turns it back. The key rides the file header;
+  the filename is sha256(key), so any string key maps to a safe
+  filename.
 - **Restart = reindex.** A fresh `NewLruDisk` over a used directory
   rebuilds the index from the files: recency is file mtime (ties are
   arbitrary — best-effort recency, not a journal), and entries beyond
-  the newest `capacity` are deleted.
+  the newest `capacity` are deleted. The memory tier starts empty and
+  refills lazily on first access.
 - **I/O errors surface where `lru_ts` has none.** `Put`/`Delete`
   return the error; `NewLruDisk` errors instead of panicking on
   directory trouble (but still panics on `capacity < 1`, a logic
-  error). `Get` treats an unreadable or undecodable entry as a miss and
-  REMOVES it — a torn or foreign file cannot poison the key.
+  error). `Get` treats an unreadable or undecodable entry as a miss
+  and REMOVES it — a torn or foreign file cannot poison the key. The
+  self-heal runs on the disk-read path: a value still resident in the
+  memory tier is served without touching the file.
 - **This package owns the `.ldc` suffix** in its directory: a file with
   that suffix and an unreadable header is a crashed write and is
   deleted at open. Foreign files are ignored.
@@ -42,18 +73,69 @@ compilation cache.
 |===
 | Method                          | Lock     | Why
 
-| `Get`                           | *write*  | a hit re-marks the entry most-recently-used, and the first hit decodes-and-caches the payload
-| `Peek`, `Len`, `Capacity`       | read     | true reads (`Peek` always decodes fresh — it never caches the decode)
-| `Put`, `Delete`, `Clear`        | write    | mutations (evictions and deletes remove files)
+| `Get`                           | *write*  | a hit re-marks the entry most-recently-used in BOTH tiers, and a tier miss promotes the decoded value
+| `Peek`, `Len`, `Capacity`, `MemLen`, `MemCapacity` | read | true reads (`Peek` never promotes and never caches a decode)
+| `Put`, `Delete`, `Clear`        | write    | mutations (disk evictions and deletes remove files)
 | `Lock`/`Unlock` + `Nl*`         | held     | compound operations, the `_ts` convention
 |===
 
 == Notable edges
 
-- `Put` on a full cache evicts the LRU entry and deletes its file
-  BEFORE writing the new one (unless the victim IS the key being
-  rewritten — an overwrite never deletes its own file).
-- A `Put` whose file write fails still updates the in-memory index; the
-  next `Get` of that key self-heals into a miss.
+- `Put` of a NEW key on a full cache evicts the disk-LRU entry and
+  deletes its file BEFORE writing the new one; an overwrite replaces
+  in place and never evicts (like `lru.Put` — an entry is never its
+  own victim). When the tiers overlap fully (mem ≥ disk) the victim is
+  also dropped from the tier.
+- A `Put` whose file write fails still updates the in-memory state —
+  with the tier off, the next `Get` self-heals into a miss; with it
+  on, the resident value is served until it demotes.
+- `PopOldest` returns the globally oldest entry, taking the value from
+  the tier when it is resident, else decoding the file BEFORE removing
+  it (a decode failure yields the zero V with ok=true — the entry is
+  gone either way).
 - The zero value reads as an empty cache; `Put` on it errors; nil
   receivers no-op for `Lock`/`Unlock` (matching `lru_ts`).
+
+== Performance — the 50 × 300 KB artifact cache
+
+`BenchmarkGetZipf300K` (`go test ./lru_disk_ts/ -run '^$' -bench
+GetZipf300K -benchmem`) measures the motivating workload: 50 cached
+artifacts of 300 KB each (15 MB on disk, incompressible random
+payloads, identity codec), a Zipf(1.1) access stream — the 20 hottest
+keys absorb ~83% of all accesses — for the three memory-tier configs,
+all running the same fixed-seed key stream.
+
+Apple M4 Max, 36 GB RAM, macOS 27.0.1, APFS:
+
+[options="header"]
+|===
+| memory tier        | ns/op (per Get) | payload served | B/op   | allocs/op
+
+| 0 — pure disk (the default) | ~33,000 | ~9,000 MB/s    | 303,592 | 5
+| 20 — the hot set            |  ~7,850 | ~38,000 MB/s   | ~73,500 | 1
+| 50 — all resident           |     ~86 | ~3.5M MB/s     |       0 | 0
+|===
+
+What the rows say:
+
+- **The tier at the hot-set size is ~4.2× faster per Get.** ~24.5% of
+  accesses still read the disk (B/op 73,500 ≈ 0.245 × 300 KB) and pay
+  the disk price; the rest hit the tier at ~86 ns. The 24.5% is the
+  Zipf tail beyond the tier's 20 entries (83.4% mass) plus a little
+  LRU-vs-oracle drift: the tier evicts by recency, so a cold key
+  occasionally displaces a warm one before it is touched again.
+- **The all-resident row is the tier's own overhead**: lock + two LRU
+  hits + string compare, ~86 ns, zero allocations.
+- **The disk row allocates the whole payload per read** (`os.ReadFile`
+  buffer) — at high QPS the tier also removes that GC pressure, not
+  just the latency.
+- Honest caveat: on this machine the 15 MB working set sits in the
+  macOS page cache, so "disk" here means syscall + copy + decode, not
+  seek time — against genuinely cold storage the tier's win is larger.
+  The codec is the identity; a real encode/decode adds its cost to
+  every disk-tier read (the tier amortizes it to once per promotion).
+
+Built for the glasm engine's on-disk script-artifact cache
+(`wazero-performance-001`), standing next to wazero's own machine-code
+compilation cache; the memory tier exists for exactly that shape —
+hundreds of KB of artifacts, a hot handful, RAM for only some of them.
