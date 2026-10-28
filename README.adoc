@@ -29,6 +29,7 @@ with an identical public API.
 | link:b_tree/[b_tree]                       | Generic B-tree (multiway search tree, configurable order; Sedgwick external searching).
 | link:b_tree_disk_ts/[b_tree_disk_ts]       | Disk-backed thread-safe B+ tree store (4K blocks, LRU write-back cache, WAL journal, crash recovery, multi-tree indexes).
 | link:hash_index_disk_ts/[hash_index_disk_ts] | Disk-backed thread-safe hash index store (extendible hashing, equality-only lookups: one directory + one bucket block expected; LRU write-back cache, WAL journal, crash recovery, multi-index stores).
+| link:database_disk_ts/[database_disk_ts]   | Disk-backed thread-safe record database over both disk indexes: hash-index by-ID equality + B+ tree by-name ordering, self-describing record slots, cross-index deletes, read repair.
 | link:interval_tree/[interval_tree]         | Generic interval search tree — red-black BST on closed intervals, O(log n) overlap/stabbing queries (CLRS §14.3; algs4 IntervalST).
 | link:interval_tree_ts/[interval_tree_ts]   | Thread-safe interval search tree (RWMutex, snapshot iterators, Lock+Nl* compounds).
 | link:skip_list/[skip_list]                 | Generic probabilistic ordered skip list (span-backed rank/range queries).

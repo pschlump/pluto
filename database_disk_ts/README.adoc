@@ -1,0 +1,143 @@
+= database_disk_ts
+
+A disk-backed, thread-safe record database built ON TOP of the two
+pluto disk indexes: a link:../hash_index_disk_ts/[`hash_index_disk_ts`]
+by-ID index for O(1)-expected equality lookups and a
+link:../b_tree_disk_ts/[`b_tree_disk_ts`] by-name B+ tree for ordered
+lookups and range scans.  It stores blocks of data and resolves them
+through either index — the "add a database" line of the Ultima notes
+(values are `uint64` in both stores, so the database layer owns what
+they point at: the record slots).
+
+* Three files under one `Path` prefix — `Path.rec` (the record slots),
+  `Path.eq` (the hash-index store), `Path.ord` (the B+ tree store) —
+  plus the two stores' `.journal` files.
+* Every live record slot is SELF-DESCRIBING: the encoded ID, the
+  encoded name, then the record bytes.  Both indexes map their key to
+  the slot number, so either entry resolves the record AND the other
+  index's key — which is what makes cross-index deletes O(1) instead of
+  a scan.
+* Generic over the ID type `I` (injective `EncodeKey` — equality) and
+  the name type `N` (order-preserving `EncodeKey` agreeing with
+  `Compare` — ordering).  No interfaces, no boxing.
+* Safe for concurrent use.
+
+Runnable, tested copies of the example live in
+link:example_test.go[`example_test.go`] — they run under `go test` and
+appear on pkg.go.dev.
+
+== Records
+
+A record is up to `MaxData()` bytes (`RecordSize` − 13 header bytes −
+the two key encodings; 4096−13−8−16 = 4059 for uint64 IDs and 16-byte
+names at the default slot size).  `Put` over `MaxData` returns
+`ErrRecordTooLarge`.  The record file has no cache of its own: slot
+reads and writes go straight through the OS page cache, and the two
+index stores provide whatever caching the lookups need.
+
+== Uniqueness
+
+IDs are the primary key (`Len` counts them).  Names are a unique
+secondary index: `Put` with a name held by a DIFFERENT ID returns
+`ErrNameConflict` (delete that record first).  Putting an existing ID
+with a new, free name RENAMES the record (the old name entry is
+removed); putting an existing ID with its own name rewrites the data.
+
+== Durability & crash recovery contract
+
+*READ THIS before relying on the database.*
+
+Puts and deletes are applied to the OS page cache when they return and
+become crash-durable as a unit once `Sync` (or `Close`) returns nil:
+the record file is fsynced FIRST, then the two index stores flush (each
+with its own journal — see their packages), so an index entry is never
+durable while the record it points at is not.
+
+There is no cross-file atomic commit, and the contract says so:
+
+* A `Put` interrupted by a crash may be partially visible (by-ID yes,
+  by-name no, or an orphaned slot nothing points at — unreachable
+  garbage; only a future compact would reclaim it).
+* Deletes remove the index entries BEFORE freeing the slot, so an
+  interrupted delete leaves at worst a DANGLING entry — never a live
+  entry over a reused slot.
+* Reads are SELF-VERIFYING (read repair): `GetByID`/`GetByName` check
+  that the slot is live and carries the key they looked it up by; a
+  dangling or mismatched entry is deleted on sight and reported as
+  not-found.  The other index's stale twin, if any, is repaired the
+  same way when it is next read.
+
+== Record-file layout
+
+All integers little-endian.  `Path.rec`:
+
+Header (512 bytes):: magic (`"pluto-db"`), format version, slot size,
+the two key sizes, numSlots, freeHead (+1-encoded, 0 = none), and the
+two index names (32 bytes each) — a record file belongs to exactly one
+pair of indexes; reopening with different names, key sizes or slot size
+is `ErrCorrupt`.
+
+Slot i (at 512 + i×RecordSize):: `[status 1B][len 4B][next 8B][id
+eqKeySize][name ordKeySize][data len]`.  Status 1 = live (the id, name
+and data fields), 0 = free (the next field links the free list).  A
+crash may leave the header lagging the file size; slots the header does
+not know about are treated as free (nothing durable ever pointed at
+them).
+
+== Operations
+
+[options="header"]
+|===
+| Operation | Description | Complexity
+
+| `OpenDB`        | Create or open the three files          | O(journals)
+| `Put`           | Add/rename/rewrite id → name → data     | O(1) expected + O(log n) + 1 slot write
+| `GetByID`       | Equality lookup (hash index)            | O(1) expected + 1 slot read
+| `GetByName`     | Equality lookup (B+ tree)               | O(log n) + 1 slot read
+| `RangeByName`   | Ascending [lo, hi] scan (snapshot)      | O(log n + k) + k slot reads
+| `DeleteByID`    | Remove by id, both entries              | O(1) expected + O(log n)
+| `DeleteByName`  | Remove by name, both entries            | O(log n) + O(1) expected
+| `All`           | Records by ID, bucket order (snapshot)  | O(n) snapshot, O(1) per yield
+| `Len`           | Record count                            | O(1)
+| `MaxData`       | Largest record Put accepts              | O(1)
+| `Sync`          | Durability point (recs, then indexes)   | O(dirty blocks) + 2 fsyncs
+| `Close`         | Sync, close all three files             | O(dirty blocks) + 2 fsyncs
+|===
+
+`All`'s order is the hash index's bucket order — deterministic for a
+given database but NOT ID order; collect and sort when an order
+matters.  `All` and `RangeByName` collect their records under one hold
+of the DB lock and walk the snapshot with no lock held — safe to
+mutate while iterating, at O(n) snapshot memory.
+
+== Panics and errors
+
+Panics are programmer errors, and they are the two underlying
+packages' (a nil `EncodeKey`/`DecodeKey`/`Compare`, `KeySize ≤ 0`, an
+empty or over-long index name — raised by `NewIndex`/`NewTree` inside
+`OpenDB`).  Everything else is an error, checked with `errors.Is`:
+`ErrClosed` (any operation after `Close`), `ErrRecordTooLarge`,
+`ErrNameConflict`, `ErrCorrupt` (a record file this package cannot
+interpret).
+
+Both `DecodeKey` functions must be true inverses of their `EncodeKey`
+on stored keys (`DecodeKey(EncodeKey(k)) == k`): the B+ tree's
+iteration yields decoded keys, and the database round-trips them to
+verify slots and to drive cross-index deletes.
+
+== Concurrency
+
+Safe for concurrent use.  One DB mutex serializes compound operations
+(resolve-then-read; Put's three files) and the record file; the two
+index stores take their own locks underneath.  The DB lock is always
+acquired FIRST and nothing under it calls back into the DB, so there is
+no lock-nesting hazard.  Reads take the same lock as writes: a read
+resolves an index entry and then reads the slot, and the lock keeps
+that pair consistent.
+
+== Benchmarks
+
+`go test -run='^$' -bench=. -benchmem ./database_disk_ts/` —
+`BenchmarkPut`, `BenchmarkGetByID` (the hash-index path, 100k records),
+`BenchmarkGetByName` (the B+ tree path, 100k records),
+`BenchmarkDelete`.
