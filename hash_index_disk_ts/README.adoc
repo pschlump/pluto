@@ -1,0 +1,234 @@
+= hash_index_disk_ts
+
+A disk-backed, thread-safe hash index store with an LRU write-back
+block cache and a write-ahead journal — the equality-lookup counterpart
+of link:../b_tree_disk_ts/[`b_tree_disk_ts`].  Use it when lookups are
+exact-match only and must touch as few blocks as possible: a `Search`
+reads ONE directory block and ONE bucket block, expected, versus the
+O(log n) block descent of a B+ tree.  There is no ordered iteration and
+no range scan; when those are needed use `b_tree_disk_ts` instead (or
+both over the same record set).  The block cache is built on
+link:../lru/[`lru`] (its eviction veto keeps dirty and pinned blocks
+cached) and the journal CRC on link:../crc/[`crc`].  Values are always
+`uint64`: record offsets or IDs into your own data set.  This is an
+*index library*, not a record store — the index maps fixed-size keys to
+8-byte values and you resolve the values yourself.
+
+* One data file of fixed-size blocks; crash-safe via a write-ahead
+  journal (`Path + ".journal"`).
+* Many named indexes per store, so one file can carry several indexes
+  over the same record set (by-ID, by-name, …).
+* Generic over the key type `K`: you supply `EncodeKey` / `DecodeKey` —
+  no interface to implement, no boxing, and NO `Compare` function: the
+  index never orders keys.  A key is located by a frozen internal
+  xxHash64 of its encoding and identified by `bytes.Equal` of the
+  encodings; the only contract is that `EncodeKey` is INJECTIVE
+  (distinct keys must encode to distinct byte strings — a
+  non-injective encoding silently collapses keys).
+* Safe for concurrent use.
+
+Runnable, tested copies of the example live in
+link:example_test.go[`example_test.go`] — they run under `go test` and
+appear on pkg.go.dev.
+
+== Durability & crash recovery contract
+
+*READ THIS before relying on the store.*
+
+`Insert` and `Delete` return as soon as the change is in the in-memory
+cache.  The change becomes crash-durable only when a flush completes:
+
+* the background flusher — every `FlushInterval` (default 100 ms) and
+  whenever more than half the cache is dirty,
+* an explicit `Sync()`, or
+* `Close()`.
+
+Every flush appends ONE journal batch with the full images of all dirty
+blocks, fsyncs the journal, writes the data blocks, fsyncs the data
+file, and only then truncates the journal.  Therefore:
+
+* A crash NEVER corrupts the store.
+* A crash NEVER loses state that was flush-acknowledged (`Sync` or
+  `Close` returned, or a background flush completed).
+* Operations after the last completed flush may be absent after
+  recovery.  Recovery replays every complete, CRC-valid journal batch
+  and ignores a torn or corrupt tail.
+
+== On-disk layout
+
+All integers on disk are little-endian.  The data file is a
+random-access array of `BlockSize`-byte blocks (4096 by default; ≥ 512
+and a multiple of 512; fixed at creation and verified on reopen).
+
+Block 0 — superblock:: magic (`"pluto-hx"`), format version, block
+size, `numBlocks`, `freeListHead`, and the index registry:
+`(BlockSize-32)/56` entries of 56 bytes each (32-byte name, dirStart,
+length, keySize, depth).  8 indexes at 512-byte blocks, 72 at 4 KiB
+blocks.  Superblock mutations are journaled like any block.
+
+Free blocks:: linked from `freeListHead`; the first 8 bytes of a free
+block hold the next free block number, 0 = end.  Block 0 is the
+superblock, so 0 doubles as the nil sentinel everywhere.  Allocation
+pops the list, else extends the file; deletes push emptied overflow
+blocks back on it, so the file is reused instead of growing without
+bound.
+
+Directory:: a contiguous run of blocks holding the bucket-pointer array
+of the extendible hash: slot i (8 bytes) is the primary bucket for
+every key whose 64-bit hash starts with the bit pattern i.  `2^depth`
+slots, `(BlockSize-8)/8` per block; the registry entry records the run's
+start and the depth.  Doubling that does not fit the run anymore
+relocates it to a fresh contiguous run at the end of the file (the free
+list cannot promise a run) and recycles the old blocks.
+
+Bucket block:: type byte, count `uint32`, local depth `uint32`,
+overflow `uint64`, then count UNsorted `(key keySize bytes, value 8
+bytes)` entries.  Entries are unsorted because a hash index never
+compares keys for ordering — only for equality.  The overflow link
+exists for the two degenerate split cases (below); a healthy store has
+no chains.
+
+Journal (`Path + ".journal"`):: an append-only sequence of batches:
+magic `"JRNL"` `uint32` | seq `uint64` | count `uint32` | count ×
+(blockNo `uint64` + full block image) | crc32 (Castagnoli) over
+seq..payload | commit `"COMM"` `uint32` — the CRC is computed with
+pluto's link:../crc/[`crc`] package, the same polynomial `hash/crc32`
+uses, so the format is unchanged.  Recovery stops at the first bad
+magic, bad CRC, bad commit mark or truncated tail (a torn write).
+
+== The extendible hash
+
+A directory of `2^depth` slots; the slot for a hash h is its TOP depth
+bits (`h >> (64-depth)`; depth 0 means the single slot 0).  Each primary
+bucket records its local depth d — every entry in the bucket shares the
+top d hash bits, and `2^(depth-d)` directory slots point at it.  When a
+full bucket must take one more entry it splits: its entries re-partition
+by hash bit d, the local depth rises to d+1, and half the slots that
+pointed at it move to the fresh bucket.  A bucket that already spans a
+single slot (d == depth) doubles the directory first — each old pointer
+appears at slots 2i and 2i+1 — an O(directory) rewrite amortized O(1)
+per insert.  The depth is capped at 26 (a 512 MiB directory addressing
+~67 M buckets).
+
+Two degenerate cases fall back to overflow chains (structurally
+impossible without 64-bit hash collisions or an adversarial key set
+crafted against the frozen hash): a bucket whose entries all carry the
+SAME hash (no bit ever separates them) and a bucket at the depth cap.
+Searches then walk the chain.
+
+Deletes never merge buckets and never shrink the directory — the
+directory is a high-water mark, exactly like the stale separators of the
+`b_tree_disk_ts` B+ tree: bucket blocks and directory slots stay
+allocated and are simply refilled by later inserts.  Only emptied
+OVERFLOW blocks are freed (onto the store free list).
+
+== Entries per block
+
+For `keySize` ks, a bucket holds `(BlockSize-17)/(ks+8)` entries.  Fewer
+than 4 → `ErrKeyTooLarge`.
+
+[options="header"]
+|===
+| Block size | Key size | Entries per bucket block
+
+| 4096 | 8  | 254
+| 4096 | 16 | 169
+| 512  | 8  | 30
+| 512  | 16 | 20
+|===
+
+== Cache & flusher tuning
+
+`CacheBlocks × BlockSize` is the cache's memory budget (default
+1024 × 4 KiB = 4 MiB).  The capacity is a *soft* cap: blocks referenced
+by an in-flight operation or waiting to be flushed are not evictable,
+so the cache can briefly exceed the cap instead of stalling; the
+flusher brings it back under.  The flusher ticks every `FlushInterval`
+and is also woken when more than half the cache is dirty.
+
+== Multi-index stores
+
+A store holds many named indexes.  `NewIndex` with a new name creates an
+index; with an existing name it attaches to it (the key size must match
+or `ErrKeySizeMismatch`).  Re-attach after every reopen.  `Store.Indexes`
+lists the registered names.
+
+[source,go]
+----
+store, _ := hash_index_disk_ts.OpenStore(hash_index_disk_ts.StoreConfig{Path: "shop.db"})
+byID, _ := hash_index_disk_ts.NewIndex[uint64](store, hash_index_disk_ts.IndexConfig[uint64]{
+    Name: "by-id", KeySize: 8,
+    EncodeKey: func(k uint64, buf []byte) { binary.BigEndian.PutUint64(buf, k) },
+    DecodeKey: func(buf []byte) uint64    { return binary.BigEndian.Uint64(buf) },
+})
+byID.Insert(42, offset) // value is an offset into your own record file
+off, found, _ := byID.Search(42)
+store.Close() // final flush; everything is durable now
+----
+
+== Operations
+
+[options="header"]
+|===
+| Operation | Description | Complexity
+
+| `OpenStore`  | Create or open a store; runs journal recovery | O(journal)
+| `NewIndex`   | Create or attach a named index               | O(1)
+| `Insert`     | Add or replace key → uint64                 | O(1) expected block accesses (amortized; splits/doublings)
+| `Search`     | Look up a key                               | O(1) expected block accesses
+| `Delete`     | Remove a key (high-water; no merges)        | O(1) expected block accesses
+| `Length`     | Entry count from the registry               | O(1)
+| `All`        | Iterator over a snapshot (bucket order — not key order) | O(n) snapshot, O(1) per yield
+| `Sync`       | Force a flush (durability point)            | O(dirty blocks)
+| `Indexes`    | Sorted names of registered indexes          | O(registry)
+| `Close`      | Final flush, stop flusher, close files      | O(dirty blocks)
+|===
+
+`Insert` returns `true` when the key is new, `false` when a duplicate's
+value was replaced.  `All` collects its pairs under one hold of the
+store lock and iterates that snapshot with no lock held — safe to mutate
+while iterating, at O(n) snapshot memory.  The iteration order is the
+physical bucket order of the hash directory, which is deterministic for
+a given store but is NOT key order; when an order matters, collect and
+sort (`MarshalJSON` does — it emits the pairs sorted by the encoded key
+bytes, a deterministic wire form).
+
+== Panics and errors
+
+Panics are programmer errors, caught at construction:
+
+[options="header"]
+|===
+| Call | Why
+
+| `NewIndex(nil, …)`                          | nil store
+| `NewIndex` with nil EncodeKey/DecodeKey      | the index cannot encode keys
+| `NewIndex` with `KeySize ≤ 0`               | keys must have a fixed positive encoded length
+| `NewIndex` with an empty or > 31-byte name  | registry names live in a 32-byte field
+|===
+
+`UnmarshalJSON` joins the insert family: storing entries into a nil or
+zero-value index panics with the same message shape (an empty array or
+`null` stores nothing and is tolerated everywhere).
+
+Everything else is an error, with these exported sentinels (check with
+`errors.Is`): `ErrClosed` (any operation after `Close`), `ErrKeyTooLarge`,
+`ErrKeySizeMismatch`, `ErrTooManyIndexes`, `ErrCorrupt` (a block the
+package cannot interpret — a bad block type or an empty directory slot).
+
+== Concurrency
+
+Safe for concurrent use.  One `sync.Mutex` guards the whole store, and
+reads take the SAME lock as writes — like
+link:../union_find_ts/[`union_find_ts`], where `Find` takes the write
+lock because path halving mutates, here `Search` mutates the LRU cache
+on every hit, so there is no read-only path.  The flusher releases the
+lock while it does file IO; per-block dirty epochs tell it which blocks
+were re-dirtied while a flush was in flight.
+
+== Benchmarks
+
+`go test -run='^$' -bench=. -benchmem ./hash_index_disk_ts/` —
+`BenchmarkInsert`, `BenchmarkSearchHot` (100k keys, cache 1024 blocks),
+`BenchmarkSearchCold` (cache 64 blocks over a 100k-key index),
+`BenchmarkDelete`.
