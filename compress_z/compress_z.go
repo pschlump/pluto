@@ -19,9 +19,10 @@ BSD 3 Clause Licensed.
 // encoder's dictionary is a hash map, the decoder's walks are bounded
 // by the chain lengths actually encoded).
 //
-// Not safe for concurrent mutation — the package is stateless (two
-// pure functions), so concurrent use is fine and there is no _ts
-// twin.
+// Not safe for concurrent mutation — the two whole-buffer functions
+// are pure and the streaming Reader/Writer of stream.go carry their
+// own per-stream state, so concurrent use of separate streams is
+// fine and there is no _ts twin.
 package compress_z
 
 import "fmt"

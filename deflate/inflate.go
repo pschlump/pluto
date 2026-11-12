@@ -13,6 +13,10 @@ package deflate
 // are rejected (the single-code distance tree excepted), reserved
 // symbols and impossible distances are rejected, and every rejected
 // condition reports the package's one failure value, (nil, 0).
+// The block-decoding core is shared with the streaming Reader of
+// stream.go: both drive a *bitReader (which refills itself when a
+// source is attached), and expandBlock can pause at an output limit
+// and be resumed with the same trees and output buffer.
 
 // fixedLitTree and fixedDistTree are the §3.2.6 fixed decoding trees,
 // built once at package init and read-only afterwards.
@@ -59,12 +63,15 @@ func Expand(data []byte) ([]byte, int) {
 				return nil, 0
 			}
 		case 1:
-			if !expandBlock(r, &out, fixedLitTree, fixedDistTree) {
+			if _, ok := expandBlock(r, &out, fixedLitTree, fixedDistTree, 1<<62); !ok {
 				return nil, 0
 			}
 		case 2:
 			lit, dist, ok := readDynamicHeader(r)
-			if !ok || !expandBlock(r, &out, lit, dist) {
+			if !ok {
+				return nil, 0
+			}
+			if _, ok := expandBlock(r, &out, lit, dist, 1<<62); !ok {
 				return nil, 0
 			}
 		default:
@@ -199,54 +206,61 @@ func readDynamicHeader(r *bitReader) (lit, dist *decTree, ok bool) {
 }
 
 // expandBlock reads literals and matches until the end-of-block symbol
-// 256.  Matches may overlap the output (distance < length); each is
-// copied byte by byte from dist behind the current end.
-func expandBlock(r *bitReader, out *[]byte, lit, dist *decTree) bool {
-	for {
+// 256 or until len(*out) reaches limit, whichever comes first — the
+// limit lets the streaming Reader pause and deliver bytes without
+// decoding a whole block into memory (pass a huge limit to run to the
+// end of the block).  hitEnd reports that the end-of-block symbol was
+// read; ok is false on a malformed stream.  A paused call resumes by
+// calling again with the same trees and output buffer.  Matches may
+// overlap the output (distance < length); each is copied byte by byte
+// from dist behind the current end.
+func expandBlock(r *bitReader, out *[]byte, lit, dist *decTree, limit int) (hitEnd, ok bool) {
+	for len(*out) < limit {
 		sym, ok := lit.decode(r)
 		if !ok {
-			return false
+			return false, false
 		}
 		if sym < 256 {
 			*out = append(*out, byte(sym))
 			continue
 		}
 		if sym == 256 {
-			return true
+			return true, true
 		}
 		if sym > 285 {
-			return false // 286-287 never appear in a valid stream
+			return false, false // 286-287 never appear in a valid stream
 		}
 		lc := sym - 257
 		length := int(lengthBase[lc])
 		if x := lengthExtra[lc]; x > 0 {
 			v, ok := r.readBits(uint(x))
 			if !ok {
-				return false
+				return false, false
 			}
 			length += int(v)
 		}
 		dsym, ok := dist.decode(r)
 		if !ok {
-			return false
+			return false, false
 		}
 		if dsym > 29 {
-			return false // 30-31 never appear in a valid stream
+			return false, false // 30-31 never appear in a valid stream
 		}
 		d := int(distBase[dsym])
 		if x := distExtra[dsym]; x > 0 {
 			v, ok := r.readBits(uint(x))
 			if !ok {
-				return false
+				return false, false
 			}
 			d += int(v)
 		}
 		if d > len(*out) {
-			return false // distance reaches before the start of output
+			return false, false // distance reaches before the start of output
 		}
 		start := len(*out) - d
 		for k := 0; k < length; k++ {
 			*out = append(*out, (*out)[start+k])
 		}
 	}
+	return false, true
 }

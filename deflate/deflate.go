@@ -7,7 +7,9 @@ BSD 3 Clause Licensed.
 // Package deflate implements DEFLATE — the LZ77 + canonical-Huffman
 // compressed data format of RFC 1951 that gzip (RFC 1952), zlib
 // (RFC 1950), zip (method 8) and thus .tar.gz / .tgz archives are
-// built on.  Two stateless functions are the whole API:
+// built on.  Two stateless functions are the slice API; the
+// streaming Reader and Writer of stream.go cover the same format
+// over io.Reader and io.Writer:
 //
 //	compressed := deflate.Compress(data)   // a raw RFC 1951 stream
 //	back, n := deflate.Expand(compressed)  // == data; n bytes consumed

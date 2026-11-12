@@ -12,9 +12,10 @@ BSD 3 Clause Licensed.
 // Complexity is O(n log² n) per block for the Burrows-Wheeler sort
 // (cyclic suffix doubling) and O(n) for everything else.
 //
-// Not safe for concurrent mutation — the package is stateless (two
-// pure functions), so concurrent use is fine and there is no _ts
-// twin (the lzw/deflate precedent).
+// Not safe for concurrent mutation — the two whole-buffer functions
+// are pure and the streaming Reader/Writer of stream.go carry their
+// own per-stream state, so concurrent use of separate streams is
+// fine and there is no _ts twin (the lzw/deflate precedent).
 package bzip2
 
 import (

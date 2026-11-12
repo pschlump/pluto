@@ -9,8 +9,9 @@ BSD 3 Clause Licensed.
 // "traditional" relatives, PNG chunks, and HTTP gzip content when a
 // checksum without a filename header is wanted: a 2-byte CMF/FLG
 // header (with its %31 check bits), a raw DEFLATE stream, and a
-// big-endian Adler-32 trailer.  Two stateless functions are the whole
-// API:
+// big-endian Adler-32 trailer.  Two stateless functions are the slice
+// API; the streaming Reader and Writer of stream.go cover the same
+// format over io.Reader and io.Writer:
 //
 //	z := zlib.Compress(data)   // CMF 0x78, FCHECK-correct FLG
 //	back := zlib.Expand(z)     // == data, or nil if malformed

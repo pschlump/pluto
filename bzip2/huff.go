@@ -169,14 +169,27 @@ func buildDecTree(lengths []uint8) (*decTree, bool) {
 }
 
 // decodeSym reads one Huffman-coded symbol.  ok is false on end of
-// input or on a bit pattern that matches no code.
+// input or on a bit pattern that matches no code.  The bit extraction
+// is written out (the body of readBits for n=1) instead of calling
+// readBit: this is the per-symbol hot path, and readBits must call
+// the non-inlinable fill, which would keep it from inlining here —
+// the same lesson as deflate's decTree.decode.
 func (t *decTree) decodeSym(r *msbReader) (uint16, bool) {
 	code, first, index := 0, 0, 0
 	for l := 1; l <= 20; l++ {
-		b, ok := r.readBit()
-		if !ok {
-			return 0, false
+		if r.n == 0 {
+			if r.pos >= len(r.buf) {
+				if !r.fill() {
+					r.readFailed = true
+					return 0, false
+				}
+			}
+			r.acc = r.acc<<8 | uint64(r.buf[r.pos])
+			r.pos++
+			r.n = 8
 		}
+		b := (r.acc >> (r.n - 1)) & 1 // acc keeps stale bits above the unread window: mask
+		r.n--
 		code = code<<1 | int(b)
 		count := t.counts[l]
 		if code-first < count {

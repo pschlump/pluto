@@ -2,7 +2,7 @@
 
 `compress_z` is the historical UNIX compress `.Z` format (compress(1)/zopen.c — `file.Z` and `.tar.Z`): `Compress(data []byte) []byte` (block mode, maxBits 16), `CompressBits(data []byte, maxBits int) []byte` (the `compress -b` range), `Expand(z []byte) []byte` (nil = malformed). A different wire format from pluto `lzw` (algs4 MSB-first fixed-12-bit) — same algorithm family, not interchangeable bytes; `.tar.Z` is THIS format, `.tar.gz` is DEFLATE (pluto `deflate`/`gzip`).
 
-Structure: `bits.go` (LSB-first bitWriter/bitReader with `realign` — the group machinery), `compress_z.go` (encoder), `expand.go` (decoder).
+Structure: `bits.go` (LSB-first bitWriter/bitReader with `realign` — the group machinery; both have two modes, see streaming below), `compress_z.go` (encoder), `expand.go` (decoder), `stream.go` (streaming Reader/Writer, below).
 
 ## The wire format (reverse-engineered to byte-exactness)
 
@@ -28,5 +28,16 @@ Greedy LZW, hash map keyed `uint64(ent)<<8|c`. Never emits CLEAR (the ratio heur
 ## Interop reality (macOS, Nov 2026)
 
 `compress -b N` goldens: all 24 (3 corpora × 8 widths) decode byte-exact. Our re-encode is byte-identical for TOBE and dict at all 8 widths, and for a 401 KB mixed corpus at b14–b16 (the b9–b13 cells differ only by CLI CLEARs). `gzip -dc` verifies our b12+ streams. No stdlib `.Z` reader exists, so the CLI goldens carry the interop burden (tests are hermetic — no shelling out).
+
+## Streaming (`stream.go`)
+
+`NewWriter(dst)` / `NewWriterBits(dst, maxBits)` / `NewReader(src)` — the same stream over io.Writer/io.Reader with memory bounded by the LZW dictionary. The decode side is `expand.go`'s loop lifted into a resumable `decoder` (the loop locals became fields; `step()` decodes one code and reports stData/stClear/stEnd/stBad) driven over the refilling bitReader — decode rules are byte-identical to Expand's. Error model differs from the sibling codecs in one way: **.Z has no end-of-stream framing, so there is no truncation error** — the stream simply stops, any source end is a clean end, and a cut input decodes to a prefix of the output (the streaming analogue of `TestTruncated`).
+
+- **Group alignment survives draining/compaction on an absolute bit scale.** The 8-code groups are anchored to absolute positions: the streaming bitReader counts `dropped` bytes removed by compaction and the streaming bitWriter counts `drained` bytes moved to dst; `consumedBits()`/`totalBits()` add them back so `realign` still lands on multiples of 8n from the segment start. Reset-to-zero traps: a CLEAR mid-stream with the old relative arithmetic padded 48 spurious bits.
+- **The streaming Writer is chunk-independent**: greedy LZW is a pure function of the byte sequence with one byte of carry (the pending chain start) across Write calls, so the output is byte-identical to `CompressBits` regardless of chunking — pinned by test. (`free` must init to `firstEntry` in NewWriterBits; the zero value assigns dictionary slots from 0 and corrupts everything — burned in.)
+- **`Flush` is drain-only and best-effort**: codes pack continuously with no alignment point (unlike lz4 blocks or bzip2 members), so a flush cannot make the tail decodable; it only pushes out whole bytes that already exist. The final partial byte is zero-padded by `Close` alone.
+- LZW output is never re-referenced: decoded bytes are delivered and forgotten, no history window.
+
+Tests (`stream_test.go`): round trips × chunks; chunk independence vs `CompressBits` (chunks 1/3/4096); all widths 9..16 + panic; empty == `Compress(nil)` (3-byte header); cross whole-buffer both ways; CLI goldens; OneByteReader; prefix-decodes-prefix stride-61 (short header → `io.ErrUnexpectedEOF`); ErrTypes (bad magic, first code 258); Write-after-Close sticky error.
 
 No `_ts` twin (stateless, `lzw`/`deflate` precedent). Exactly one panic. Concurrency-safe by construction.

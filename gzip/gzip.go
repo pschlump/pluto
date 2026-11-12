@@ -8,7 +8,8 @@ BSD 3 Clause Licensed.
 // pluto/deflate — the framing a `.gz` file (and a `.tar.gz` / `.tgz`
 // archive) is made of: a 10-byte header, a raw DEFLATE stream, and an
 // 8-byte CRC-32 + ISIZE trailer.  Two stateless functions are the
-// whole API:
+// slice API; the streaming Reader and Writer of stream.go cover the
+// same format over io.Reader and io.Writer:
 //
 //	gz := gzip.Compress(data)   // one member, minimal header
 //	back := gzip.Expand(gz)     // == data, or nil if malformed

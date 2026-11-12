@@ -15,9 +15,10 @@ BSD 3 Clause Licensed.
 // Complexity is O(n) for both directions amortized (the encoder's
 // match chains are bounded, like lz4's own acceleration levels).
 //
-// Not safe for concurrent mutation — the package is stateless (two
-// pure functions), so concurrent use is fine and there is no _ts
-// twin (the lzw/deflate precedent).
+// Not safe for concurrent mutation — the two whole-buffer functions
+// are pure and the streaming Reader/Writer of stream.go carry their
+// own per-stream state, so concurrent use of separate streams is
+// fine and there is no _ts twin (the lzw/deflate precedent).
 package lz4
 
 // Frame-format constants (the v1.6.5 spec).

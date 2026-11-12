@@ -50,72 +50,129 @@ func Expand(z []byte) []byte {
 	if maxBits < 9 || maxBits > 16 {
 		return nil
 	}
-	maxmax := uint32(1) << maxBits
 
-	r := &bitReader{buf: z[3:]}
-	prefix := make([]uint32, maxmax)
-	suffix := make([]byte, maxmax)
-	stack := make([]byte, 0, 1024)
+	d := newDecoder(block, maxBits)
+	d.r.buf = z[3:]
 	out := make([]byte, 0, len(z)*3+16)
-
-	nBits := uint(initBits)
-	maxcode := uint32(1)<<initBits - 1 // no init clamp — see the overshoot note
-	free := uint32(firstEntry)
-	if !block {
-		free = 256
-	}
-	oldcode := int64(-1)
-	finchar := byte(0)
-
 	for {
-		code, ok := r.readCode(nBits)
-		if !ok {
+		switch d.step() {
+		case stData:
+			out = append(out, d.out...)
+			d.out = d.out[:0]
+		case stEnd:
 			return out // clean end: stream just stops
+		case stBad:
+			return nil
 		}
-		if block && code == clearCode {
-			// Fresh dictionary at the next group boundary.
-			r.realign(nBits)
-			nBits = initBits
-			maxcode = 1<<initBits - 1
-			free = firstEntry
-			oldcode = -1
-			continue
-		}
-		incode := code
-		stack = stack[:0]
-		if code >= free {
-			if code > free || oldcode < 0 {
-				return nil // beyond the live table, or a non-literal first code
-			}
-			stack = append(stack, finchar) // KwKwK: finish with the prior byte
-			code = uint32(oldcode)
-		}
-		for code >= 256 {
-			if len(stack) >= int(maxmax) {
-				return nil // cyclic chain — only malformed input gets here
-			}
-			stack = append(stack, suffix[code])
-			code = prefix[code]
-		}
-		finchar = byte(code)
-		stack = append(stack, finchar)
-		for i := len(stack) - 1; i >= 0; i-- {
-			out = append(out, stack[i])
-		}
-		if oldcode >= 0 && free < maxmax {
-			prefix[free] = uint32(oldcode)
-			suffix[free] = finchar
-			free++
-		}
-		if free > maxcode {
-			r.realign(nBits) // growth lands on the next group boundary
-			nBits++
-			if nBits == uint(maxBits) {
-				maxcode = maxmax
-			} else {
-				maxcode = 1<<nBits - 1
-			}
-		}
-		oldcode = int64(incode)
+		// stClear: no output, keep stepping
 	}
+}
+
+// Step outcomes for decoder.step.
+type stepState int
+
+const (
+	stData  stepState = iota // one code decoded; d.out holds its bytes
+	stClear                  // table cleared, no output; keep stepping
+	stEnd                    // the stream stopped: a clean end
+	stBad                    // malformed input
+)
+
+// decoder is the .Z LZW decode state, one step() per code.  Expand
+// drives it over a whole buffer; the streaming Reader of stream.go
+// drives the same steps over a refilling bitReader — the state is
+// exactly the loop locals of the former whole-buffer loop, and step
+// pauses cleanly between codes.
+type decoder struct {
+	r       bitReader
+	block   bool
+	maxBits int
+	maxmax  uint32
+	prefix  []uint32
+	suffix  []byte
+	stack   []byte
+	out     []byte
+
+	nBits   uint
+	maxcode uint32
+	free    uint32
+	oldcode int64
+	finchar byte
+}
+
+// newDecoder builds the decode state for the header's block mode and
+// maxBits.  maxcode starts without the maxbits clamp — see the
+// overshoot note above.
+func newDecoder(block bool, maxBits int) *decoder {
+	d := &decoder{
+		block:   block,
+		maxBits: maxBits,
+		maxmax:  uint32(1) << maxBits,
+		prefix:  make([]uint32, 1<<maxBits),
+		suffix:  make([]byte, 1<<maxBits),
+		stack:   make([]byte, 0, 1024),
+		nBits:   initBits,
+		maxcode: 1<<initBits - 1,
+		free:    firstEntry,
+		oldcode: -1,
+	}
+	if !block {
+		d.free = 256
+	}
+	return d
+}
+
+// step decodes one code (or a CLEAR).  Appended output lands in
+// d.out; the caller consumes it between steps.
+func (d *decoder) step() stepState {
+	code, ok := d.r.readCode(d.nBits)
+	if !ok {
+		return stEnd
+	}
+	if d.block && code == clearCode {
+		// Fresh dictionary at the next group boundary.
+		d.r.realign(d.nBits)
+		d.nBits = initBits
+		d.maxcode = 1<<initBits - 1
+		d.free = firstEntry
+		d.oldcode = -1
+		return stClear
+	}
+	incode := code
+	d.stack = d.stack[:0]
+	if code >= d.free {
+		if code > d.free || d.oldcode < 0 {
+			return stBad // beyond the live table, or a non-literal first code
+		}
+		d.stack = append(d.stack, d.finchar) // KwKwK: finish with the prior byte
+		code = uint32(d.oldcode)
+	}
+	for code >= 256 {
+		if len(d.stack) >= int(d.maxmax) {
+			return stBad // cyclic chain — only malformed input gets here
+		}
+		d.stack = append(d.stack, d.suffix[code])
+		code = d.prefix[code]
+	}
+	d.finchar = byte(code)
+	d.stack = append(d.stack, d.finchar)
+	for i := len(d.stack) - 1; i >= 0; i-- {
+		d.out = append(d.out, d.stack[i])
+	}
+	if d.oldcode >= 0 && d.free < d.maxmax {
+		d.prefix[d.free] = uint32(d.oldcode)
+		d.suffix[d.free] = d.finchar
+		d.free++
+	}
+	if d.free > d.maxcode {
+		d.r.realign(d.nBits) // growth lands on the next group boundary
+		d.nBits++
+		if d.nBits == uint(d.maxBits) {
+			d.maxcode = d.maxmax
+		} else {
+			d.maxcode = 1<<d.nBits - 1
+		}
+	}
+	d.oldcode = int64(incode)
+	return stData
 }

@@ -243,14 +243,30 @@ func buildDecTree(lengths []uint8, allowSingle bool) (*decTree, bool) {
 
 // decode reads one Huffman-coded symbol.  ok is false on end of input
 // or on a bit pattern that matches no code (possible only in the
-// incomplete-single-code case, or a corrupt stream).
+// incomplete-single-code case, or a corrupt stream).  It works in
+// both bitReader modes — whole-buffer and streaming.  The bit
+// extraction is written out (the body of readBit) instead of calling
+// it: this is the per-symbol hot path, and a call from here to
+// readBit — which must itself call the non-inlinable fill — would not
+// be inlined.  decode is too large to inline into anyone, so the
+// fill() call below is the one place it costs nothing.
 func (t *decTree) decode(r *bitReader) (uint16, bool) {
 	code, first, index := 0, 0, 0
 	for l := 1; l <= 15; l++ {
-		b, ok := r.readBit()
-		if !ok {
-			return 0, false
+		if r.n == 0 {
+			if r.pos >= len(r.buf) {
+				if !r.fill() {
+					r.readFailed = true
+					return 0, false
+				}
+			}
+			r.acc = uint32(r.buf[r.pos])
+			r.pos++
+			r.n = 8
 		}
+		b := r.acc & 1
+		r.acc >>= 1
+		r.n--
 		code = code<<1 | int(b)
 		count := t.counts[l]
 		if code-first < count {
