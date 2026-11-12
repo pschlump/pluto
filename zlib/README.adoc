@@ -1,0 +1,65 @@
+= zlib
+
+The zlib stream format of RFC 1950 over pluto/deflate: a 2-byte
+CMF/FLG header, a raw DEFLATE stream, and a 4-byte big-endian Adler-32
+trailer.  This is the framing inside PNG chunks and the "zlib" of
+HTTP/WebSocket compress negotiations — DEFLATE plus an integral
+checksum and no name/timestamp header.  Two stateless functions are
+the whole API:
+
+[source,go]
+----
+z := zlib.Compress(data)   // header 78 9c — the canonical bytes
+back := zlib.Expand(z)     // == data, or nil if malformed
+----
+
+== Format
+
+Per RFC 1950 §2.2: CMF carries CM (8 = deflate, the only defined
+method) and CINFO (window size; we write 7 = 32 KiB and accept at most
+7); FLG carries FCHECK bits making `CMF*256+FLG` a multiple of 31,
+FDICT (rejected on read — preset dictionaries need the dictionary),
+and FLEVEL (informational).  `Compress` writes FLEVEL 2 with FDICT 0
+and the FCHECK correction, yielding the canonical `78 9c`.
+
+== Operations
+
+[options="header"]
+|===
+| Operation       | Description                                        | Complexity
+
+| `Compress(data)`| Encode as one zlib stream (never nil)              | O(n) + deflate
+| `Expand(z)`     | Decode; nil if malformed                           | O(n) + inflate
+|===
+
+== Usage
+
+[source,go]
+----
+z := zlib.Compress([]byte("Wikipedia"))
+fmt.Printf("% x\n", z[:2]) // 78 9c
+back := zlib.Expand(z)     // == the input
+----
+
+== Panics
+
+*None.*  The package never panics.  `Compress` accepts any input
+including nil.  `Expand` returns nil for malformed input: bad header
+(reserved CM, CINFO > 7, wrong check bits), FDICT set, a malformed
+DEFLATE stream, a wrong Adler-32, a truncated trailer, or trailing
+bytes after the stream (zlib streams are single, not concatenatable).
+
+== Concurrency
+
+Both functions are stateless — safe for concurrent use, and there is
+no `_ts` twin (the `lzw`/`deflate` precedent).
+
+== Caveats
+
+* *Interop is the test oracle.*  Every stream we write is read by the
+  stdlib `compress/zlib` reader, and we read every stream the stdlib
+  writer produces; the Adler-32 trailer is compared byte-for-byte
+  against `hash/adler32` in the tests.
+* Adler-32 (RFC 1950 §8.2) lives here unexported — it is 10 lines and
+  zlib-specific; the checksums with broader reuse (CRC-32, CRC-64) are
+  in pluto/crc.

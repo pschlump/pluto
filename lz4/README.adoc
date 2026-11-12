@@ -1,0 +1,94 @@
+= lz4
+
+The LZ4 frame format (v1.6.5) over byte slices: `Compress` produces
+frames the lz4(1) CLI reads, and `Expand` reads frames written by
+lz4(1) — independent blocks, XXH32 header and content checksums,
+skippable frames, concatenated frames.  This is the codec of `.lz4`
+and `.tar.lz4`.  Two stateless functions are the whole API:
+
+[source,go]
+----
+z := lz4.Compress(data)   // 4 MB independent blocks + content checksum
+back := lz4.Expand(z)     // == data, or nil if malformed
+----
+
+== Format
+
+A frame is the magic `184D2204` (LE), a FLG byte (version `01`,
+block independence, optional block/content checksums, optional
+content size, optional dictID), a BD byte (max block size 64KB..4MB
+in bits 6-4), the optional 8-byte content size, and a mandatory
+one-byte header checksum — XXH32 over FLG+BD+optional fields, second
+byte, *magic excluded*.  Then blocks (4-byte LE size word, bit 31 =
+stored uncompressed) and the `00000000` end mark, optionally followed
+by the 4-byte XXH32 content checksum.  A block checksum, when
+requested, covers the *stored* bytes — compressed or raw, whichever
+sits in the file.
+
+Each block is the spec's sequence format: a token byte (literal
+length high nibble, match length low nibble), extra 255-run length
+bytes, the literals, a 2-byte LE offset, then the extra match-length
+bytes — *the offset comes before the extra match bytes*.  Minimum
+match 4, offsets 1..65535, overlapping copies legal (an offset-1
+match is a run-length encoder), the final sequence is literals only.
+
+The encoder searches matches with a 64K-entry single-slot hash table
+with a bounded chain walk (16 candidates), never starts a match in
+the last 12 bytes, and stores incompressible blocks raw.  Skippable
+frames (`184D2A50`..`5F`) are jumped anywhere a frame may appear;
+concatenated frames decode to the concatenation of their contents,
+matching `lz4 -d`.
+
+== Operations
+
+[options="header"]
+|===
+| Operation          | Description                                | Complexity
+
+| `Compress(data)`   | Encode as one frame                        | O(n)
+| `Expand(z)`        | Decode; nil if malformed                   | O(n)
+|===
+
+Both directions run at multiple hundred MB/s on the benchmark corpus
+— the format's whole point.  Compression ratio is a few percent
+behind lz4(1) at its default level (our greedy matcher is simpler
+than its optimized search); expansion output is of course identical.
+
+== Usage
+
+[source,go]
+----
+z := lz4.Compress([]byte("TOBEORNOTTOBEORTOBEORNOT"))
+// z starts 04 22 4d 18 — the frame magic, little-endian
+back := lz4.Expand(z) // == the input
+----
+
+== Panics
+
+None.  `Expand` returns nil for malformed input: empty input, a bad
+magic, a wrong version, reserved flag bits, linked blocks (this
+package decodes the independent-block form only — the form every
+default lz4(1) invocation writes), dictID frames (they need the
+external dictionary), a wrong header checksum, a block over the
+declared maximum or a corrupt sequence, a wrong per-block or content
+checksum, a wrong declared content size, a missing end mark, or
+trailing garbage.  `Compress` never fails.
+
+== Concurrency
+
+All functions are stateless — safe for concurrent use, and there is
+no `_ts` twin (the `lzw`/`deflate` precedent).
+
+== Caveats
+
+* *Interop is the test oracle.*  CLI goldens (lz4 v1.10.0, plain,
+  `-BX` block checksums, `--content-size`) decode byte-exact;
+  `lz4 -t`/`-dc` verification of our output was done out-of-band for
+  the whole corpus matrix (tests stay hermetic — Go's stdlib has no
+  lz4 reader).
+* lz4(1) writes 64 KB blocks by default, we write 4 MB — streams
+  differ in the BD/HC pair and block boundaries (both legal; bigger
+  blocks compress better); contents and checksums interop both ways.
+* Linked-block frames (`-BD`-style) and dictID frames are rejected
+  on decode and never written; this build of lz4(1) itself always
+  writes independent blocks, so nothing in practice is lost.

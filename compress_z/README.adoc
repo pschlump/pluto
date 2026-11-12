@@ -1,0 +1,95 @@
+= compress_z
+
+The historical UNIX compress `.Z` format (the compress(1)/zopen.c wire
+format of `file.Z` and `.tar.Z`): a 3-byte `1F 9D` header followed by
+LSB-first LZW codes that widen from 9 bits as the dictionary grows,
+packed in groups of eight, with code 256 reserved as a table-CLEAR
+marker in block mode.  This is a different wire format from
+pluto/lzw (the algs4 MSB-first fixed-12-bit teaching variant) — same
+algorithm family, not interchangeable bytes.  Two stateless functions
+plus a width knob are the whole API:
+
+[source,go]
+----
+z := compress_z.Compress(data)        // block mode, maxBits 16
+z9 := compress_z.CompressBits(data, 9) // the compress -b range
+back := compress_z.Expand(z)          // == data, or nil if malformed
+----
+
+== Format
+
+The stream as the BSD compress(1) family writes it, verified
+byte-exact against the macOS `compress` CLI at every `-b` width:
+
+* Header: `1F 9D`, then one byte = maxbits (9..16) with `0x80` set for
+  block mode (the only mode anyone emits; CLEAR exists only there).
+* Codes are LSB-first, starting at 9 bits.  The width grows when the
+  free-slot counter passes `maxcode = 2^n − 1` — except that a growth
+  landing exactly on maxbits clamps maxcode to `2^maxbits` instead.
+  The one visible consequence: at `-b9..-b11` the table fills while
+  maxcode is still `2^maxbits − 1`, so the width grows one bit PAST
+  maxbits and stays there (a `-b9` stream ends in 10-bit codes with
+  values below 512).  This overshoot is why the BSD tools reject
+  their own `-b9..-b11` output; pluto's decoder reads all widths.
+* Codes are packed in groups of eight: a group of n-bit codes is
+  exactly 8×n bits, and a width change — or a CLEAR — takes effect
+  only at the next group boundary.  Growth points are always
+  naturally aligned (they occur after 2^n−256 codes, a multiple of
+  8); only CLEARs observably zero-pad.
+* CLEAR (code 256) resets to a fresh dictionary: widths back to 9
+  bits, free back to 257, previous-code state cleared, so the next
+  code is a literal with no table add.  compress(1) fires it when the
+  compression ratio drops at a 10000-byte checkpoint.
+* No end-of-stream code: the stream simply stops, final partial byte
+  zero-padded; trailing bits too few to form a code are a clean end.
+
+== Operations
+
+[options="header"]
+|===
+| Operation                | Description                                     | Complexity
+
+| `Compress(data)`         | Encode as a block-mode maxBits 16 `.Z` stream   | O(n)
+| `CompressBits(data, mb)` | Encode at a chosen width, `compress -b mb`      | O(n)
+| `Expand(z)`              | Decode; nil if malformed                        | O(n)
+|===
+
+== Usage
+
+[source,go]
+----
+z := compress_z.Compress([]byte("TOBEORNOTTOBEORTOBEORNOT"))
+// z starts 1f 9d 90 — the .Z magic
+back := compress_z.Expand(z) // == the input
+----
+
+== Panics
+
+Exactly one: `CompressBits` with maxBits outside [9, 16] panics with
+a message naming the method and the valid range (the format has no
+other widths).  `Expand` never panics — malformed input returns nil.
+
+== Concurrency
+
+All functions are stateless — safe for concurrent use, and there is
+no `_ts` twin (the `lzw`/`deflate` precedent).
+
+== Caveats
+
+* *The CLI is the test oracle.*  The tests embed compress(1) goldens
+  at widths 9, 12 and 16 for two corpora, decode them byte-exact, and
+  re-encode the plaintexts demanding byte-for-byte identity with the
+  CLI — the encoder is the reference encoder, not merely
+  decoder-compatible.  Clear-bearing streams (inputs over the
+  10000-byte CHECK_GAP) are covered by a crafted mid-stream-CLEAR
+  vector.
+* *Our encoder never emits CLEAR* (the ratio heuristic is skipped).
+  Streams stay valid — and match the CLI byte-for-byte on inputs
+  under 10000 bytes — but a pathological input that compress(1) would
+  reset gets a fuller dictionary from us instead.
+* *Empty input* compresses to the 3-byte header (compress(1) writes a
+  0-byte file — a documented deviation; our form is a valid stream).
+* `Expand` accepts maxbits 9..16 and both block and non-block modes.
+  The BSD uncompress/gzip tools reject maxbits below 12 with EFTYPE —
+  including their own `-b9..-b11` output; that is their limitation,
+  not the format's.

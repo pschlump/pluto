@@ -1,0 +1,78 @@
+= gzip
+
+The gzip member format of RFC 1952 over pluto/deflate — the framing a
+`.gz` file (and a `.tar.gz` / `.tgz` archive) is made of: a 10-byte
+header, a raw DEFLATE stream, and an 8-byte CRC-32 + ISIZE trailer,
+with CRC-32 from pluto/crc.  Two stateless functions are the whole
+API:
+
+[source,go]
+----
+gz := gzip.Compress(data)   // one member, minimal header
+back := gzip.Expand(gz)     // == data, or nil if malformed
+----
+
+== Format
+
+Per RFC 1952 §2.3: ID1/ID2 = `1f 8b`, CM = 8 (deflate), FLG optional
+fields, MTIME, XFL, OS; then the DEFLATE stream; then the CRC-32 and
+the length mod 2^32 of the *uncompressed* data, both little-endian.
+
+`Compress` writes the minimal header (no flags — no FNAME/FEXTRA/FHCRC,
+MTIME 0, OS 255).  `Expand` reads any conforming member: the FHCRC
+header checksum is verified when present, FEXTRA/FNAME/FCOMMENT are
+parsed and skipped, and both trailer words are always verified.
+Concatenated members are supported — a multi-member file expands to
+the concatenation of the members' contents, which is what `gzip -d`
+produces.
+
+== Operations
+
+[options="header"]
+|===
+| Operation        | Description                                        | Complexity
+
+| `Compress(data)` | Encode as one gzip member (never nil)              | O(n) + deflate
+| `Expand(gz)`     | Decode all members; nil if malformed               | O(n) + inflate
+|===
+
+== Usage
+
+[source,go]
+----
+gz := gzip.Compress([]byte("TOBEORNOTTOBEORTOBEORNOT"))
+back := gzip.Expand(gz) // == the input
+
+// A tar archive gzipped here reads back through the stdlib pair:
+//   archive/tar -> gzip.Compress -> compress/gzip -> archive/tar
+// (see TestTarRoundTrip — this package is how pluto builds .tar.gz)
+----
+
+== Panics
+
+*None.*  The package never panics.  `Compress` accepts any input
+including nil.  `Expand` returns nil for malformed input: bad magic or
+method, reserved flag bits, an unterminated or overrunning optional
+field, a bad FHCRC, a malformed DEFLATE stream, a wrong CRC-32 or
+ISIZE, a truncated trailer, or trailing bytes that do not start
+another member.
+
+== Concurrency
+
+Both functions are stateless — safe for concurrent use, and there is
+no `_ts` twin (the `lzw`/`deflate` precedent: pure CPU-bound
+transforms, nothing shared).
+
+== Caveats
+
+* *LZW is not gzip.*  The historical `compress`/`.Z` LZW format (what
+  pluto's `lzw` algorithm family implements — see the `compress_z`
+  package for the actual `.Z` wire format) predates DEFLATE; a
+  `.tar.gz` is DEFLATE, this package.
+* *Interop is the test oracle.*  Every member we write is read by the
+  stdlib `compress/gzip` reader; we read every member the stdlib
+  writer produces, including ones using Name/Comment/Extra/ModTime;
+  CLI goldens from `gzip(1)` are embedded in the tests.
+* *Minimal write, tolerant read.*  We never write FEXTRA/FNAME/
+  FCOMMENT/FHCRC — callers that need per-file metadata put it in the
+  tar/zip layer, which is where it belongs.

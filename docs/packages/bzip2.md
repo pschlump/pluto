@@ -1,0 +1,26 @@
+# bzip2 notes
+
+`bzip2` is the bzip2 format (BWT + MTF + RLE + multi-table Huffman): `Compress(data []byte) []byte` (level 9), `CompressLevel(data []byte, level int) []byte` (1..9 = `bzip2 -1..-9`), `Expand(bz []byte) []byte` (nil = malformed). The codec of `.bz2`/`.tar.bz2`. Structured as `bits.go` (MSB-first bitIO — the OPPOSITE end from deflate's LSB stream; no bit reversal anywhere), `crc.go` (bzip2's CRC-32: poly 0x04C11DB7 MSB-first, init/final complement — same table stdlib builds; `combineCRC` = rol1 then xor), `huff.go` (canonical lengths via pluto/heap with the deflate pattern, halving on cap 20; canonical codes; strict per-length decode walk), `bzip2.go` (encoder), `expand.go` (decoder).
+
+## The wire facts that bit
+
+- **Code lengths carry a terminator bit for EVERY symbol including symbol 0.** The encoder writes a 5-bit initial (lengths[0]) then the delta loop over ALL lengths — starting it at `lengths[1:]` desyncs the whole stream (found by a write/read position trace; stdlib reads a terminator for j=0 too).
+- **The wire codes are plain DEFLATE-style canonical** ((length, symbol) ascending → increasing codes, MSB-first). The stdlib reader's tree builder (`newHuffmanTree`) assigns codes longest-first MSB-aligned and navigates bit-1→left while its builder puts bit-1 codes right — the two invversions cancel, and what lands on the wire is canonical. Verified by simulation before writing a line of encoder.
+- **Encoder block loop indices are relative**: `rleFill(data[pos:], ...)` returns consumed-relative-to-the-slice; both the CRC slice (`data[pos:pos+next]`) and the advance (`pos += next`) must account for pos. The single-block case hides the bug — level 9 on sub-900k inputs passed while level 1 hung forever (re-compressing the same suffix). Symptom: 200 KB periodic at -9 fine, at -1 infinite loop.
+- **Equal rotations** (periodic input, period p | n) never separate in the doubling sort — the tie-break is explicit index comparison (total order, no stability assumption on slices.SortFunc), and that order (by start position) is exactly what the reference inverse-BWT reconstruction (the `tt[c[b]] |= i<<8` chaining) inverts. 200 KB of `abab…` round-trips through both our decoder and stdlib's.
+- **RUNA/RUNB**: zero-run of length L encodes in bijective base 2 — digit RUNA=1, RUNB=2 per power: `for L>0 { if L&1 {emit RUNA; L=(L-1)>>1} else {emit RUNB; L=(L-2)>>1} }`. Decoder mirrors stdlib's accumulate (`repeat += power<<v; power<<=1`, cap 2M).
+- **RLE1**: runs ≥ 4 emit 4 copies + count byte (chunk = min(run, 259)); remainders 1..3 stay literal AFTER the count byte (decoder's `lastByte` reset makes that legal); the RLE1 encoder can never emit 4 naked equal bytes without a count following. Blocks fill on RLE1-OUTPUT length ≤ blockSize.
+- **Two identical tables + all-zero selectors** is the smallest legal table shape (format demands 2..6 groups; stdlib enforces nSelectors ≥ 1 and enough selectors for the symbol count: nSelectors = ceil(totalSyms incl EOB / 50)). Zero-frequency alphabet entries get weight 1 (the length tables cover the whole alphabet; alphabet ≥ 3 always: RUNA, RUNB, EOB).
+- Empty member = `BZh` + digit + final magic + CRC 0 — 14 bytes, byte-identical to bzip2(1).
+
+## Decoder
+
+Mirrors stdlib's reader exactly: header/level digit, 48-bit magics, 32-bit block CRC (checked against the CRC of the block's decoded plaintext), randomized-bit rejection, 24-bit origPtr, two-level bitmap, nGroups 2..6, 15-bit selector count with unary+MTF selector decode (reject c ≥ nGroups), 5-bit + delta lengths (validated 1..20 BEFORE each terminator read — the 5-bit initial itself must be in range), strict complete-tree requirement, RUNA/RUNB cap 2M, block-size overrun checks, origPtr bounds, the single-array inverse BWT, streaming RLE1 state machine, fileCRC combine, multi-member concatenation (pad-to-byte, then `BZ` lookahead), trailing garbage → nil.
+
+## Tests
+
+`bzip2_test.go`: corpus (nil, 1 byte, TOBE, 300 KB single-byte runs — the RLE1 chunking at 259, 200 KB `abab…` — the duplicate-rotation case, alternating runs, Moby-Dick text ×300, 64 KiB random) round-tripped at levels 1 AND 9; `TestStdlibReadsOurs` (stdlib decodes every stream we write); CLI goldens (tobe -9, empty -9 — byte-identical to ours, dict -9) decoded byte-exact; levels-change-only-the-digit below 100k; multi-member (glued streams, mixed levels); malformed sweep (bad magic/digit, truncations, flipped block CRC at its known offset 10..13, flipped final CRC, trailing garbage/partial magic); truncation prefix sweep; panic-message checks; seed-42 60-step randomized with stdlib cross-check; `TestTarBz2RoundTrip` (the `.tar.bz2` pipeline). `bench_test.go`: 256 KiB mixed corpus — Compress ~6.3 MB/s (the doubling sort dominates), Expand ~53 MB/s vs stdlib ~36 MB/s (ours is faster).
+
+Interop reality (Nov 2026): all 12 CLI goldens (6 corpora × -1/-9) decode byte-exact; `bzip2 -t` and `bzip2 -dc | cmp` verify our output for the whole matrix; sizes within ~5% (better on repetitive inputs — bzip2's fallback sort degrades there: 72 vs 97 on 200 KB periodic at -1, 749 vs 753 on 2 KB of words).
+
+No `_ts` twin (stateless, `lzw`/`deflate` precedent). Exactly one panic (level outside 1..9). Concurrency-safe by construction.

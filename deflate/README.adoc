@@ -1,0 +1,99 @@
+= deflate
+
+DEFLATE — the compressed data format of RFC 1951: LZ77 string
+matching over a 32 KiB sliding window plus canonical Huffman coding.
+This is the codec inside gzip (RFC 1952), zlib (RFC 1950), and zip
+(compression method 8), and therefore what a `.tar.gz` / `.tgz`
+archive carries.  Two stateless functions are the whole API:
+
+[source,go]
+----
+compressed := deflate.Compress(data)   // a raw RFC 1951 stream
+back, n := deflate.Expand(compressed)  // == data; n bytes consumed
+----
+
+This package deals in *raw* DEFLATE streams; the pluto `gzip` and
+`zlib` packages add the member/trailer framing, and pluto's `lzw` is a
+different (algs4) LZW, not this format.
+
+== Stream format
+
+Per RFC 1951: a sequence of blocks, each with a 3-bit header — BFINAL
+(1 bit) and BTYPE (2 bits: 00 stored, 01 fixed Huffman, 10 dynamic
+Huffman, 11 reserved).  All fields are packed LSB-first; Huffman codes
+are emitted MSB-first.  Stored blocks carry LEN/NLEN and up to 65535
+raw bytes.  Fixed blocks use the RFC's fixed code tables.  Dynamic
+blocks transmit their own code lengths, run-length compressed through
+a third Huffman alphabet (HLIT/HDIST/HCLEN + the §3.2.7 permutation).
+Literals/lengths use symbols 0-285 (256 ends a block, 285 encodes the
+maximum match length 258); distances use symbols 0-29 with a maximum
+reach of 32768.
+
+The compressor hashes every 3-byte window into chains (a bounded walk
+of 128 candidates) with one-step lazy matching, and emits a block per
+16384 symbols, choosing stored / fixed / dynamic by exact bit cost.
+The setting is fixed, roughly zlib's mid levels in ratio.
+
+== Operations
+
+[options="header"]
+|===
+| Operation              | Description                                        | Complexity
+
+| `Compress(data)`       | Encode as a raw DEFLATE stream (never nil)         | O(n) expected
+| `Expand(data)`         | Decode; `(nil, 0)` if malformed                    | O(n) output
+|===
+
+`Expand` returns the decoded bytes plus n, the number of input bytes
+the stream occupies (padding byte included, trailing input excluded) —
+the gzip/zlib wrappers use n to find their trailers.  Decoding stops
+at the first final block.
+
+== Usage
+
+[source,go]
+----
+data := []byte("TOBEORNOTTOBEORTOBEORNOT")
+
+compressed := deflate.Compress(data)
+back, n := deflate.Expand(compressed) // back == data, n == len(compressed)
+
+out, n := deflate.Expand(nil) // malformed: (nil, 0)
+----
+
+== Panics
+
+*None.*  The package never panics.  `Compress` accepts any input
+including nil (empty input → the 2-byte stream `03 00`).  `Expand`
+returns `(nil, 0)` for malformed input: truncation, BTYPE 11, LEN/NLEN
+mismatch, over- or under-subscribed Huffman code lengths, a
+code-length repeat with no previous length or past the sequence end,
+reserved symbols (286/287 literal, 30/31 distance), a distance
+reaching before the start of the output, and bit patterns matching no
+code.
+
+== Concurrency
+
+Both functions are stateless — per-call encoder/decoder state only —
+so they are safe for concurrent use, and there is no `_ts` twin (the
+`lzw` precedent: pure CPU-bound transforms, nothing shared).
+
+== Caveats
+
+* *Interop is the test oracle.*  Every stream `Compress` produces is
+  decoded by the stdlib `compress/flate` reader, and `Expand` decodes
+  every stream the stdlib writer produces at all five levels — see
+  `TestStdlibReadsOurs` / `TestWeReadStdlib`.
+* *Speed, not ratio, is the honest gap.*  On a mixed 256 KiB corpus,
+  Compress runs at roughly a quarter of stdlib level-6 speed with
+  comparable ratio; Expand runs at roughly two-thirds of stdlib speed
+  (the decoder is a puff-style bit-at-a-time canonical decoder, not a
+  table-driven one).  Benchmarks: `BenchmarkCompress` /
+  `BenchmarkExpand` vs the `BenchmarkStdlib*` reference points.
+* *No io.Writer/Reader streaming.*  The API is slice-in/slice-out like
+  `lzw`; buffer whole members (the historical norm for archive
+  members anyway).  Per-symbol Huffman decoding limits nothing about
+  correctness, only throughput.
+* *Malformed streams after the first final block are invisible to
+  `Expand`* — it stops at the final block and reports the consumed
+  length; containers detect trailing damage with their CRCs.

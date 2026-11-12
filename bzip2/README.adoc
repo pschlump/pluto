@@ -1,0 +1,93 @@
+= bzip2
+
+The bzip2 format (Burrows-Wheeler transform + move-to-front + run
+length encoding + multi-table Huffman) over byte slices: `Compress`
+produces streams the standard library's `compress/bzip2` and bzip2(1)
+read, and `Expand` reads streams written by bzip2(1).  This is the
+codec of `.bz2` and `.tar.bz2`.  Two stateless functions plus a level
+knob are the whole API:
+
+[source,go]
+----
+z := bzip2.Compress(data)        // level 9, bzip2's default
+z1 := bzip2.CompressLevel(data, 1) // the -1..-9 block-size range
+back := bzip2.Expand(z)          // == data, or nil if malformed
+----
+
+== Format
+
+A member is `BZh` + a level digit `1`-`9` (block size 100k-900k), a
+sequence of blocks, and a final magic + 32-bit combined CRC.  Each
+block is: 48-bit magic, 32-bit CRC of the block's plaintext, a
+deprecated randomized flag (always 0, rejected on read), a 24-bit
+origPtr for the inverse BWT, a two-level 16x16 bitmap of the bytes
+present, 2..6 Huffman tables with MTF-coded selectors every 50
+symbols, delta-coded code lengths (1..20), and the symbol stream:
+RUNA/RUNB bijective base-2 zero runs, MTF positions, and an EOB
+symbol.  Under the Huffman coding the data went through: RLE1 (runs
+of 4..259 equal bytes become 4 copies plus a count byte), the BWT,
+then MTF + zero-run encoding.  Everything is MSB-first — the opposite
+bit order from DEFLATE, no bit reversal anywhere.  The prefix codes
+are canonical in the DEFLATE sense (symbols by length then value get
+increasing codes), emitted MSB-first.
+
+The encoder writes the smallest legal table shape: two identical
+Huffman tables with all-zero selectors.  Concatenated members decode
+to their concatenation, matching `bzip2 -d`.
+
+== Operations
+
+[options="header"]
+|===
+| Operation                 | Description                                   | Complexity
+
+| `Compress(data)`          | Encode at level 9                             | O(n log² n)
+| `CompressLevel(data, lv)` | Encode with block size 100k*lv                | O(n log² n)
+| `Expand(bz)`              | Decode; nil if malformed                      | O(n)
+|===
+
+The log² is the cyclic-rotation sort behind the BWT; the rest is
+linear.  Expansion runs about 1.5x the stdlib decoder's speed on the
+benchmark corpus; compression is single-digit MB/s (the sort
+dominates) — smaller than bzip2's own throughput but a faithful,
+dependency-free implementation.
+
+== Usage
+
+[source,go]
+----
+z := bzip2.Compress([]byte("TOBEORNOTTOBEORTOBEORNOT"))
+// z starts 42 5a 68 39 — "BZh9"
+back := bzip2.Expand(z) // == the input
+----
+
+== Panics
+
+Exactly one: `CompressLevel` with level outside [1, 9] panics with a
+message naming the method and the valid range (the format defines no
+other levels).  `Expand` never panics — malformed input returns nil:
+bad header, bad magics, the deprecated randomized bit, bad tree
+counts/lengths/selectors, an over-long zero run, a block overrunning
+its size, a mismatched block or stream CRC, trailing garbage, or a
+truncated stream.
+
+== Concurrency
+
+All functions are stateless — safe for concurrent use, and there is
+no `_ts` twin (the `lzw`/`deflate` precedent).
+
+== Caveats
+
+* *Interop is the test oracle.*  CLI goldens (bzip2(1) at -1 and -9)
+  decode byte-exact; every stream we write is decoded by the stdlib
+  reader in the tests; `bzip2 -t`/`-d` verification of our output was
+  done out-of-band for the whole corpus matrix (tests stay hermetic).
+  The empty-input stream is byte-identical to bzip2(1)'s.
+* Output is not byte-identical to bzip2(1) (its BWT uses a different
+  fallback order and it optimizes across multiple Huffman tables);
+  ratios land within a few percent on text-like data — occasionally
+  better on repetitive inputs where bzip2's fallback sort degrades.
+* Equal rotations (periodic input) are ordered by starting position —
+  the tie-break the reference inverse BWT reconstructs; the corpus
+  round-trips 200 KB of `ababab...` through both our decoder and the
+  stdlib's.
