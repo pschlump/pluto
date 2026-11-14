@@ -1,0 +1,36 @@
+= lzma — the .lzma "alone" format
+
+`Compress(data []byte) []byte` writes the legacy lzma(1) container (a
+13-byte header — properties, dictionary size, uncompressed size — and
+one LZMA stream closed by the end marker, the shape
+`xz --format=lzma` writes); `Expand(z []byte) []byte` reads what
+xz(1), lzma(1), and Python's `FORMAT_ALONE` write — known or unknown
+uncompressed size, end-marker or size-terminated.  nil means
+malformed.  The LZMA model is shared with the xz codec
+(pluto/internal/lzmacore).
+
+== Wire shape
+
+The header: one properties byte (`(pb*5 + lp)*9 + lc`), the
+little-endian dictionary size, and the little-endian 64-bit
+uncompressed size (all ones = unknown; the stream then ends with the
+end marker, a match whose distance is `0xFFFFFFFF`).  Decoders read
+size-terminated streams without a marker.
+
+== Streaming
+
+`NewReader(io.Reader)` is fully streaming: the format is one
+continuous range-coded stream with no block structure, so the decoder
+pulls input incrementally and decodes in slices, keeping an 8 MiB
+history window behind the delivery point (matches in the next slice
+may reach into it; the position contexts track the absolute stream
+position so window compaction cannot desync them).
+`NewWriter(io.Writer)` accumulates and encodes once at Close — an
+incremental LZMA *writer* needs a persistent match finder, which the
+whole-buffer encoder does not carry; the asymmetry is deliberate.
+
+== Complexity / safety
+
+O(n) both directions; whole-buffer output capped at 1 GiB against
+decompression bombs.  Not safe for concurrent mutation of one stream;
+separate streams are independent.

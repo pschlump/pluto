@@ -292,7 +292,7 @@ func expandBlock(z []byte, pos int, out []byte, check int) ([]byte, int, block, 
 				if st == nil {
 					return nil, 0, block{}, true
 				}
-				st.resetProbs()
+				st.ResetProbs()
 			case 1: // dictionary reset
 				if st == nil {
 					return nil, 0, block{}, true

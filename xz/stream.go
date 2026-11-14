@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"crypto/sha256"
 	"errors"
+	"github.com/pschlump/pluto/internal/lzmacore"
 	"hash"
 	"io"
 
@@ -340,7 +341,7 @@ func (r *Reader) decodeChunks() {
 					r.malformed()
 					return
 				}
-				r.st.resetProbs()
+				r.st.ResetProbs()
 			case 1:
 				if r.st == nil {
 					r.malformed()
@@ -575,8 +576,8 @@ func (w *Writer) flushChunk() {
 		return
 	}
 	cut := w.pend
-	var enc []byte
-	enc, w.st = encodeLZMAChunk(nil, w.window, cut, w.st, w.abs)
+	enc, st := lzmacore.LzmaEncode(nil, w.window, cut, w.st, w.abs)
+	w.st = st
 	w.abs += int64(len(cut))
 	if len(enc)+6 < len(cut) {
 		ctl := byte(0x80)
