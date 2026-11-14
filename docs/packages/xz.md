@@ -1,0 +1,30 @@
+# xz notes
+
+`xz` is the .xz container (the xz file format over LZMA2): `Compress(data []byte) []byte`, `Expand(z []byte) []byte` (nil = malformed), plus the streaming `NewReader`/`NewWriter` of stream.go. The codec of `.xz`/`.tar.xz`. Structured as `lzma.go` (the LZMA probability model + range decoder + symbol loop), `encode.go` (the range encoder + hash-chain match finder + LZMA2 chunk writer), `expand.go` (the container reader + chunk loop), `xz.go` (the container writer), `stream.go` (streaming Reader/Writer).
+
+## The wire facts that bit
+
+- **The LZMA2 control byte's size field is FIVE bits, at the bottom.** Bits 4-0 of an LZMA chunk's control hold the high bits of (unpacked size − 1); bits 6-5 are the reset mode (1 = dict reset, 2 = state reset, 3 = state reset + new properties); bit 7 is the chunk flag. Two wrong readings of this byte cost an afternoon: "reset in bits 0-2 with size in 5-6" and "reserved bits 3-4" both *decode their own test streams fine* and die only on xz(1) goldens. The pin came from `xxd` of `-c` output across input sizes (30, 60k, 70k, 200k: the control went E0, E0, E1, E3 — the delta is the size high bits).
+- **The chunk's 2-byte compressed size excludes the properties byte.** The props byte rides *after* the size fields when the reset mode brings one (mode 3), and is not counted. Both the block header's declared compressed size and the index's unpadded size confirmed it independently (26 vs the naive 25, counted byte-by-byte).
+- **Index "unpadded size" excludes block padding.** header + compressed data (through the `0x00` end marker) + check — the 0-3 bytes of block padding are *not* included, even though a later variant of our own writer counted them and produced streams that decoded but failed our own index check.
+- **Properties byte decomposition: `props = (pb*5 + lp)*9 + lc`.** pb is the *high* quotient (`props/45`), lc the *low* remainder (`props%9`). Writing it lc-first swaps pb and lc — every position context keys wrong and the decode drifts one symbol in. Pinned by the canonical `0x5D` = pb 2, lc 3.
+- **Repetition distances are 0-based; 0 means "the last byte."** The initial rep0 = 0 is a *valid* short-rep distance (repeat the previous byte), not "no distance yet" — storing rep0 as distance+1 and rejecting zero fails the very common first-symbol short-rep.
+- **The literal probability stride is `0x300` per literal state.** The state is (lp bits of position, lc bits of previous byte); slicing with `<<8` reads a neighbor state's probabilities — the first literal decodes (offset 0 is right by accident) and the second drifts.
+- **The match-byte path must mask the rotating byte** (`matchByte = matchByte<<1 & 0xFF`); without the mask `>>7` picks up bit 8 and indexes `probs[0x400...]` — outside the 0x300 block.
+- **Range-decoder normalize must zero-fill past the chunk, not fail.** Decoders legitimately read a few bytes past the semantically-needed point (the encoder's flush leaves slack); the block's check catches genuine truncation.
+- **The range *encoder's* carry adds to every buffered byte.** The reference's `temp + carry` runs inside the whole do-while: buffered 0xFF + carry wraps to 0x00, which *is* the propagation. Adding the carry to only the first byte (the "obvious" port) encodes ~300 symbols correctly and then desyncs — found by fuzzing the rc pair against each other (random bit/direct sequences, 300 rounds).
+- **Empty input is not a stream.** xz(1) rejects a zero-byte file and a padding-only file outright (`File format not recognized`); so does Expand. A *valid* empty stream is 52 bytes (ours: header + one empty block + index + footer; xz(1) writes a 34-byte zero-block variant — both valid, ours keeps writer symmetry, pinned byte-for-byte in TestEmptyStreamShape).
+
+## Encoder shape
+
+Greedy 4-byte hash chain (2^16 slots, 16-candidate walks, 128-byte early exit, window 4 MiB) with one-position lookahead; literals use the match-byte path when the state says the previous symbol was a match (the same path the decoder takes — it must, the probabilities are shared). Simple matches only: rep distances are never emitted, which every decoder accepts. Chunks carry 64 KiB — the compressed size is a 16-bit field, so bigger cuts could overflow it; incompressible cuts fall back to uncompressed chunks. The probability model, the dictionary window, and the absolute-position context (for posState/litState) all carry across chunks; window trims cannot desync the contexts because the encoder tracks the absolute stream position separately.
+
+## Decoder shape
+
+Container: stream header (magic, flags, CRC32), block loop (header CRC32, single LZMA2 filter with dictionary property, chunk loop, padding, check per the stream flags: CRC32/CRC64/SHA256/none), index (records must match the parsed blocks exactly), footer (CRC32, backward size, flags copy, `YZ`). Concatenated streams and 4-byte padding words between them; whole-buffer output capped at 1 GiB. The LZMA symbol loop is the standard model: isMatch/isRep/len/posSlot/specPos/align trees, the 12-state machine, the 0-based reps, overlap-safe byte-by-byte match copies.
+
+## Tests
+
+`xz_test.go`: corpus round trip (empty, one byte, small, runs, the 2+11×273+1 match-boundary shape, 22 KB and 900 KB text, 100 KB random → uncompressed chunks); xz(1) goldens across all four check types and presets -0/-1/-6/-9/-9e; xz(1) reads ours (`xz -t`, `xz -dc | cmp`); concatenation + padding (xz's streams and ours); malformed vectors (bad magic, bad footer, flipped data byte, truncated tail) plus the every-prefix-is-malformed sweep; the empty-stream byte pin. `stream_test.go`: streaming Writer output satisfies Expand + the streaming Reader + xz(1); the Reader decodes goldens across all check types; Flush-chunked incremental writes round trip; every prefix of a golden reads as ErrUnexpectedEOF or ErrMalformed, never a silent short read.
+
+Interop reality (Nov 2026, xz 5.8.4): all goldens decode byte-exact both directions. Ratios: 'ab'×100k → 88 bytes (xz: 120), 900 KB text → 4.7 KB (xz `-6`: 3.6 KB) — the greedy matcher sits between preset -1 and -6, as a no-rep-matches fast mode should.

@@ -1,0 +1,62 @@
+= xz — the .xz container (LZMA2), from scratch
+
+`Compress(data []byte) []byte` writes one .xz stream (a single LZMA2
+block, CRC64 check — xz's default) that xz(1) reads; `Expand(z []byte)
+[]byte` reads anything xz(1) writes: any preset (`-0`..`-9e`), any
+check type (`-C crc32|crc64|none|sha256`), concatenated streams, and
+stream padding between them.  nil from Expand means malformed.
+
+The LZMA coder — the 11-bit probability model, the range coder, the
+LZMA2 chunk framing — is implemented in both directions after Igor
+Pavlov's public-domain reference; no ported code, no dependencies
+(pluto's own CRC32/CRC64 tables; crypto/sha256 for the SHA256 check).
+
+== Wire shape
+
+A stream is: a 12-byte header (magic `FD 37 7A 58 5A 00`, two flag
+bytes — the low nibble of the second is the check id — and their
+CRC32), blocks, an index, a 12-byte footer (CRC32, backward size,
+flags copy, `YZ`).  A block is a header (size/4-1, flags, the LZMA2
+filter id `0x21` with a one-byte dictionary property, padding, CRC32),
+LZMA2 chunks, a `0x00` end marker, padding to a 4-byte multiple, and
+the check.  The index records each block's unpadded size (header +
+data + check, *padding excluded*) and uncompressed size; the footer's
+backward size is index-size/4-1.
+
+LZMA2 chunk control bytes: `0x00` ends the block; `0x01`/`0x02` are
+uncompressed chunks (dict reset / not) with a 16-bit big-endian
+size-1; `>= 0x80` are LZMA chunks with bits 4-0 the *high five bits of
+the unpacked size*, bits 6-5 the reset mode (1 dict, 2 state, 3 state
++ new properties), and a 16-bit compressed size that counts the LZMA
+data only — *the properties byte is extra*.  Every reset mode above 1
+implies a state reset; the dictionary is shared across chunks of a
+block.
+
+== Encoder
+
+Greedy hash-chain match finder (4-byte hash, 16-candidate chains,
+128-byte early exit) with one-position lookahead; symbols are literals
+and simple matches (repeated distances are never emitted — legal,
+only costs ratio).  Chunks carry 64 KiB (a chunk's compressed size is
+a 16-bit field, so incompressible cuts fall back to uncompressed
+chunks); the probability model and dictionary carry across chunks of a
+block, and the position contexts track the absolute stream position so
+window trims cannot desync them.
+
+== Streaming
+
+`NewReader(io.Reader)` / `NewWriter(io.Writer)` (the bzip2/lz4
+streaming precedent): the Reader decodes a chunk at a time — a
+chunk's compressed data is bounded by its 16-bit size field, so
+memory is one chunk plus an 8 MiB dictionary window, never the whole
+stream.  The Writer buffers up to the chunk size; `Flush` ends the
+chunk early and everything written so far is decodable.  Errors are
+sticky: `ErrMalformed` for structural damage, `io.ErrUnexpectedEOF`
+for truncation.
+
+== Complexity / safety
+
+Both directions are O(n).  Whole-buffer `Expand` bounds output at
+1 GiB against decompression bombs.  Not safe for concurrent mutation
+of one stream; separate streams are independent (all state is
+per-call or per-stream).
