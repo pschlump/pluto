@@ -86,8 +86,9 @@ func DecodeLZMA2(data []byte, prop byte, outSize int64) []byte {
 			}
 		}
 	}
-	if pos < len(data) && (pos != len(data)-1 || data[pos] != 0x00) {
-		return nil
-	}
+	// Bytes after the declared size are ignored: 7z's AES pads its
+	// plaintext to the block size, so the chunk stream can trail into
+	// decryptor padding.
+	_ = pos
 	return out
 }
