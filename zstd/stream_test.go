@@ -143,3 +143,23 @@ func TestWriterSystemInterop(t *testing.T) {
 		t.Fatalf("zstd -dc our stream: %v", err)
 	}
 }
+
+func TestWriterFlush(t *testing.T) {
+	var buf bytes.Buffer
+	w := NewWriter(&buf)
+	if _, err := w.Write([]byte("flushed ")); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write([]byte("then closed")); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if got := Expand(buf.Bytes()); string(got) != "flushed then closed" {
+		t.Fatalf("flush: %q", got)
+	}
+}

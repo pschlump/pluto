@@ -284,3 +284,20 @@ func (w *Writer) Close() error {
 	w.buf = nil
 	return nil
 }
+
+// Flush emits the buffered bytes as a non-final raw block, so a
+// downstream flush lands on the stream.  Nothing to flush is a no-op.
+func (w *Writer) Flush() error {
+	if w.err != nil || w.done {
+		return w.err
+	}
+	if !w.hdr || len(w.buf) == 0 {
+		return nil
+	}
+	if err := w.rawBlock(w.buf, false); err != nil {
+		w.err = err
+		return err
+	}
+	w.buf = w.buf[:0]
+	return nil
+}
