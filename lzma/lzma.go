@@ -84,3 +84,26 @@ func capHint(size int64) int {
 	}
 	return int(size)
 }
+
+// DecodeRaw decodes a headerless LZMA stream — the form 7z stores —
+// from the coder properties it carries ([props byte, dictionary size
+// LE32]) and a known output size.  outSize <0 means the stream runs
+// to an end marker instead.  nil means malformed.
+func DecodeRaw(data, props []byte, outSize int64) []byte {
+	if len(props) != 5 || props[0] > 224 || outSize > maxOutput {
+		return nil
+	}
+	rc := lzmacore.NewRangeDecoder(data)
+	st := lzmacore.NewLzmaState(props[0])
+	out := make([]byte, 0, capHint(outSize))
+	if outSize >= 0 {
+		if !lzmacore.LzmaDecode(rc, st, &out, int(outSize), 0) {
+			return nil
+		}
+		return out
+	}
+	if !lzmacore.LzmaDecodeStream(rc, st, &out, maxOutput) {
+		return nil
+	}
+	return out
+}

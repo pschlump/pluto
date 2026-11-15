@@ -120,3 +120,34 @@ func TestMalformed(t *testing.T) {
 		}
 	}
 }
+
+// TestDecodeRaw: the 7z shape — our own alone-format stream minus its
+// 13-byte header decodes through the raw entry, both size-known and
+// marker-terminated.
+func TestDecodeRaw(t *testing.T) {
+	for _, tc := range lzmaCorpus(t) {
+		z := lzma.Compress(tc)
+		props := z[:5] // props byte + dictionary size
+		if got := lzma.DecodeRaw(z[13:], props, int64(len(tc))); !bytes.Equal(got, tc) {
+			t.Errorf("%d bytes: size-known raw decode failed", len(tc))
+		}
+		if got := lzma.DecodeRaw(z[13:], props, -1); !bytes.Equal(got, tc) {
+			t.Errorf("%d bytes: marker-terminated raw decode failed", len(tc))
+		}
+		if lzma.DecodeRaw(z[13:], props[:4], 1) != nil {
+			t.Error("short properties accepted")
+		}
+	}
+}
+
+func lzmaCorpus(t *testing.T) [][]byte {
+	t.Helper()
+	text := bytes.Repeat([]byte("the quick brown fox jumps over the lazy dog. "), 300)
+	rnd := make([]byte, 40000)
+	s := uint32(3)
+	for i := range rnd {
+		s = s*1664525 + 1013904223
+		rnd[i] = byte(s >> 23)
+	}
+	return [][]byte{nil, []byte("x"), []byte("small payload"), text, rnd}
+}

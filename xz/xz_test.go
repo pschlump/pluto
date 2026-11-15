@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pschlump/pluto/lzma"
 	"github.com/pschlump/pluto/xz"
 )
 
@@ -185,5 +186,46 @@ func TestEmptyStreamShape(t *testing.T) {
 	}
 	if !bytes.Equal(got, want) {
 		t.Errorf("empty stream shape:\n got %x\nwant %x", got, want)
+	}
+}
+
+// TestDecodeLZMA2: the 7z shape — a bare chunk sequence under a known
+// total size, built from uncompressed chunks and a compressed one.
+func TestDecodeLZMA2(t *testing.T) {
+	payload := []byte("an uncompressed chunk carries raw bytes; ")
+	payload2 := bytes.Repeat([]byte("compressed chunk payload! "), 300)
+	// uncompressed chunks: control 02 (no dict reset), size-1 BE16.
+	var body []byte
+	for _, part := range [][]byte{payload, payload2} {
+		for i := 0; i < len(part); i += 0x4000 {
+			chunk := part[i:]
+			if len(chunk) > 0x4000 {
+				chunk = chunk[:0x4000]
+			}
+			body = append(body, 0x02, byte((len(chunk)-1)>>8), byte(len(chunk)-1))
+			body = append(body, chunk...)
+		}
+	}
+	want := append(append([]byte{}, payload...), payload2...)
+	if got := xz.DecodeLZMA2(body, 0, int64(len(want))); !bytes.Equal(got, want) {
+		t.Fatalf("uncompressed chunks: got %d bytes", len(got))
+	}
+	// one LZMA chunk (state + props reset) built from the alone-format encoder
+	lz := lzma.Compress(payload2)
+	lzData := lz[13:]
+	comp := len(lzData)
+	unp := len(payload2)
+	hdr := []byte{0xE0 | byte((unp-1)>>16), byte((unp - 1) >> 8), byte(unp - 1), byte((comp - 1) >> 8), byte(comp - 1), lz[0]}
+	all := append([]byte{}, hdr...)
+	all = append(all, lzData...)
+	if got := xz.DecodeLZMA2(all, 0, int64(unp)); !bytes.Equal(got, payload2) {
+		t.Fatalf("lzma chunk: got %d bytes want %d", len(got), unp)
+	}
+	all = append(all, 0x00) // terminator tolerated
+	if got := xz.DecodeLZMA2(all, 0, int64(unp)); !bytes.Equal(got, payload2) {
+		t.Fatal("terminator rejected")
+	}
+	if xz.DecodeLZMA2(all, 0, int64(unp+1)) != nil {
+		t.Fatal("overrun accepted")
 	}
 }
