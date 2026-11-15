@@ -28,3 +28,7 @@ Container: stream header (magic, flags, CRC32), block loop (header CRC32, single
 `xz_test.go`: corpus round trip (empty, one byte, small, runs, the 2+11×273+1 match-boundary shape, 22 KB and 900 KB text, 100 KB random → uncompressed chunks); xz(1) goldens across all four check types and presets -0/-1/-6/-9/-9e; xz(1) reads ours (`xz -t`, `xz -dc | cmp`); concatenation + padding (xz's streams and ours); malformed vectors (bad magic, bad footer, flipped data byte, truncated tail) plus the every-prefix-is-malformed sweep; the empty-stream byte pin. `stream_test.go`: streaming Writer output satisfies Expand + the streaming Reader + xz(1); the Reader decodes goldens across all check types; Flush-chunked incremental writes round trip; every prefix of a golden reads as ErrUnexpectedEOF or ErrMalformed, never a silent short read.
 
 Interop reality (Nov 2026, xz 5.8.4): all goldens decode byte-exact both directions. Ratios: 'ab'×100k → 88 bytes (xz: 120), 900 KB text → 4.7 KB (xz `-6`: 3.6 KB) — the greedy matcher sits between preset -1 and -6, as a no-rep-matches fast mode should.
+
+## DecodeLZMA2 (the 7z entry point)
+
+`DecodeLZMA2(data, prop, outSize)` decodes a bare LZMA2 chunk sequence — 7z's form — under a known total output size (7z folder sizes always are).  Same chunk semantics as the xz block decoder; the 0x00 terminator is optional, and bytes past the declared size are ignored because 7z's AES pads its plaintext to the cipher block size — the strict tail check rejected legitimate decrypted folders.  Added for xtar's 7z reader (Nov 2026).

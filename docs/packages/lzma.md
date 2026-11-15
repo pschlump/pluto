@@ -20,3 +20,7 @@ The reader pulls input through `lzmacore.NewRangeDecoderReader` (the range decod
 `lzma_test.go`: corpus round trips; goldens from `xz --format=lzma` and `lzma -dc`; xz(1) and lzma(1) decode ours; a Python FORMAT_ALONE known-size golden; malformed vectors (short input, bad properties) and the every-prefix-is-malformed sweep. `stream_test.go`: streaming writer output satisfies Expand + the streaming reader + xz(1); the reader decodes goldens including a 300 KB known-size stream (the compaction boundary case); incremental delivery — the first 100 bytes arrive before the stream ends.
 
 Interop reality (Nov 2026, xz 5.8.4): byte-exact both directions.
+
+## DecodeRaw (the 7z entry point)
+
+`DecodeRaw(data, props, outSize)` decodes a headerless LZMA stream — the form the 7z container stores — driven by the coder properties it carries (`[props byte, dictionary size LE32]`, exactly what 7z puts in the coder record) and a known output size; `outSize < 0` runs to the end marker instead.  It is the same want-driven decode as the alone format's known-size path, minus the 13-byte header.  Added for xtar's 7z reader (Nov 2026).
