@@ -123,8 +123,12 @@ func TestStreamStdlibInterop(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		fw.Write(tc.data)
-		fw.Close()
+		if _, err := fw.Write(tc.data); err != nil {
+			t.Fatal(err)
+		}
+		if err := fw.Close(); err != nil {
+			t.Fatal(err)
+		}
 		if got := streamRead(t, buf.Bytes(), 4096); !bytes.Equal(got, tc.data) {
 			t.Errorf("%s: streaming Reader cannot decode stdlib output", tc.name)
 		}
