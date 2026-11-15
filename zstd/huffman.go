@@ -44,17 +44,20 @@ func readHuffWeights(b []byte) ([]byte, int, error) {
 		}
 		return w, 1 + (n+1)/2, nil
 	}
-	// FSE-coded weights: a table description then a backward stream
-	// with two interleaved states sharing it.
-	norm, log, used, err := readNCount(b[1:], 6, 255)
-	if err != nil || 1+used+hb > len(b) {
+	// FSE-coded weights: hb bytes total — a table description followed
+	// by a backward stream with two interleaved states sharing it.
+	if hb > len(b)-1 {
+		return nil, 0, errCorrupt
+	}
+	norm, log, used, err := readNCount(b[1:1+hb], 6, 255)
+	if err != nil || used >= hb {
 		return nil, 0, errCorrupt
 	}
 	t, err := buildFSE(norm, log)
 	if err != nil {
 		return nil, 0, err
 	}
-	stream := b[1+used : 1+used+hb]
+	stream := b[1+used : 1+hb]
 	r, ok := newBitReader(stream)
 	if !ok {
 		return nil, 0, errCorrupt
@@ -81,7 +84,7 @@ func readHuffWeights(b []byte) ([]byte, int, error) {
 	if len(w) > 255 || r.pos != 0 || r.n != 0 {
 		return nil, 0, errCorrupt
 	}
-	return w, 1 + used + hb, nil
+	return w, 1 + hb, nil
 }
 
 // buildHuff turns weights into a flat decode table indexed by the
@@ -145,12 +148,13 @@ func buildHuff(w []byte) (*huffTable, error) {
 	var val uint32
 	for _, s := range sorted {
 		nb := int(log) + 1 - int(w[s])
-		base := val << uint(int(log)-nb)
-		for i := uint32(0); i < 1<<uint(int(log)-nb); i++ {
+		width := uint32(1) << uint(int(log)-nb)
+		base := val &^ (width - 1) // code = val >> shift, placed at the top of its run
+		for i := uint32(0); i < width; i++ {
 			t.sym[base+i] = byte(s)
 			t.bits[base+i] = uint8(nb)
 		}
-		val += 1 << uint(int(log)-nb)
+		val += width
 	}
 	if val != total {
 		return nil, errCorrupt
