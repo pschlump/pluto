@@ -41,16 +41,26 @@ type decoder struct {
 	rep          [3]uint64
 }
 
-// Compress writes data as one zstd frame of raw blocks: magic, a
-// 128 KiB-window header, 3-byte block headers, the bytes verbatim.
-// The result is a legal stream any zstd decoder reads (and about
-// 0.003% larger than the input).
+// frameWidth is the window the compressor declares: 8 MiB lets
+// matches reach well back while keeping the streaming reader's hold
+// bounded.
+const frameWidth = 1 << 23
+
+// Compress writes data as one zstd frame: magic, an 8 MiB-window
+// header, then 128 KiB blocks — compressed (greedy matches through
+// the predefined FSE tables, raw or RLE literals) when that shrinks
+// the block, stored verbatim otherwise.
 func Compress(data []byte) []byte {
-	out := make([]byte, 0, len(data)+len(data)/maxBlockSize*3+16)
+	out := make([]byte, 0, len(data)/2+64)
 	out = binary.LittleEndian.AppendUint32(out, frameMagic)
-	out = append(out, 0x00) // frame header descriptor: no FCS, no checksum
-	out = append(out, 0x38) // window descriptor: 128 KiB (exponent 7)
-	for off := 0; ; {
+	out = append(out, 0x00)        // frame header descriptor: no FCS, no checksum
+	out = append(out, byte(13)<<3) // window: 8 MiB, no mantissa
+
+	// the hash table seeds as each block's scan passes a position,
+	// so candidates are always history (positions the decoder has
+	// already produced)
+	f := newMatchFinder()
+	for off := 0; ; off += maxBlockSize {
 		n := len(data) - off
 		if n > maxBlockSize {
 			n = maxBlockSize
@@ -59,10 +69,16 @@ func Compress(data []byte) []byte {
 		if off+n >= len(data) {
 			last = 1
 		}
-		h := last | 0<<1 | uint32(n)<<3
-		out = append(out, byte(h), byte(h>>8), byte(h>>16))
-		out = append(out, data[off:off+n]...)
-		off += n
+		var h uint32
+		if body := compressBlockBody(f, data, off, off+n, frameWidth); body != nil {
+			h = last | 2<<1 | uint32(len(body))<<3
+			out = append(out, byte(h), byte(h>>8), byte(h>>16))
+			out = append(out, body...)
+		} else {
+			h = last | uint32(n)<<3
+			out = append(out, byte(h), byte(h>>8), byte(h>>16))
+			out = append(out, data[off:off+n]...)
+		}
 		if last == 1 {
 			return out
 		}

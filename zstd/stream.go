@@ -210,18 +210,25 @@ func le24x(b []byte) uint32 {
 	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16
 }
 
-// Writer buffers writes and flushes them as raw blocks of a stored
-// frame; Close writes the final block.  Closing twice is a no-op.
+// Writer buffers writes and emits them one block at a time —
+// compressed through the shared matcher when that shrinks, stored
+// otherwise — over an 8 MiB window, matching Compress.  Closing twice
+// is a no-op.
 type Writer struct {
-	w    io.Writer
-	buf  []byte
-	hdr  bool
-	done bool
-	err  error
+	w       io.Writer
+	buf     []byte // the block under construction
+	history []byte // frame-decoded bytes for cross-block matches
+	finder  *matchFinder
+	base    int // frame offset of buf[0]
+	hdr     bool
+	done    bool
+	err     error
 }
 
 // NewWriter wraps w; nothing is written until a block fills or Close.
-func NewWriter(w io.Writer) *Writer { return &Writer{w: w} }
+func NewWriter(w io.Writer) *Writer {
+	return &Writer{w: w, finder: newMatchFinder()}
+}
 
 func (w *Writer) Write(p []byte) (int, error) {
 	if w.err != nil {
@@ -231,7 +238,7 @@ func (w *Writer) Write(p []byte) (int, error) {
 		return 0, errors.New("zstd: write after close")
 	}
 	if !w.hdr {
-		if _, err := w.w.Write([]byte{0x28, 0xB5, 0x2F, 0xFD, 0x00, 0x38}); err != nil {
+		if _, err := w.w.Write([]byte{0x28, 0xB5, 0x2F, 0xFD, 0x00, byte(13) << 3}); err != nil {
 			w.err = err
 			return 0, err
 		}
@@ -240,25 +247,68 @@ func (w *Writer) Write(p []byte) (int, error) {
 	n := len(p)
 	w.buf = append(w.buf, p...)
 	for len(w.buf) >= maxBlockSize {
-		if err := w.rawBlock(w.buf[:maxBlockSize], false); err != nil {
+		if err := w.block(w.buf[:maxBlockSize], false); err != nil {
 			w.err = err
 			return 0, err
 		}
-		w.buf = w.buf[maxBlockSize:]
 	}
 	return n, nil
 }
 
-func (w *Writer) rawBlock(b []byte, last bool) error {
-	h := uint32(len(b)) << 3
-	if last {
-		h |= 1
+// block emits one block and rolls the history forward.
+func (w *Writer) block(b []byte, last bool) error {
+	src := append(append([]byte{}, w.history...), b...)
+	body := compressBlockBody(w.finder, src, len(w.history), len(src), frameWidth)
+	var h uint32
+	if body != nil {
+		h = 2 << 1
+		if last {
+			h |= 1
+		}
+		if _, err := w.w.Write([]byte{byte(h | uint32(len(body))<<3), byte(uint32(len(body)) >> 5), byte(uint32(len(body)) >> 13)}); err != nil {
+			return err
+		}
+		if _, err := w.w.Write(body); err != nil {
+			return err
+		}
+	} else {
+		h = uint32(len(b)) << 3
+		if last {
+			h |= 1
+		}
+		if _, err := w.w.Write([]byte{byte(h), byte(h >> 8), byte(h >> 16)}); err != nil {
+			return err
+		}
+		if _, err := w.w.Write(b); err != nil {
+			return err
+		}
 	}
-	if _, err := w.w.Write([]byte{byte(h), byte(h >> 8), byte(h >> 16)}); err != nil {
+	// roll: keep the last frameWidth of history
+	w.base += len(b)
+	w.buf = w.buf[len(b):]
+	if len(w.history)+len(b) > frameWidth {
+		drop := len(w.history) + len(b) - frameWidth
+		w.history = append([]byte{}, w.history[drop:]...)
+	} else {
+		w.history = append(w.history, b...)
+	}
+	return nil
+}
+
+// Flush emits the buffered bytes as a non-final block so a downstream
+// flush lands on the stream.  Nothing to flush is a no-op.
+func (w *Writer) Flush() error {
+	if w.err != nil || w.done {
+		return w.err
+	}
+	if !w.hdr || len(w.buf) == 0 {
+		return nil
+	}
+	if err := w.block(w.buf, false); err != nil {
+		w.err = err
 		return err
 	}
-	_, err := w.w.Write(b)
-	return err
+	return nil
 }
 
 // Close flushes the final block (an empty one for empty input).
@@ -271,33 +321,16 @@ func (w *Writer) Close() error {
 		return w.err
 	}
 	if !w.hdr {
-		if _, err := w.w.Write([]byte{0x28, 0xB5, 0x2F, 0xFD, 0x00, 0x38}); err != nil {
+		if _, err := w.w.Write([]byte{0x28, 0xB5, 0x2F, 0xFD, 0x00, byte(13) << 3}); err != nil {
 			w.err = err
 			return err
 		}
 		w.hdr = true
 	}
-	if err := w.rawBlock(w.buf, true); err != nil {
+	if err := w.block(w.buf, true); err != nil {
 		w.err = err
 		return err
 	}
 	w.buf = nil
-	return nil
-}
-
-// Flush emits the buffered bytes as a non-final raw block, so a
-// downstream flush lands on the stream.  Nothing to flush is a no-op.
-func (w *Writer) Flush() error {
-	if w.err != nil || w.done {
-		return w.err
-	}
-	if !w.hdr || len(w.buf) == 0 {
-		return nil
-	}
-	if err := w.rawBlock(w.buf, false); err != nil {
-		w.err = err
-		return err
-	}
-	w.buf = w.buf[:0]
 	return nil
 }

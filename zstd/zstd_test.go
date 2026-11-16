@@ -51,7 +51,7 @@ func TestRoundTrip(t *testing.T) {
 		if !bytes.Equal(got, tc.data) {
 			t.Errorf("%s: stored round trip failed", tc.name)
 		}
-		if n := len(z) - len(tc.data); n < 9 || n > 12+len(tc.data)/maxBlockSize*3 {
+		if n := len(z) - len(tc.data); n > 12+len(tc.data)/maxBlockSize*3 {
 			t.Errorf("%s: frame overhead %d looks wrong", tc.name, n)
 		}
 	}
@@ -159,7 +159,7 @@ func TestMalformed(t *testing.T) {
 	}
 	// The empty frame shape: magic, no-FCS/no-check descriptor, 128 KiB
 	// window, one empty last raw block.
-	if got, want := Compress(nil), []byte{0x28, 0xB5, 0x2F, 0xFD, 0x00, 0x38, 0x01, 0x00, 0x00}; !bytes.Equal(got, want) {
+	if got, want := Compress(nil), []byte{0x28, 0xB5, 0x2F, 0xFD, 0x00, 0x68, 0x01, 0x00, 0x00}; !bytes.Equal(got, want) {
 		t.Errorf("empty frame:\n got %x\nwant %x", got, want)
 	}
 }
