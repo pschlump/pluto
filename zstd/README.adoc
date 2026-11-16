@@ -1,21 +1,25 @@
 = zstd — the Zstandard format (RFC 8878), from scratch
 
-`Compress(data []byte) []byte` writes a legal *stored* frame: raw
-blocks under a 128 KiB window, no checksum — every zstd decoder reads
-it, and it is about 0.003% larger than the input.  `Expand(z []byte)
-[]byte` reads everything zstd(1) writes: every preset (`-1`..`-19`,
-`--ultra -22`, `--long=25`), Huffman literals (one stream or four with
-the jump table; direct 4-bit weights or FSE-coded weights with two
-interleaved states; treeless repeats), FSE / predefined / RLE / repeat
-sequence tables, raw / RLE / compressed blocks, content checksums,
-concatenated frames, and skippable frames.  nil from Expand means
-malformed.  `NewReader`/`NewWriter` stream block by block.
+`Compress(data []byte) []byte` writes real compressed frames: a
+greedy match finder (4-byte single-slot hash, backward extension,
+repeat-offset reuse) feeding sequences through the predefined FSE
+tables, with raw or RLE literals; each 128 KiB block matches against
+the whole frame so far (8 MiB window) and falls back to a stored
+block when compression does not pay.  `Expand(z []byte) []byte` reads
+everything zstd(1) writes: every preset (`-1`..`-19`, `--ultra -22`,
+`--long=25`), Huffman literals (one stream or four with the jump
+table; direct 4-bit weights or FSE-coded weights with two interleaved
+states; treeless repeats), FSE / predefined / RLE / repeat sequence
+tables, raw / RLE / compressed blocks, content checksums, concatenated
+frames, and skippable frames.  nil from Expand means malformed.
+`NewReader`/`NewWriter` stream block by block, the writer compressing
+with the same matcher across blocks.
 
-Honest scope: **decode is complete; encode stores**.  The compressor
-side of zstd (match finder, FSE/Huffman table *writers*, the backward
-interleaved bitstream encoder) is a project of its own; storing keeps
-every byte legal and interoperable.  Use it where the format matters
-more than the ratio.
+Encoder scope: greedy parse, predefined tables, raw literals — no
+Huffman literals, no custom FSE distributions, no optimal parse.
+Ratios against `zstd -3`: equal or better on repetitive data, about
+30% behind on mixed content (which is where those missing pieces
+earn their keep).
 
 == Wire shape
 

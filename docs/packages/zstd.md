@@ -17,9 +17,15 @@
 - **`binary.LittleEndian.Uint32` on a short dictionary-ID slice panics** — the DID field is 1, 2, or 4 bytes; read it by width. Found by the corruption sweep, not by hand.
 - **XXH64's mergeRound has no rotation** (`acc ^= v; acc = acc·P1 + P4`) — the `rotl 27` belongs to XXH32's merge. The zero/short vectors pass either way; the ≥32-byte path diverges.
 
-## Stored-frame shape (the encoder's contract)
+## The encoder (v2: real compression)
 
-Magic, descriptor `0x00` (no FCS, no checksum), window `0x38` (exponent 7 → 128 KiB, so Block_Maximum_Size = 128 KiB), then raw blocks of ≤128 KiB (3-byte header: `size<<3 | 0`, last block `|1`), the final block possibly empty. Empty input is one empty last block — 9 bytes total, pinned in the test.
+Greedy match finder: a 1<<17 single-slot hash of the low 32 bits (LE read × 2654435761 >> 15), matches verified 4 bytes at a time and extended, then extended *backward* into the pending literals; the frame's repeat offset is tried first (min 3, only with literals ahead — a rep with zero literals selects rep1 in the format, and backward extension of a rep match stops one literal short for the same reason). Positions inside an emitted match re-seed the table every 3 bytes. Each 128 KiB block is matched against everything before it in the frame (8 MiB window); a block whose compressed body is not smaller is stored raw — the reference writer's rule, which also keeps empty and incompressible frames byte-identical to the stored form (magic, descriptor 0x00, window `0x68`, one last block).
+
+Sequences go through the predefined FSE tables via a literal translation of `FSE_buildCTable_wksp` / `initCState2` / `encodeSymbol` / `flushCState` (`fseenc.go`). Two pins from its debugging: **the transform's `maxBitsOut` uses `tableLog − highbit(count−1)`** — writing `bits.Len32` (one more) lands every multi-count transition on the wrong state, which random-chain closure tests can miss because single-count symbols dominate small samples (found by brute-forcing every (state, symbol) write against the decode table); and the encoder's bit layout mirrors the decoder exactly — per sequence the state bits OF→ML→LL then extras LL→ML→OF written forward, the last sequence's extras before the loop, flushes ML, OF, LL at the end (read backward as the init states LL, OF, ML).
+
+The trailing literals are NOT a sequence — the decoder appends leftovers itself; encoding them as an offset-0 sequence decodes as a 3-byte rep-1 match and corrupts the tail.
+
+Ratios vs `zstd -3`: equal or better on repetitive data (140 vs 144 bytes on the 900 KB corpus), ~30% behind on mixed content (no Huffman literals, no custom FSE tables, greedy parse).
 
 ## Streaming shape
 
