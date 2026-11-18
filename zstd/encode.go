@@ -82,9 +82,11 @@ func (f *matchFinder) blockSeqs(src []byte, from, to, window int) []seq {
 			i++
 			continue
 		}
-		// backward extension into the pending literals; a rep match
-		// keeps at least one literal so it stays a rep-0 code
-		for i > litStart && best < window && i-best >= 0 && src[i-1] == src[i-best] &&
+		// backward extension into the pending literals: the source
+		// moves down with the match, so the byte to compare at i-1
+		// is at i-1-best; a rep match keeps at least one literal so
+		// it stays a rep-0 code
+		for i > litStart && best < window && i-1-best >= 0 && src[i-1] == src[i-1-best] &&
 			(!isRep || i-1 > litStart) {
 			i--
 			bestLen++

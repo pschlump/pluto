@@ -190,3 +190,84 @@ func TestCorruptionSweep(t *testing.T) {
 		Expand(bad) // must not panic; output is either right or nil
 	}
 }
+
+// TestStructuredRoundTrip: tar-like payloads — 512-byte headers with
+// checksum digits, short data runs, long zero tails — catch matcher
+// bugs the uniform corpus misses (a backward-extension off-by-one hid
+// here for a whole encoder version).
+func TestStructuredRoundTrip(t *testing.T) {
+	s := uint32(20261118)
+	next := func(n int) int {
+		s = s*1664525 + 1013904223
+		return int(s>>23) % n
+	}
+	for trial := 0; trial < 200; trial++ {
+		var buf []byte
+		for len(buf) < 20000 {
+			blk := make([]byte, 512)
+			name := []string{"proj/", "data.bin", "x", "some-longer-name.txt"}[next(4)]
+			copy(blk, name)
+			copy(blk[100:], "00000000007")
+			copy(blk[148:], "000640\x00 ")
+			for i := 300; i < 340; i++ {
+				blk[i] = byte('0' + next(8))
+			}
+			buf = append(buf, blk...)
+			switch next(3) {
+			case 0: // short data
+				buf = append(buf, byte(next(256)), byte(next(256)), byte(next(256)))
+			case 1: // medium run
+				run := make([]byte, 40+next(64))
+				b := byte(next(256))
+				for i := range run {
+					run[i] = b
+				}
+				buf = append(buf, run...)
+			}
+		}
+		z := Compress(buf)
+		if got := Expand(z); !bytes.Equal(got, buf) {
+			i := 0
+			for ; i < len(got) && got[i] == buf[i]; i++ {
+			}
+			t.Fatalf("trial %d: corrupt at %d of %d (got %02x want %02x)",
+				trial, i, len(buf), got[i], buf[i])
+		}
+	}
+}
+
+// TestWriterStructured: the same payloads through the streaming
+// writer with small writes and interleaved flushes.
+func TestWriterStructured(t *testing.T) {
+	s := uint32(7)
+	next := func(n int) int {
+		s = s*1664525 + 1013904223
+		return int(s>>23) % n
+	}
+	for trial := 0; trial < 60; trial++ {
+		var want []byte
+		var out bytes.Buffer
+		w := NewWriter(&out)
+		for len(want) < 30000 {
+			chunk := make([]byte, 1+next(900))
+			for i := range chunk {
+				chunk[i] = byte(next(4) * 61)
+			}
+			want = append(want, chunk...)
+			if _, err := w.Write(chunk); err != nil {
+				t.Fatal(err)
+			}
+			if next(4) == 0 {
+				if err := w.Flush(); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+		if err := w.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if got := Expand(out.Bytes()); !bytes.Equal(got, want) {
+			t.Fatalf("trial %d: streaming writer corrupt", trial)
+		}
+	}
+}
