@@ -1,0 +1,183 @@
+= tiny_lfu_ts
+
+Thread-safe twin of link:../tiny_lfu/[`tiny_lfu`] using Caffeine-style buffered,
+asynchronous policy maintenance. A link:../sharded_hash_ts/[`sharded_hash_ts`]
+value table provides immediate lookups and mutations; striped, bounded MPSC
+rings feed an on-demand maintenance worker that updates the W-TinyLFU policy in
+batches. The standalone `FrequencySketch` remains guarded by `sync.RWMutex`.
+
+== Data path and consistency
+
+* `Get` and `Peek` read the sharded value table without a cache-wide lock.
+  `Get` records exact hits and offers a best-effort policy-read event. Full or
+  contended read rings may discard policy events, never the value lookup.
+* `Put` and `Delete` are immediately visible in the value table. Their reliable
+  policy events use a bounded MPSC ring; a full ring triggers synchronous
+  maintenance instead of losing the event.
+* `Frequency`, `Stats`, `All`, `Clear`, and `Lock` drain pending maintenance.
+  Superseded writes are coalesced by generation ID, and eviction invalidates a
+  value only if its generation still matches, so stale events cannot resurrect
+  deleted or replaced entries.
+* Hit statistics are exact even when policy reads are dropped: each ring's
+  monotonic producer count tracks accepted events and a separate counter tracks
+  failed offers. Misses use an atomic counter.
+* Capacity is eventually enforced by maintenance and can be temporarily
+  exceeded. Eviction vetoes retain the soft-cap behavior. `NlPut`, `NlDelete`,
+  and `NlClear` apply policy changes immediately inside a caller-held `Lock`.
+
+The weigher runs before value-table mutation. Eviction vetoes run during policy
+maintenance. Neither callback may call back into the same cache.
+
+== Lock discipline
+
+[options="header"]
+|===
+| Operations | Synchronization
+
+| `Get`, `Peek` | One value-table stripe read lock; `Get` also offers a read-ring event
+| `Put`, `Delete` | Mutation gate and one value-table stripe write lock; asynchronous policy event
+| `Len`, `Capacity`, `Size` | Atomic or immutable reads
+| `Frequency`, `Stats` | Drain under the maintenance lock
+| `All` | Drain and snapshot under mutation/maintenance locks; iterate unlocked
+| `Clear` | Exclude concurrent mutations, truncate values, drain and clear policy
+| `Lock`/`Unlock` + `Nl*` | Exclude mutations for atomic compounds; lookups may proceed
+| `FrequencySketch.Increment`, `EnsureCapacity` | Sketch write lock
+| `FrequencySketch.Frequency` | Sketch read lock
+|===
+
+Calling a regular method that needs the mutation gate while holding `Lock`
+deadlocks; use the `Nl*` forms. Do not copy either type after first use.
+
+== Compound operations
+
+[source,go]
+----
+cache.Lock()
+if _, ok := cache.NlPeek("answer"); !ok {
+    cache.NlPut("answer", 42)
+}
+value, ok := cache.NlPeek("answer")
+cache.Unlock()
+----
+
+The cache provides `NlGet`, `NlPeek`, `NlPut`, `NlDelete`, `NlLen`,
+`NlCapacity`, `NlSize`, `NlFrequency`, `NlStats`, and `NlClear`. The sketch
+provides `NlEnsureCapacity`, `NlIncrement`, and `NlFrequency`. The plain cache
+keeps no-op `Lock`/`Unlock` methods for source compatibility.
+
+== Nil and zero values
+
+Nil and zero-value caches tolerate reads as empty; `Put` panics because no
+capacity exists. A zero-value sketch tolerates reads and can be initialized by
+`EnsureCapacity`; a nil sketch tolerates `Increment`, `Frequency`, `Lock`, and
+`Unlock`, but `EnsureCapacity` panics.
+
+== Performance and memory comparison with Caffeine
+
+Measured on 2026-11-19 on an Apple M4 Max (arm64), using Go 1.27.0,
+OpenJDK 11.0.28, JMH 1.37, and Caffeine 3.3.2-SNAPSHOT. These are local
+measurements, not cross-machine guarantees.
+
+The harness uses 32,768 resident integer keys. `get` performs hits, `putUpdate`
+replaces resident values, `putEvict` cycles through 65,536 keys, and `mixed`
+performs 95% reads and 5% updates. Single-threaded cases use plain `tiny_lfu`;
+eight-thread cases use this package. Go figures are means of five 1-second
+runs; Caffeine figures are JMH means from two forks with four 1-second
+iterations each.
+
+[options="header"]
+|===
+| Workload | Go ns/op | Go Mops/s | Caffeine Mops/s | Caffeine / Go
+
+| `get1` | 54.78 | 18.25 | 36.14 | 1.98x
+| `putUpdate1` | 53.53 | 18.68 | 32.13 | 1.72x
+| `putEvict1` | 66.57 | 15.02 | 17.60 | 1.17x
+| `get8` | 70.34 | 14.22 | 725.85 | 51.05x
+| `putUpdate8` | 114.20 | 8.76 | 226.19 | 25.83x
+| `mixed8` | 60.02 | 16.66 | 451.96 | 27.13x
+|===
+
+Concurrent figures are aggregate throughput. Buffering improved this package's
+original read/update/mixed results by 3.4x/1.9x/4.0x and eliminated hot-path
+allocations. Caffeine remains faster; profiling shows that Go stripe locking,
+atomic ring claims, and scheduler work still cost more than Caffeine's mature
+concurrent map and buffered maintenance.
+
+Memory was measured with 25,000 entries and capacity 50,000. Caffeine's JOL
+`MemoryBenchmark` subtracts its post-clear baseline and application-owned
+`Integer` objects. The Go benchmark compares GC-stable `HeapAlloc` before and
+after `Clear`; integer keys and boolean values need no object subtraction.
+
+[options="header"]
+|===
+| Implementation | Metadata bytes / entry
+
+| Caffeine, JOL ObjectLayout | 56
+| `tiny_lfu`, Go HeapAlloc delta | 48
+| `tiny_lfu_ts`, Go HeapAlloc delta | 145
+|===
+
+The plain version used about 14% less metadata than Caffeine. The buffered
+twin's concurrent value records, separate policy records, and bounded buffers
+cost more. Five runs produced 144–145 bytes/entry for the twin.
+
+Reproduce with:
+
+[source,shell]
+----
+go test ./tiny_lfu -run='^$' -bench='^BenchmarkCaffeineComparison$' -benchtime=1s -count=5 -benchmem
+go test ./tiny_lfu -run='^$' -bench='^BenchmarkMemoryOverhead$' -benchtime=1x -count=5
+----
+
+The matched Java source is `tiny_lfu/testdata/CaffeineBenchmark.java`; compile
+it with the JMH 1.37 annotation processor against Caffeine's `*-jmh.jar`, then
+run `pluto.bench.CaffeineBenchmark` with `-f 2 -wi 2 -i 4 -w 1s -r 1s`.
+Caffeine's memory command from `note/caffeine` is
+`./gradlew :caffeine:memoryOverhead -q --rerun`.
+
+== Disk-cache evaluation
+
+Synthetic 200,000-operation, 64-block traces favored TinyLFU on skewed hit rates
+and preserved the other cases:
+
+[options="header"]
+|===
+| Trace | LRU hits | TinyLFU hits | Difference
+
+| B+tree-like Zipf | 75.28% | 80.18% | +4.90 points
+| Hash-index-like Zipf | 48.10% | 61.10% | +13.00 points
+| B+tree sequential | 66.63% | 66.67% | +0.04 points
+| Hot set plus scan | 74.99% | 74.99% | 0
+| Resident loop | 99.98% | 99.98% | 0
+|===
+
+A trial integration preserved dirty/flushing/pinned vetoes, the soft cap, and
+flush iteration, and passed both stores' race-enabled crash-recovery and model
+suites. Real-store means from three 1-second runs nevertheless rejected it:
+
+[options="header"]
+|===
+| Store / workload | LRU ns/op | TinyLFU ns/op | Change
+
+| B+tree hot search | 139.3 | 190.5 | +36.7%
+| B+tree cold sequential search | 143.7 | 197.3 | +37.3%
+| B+tree Zipf search | 293.0 | 307.3 | +4.9%
+| Hash hot search | 126.8 | 163.5 | +29.0%
+| Hash cold sequential search | 127.3 | 775.7 | +509.2%
+| Hash Zipf search | 81.0 | 415.2 | +412.6%
+|===
+
+Those measurements used the earlier immediate-policy trial. Both stores keep
+LRU. The evaluation sources are `tiny_lfu/disk_eval_test.go` and the stores'
+`BenchmarkSearchZipf` functions.
+
+== Testing
+
+The suite checks behavioral parity, nil/zero-value contracts, weighted capacity,
+compound operations, ring ordering/reuse, write-buffer overflow, stale-event
+suppression, concurrent Clear, exact statistics, and worker shutdown. Run:
+
+[source,shell]
+----
+go test -race ./tiny_lfu_ts -count=5
+----

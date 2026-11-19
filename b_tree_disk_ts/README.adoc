@@ -191,4 +191,10 @@ were re-dirtied while a flush was in flight.
 `go test -run='^$' -bench=. -benchmem ./b_tree_disk_ts/` —
 `BenchmarkInsert`, `BenchmarkSearchHot` (100k keys, cache 1024 blocks),
 `BenchmarkSearchCold` (cache 64 blocks over a 100k-key tree),
+`BenchmarkSearchZipf` (fixed skewed sequence, cache 64 blocks),
 `BenchmarkDelete`.
+
+A W-TinyLFU trial passed the correctness and crash-recovery suites but was
+rejected on performance: hot/cold/Zipf search means slowed 36.7%/37.3%/4.9%
+versus LRU. The comparison and synthetic hit-rate gains are documented in
+link:../tiny_lfu/README.adoc[`tiny_lfu`].

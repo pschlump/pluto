@@ -15,7 +15,7 @@ coverage table and dropped; what remains was scored on four axes:
 
 Note the mapping runs both ways: pluto also contains major structures algs4 lacks
 (`skip_list`, `splay_tree`, `b_tree_disk_ts`, `cuckoo`, `bloom`, `hyperloglog`,
-`geo`, `bitmap`, `lru`/`lfu`, `stream`, `quicklist`, `sharded_hash_ts`) — those are
+`geo`, `bitmap`, `lru`/`lfu`/`tiny_lfu`, `stream`, `quicklist`, `sharded_hash_ts`) — those are
 Ultima-driven and not reconsidered here.
 
 ---

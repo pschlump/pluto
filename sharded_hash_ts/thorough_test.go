@@ -538,6 +538,32 @@ func TestLockKeyRMWAtomicity(t *testing.T) {
 	}
 }
 
+func TestKeyMutexRMWAtomicity(t *testing.T) {
+	h := newTestHash(4, 16, 0)
+	h.Insert(TestData{S: "counter", N: 0})
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range 250 {
+				lock := h.KeyMutex(TestData{S: "counter"})
+				lock.Lock()
+				v, found := h.NlSearch(TestData{S: "counter"})
+				if found {
+					h.NlInsert(TestData{S: "counter", N: v.N + 1})
+				}
+				lock.Unlock()
+			}
+		}()
+	}
+	wg.Wait()
+	v, found := h.Search(TestData{S: "counter"})
+	if !found || v.N != 2000 {
+		t.Fatalf("KeyMutex counter = (%v, %v), want N=2000 and found", v, found)
+	}
+}
+
 // TestConcurrentOracle runs a random concurrent op mix (inserts, deletes,
 // searches) against a mutex-guarded map oracle, cross-checking every return
 // value in real time — the note's oracle test.  The oracle mutex is held

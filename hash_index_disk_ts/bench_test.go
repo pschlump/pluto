@@ -12,6 +12,7 @@ BSD 3 Clause Licensed.
 //	go test -run='^$' -bench=. -benchmem ./hash_index_disk_ts/
 
 import (
+	"math/rand"
 	"path/filepath"
 	"testing"
 )
@@ -81,6 +82,32 @@ func BenchmarkSearchCold(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		if _, found, err := ix.Search(uint64(i % n)); err != nil || !found {
 			b.Fatalf("Search(%d) = (%v, %v)", i%n, found, err)
+		}
+	}
+}
+
+// BenchmarkSearchZipf searches a fixed skewed key sequence through a small
+// cache, exercising frequency-sensitive block admission.
+func BenchmarkSearchZipf(b *testing.B) {
+	s, ix := benchStore(b, 64)
+	defer s.Close()
+	const n = 100000
+	benchFill(b, ix, n)
+	if err := s.Sync(); err != nil {
+		b.Fatalf("Sync: %v", err)
+	}
+	const keyCount = 32768
+	keys := make([]uint64, keyCount)
+	random := rand.New(rand.NewSource(42))
+	zipf := rand.NewZipf(random, 1.1, 1, n-1)
+	for i := range keys {
+		keys[i] = zipf.Uint64()
+	}
+	b.ResetTimer()
+	for i := range b.N {
+		key := keys[i&(keyCount-1)]
+		if _, found, err := ix.Search(key); err != nil || !found {
+			b.Fatalf("Search(%d) = (%v, %v)", key, found, err)
 		}
 	}
 }

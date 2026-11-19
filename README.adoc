@@ -144,6 +144,8 @@ with an identical public API.
 | link:lfu_ts/[lfu_ts]                       | Thread-safe LFU frequency counters (RWMutex, Lock+Nl* compound ops).
 | link:lru/[lru]                             | Generic capacity-bounded LRU cache (eviction veto callback, soft cap).
 | link:lru_ts/[lru_ts]                       | Thread-safe capacity-bounded LRU cache (RWMutex; Get takes the write lock, snapshot iterators, Lock+Nl* compound ops).
+| link:tiny_lfu/[tiny_lfu]                   | Generic W-TinyLFU cache and aging Count-Min frequency sketch (LRU admission window, SLRU main cache, optional entry weights).
+| link:tiny_lfu_ts/[tiny_lfu_ts]             | Buffered thread-safe W-TinyLFU (sharded value table, striped MPSC read rings, batched policy maintenance, Lock+Nl* compounds).
 | link:lru_disk_ts/[lru_disk_ts]             | Thread-safe two-tier LRU cache: optional in-memory hot tier over a file-per-entry disk cache (atomic writes, restart reindex; WithMemCapacity, default 0 = pure disk).
 | link:bitmap/[bitmap]                       | Redis bit operations on byte slices: GETBIT/SETBIT, BITCOUNT, BITPOS (end-given semantics), BITOP AND/OR/XOR/NOT, BITFIELD GET/SET/INCRBY with WRAP/SAT/FAIL overflow (Redis-exact, word-wise; pure functions, concurrent-use safe).
 | link:crc/[crc]                             | Table-driven CRC-32/CRC-64 checksums (IEEE, Castagnoli, Koopman, ECMA, ISO; pure functions, concurrent-use safe).
@@ -190,9 +192,10 @@ sentinel errors (`ErrEmptyQueue`, `ErrNotFound`, ... — check with
 `errors.Is`); trees, heaps, and hash tables use `bool`/`(T, bool)`
 signals. Each package's README documents its exact panic contract.
 * *Thread safety.* A package is not safe for concurrent use unless
-its directory ends in `_ts`. The `_ts` twins guard every operation
-with an internal `sync.RWMutex` and keep the identical public API, so
-switching is a package-name change. Their `All`/`Backward`/`Front`
+its directory ends in `_ts`. Most `_ts` twins guard operations with an
+internal `sync.RWMutex` and keep the identical public API, so switching is a
+package-name change; `tiny_lfu_ts` instead uses sharded values and buffered
+policy maintenance. Their `All`/`Backward`/`Front`
 iterators walk a *snapshot taken under the read lock* (safe to
 mutate — even from inside the loop; changes made after the call are
 not visible). `Walk`-style callbacks and `Dump` hold the read lock
@@ -207,7 +210,7 @@ per-call read lock.
 `index_pq_ts`, `fenwick_tree_ts`, `segment_tree_ts`, `sparse_vector_ts`,
 `trie_ts`,
 `tst_ts`, `stream_ts`, `hyperloglog_ts`, `lfu_ts`, `lru_ts`,
-`bloom_ts`, `multiway_pq_ts` and `binary_search_st_ts` — expose the
+`tiny_lfu_ts`, `bloom_ts`, `multiway_pq_ts` and `binary_search_st_ts` — expose the
 *real `Lock`/`Unlock`* plus `Nl`-prefixed no-lock methods
 (`NlLen`, `NlSearch`, `NlInsert`, ...) so a search-then-update
 sequence can run atomically (and `dll_ts` exposes `Lock`/`Unlock`).

@@ -1,0 +1,203 @@
+= tiny_lfu
+
+A generic Go implementation of *TinyLFU* frequency-based cache admission and
+the *W-TinyLFU* cache policy, based on Gil Einziger, Roy Friedman, and Ben
+Manes, https://arxiv.org/abs/1512.00727[TinyLFU: A Highly Efficient Cache
+Admission Policy]. A local copy of the paper is at
+link:../note/TinyLFU.pdf[`note/TinyLFU.pdf`].
+
+The paper identifies https://github.com/ben-manes/caffeine[Caffeine] as the
+open-source implementation. This package ports its `FrequencySketch` and
+`WindowTinyLfuPolicy` algorithm from the checkout in `note/caffeine`.
+
+== Structure
+
+* `FrequencySketch[K]` is a four-bit Count-Min sketch. Four counters are
+  packed into a 64-bit block layout, estimates saturate at 15, and all counters
+  are halved after a sample of ten times the configured cache capacity. The
+  reset operation provides aging so historical popularity fades.
+* `TinyLfu[K,V]` stores new entries in an LRU admission window. A window victim
+  enters the main cache only when its estimated frequency exceeds the main
+  victim's frequency; ties retain the victim. The main cache is segmented LRU:
+  hits in probation promote entries to protected, and overflow demotes the
+  protected LRU entry back to probation.
+
+The default geometry is the paper's 1% window (rounded up) and 99% main cache,
+with 80% of main protected. `NewTinyLfuWithSegments` allows explicit window and
+protected capacities. `NewTinyLfuWeighted` bounds total entry weight rather
+than entry count and rejects entries heavier than the cache.
+`NewTinyLfuFunc` adds an eviction veto; if every entry is vetoed, capacity is a
+soft cap until a later insertion can evict an entry.
+
+== Operations
+
+[options="header"]
+|===
+| Operation | Description | Complexity
+
+| `Get` | Look up and record a hit; update recency and frequency | O(1) average
+| `Put` | Insert/update, record access, and evict to capacity | Amortized O(1); aging reset O(sketch size)
+| `Peek` | Look up without changing policy or statistics | O(1) average
+| `Delete` | Remove a resident, retaining frequency history | O(1) average
+| `Len` / `Capacity` / `Size` | Entry count, configured bound, or total weight | O(1)
+| `Frequency` | Estimated recent frequency from 0 through 15 | O(1)
+| `Stats` | Snapshot activity counters | O(1)
+| `Clear` | Drop residents, retaining configuration, history, and stats | O(n)
+| `All` | Iterate residents in window/probation/protected eviction order | O(1) per entry
+| `FrequencySketch.Increment` | Record an access and periodically age counters | Amortized O(1); reset O(sketch size)
+| `FrequencySketch.Frequency` | Estimate a key's recent frequency | O(1)
+| `FrequencySketch.EnsureCapacity` | Grow or retrack the sketch | O(sketch size) when growing, O(1) otherwise
+|===
+
+== Usage
+
+[source,go]
+----
+cache := tiny_lfu.NewTinyLfu[string, int](1000)
+cache.Put("answer", 42)
+value, ok := cache.Get("answer") // a hit updates recency and frequency
+frequency := cache.Frequency("answer")
+----
+
+`Get` records hits but not misses. After loading a missing value, `Put` records
+the access and attempts admission. `Peek` is a pure lookup. `Delete` removes a
+resident without erasing its frequency history. `Clear` removes all residents
+while retaining configuration, history, and statistics. `Stats` reports hits,
+misses, evictions, admissions, and rejections.
+
+The zero value and a nil cache support reads as an empty cache; `Put` panics
+because an unconfigured cache cannot store entries. Constructors reject
+nonpositive capacities and invalid segment geometry. A weigher must not return
+a negative weight.
+
+The package is not safe for concurrent use. link:../tiny_lfu_ts/[`tiny_lfu_ts`]
+provides the same API with a sharded value table, buffered policy maintenance,
+and a mutex-guarded standalone sketch. Real `Lock`/`Unlock` and `Nl*` compound
+methods are included; the plain cache keeps no-op `Lock`/`Unlock` methods for
+source compatibility. The implementation
+deliberately omits Caffeine's read/write buffers, adaptive window climber,
+expiration, and randomized hash-flooding admission jitter.
+
+== Performance and memory comparison with Caffeine
+
+Measured on 2026-11-19 on an Apple M4 Max (arm64), using Go 1.27.0,
+OpenJDK 11.0.28, JMH 1.37, and the Caffeine 3.3.2-SNAPSHOT checkout in
+`note/caffeine`. These are local measurements, not cross-machine guarantees.
+
+The throughput harness uses 32,768 resident integer keys. `get` performs hits,
+`putUpdate` replaces resident values, `putEvict` cycles through 65,536 keys,
+and `mixed` performs 95% reads and 5% updates. Single-threaded cases use
+`tiny_lfu`; eight-thread cases use `tiny_lfu_ts`. Caffeine uses the same
+capacity and operation mix. Go figures are means of five 1-second runs;
+Caffeine figures are JMH means from two forks with four 1-second measurement
+iterations each.
+
+[options="header"]
+|===
+| Workload | Go ns/op | Go Mops/s | Caffeine Mops/s | Caffeine / Go
+
+| `get1` | 54.78 | 18.25 | 36.14 | 1.98x
+| `putUpdate1` | 53.53 | 18.68 | 32.13 | 1.72x
+| `putEvict1` | 66.57 | 15.02 | 17.60 | 1.17x
+| `get8` | 70.34 | 14.22 | 725.85 | 51.05x
+| `putUpdate8` | 114.20 | 8.76 | 226.19 | 25.83x
+| `mixed8` | 60.02 | 16.66 | 451.96 | 27.13x
+|===
+
+The concurrent Go figures are aggregate throughput across eight threads. The
+`_ts` twin now uses sharded values, bounded MPSC rings, and asynchronous batched
+policy maintenance. That improved its original read/update/mixed results by
+3.4x/1.9x/4.0x, with zero hot-path allocations, but Caffeine remains faster.
+The comparison measures complete implementations, not isolated TinyLFU
+arithmetic.
+
+Memory was measured with 25,000 entries and capacity 50,000. Caffeine's JOL
+`MemoryBenchmark` subtracts the post-clear baseline and application-owned
+`Integer` objects. The Go benchmark compares GC-stable `HeapAlloc` before and
+after `Clear`; Go integer keys and boolean values require no per-entry object
+subtraction. Both report cache metadata overhead, not application payload size.
+
+[options="header"]
+|===
+| Implementation | Metadata bytes / entry
+
+| Caffeine, JOL ObjectLayout | 56
+| `tiny_lfu`, Go HeapAlloc delta | 48
+| `tiny_lfu_ts`, Go HeapAlloc delta | 145
+|===
+
+The plain Go version used about 14% less metadata per entry in this
+configuration. The buffered twin used 145 bytes/entry because it maintains
+concurrent value records, policy records, and bounded buffers. Five Go memory
+runs produced 48 bytes/entry for the plain version and 144–145 for the twin.
+Caffeine's result is its aligned JOL value.
+
+Reproduce the Go measurements with:
+
+[source,shell]
+----
+go test ./tiny_lfu -run='^$' -bench='^BenchmarkCaffeineComparison$' -benchtime=1s -count=5 -benchmem
+go test ./tiny_lfu -run='^$' -bench='^BenchmarkMemoryOverhead$' -benchtime=1x -count=5
+----
+
+The matched Java source is `tiny_lfu/testdata/CaffeineBenchmark.java`; compile
+it with the JMH 1.37 annotation processor against Caffeine's `*-jmh.jar`, then
+run `pluto.bench.CaffeineBenchmark` with JMH options `-f 2 -wi 2 -i 4 -w 1s -r
+1s`. Caffeine's memory command, from `note/caffeine`, is
+`./gradlew :caffeine:memoryOverhead -q --rerun`.
+
+== Disk-cache evaluation
+
+I evaluated TinyLFU as a replacement for the LRU block caches in
+`b_tree_disk_ts` and `hash_index_disk_ts`. On synthetic block-access traces
+with 200,000 operations and 64-block capacity, frequency admission improved
+skewed hit rates and preserved the other cases:
+
+[options="header"]
+|===
+| Trace | LRU hits | TinyLFU hits | Difference
+
+| B+tree-like Zipf | 75.28% | 80.18% | +4.90 points
+| Hash-index-like Zipf | 48.10% | 61.10% | +13.00 points
+| B+tree sequential | 66.63% | 66.67% | +0.04 points
+| Hot set plus scan | 74.99% | 74.99% | 0
+| Resident loop | 99.98% | 99.98% | 0
+|===
+
+A trial integration preserved dirty/flushing/pinned vetoes, the soft cap, and
+flush iteration, and passed both stores' race-enabled crash-recovery and
+randomized model suites. Nevertheless, real-store means from three 1-second
+runs rejected the switch:
+
+[options="header"]
+|===
+| Store / workload | LRU ns/op | TinyLFU ns/op | Change
+
+| B+tree hot search | 139.3 | 190.5 | +36.7%
+| B+tree cold sequential search | 143.7 | 197.3 | +37.3%
+| B+tree Zipf search | 293.0 | 307.3 | +4.9%
+| Hash hot search | 126.8 | 163.5 | +29.0%
+| Hash cold sequential search | 127.3 | 775.7 | +509.2%
+| Hash Zipf search | 81.0 | 415.2 | +412.6%
+|===
+
+Immediate policy maintenance, an extra lookup used to protect returned blocks,
+and admission overhead outweighed fewer disk reads. Both stores therefore keep
+LRU. At 25,000 entries/capacity 50,000, TinyLFU had lower per-entry metadata
+than LRU (48 versus 64 bytes), but its fixed sketch can outweigh that advantage
+for small caches. The evaluation sources are `tiny_lfu/disk_eval_test.go` and
+the `BenchmarkSearchZipf` functions in both stores.
+
+== Tests
+
+The suite ports Caffeine's sketch saturation/reset/retracking tests, admission
+and eviction-order cases, explicit segment geometry, and weighted boundary
+regressions. Paper-derived tests use a deterministic Zipf 0.9 workload, a
+one-pass scan, and a changing hot set. `testdata/loop.trace.gz` and
+`testdata/scan.trace.gz` come from Caffeine's simulator resources and provide
+end-to-end trace replays.
+
+The thread-safe twin adds concurrent cache, weighted-eviction, compound
+operation, and sketch tests. Run `go test ./tiny_lfu` here and
+`go test -race ./tiny_lfu_ts` for the twin from the repository root, or use the
+package Makefiles.

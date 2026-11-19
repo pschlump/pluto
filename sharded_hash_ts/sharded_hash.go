@@ -582,6 +582,19 @@ func (tt *ShardedHash[T]) LockKey(key T) (unlock func()) {
 	return s.lock.Unlock
 }
 
+// KeyMutex returns the mutex guarding key's stripe. It is the allocation-free
+// alternative to LockKey for hot paths: lock it, use only Nl* methods for keys
+// in that stripe, then unlock it. The caller must not hold two stripe locks
+// unless they were acquired in stripe-index order. A nil or zero-value table
+// returns nil.
+// Complexity is O(1) average for hashing and routing.
+func (tt *ShardedHash[T]) KeyMutex(key T) *sync.RWMutex {
+	if tt == nil || tt.eq == nil || tt.hash == nil || len(tt.stripes) == 0 {
+		return nil
+	}
+	return &tt.routeHash(tt.hash(key)).lock
+}
+
 // StripeCount returns the number of stripes (a power of two, fixed at
 // construction; 0 for a nil/zero-value table).
 // Complexity is O(1).

@@ -79,7 +79,8 @@ under concurrency.
 | `IsEmpty`, `Len`, `Length`     | O(1)       | O(1)       | lock-free atomic counter
 | `Truncate`                     | O(n)       | O(n)       | clears stripes one at a time
 | `Scan`                         | O(count)   | O(n)       | one stripe read-locked at a time, never across calls
-| `LockKey` + `Nl*`              | O(1)       | O(1)       | one stripe write-locked
+| `LockKey` + `Nl*`              | O(1)       | O(1)       | one stripe write-locked; unlock closure allocation
+| `KeyMutex` + `Nl*`             | O(1)       | O(1)       | allocation-free explicit stripe lock/unlock
 | `StripeCount`, `StripeLen`     | O(1)       | O(1)       | per-stripe load metrics
 | `Walk`, `All`, `Values`        | O(n)       | O(n)       | per-stripe snapshots
 | `InsertSlice`, `InsertIter`    | O(k)       | O(n·k)     | grouped by stripe; each stripe's share atomic under its write lock
@@ -139,6 +140,11 @@ stripe — a key of another stripe is not protected by the held lock.
 Calling a locking public method (`Insert`, `Delete`, `Truncate`, `Scan`,
 ...) on any key of the same stripe while the lock is held deadlocks.
 `LockKey`/unlock on a nil or zero-value table are no-ops.
+
+For hot paths, `KeyMutex(key)` avoids `LockKey`'s unlock-closure allocation:
+call `mutex.Lock()`, use the same `Nl*` methods, then `mutex.Unlock()`. It
+returns nil for a nil or zero-value table and has the same stripe-ordering and
+no-reentrant-locking rules.
 
 *Lock ordering:* clients that lock multiple keys at once MUST take them in
 stripe-index order (the order `StripeCount` numbers them in).  Two
