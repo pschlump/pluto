@@ -23,18 +23,32 @@ type seq struct {
 	matchLen int
 }
 
-// matchFinder finds matches over one frame.
+// matchFinder finds matches over one frame: a hash chain (head plus
+// prev links, the lz4 structure) walked a bounded number of
+// candidates, so repetitive-but-not-identical data still finds long
+// matches a single-slot table would miss.
 type matchFinder struct {
-	head []int32 // hash -> most recent absolute position, -1 empty
+	head []int32 // hash -> most recent position with that hash
+	prev []int32 // position -> previous position with the same hash
 	rep  int     // the frame's current repeat offset (0 before any match)
 }
 
+const chainMask = (1 << 18) - 1
+const chainDepth = 8
+
 func newMatchFinder() *matchFinder {
-	f := &matchFinder{head: make([]int32, 1<<17)}
+	f := &matchFinder{head: make([]int32, 1<<17), prev: make([]int32, chainMask+1)}
 	for i := range f.head {
 		f.head[i] = -1
 	}
 	return f
+}
+
+// insert links a position into its hash chain.
+func (f *matchFinder) insert(src []byte, pos int) {
+	h := f.hash4(src[pos:])
+	f.prev[pos&chainMask] = f.head[h]
+	f.head[h] = int32(pos)
 }
 
 func (f *matchFinder) hash4(b []byte) uint32 {
@@ -52,9 +66,7 @@ func (f *matchFinder) blockSeqs(src []byte, from, to, window int) []seq {
 	litStart := from
 	i := from
 	for i+4 <= to {
-		h := f.hash4(src[i:])
-		cand := int(f.head[h])
-		f.head[h] = int32(i)
+		f.insert(src, i)
 
 		best, bestLen := 0, 0
 		isRep := false
@@ -66,21 +78,45 @@ func (f *matchFinder) blockSeqs(src []byte, from, to, window int) []seq {
 				best, bestLen, isRep = f.rep, l, true
 			}
 		}
-		// hash candidate: min 4, in-window history
-		if cand >= 0 {
+		// hash chain: walk the candidates, longest wins; equal-length
+		// matches prefer the closer (cheaper offset code)
+		cand := int(f.head[f.hash4(src[i:])])
+		for n := 0; n < chainDepth && cand >= 0; n++ {
 			dist := i - cand
-			if dist > 0 && dist <= window && dist != best {
-				if cand+4 <= i && binary.LittleEndian.Uint32(src[cand:]) == binary.LittleEndian.Uint32(src[i:]) {
-					if l := matchLen(src, cand, i, to, 4); l > bestLen {
-						best, bestLen = dist, l
-					}
+			if dist > window {
+				break
+			}
+			if dist > 0 && dist != best && cand+4 <= i &&
+				binary.LittleEndian.Uint32(src[cand:]) == binary.LittleEndian.Uint32(src[i:]) {
+				if l := matchLen(src, cand, i, to, 4); l > bestLen {
+					best, bestLen = dist, l
 				}
+			}
+			cand = int(f.prev[cand&chainMask])
+			if cand >= i {
+				break // stale entry from a wrapped ring
 			}
 		}
 
 		if bestLen < 4 {
 			i++
 			continue
+		}
+		// lazy matching: when the very next position starts a longer
+		// match, this one is not worth taking — emit a literal
+		if i+1+4 <= to && !isRep {
+			probe := int(f.head[f.hash4(src[i+1:])])
+			if probe == i {
+				probe = int(f.prev[probe&chainMask])
+			}
+			if probe >= 0 && i+1-probe > 0 && i+1-probe <= window {
+				if binary.LittleEndian.Uint32(src[probe:]) == binary.LittleEndian.Uint32(src[i+1:]) {
+					if l := matchLen(src, probe, i+1, to, 4); l > bestLen {
+						i++
+						continue
+					}
+				}
+			}
 		}
 		// backward extension into the pending literals: the source
 		// moves down with the match, so the byte to compare at i-1
@@ -95,8 +131,8 @@ func (f *matchFinder) blockSeqs(src []byte, from, to, window int) []seq {
 		f.rep = best
 		i += bestLen
 		litStart = i
-		for p := i - bestLen; p+4 <= i; p += 3 {
-			f.head[f.hash4(src[p:])] = int32(p)
+		for p := i - bestLen; p+4 <= i; p++ {
+			f.insert(src, p)
 		}
 	}
 	if litStart < to {
@@ -167,7 +203,11 @@ func compressBlockBody(f *matchFinder, src []byte, from, to, window int) []byte 
 		}
 		pos += s.litLen + s.matchLen
 	}
-	body := append(literalsSection(literals), sequencesSection(seqs)...)
+	litSec := literalsSection(literals)
+	if h := huffmanLiterals(literals); h != nil && len(h) < len(litSec) {
+		litSec = h
+	}
+	body := append(litSec, sequencesSection(seqs)...)
 	if len(body) >= to-from {
 		return nil
 	}

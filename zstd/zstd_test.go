@@ -41,6 +41,7 @@ func corpus() []struct {
 		{"random-400k", rnd},
 		{"run-300k", bytes.Repeat([]byte{9}, 300000)},
 		{"mix-400k", mix},
+		{"words-400k", wordCorpus()}, // match-poor skewed literals: Huffman fodder
 	}
 }
 
@@ -270,4 +271,27 @@ func TestWriterStructured(t *testing.T) {
 			t.Fatalf("trial %d: streaming writer corrupt", trial)
 		}
 	}
+}
+
+// wordCorpus builds match-poor, letter-skewed text (3-7 letter words
+// over a 12-letter alphabet): 4-grams repeat constantly but long
+// matches are rare, so literals dominate and Huffman earns its keep.
+func wordCorpus() []byte {
+	s := uint32(11)
+	word := func() string {
+		s = s*1664525 + 1013904223
+		n := 3 + int(s>>28)
+		out := make([]byte, n)
+		for i := range out {
+			s = s*1664525 + 1013904223
+			out[i] = byte('a' + (s>>23)%12)
+		}
+		return string(out)
+	}
+	var buf []byte
+	for i := 0; i < 55000; i++ {
+		buf = append(buf, word()...)
+		buf = append(buf, ' ')
+	}
+	return buf
 }

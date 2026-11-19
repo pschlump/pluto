@@ -25,7 +25,7 @@ Sequences go through the predefined FSE tables via a literal translation of `FSE
 
 The trailing literals are NOT a sequence — the decoder appends leftovers itself; encoding them as an offset-0 sequence decodes as a 3-byte rep-1 match and corrupts the tail.
 
-Ratios vs `zstd -3`: equal or better on repetitive data (140 vs 144 bytes on the 900 KB corpus), ~30% behind on mixed content (no Huffman literals, no custom FSE tables, greedy parse).
+Ratios vs `zstd -3`: better on repetitive data (140 vs 144 on the 900 KB corpus) and at parity on mixed (100109 vs 100304 on the 400 KB mix); still behind on match-poor skewed text (a deeper chain and optimal parse would close it).  The v2 encoder added three pieces over the stored v1: **Huffman literals** (one stream, direct 4-bit tree — lengths via Huffman with frequency-scaling for the 11-bit limit, which keeps the Kraft sum EXACT; an inexact sum breaks the wire's implied-last-weight completion), a **bounded hash chain** (head + prev ring, 8 candidates — a single-slot table misses long matches on small-alphabet data where every 4-gram recurs), and **lazy matching** (defer a match when the next position starts a longer one — worth ~0.1% alone but free).
 
 ## Streaming shape
 
