@@ -1,0 +1,40 @@
+= ppmd8 — the PPMd variant-I codec (zip method 98), from scratch
+
+`Decode(data []byte, pr Props, outSize int64) []byte` and
+`Encode(data []byte, pr Props) []byte` read and write the PPMd
+streams zip's method 98 carries (Dmitry Shkarin's PPMd var.I, 2002,
+public domain) with Subbotin's 1999 carryless range coder.  The
+implementation follows the published algorithm; it is a fresh Go
+translation, not ported code.
+
+Every member starts with two property bytes — order-1 in bits 0..3
+(order 2..16), memMB-1 in bits 4..11, restore method in bits 12+ —
+then a **self-terminating** stream: unlike the 7z PPMd form, the end
+marker is encoded (the escape chain walked to the root), so the
+member needs no known size.  `Props` parses and writes those bytes.
+
+Variant I differs from variant H (pluto/ppmd) well beyond the coder:
+NumStats is a byte holding count-1, contexts carry a Flags byte that
+feeds the binary probability table, SEE is 24×32 and BinSumm is
+bucketed 25×64, several update constants changed (prevSuccess `>=`,
+binary freq cap 196, escape increments), and memory exhaustion no
+longer restarts unconditionally — the restore method either restarts
+the model or **cuts it off**: RollBack, Refresh, CutOff and
+ExpandTextArea rebuild enough state to keep going while keeping the
+accumulated statistics.  Both restore methods are implemented
+(FREEZE, method 2, is disabled in the reference for compatibility).
+
+Because model, walk, and coder are deterministic, `Encode` of a
+golden's data with its props reproduces 7-Zip's stream **byte for
+byte** — pinned across orders, memory sizes, mixed corpora, and a
+2.7 MB golden that rides the cut-off restore through a 1 MB arena.
+
+== Tests
+
+Embedded goldens (text, text→random mixed, cut-off-pressured 2.7 MB);
+byte-exact re-encode of every golden; round trips through our own
+decoder over corpora that force escapes, rescales, restarts, and
+cut-offs; props round trips and malformed vectors (truncated streams,
+wrong sizes, the FREEZE restore method); a live 7zz sweep across the
+parameter space.  See docs/packages/ppmd8.md for the wire facts that
+bit.
