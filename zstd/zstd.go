@@ -60,6 +60,7 @@ func Compress(data []byte) []byte {
 	// so candidates are always history (positions the decoder has
 	// already produced)
 	f := newMatchFinder()
+	var sc seqCodec
 	for off := 0; ; off += maxBlockSize {
 		n := len(data) - off
 		if n > maxBlockSize {
@@ -70,7 +71,7 @@ func Compress(data []byte) []byte {
 			last = 1
 		}
 		var h uint32
-		if body := compressBlockBody(f, data, off, off+n, frameWidth); body != nil {
+		if body := compressBlockBody(f, data, off, off+n, frameWidth, &sc); body != nil {
 			h = last | 2<<1 | uint32(len(body))<<3
 			out = append(out, byte(h), byte(h>>8), byte(h>>16))
 			out = append(out, body...)

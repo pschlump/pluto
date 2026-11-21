@@ -27,6 +27,30 @@ The trailing literals are NOT a sequence — the decoder appends leftovers itsel
 
 Ratios vs `zstd -3`: better on repetitive data (140 vs 144 on the 900 KB corpus) and at parity on mixed (100109 vs 100304 on the 400 KB mix); still behind on match-poor skewed text (a deeper chain and optimal parse would close it).  The v2 encoder added three pieces over the stored v1: **Huffman literals** (one stream, direct 4-bit tree — lengths via Huffman with frequency-scaling for the 11-bit limit, which keeps the Kraft sum EXACT; an inexact sum breaks the wire's implied-last-weight completion), a **bounded hash chain** (head + prev ring, 8 candidates — a single-slot table misses long matches on small-alphabet data where every 4-gram recurs), and **lazy matching** (defer a match when the next position starts a longer one — worth ~0.1% alone but free).
 
+## The encoder (v3: custom FSE sequence tables)
+
+Each block's sequence codes (LL/OF/ML) are tallied and normalized
+(largest-remainder proportional scaling to 2^log, every present symbol
+guaranteed a cell, log picked by libzstd's heuristic: the accuracy
+the sample supports, at least enough to index the alphabet, clamped to
+the per-table maxima 9/8/9).  Per family the encoder costs four
+candidates — predefined, RLE (one distinct symbol), a fresh FSE table
+(its description bytes charged to it), and repeat (the previous
+block's tables, free) — by Σ count·log2(tableSize/share), and writes
+the cheapest; custom must beat predefined by a margin to displace it.
+The description writer is the exact inverse of `readNCount`
+(`writeNCount` in `fsecustom.go`): counts below the threshold are
+written one bit short, values ≥ threshold get max added, and zero
+runs ride 2-bit repeat fields — trailing zeros are never written.
+RLE mode's table is log 0 (no bits ever; the states write nothing).
+
+Result on mixed data (text with random sprinkled, 400 KB): 3270 →
+2332 bytes — 28.6% smaller than the predefined-only v2, halving the
+gap to `zstd -3` (1642; what remains is optimal parsing, not tables).
+The streaming Writer carries the same per-frame table state, so
+multi-block frames re-use tables (repeat mode) exactly as the
+one-shot Compress does.
+
 ## Streaming shape
 
 The reader pulls input through an 8 KiB fill, parses frame headers (up to 18 bytes) and block headers as they arrive, and decodes whole blocks — the format's own streaming unit. The decoded buffer doubles as match history: inside a frame only `len − window` bytes are deliverable; at a frame boundary everything is. Frame entropy state (Huffman table, FSE tables, repeat offsets) resets per frame. A clean exhaustion of input at a frame boundary is io.EOF, not corruption.

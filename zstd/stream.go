@@ -219,7 +219,8 @@ type Writer struct {
 	buf     []byte // the block under construction
 	history []byte // frame-decoded bytes for cross-block matches
 	finder  *matchFinder
-	base    int // frame offset of buf[0]
+	codec   seqCodec // per-frame sequence-table state (repeat mode)
+	base    int      // frame offset of buf[0]
 	hdr     bool
 	done    bool
 	err     error
@@ -258,7 +259,7 @@ func (w *Writer) Write(p []byte) (int, error) {
 // block emits one block and rolls the history forward.
 func (w *Writer) block(b []byte, last bool) error {
 	src := append(append([]byte{}, w.history...), b...)
-	body := compressBlockBody(w.finder, src, len(w.history), len(src), frameWidth)
+	body := compressBlockBody(w.finder, src, len(w.history), len(src), frameWidth, &w.codec)
 	var h uint32
 	if body != nil {
 		h = 2 << 1

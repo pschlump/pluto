@@ -192,7 +192,7 @@ func mlCodeFor(ml int) int {
 // compressBlockBody builds one compressed block body for src[from:to]
 // (matching against src[..from]), or returns nil when it would not
 // beat the stored form.
-func compressBlockBody(f *matchFinder, src []byte, from, to, window int) []byte {
+func compressBlockBody(f *matchFinder, src []byte, from, to, window int, sc *seqCodec) []byte {
 	seqs := f.blockSeqs(src, from, to, window)
 	var literals []byte
 	pos := from
@@ -207,7 +207,7 @@ func compressBlockBody(f *matchFinder, src []byte, from, to, window int) []byte 
 	if h := huffmanLiterals(literals); h != nil && len(h) < len(litSec) {
 		litSec = h
 	}
-	body := append(litSec, sequencesSection(seqs)...)
+	body := append(litSec, sc.sequencesSection(seqs)...)
 	if len(body) >= to-from {
 		return nil
 	}
@@ -244,11 +244,13 @@ func literalsSection(lit []byte) []byte {
 	}
 }
 
-// sequencesSection encodes the count, the all-predefined modes byte,
-// and the interleaved backward bitstream.  The literals-only tail
-// sequence (offset 0) contributes its LL code and extras but, as the
-// first the decoder reads, only rides the init state.
-func sequencesSection(seqs []seq) []byte {
+// sequencesSection encodes the count, the per-family table modes and
+// descriptions (predefined, RLE, fresh FSE, or repeat — chosen by an
+// estimated bit cost against the block's actual statistics), and the
+// interleaved backward bitstream.  The literals-only tail sequence
+// (offset 0) contributes its LL code and extras but, as the first
+// the decoder reads, only rides the init state.
+func (sc *seqCodec) sequencesSection(seqs []seq) []byte {
 	// the trailing-literals run is not a sequence; the decoder appends
 	// the leftovers on its own, so it never enters the count
 	if len(seqs) > 0 && seqs[len(seqs)-1].offset == 0 {
@@ -268,7 +270,6 @@ func sequencesSection(seqs []seq) []byte {
 		v := n - 0x7F00
 		hdr = []byte{255, byte(v), byte(v >> 8)}
 	}
-	hdr = append(hdr, 0x00) // modes: LL, OF, ML predefined
 
 	code := func(s seq) (llc, mlc, ofc int, llx, mlx, ofx uint32, llb, mlb, ofb uint8) {
 		llc = llCodeFor(s.litLen)
@@ -287,12 +288,47 @@ func sequencesSection(seqs []seq) []byte {
 		return
 	}
 
+	// the block's actual code statistics drive the table choice
+	var llCounts [llMaxSym + 1]uint32
+	var ofCounts [ofMaxSym + 1]uint32
+	var mlCounts [mlMaxSym + 1]uint32
+	for _, s := range seqs {
+		llc, mlc, ofc, _, _, _, _, _, _ := code(s)
+		llCounts[llc]++
+		ofCounts[ofc]++
+		mlCounts[mlc]++
+	}
+	llCh := chooseFam(llCounts[:], llMaxSym, 9, llNorm, 9, llCTab, &sc.ll)
+	ofCh := chooseFam(ofCounts[:], ofMaxSym, 8, ofNorm, 8, ofCTab, &sc.of)
+	mlCh := chooseFam(mlCounts[:], mlMaxSym, 9, mlNorm, 9, mlCTab, &sc.ml)
+	sc.ll.apply(llCh)
+	sc.of.apply(ofCh)
+	sc.ml.apply(mlCh)
+
+	modes := byte(llCh.mode<<6 | ofCh.mode<<4 | mlCh.mode<<2)
+	hdr = append(hdr, modes)
+	if llCh.mode == 1 {
+		hdr = append(hdr, byte(llCh.rleSym))
+	} else {
+		hdr = append(hdr, llCh.desc...)
+	}
+	if ofCh.mode == 1 {
+		hdr = append(hdr, byte(ofCh.rleSym))
+	} else {
+		hdr = append(hdr, ofCh.desc...)
+	}
+	if mlCh.mode == 1 {
+		hdr = append(hdr, byte(mlCh.rleSym))
+	} else {
+		hdr = append(hdr, mlCh.desc...)
+	}
+
 	w := &bitWriter{}
 	llc, mlc, ofc, llx, mlx, ofx, llb, mlb, ofb := code(seqs[n-1])
 	var llSt, mlSt, ofSt cState
-	llSt.init2(llCTab, llc)
-	mlSt.init2(mlCTab, mlc)
-	ofSt.init2(ofCTab, ofc)
+	llSt.init2(llCh.tab, llc)
+	mlSt.init2(mlCh.tab, mlc)
+	ofSt.init2(ofCh.tab, ofc)
 	w.add(llx, uint(llb))
 	w.add(mlx, uint(mlb))
 	w.add(ofx, uint(ofb))

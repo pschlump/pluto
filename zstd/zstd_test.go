@@ -295,3 +295,147 @@ func wordCorpus() []byte {
 	}
 	return buf
 }
+
+// blockModes walks a frame and returns each compressed block's
+// sequence-table modes (LL, OF, ML), for asserting table choices.
+func blockModes(t *testing.T, z []byte) [][3]int {
+	t.Helper()
+	if len(z) < 6 || !bytes.Equal(z[:4], []byte{0x28, 0xB5, 0x2F, 0xFD}) {
+		t.Fatal("not a frame")
+	}
+	p := 6 // no FCS, no checksum: descriptor + window byte
+	var out [][3]int
+	d := &decoder{}
+	for {
+		if p+3 > len(z) {
+			t.Fatal("truncated block header")
+		}
+		bh := uint32(z[p]) | uint32(z[p+1])<<8 | uint32(z[p+2])<<16
+		p += 3
+		last, size := bh&1 != 0, int(bh>>3)
+		if (bh>>1)&3 == 2 {
+			body := z[p : p+size]
+			_, used, err := d.literals(body)
+			if err != nil {
+				t.Fatalf("literals: %v", err)
+			}
+			seq := body[used:]
+			nbSeq, sp := int(seq[0]), 1
+			if nbSeq >= 128 {
+				if nbSeq < 255 {
+					nbSeq = ((nbSeq - 128) << 8) + int(seq[1])
+				} else {
+					nbSeq = int(seq[1]) + int(seq[2])<<8 + 0x7F00
+					sp = 3
+				}
+			}
+			_ = nbSeq
+			modes := seq[sp]
+			out = append(out, [3]int{int(modes >> 6 & 3), int(modes >> 4 & 3), int(modes >> 2 & 3)})
+		}
+		p += size
+		if last {
+			return out
+		}
+	}
+}
+
+// TestCustomTablesChosen: on skewed mixed data the encoder must pick
+// FSE (mode 2) tables and re-use them (mode 3) in later blocks —
+// the sequence statistics there diverge from the predefined tables.
+func TestCustomTablesChosen(t *testing.T) {
+	text := bytes.Repeat([]byte("the quick brown fox jumps over the lazy dog. "), 9000)
+	// sprinkle random bytes so match/offset codes spread out
+	sd := uint32(5)
+	for i := 0; i < len(text); i += 977 {
+		sd = sd*1664525 + 1013904223
+		text[i] = byte(sd >> 23)
+	}
+	z := Compress(text)
+	if got := Expand(z); !bytes.Equal(got, text) {
+		t.Fatal("round trip failed")
+	}
+	modes := blockModes(t, z)
+	fse, repeat := 0, 0
+	for _, m := range modes {
+		for _, v := range m {
+			if v == 2 {
+				fse++
+			}
+			if v == 3 {
+				repeat++
+			}
+		}
+	}
+	if fse == 0 {
+		t.Fatalf("no custom FSE tables chosen: %v", modes)
+	}
+	// and zstd(1) must read them
+	if _, err := exec.LookPath("zstd"); err == nil {
+		cmd := exec.Command("zstd", "-t")
+		cmd.Stdin = bytes.NewReader(z)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("zstd -t rejected: %v: %s", err, out)
+		}
+	}
+}
+
+// TestNCountRoundTrip: every distribution we normalize and write must
+// read back identically — the description format has no room for
+// drift.
+func TestNCountRoundTrip(t *testing.T) {
+	sd := uint32(12345)
+	next := func(n uint32) uint32 { return n*1664525 + 1013904223 }
+	for iter := 0; iter < 500; iter++ {
+		nSym := 2 + int(next(sd)%40)
+		sd = next(sd)
+		counts := make([]uint32, nSym)
+		total := 0
+		for i := range counts {
+			sd = next(sd)
+			counts[i] = sd % 97
+			total += int(counts[i])
+		}
+		if total == 0 {
+			counts[0] = 1
+			total = 1
+		}
+		norm, log := normalizeCounts(counts, nSym-1, 9)
+		if norm == nil {
+			continue // degenerate: single-symbol (RLE territory)
+		}
+		sum := 0
+		for _, v := range norm {
+			if v < 0 {
+				t.Fatalf("negative norm from normalizeCounts: %v", norm)
+			}
+			sum += int(v)
+		}
+		if sum != 1<<log {
+			t.Fatalf("norm sum %d != %d: %v", sum, 1<<log, norm)
+		}
+		written := writeNCount(norm, log)
+		gotNorm, gotLog, used, err := readNCount(written, 9, 52)
+		if err != nil {
+			t.Fatalf("iter %d: readNCount: %v (norm %v log %d)", iter, err, norm, log)
+		}
+		if gotLog != uint8(log) || used != len(written) {
+			t.Fatalf("iter %d: log %d/%d used %d/%d", iter, gotLog, log, used, len(written))
+		}
+		// trailing zeros are not written; trim both sides
+		for len(norm) > 0 && norm[len(norm)-1] == 0 {
+			norm = norm[:len(norm)-1]
+		}
+		for len(gotNorm) > 0 && gotNorm[len(gotNorm)-1] == 0 {
+			gotNorm = gotNorm[:len(gotNorm)-1]
+		}
+		if len(gotNorm) != len(norm) {
+			t.Fatalf("iter %d: len %d/%d", iter, len(gotNorm), len(norm))
+		}
+		for i := range norm {
+			if gotNorm[i] != norm[i] {
+				t.Fatalf("iter %d: norm[%d] %d != %d (%v vs %v)", iter, i, gotNorm[i], norm[i], gotNorm, norm)
+			}
+		}
+	}
+}

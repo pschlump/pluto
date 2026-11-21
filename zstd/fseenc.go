@@ -161,6 +161,13 @@ func (s *cState) flush(w *bitWriter) {
 	w.add(s.v, s.t.log)
 }
 
+// The per-family symbol maxima and table-log maxima the format fixes.
+const (
+	llMaxSym = 35
+	ofMaxSym = 31
+	mlMaxSym = 52
+)
+
 // The predefined distributions' compression tables.
 var (
 	llCTab = buildCTable(llNorm, 6)

@@ -15,11 +15,15 @@ frames, and skippable frames.  nil from Expand means malformed.
 `NewReader`/`NewWriter` stream block by block, the writer compressing
 with the same matcher across blocks.
 
-Encoder scope: greedy parse, predefined tables, raw literals — no
-Huffman literals, no custom FSE distributions, no optimal parse.
-Ratios against `zstd -3`: equal or better on repetitive data, about
-30% behind on mixed content (which is where those missing pieces
-earn their keep).
+Encoder scope: greedy parse with lazy matching and a bounded hash
+chain, Huffman literals, and custom FSE sequence tables — per block
+the encoder normalizes the actual code statistics and picks per table
+between predefined, RLE, fresh-FSE (written description), and repeat
+(previous block's tables, free) by an estimated bit cost.  Ratios
+against `zstd -3`: equal or better on repetitive data; on mixed
+content custom tables cut the gap roughly in half (28% smaller than
+the predefined-only encoder on a 400 KB text-with-random corpus;
+the rest of the gap is optimal parsing).
 
 == Wire shape
 
@@ -57,7 +61,10 @@ resolve as value-3.
 
 == Tests
 
-Corpus round trips; goldens from zstd(1) across levels, `--check`,
+A mode-choice test pins that skewed data actually selects FSE and
+repeat modes; a 500-case property test round-trips every normalized
+distribution through the description writer and reader.  Corpus round
+trips; goldens from zstd(1) across levels, `--check`,
 and `--long=25` (`-T1` — with `-T0` the CLI's job scheduling changes
 the framing between runs); zstd(1) tests and decodes ours both
 whole-buffer and streamed; concat/skippable; malformed vectors and a
