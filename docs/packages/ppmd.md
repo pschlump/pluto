@@ -2,11 +2,12 @@
 
 `ppmd` is the PPMd variant-H context-modeling codec in the form
 7-Zip uses for native PPMd members: `Decode(data, order, memSize,
-outSize)`. Structured as `ppmd.go` (arena, unit sub-allocator,
+outSize)` and `Encode(data, order, memSize)`. Structured as `ppmd.go` (arena, unit sub-allocator,
 constants, restart), `model.go` (context creation along suffix
 chains, per-symbol updates, rescale), `decode.go` (the carryless
-range coder, the per-symbol decode driver). Decode only — zip method
-98 is PPMd variant I, a different model.
+range coder, the per-symbol decode driver) and `encode.go` (the
+carry-propagating range coder, the per-symbol encode driver). zip
+method 98 is PPMd variant I, a different model.
 
 ## The model in one paragraph
 
@@ -70,3 +71,29 @@ diffed. The first divergent field localizes the bug to one decode
 path; a second, finer diff of that path's inputs (for binary
 decodes: the BinSumm cell index decomposition) names the exact
 state. The C oracle is /tmp scratch, never shipped.
+
+## The encoder
+
+`encode.go` mirrors the decoder path for path: the same walk (find the
+symbol in MinContext, escape through SEE-masked suffix contexts), the
+same model mutations at the same points, and a range coder with
+carry — 64-bit `Low`, the cache/0xFF-run carry flush, the first
+emitted byte the zero the decoder's init consumes, five `shiftLow`s at
+the end.  Norm sites mirror the decoder's: double after every final
+encode, single after a binary hit (`rng = bound`), none after a plain
+encode — the escape intervals *within* one symbol walk never
+normalize, on either side.
+
+The masked-path totals are the subtle part: the escape walk adds
+`freq & mask` for free (already-tried symbols contribute zero), and
+when the symbol is found the remaining total is accumulated from the
+found state on — the found frequency enters through the odd-first term
+when the remaining count is odd, or through the first pair when it is
+even, never both.  Encoded `low` excludes the escape frequency, which
+sits at the top of the interval.
+
+Because everything is deterministic, `Encode` of a golden's data with
+the golden's props reproduces 7zz's stream **byte for byte** — all
+goldens, including a restart-heavy 500 KB encode inside a 1 MB arena
+and random data, matched on the first working build.  That parity is
+the encoder's primary test.

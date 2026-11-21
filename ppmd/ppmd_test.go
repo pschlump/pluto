@@ -9,6 +9,7 @@ package ppmd
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"os"
 	"os/exec"
@@ -160,5 +161,137 @@ func TestDecodeAgainst7z(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// TestEncodeMatchesGoldens: the encoder is deterministic — the same
+// model, walk, and range coder 7-Zip uses — so re-encoding the golden
+// corpora with the golden props must reproduce 7zz's streams
+// byte-for-byte.  This is interop proof stronger than a round trip.
+func TestEncodeMatchesGoldens(t *testing.T) {
+	for _, v := range goldenVectors {
+		t.Run(v.name, func(t *testing.T) {
+			stream := mustHex(t, v.stream)
+			got := Encode(v.want(), v.order, v.memSize)
+			if got == nil {
+				t.Fatal("Encode failed")
+			}
+			if !bytes.Equal(got, stream) {
+				i := 0
+				for i < len(got) && i < len(stream) && got[i] == stream[i] {
+					i++
+				}
+				t.Fatalf("stream differs at byte %d: ours %d bytes, 7zz %d", i, len(got), len(stream))
+			}
+		})
+	}
+}
+
+// TestEncodeParams pins parameter rejection.
+func TestEncodeParams(t *testing.T) {
+	data := genText(1000)
+	if Encode(data, 1, 1<<20) != nil {
+		t.Error("order 1 accepted")
+	}
+	if Encode(data, 65, 1<<20) != nil {
+		t.Error("order 65 accepted")
+	}
+	if Encode(data, 6, 1<<10) != nil {
+		t.Error("tiny memSize accepted")
+	}
+	if Encode(nil, 6, 1<<20) == nil {
+		t.Error("empty input must still produce the 6-byte rc tail")
+	}
+}
+
+// TestEncodeDecodeRoundTrip: our own streams decode with our own
+// decoder across corpora that force escapes, rescales, and restarts.
+func TestEncodeDecodeRoundTrip(t *testing.T) {
+	corpora := []struct {
+		name string
+		data []byte
+	}{
+		{"text", genText(300000)},
+		{"mixed", append(genText(50000), genRnd(2000, 5)...)},
+		{"random", genRnd(50000, 11)},
+		{"binary", bytes.Repeat([]byte{0, 1, 2, 255}, 10000)},
+		{"empty", nil},
+		{"small", []byte("a")},
+	}
+	settings := []struct {
+		order   int
+		memSize uint32
+	}{
+		{2, 1 << 20},
+		{6, 1 << 20}, // forces restarts on the bigger corpora
+		{16, 16 << 20},
+	}
+	for _, c := range corpora {
+		for _, set := range settings {
+			t.Run(c.name+"-"+string(rune('0'+set.order)), func(t *testing.T) {
+				enc := Encode(c.data, set.order, set.memSize)
+				if enc == nil {
+					t.Fatal("Encode failed")
+				}
+				got := Decode(enc, set.order, set.memSize, int64(len(c.data)))
+				if got == nil {
+					t.Fatalf("Decode failed (%d bytes)", len(enc))
+				}
+				if !bytes.Equal(got, c.data) {
+					t.Fatal("round trip mismatch")
+				}
+			})
+		}
+	}
+}
+
+// TestEncodeAgainst7z re-encodes fresh 7zz corpora byte-exact across
+// the parameter space, and checks the compressed sizes are in the
+// same league as 7zz's own (sanity that settings are honored).
+func TestEncodeAgainst7z(t *testing.T) {
+	bin, err := exec.LookPath("7zz")
+	if err != nil {
+		t.Skip("7zz not installed")
+	}
+	dir := t.TempDir()
+	settings := []string{"o=2:mem=1m", "o=4:mem=1m", "o=6:mem=16m", "o=16:mem=4m"}
+	data := append(genText(150000), genRnd(3000, 7)...)
+	src := filepath.Join(dir, "in.bin")
+	if err := os.WriteFile(src, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, set := range settings {
+		t.Run(set, func(t *testing.T) {
+			arc := filepath.Join(dir, "in.7z")
+			_ = os.Remove(arc)
+			out, err := exec.Command(bin, "a", "-bd", "-y", arc, src, "-m0=PPMd:"+set).CombinedOutput()
+			if err != nil {
+				t.Skipf("7zz failed: %v: %s", err, out)
+			}
+			z, err := os.ReadFile(arc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			j := bytes.Index(z, []byte{0x03, 0x04, 0x01})
+			if j < 0 || z[j-1]&0x0F != 3 || z[j-1]&0x20 == 0 {
+				t.Fatal("PPMd coder not found in header")
+			}
+			props := z[j+4 : j+4+int(z[j+3])]
+			order := int(props[0])
+			memSize := binary.LittleEndian.Uint32(props[1:5])
+			packOff := binary.LittleEndian.Uint64(z[12:20])
+			stream := z[32 : 32+packOff]
+			got := Encode(data, order, memSize)
+			if got == nil {
+				t.Fatalf("Encode failed (order=%d mem=%d)", order, memSize)
+			}
+			if !bytes.Equal(got, stream) {
+				i := 0
+				for i < len(got) && i < len(stream) && got[i] == stream[i] {
+					i++
+				}
+				t.Fatalf("stream differs at byte %d (ours %d bytes, 7zz %d)", i, len(got), len(stream))
+			}
+		})
 	}
 }

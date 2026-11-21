@@ -79,6 +79,7 @@ type model struct {
 	unitsStart uint32
 	arena      []byte
 	dec        rangeDec
+	enc        rangeEnc
 
 	indx2Units [numIndexes + 2]byte
 	units2Indx [128]byte
