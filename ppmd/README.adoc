@@ -1,0 +1,46 @@
+= ppmd — the PPMd variant-H codec (7-Zip form), from scratch
+
+`Decode(data []byte, order int, memSize uint32, outSize int64) []byte`
+reads the PPMd-H stream 7-Zip writes for native PPMd members (coder
+id `03 04 01`, the model Dmitry Shkarin published as PPMd var.H in
+2001 paired with 7-Zip's carryless range coder).  nil means malformed;
+a memory-exhaustion restart mid-stream is part of the format, not an
+error.  The implementation is a fresh Go translation following the
+published algorithm — not ported code.
+
+The model keeps a tree of contexts in one byte arena, every reference
+an offset: each context is a 12-byte unit holding NumStats, the
+SummFreq/escape overlay, a Stats pointer, and a Suffix link; each
+statistic is a 6-byte (Symbol, Freq, Successor) state.  Decoding
+descends from the longest context; a miss is priced by secondary
+escape estimation (SEE) and drops to the suffix.  When the text
+catches the allocator the whole model restarts and keeps going —
+goldens with forced restarts decode byte-exact.
+
+Scope: decode only, the 7z coder form (zip's method 98 is variant I,
+a different model — future work).  Goldens from 7-Zip (`7zz -m0=PPMd`)
+across orders 2/6/16, memory sizes, text/random/mixed corpora, and a
+500 KB golden that restarts inside a 1 MB arena; three of those
+streams are embedded so the suite covers real wire bytes without
+7zz installed.
+
+== Wire shape
+
+The coder properties are five bytes: order (2..64) then LE32 memSize
+in bytes (7-Zip itself auto-reduces memSize by the file size when
+left default — a reader must take the props from the header, never
+assume what was requested).  The stream itself starts with one zero
+byte then four code bytes; the range coder is carryless —
+`Code -= start*Range; Range *= size`, threshold `Range /= total;
+Code / Range`, renormalized (Range < 2^24) by shifting in one or two
+bytes at sites that are part of the format: after every symbol
+decode (double), after a binary decode's bit-0 (single), never after
+the escape decode inside one symbol's multi-step walk.
+
+== Tests
+
+Embedded goldens (text, a text→random mixed stream, a restart-heavy
+500 KB decode); a parameter sweep against fresh 7zz goldens when
+installed; malformed vectors (bad init byte, out-of-range order and
+memSize).  See docs/packages/ppmd.md for the arithmetic details that
+bit.
