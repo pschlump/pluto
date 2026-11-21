@@ -439,3 +439,49 @@ func TestNCountRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+// TestHuffmanLiterals: every size class and alphabet shape of the
+// literal Huffman coder round trips — the small single-stream form,
+// the four-stream form with its jump table, sparse low alphabets
+// (direct 4-bit weights), and high-byte alphabets (the FSE-coded
+// weight form), skewed and flat.
+func TestHuffmanLiterals(t *testing.T) {
+	sd := uint32(9)
+	next := func() uint32 { sd = sd*1664525 + 1013904223; return sd }
+	for _, n := range []int{16, 17, 100, 1000, 4095, 4096, 16383, 16384, 65535, 131072} {
+		for _, shape := range []string{"low", "high", "flat", "skewed"} {
+			lit := make([]byte, n)
+			for i := range lit {
+				v := next()
+				switch shape {
+				case "low":
+					lit[i] = byte('a' + v%12)
+				case "high":
+					if v%4 == 0 {
+						lit[i] = 0
+					} else {
+						lit[i] = byte(128 + v%128)
+					}
+				case "flat":
+					lit[i] = byte(v)
+				default: // skewed: mostly NUL with scattered bytes
+					if v%16 == 0 {
+						lit[i] = byte(v)
+					}
+				}
+			}
+			h := huffmanLiterals(lit)
+			if h == nil {
+				continue // raw wins; fine
+			}
+			d := &decoder{}
+			got, used, err := d.literals(h)
+			if err != nil || used != len(h) || !bytes.Equal(got, lit) {
+				t.Fatalf("n=%d shape=%s: err=%v used=%d/%d", n, shape, err, used, len(h))
+			}
+			if len(h) >= n {
+				t.Fatalf("n=%d shape=%s: grew to %d", n, shape, len(h))
+			}
+		}
+	}
+}

@@ -51,6 +51,47 @@ The streaming Writer carries the same per-frame table state, so
 multi-block frames re-use tables (repeat mode) exactly as the
 one-shot Compress does.
 
+## The encoder (v4: optimal parse)
+
+`optimal.go` replaces the greedy/lazy matcher with a shortest-path
+DP: each position ends a literal step or a sequence step (a match
+coded by full offset, or by the cheap 1..3 repeat value when the
+distance sits in the repeat state that cell carries), priced by the
+block's literal entropy and the predefined FSE log-shares.  Matches
+probe a bounded hash chain (longest plus nearest candidates, a
+sufficient-length cut) with a per-probe length cap — uncapped probes
+on perfectly periodic data compare to the end of every block at every
+position — and a post-pass folds adjacent zero-literal same-distance
+sequences back into one long match, re-verifying every later
+repeat-coded sequence against the changed repeat history (rewriting
+to the full form when it no longer resolves).
+
+### The three latent Huffman bugs the DP exposed
+
+The price model assumes literals cost their entropy — which only
+holds if the Huffman literal coder actually fires.  It never had:
+
+- **Internal tree nodes carried symbol 0** (the field's zero value),
+  and the walk treats `symbol >= 0` as a leaf — every tree collapsed
+  to one symbol, `huffmanLiterals` returned nil on EVERY input, and
+  the raw-literals fallback masked it (round trips never failed).
+- **The raw heap method was used instead of `heap.Push`**, so merges
+  violated the heap invariant (valid-but-arbitrary trees where luck
+  held, disconnected ones where it didn't).
+- **Canonical codes were assigned shortest-first**; the decoder
+  distributes them longest-first (ascending weight), inverted on
+  every multi-length tree.
+
+All three since the feature landed; also fixed while there: the
+literals header's size formats (single-stream exists ONLY as the
+3-byte 10-bit form — sf2/sf3 are four-stream, with the 6-byte jump
+table and ⌈n/4⌉ quarters), and the direct 4-bit weight form caps at
+128 weights, so high-byte alphabets (weight lists up to 255 long) now
+take the FSE-coded weight form: a normalized-count description over
+weight values plus a backward stream with TWO INTERLEAVED STATES —
+the chains' emissions interleave in the reader's alternating order,
+not concatenated (that was the first cut's corruption).
+
 ## Streaming shape
 
 The reader pulls input through an 8 KiB fill, parses frame headers (up to 18 bytes) and block headers as they arrive, and decodes whole blocks — the format's own streaming unit. The decoded buffer doubles as match history: inside a frame only `len − window` bytes are deliverable; at a frame boundary everything is. Frame entropy state (Huffman table, FSE tables, repeat offsets) resets per frame. A clean exhaustion of input at a frame boundary is io.EOF, not corruption.

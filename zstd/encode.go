@@ -8,19 +8,20 @@ package zstd
 
 import "encoding/binary"
 
-// The compressor: a greedy match finder (4-byte single-slot hash
-// table, backward extension, repeat-offset reuse) feeding sequences
-// through the predefined FSE tables, with raw or RLE literals.  Each
-// 128 KiB block is matched against the whole frame so far (up to the
-// 8 MiB window); blocks that do not shrink are stored raw, the
-// reference writer's rule.
+// The compressor: an optimal parse (shortest-path DP, see
+// optimal.go) over a bounded hash chain, repeat-offset value coding,
+// Huffman literals, and custom-or-predefined FSE sequence tables.
+// Each 128 KiB block is matched against the whole frame so far (up
+// to the 8 MiB window); blocks that do not shrink are stored raw,
+// the reference writer's rule.
 
 // seq is one LZ77 command: litLen literals, then a match of matchLen
 // bytes at offset.  offset 0 marks the run of trailing literals.
 type seq struct {
 	litLen   int
-	offset   int
+	offset   int // the match distance
 	matchLen int
+	offWire  int // explicit wire offset value (1..3 repeat codes); 0 derives offset+3
 }
 
 // matchFinder finds matches over one frame: a hash chain (head plus
@@ -28,16 +29,16 @@ type seq struct {
 // candidates, so repetitive-but-not-identical data still finds long
 // matches a single-slot table would miss.
 type matchFinder struct {
-	head []int32 // hash -> most recent position with that hash
-	prev []int32 // position -> previous position with the same hash
-	rep  int     // the frame's current repeat offset (0 before any match)
+	head             []int32 // hash -> most recent position with that hash
+	prev             []int32 // position -> previous position with the same hash
+	rep0, rep1, rep2 int     // the frame's repeat offsets (seeded 1, 4, 8)
 }
 
 const chainMask = (1 << 18) - 1
 const chainDepth = 8
 
 func newMatchFinder() *matchFinder {
-	f := &matchFinder{head: make([]int32, 1<<17), prev: make([]int32, chainMask+1)}
+	f := &matchFinder{head: make([]int32, 1<<17), prev: make([]int32, chainMask+1), rep0: 1, rep1: 4, rep2: 8}
 	for i := range f.head {
 		f.head[i] = -1
 	}
@@ -54,91 +55,6 @@ func (f *matchFinder) insert(src []byte, pos int) {
 func (f *matchFinder) hash4(b []byte) uint32 {
 	v := binary.LittleEndian.Uint32(b)
 	return (v * 2654435761) >> 15
-}
-
-// blockSeqs turns src[from:to] into sequences.  Candidates may reach
-// anywhere in src[..from] within the window.  The finder's table is
-// seeded with every position of the whole input up front, so later
-// blocks see earlier ones; positions consumed inside the match re-seed
-// sparsely as the scan advances.
-func (f *matchFinder) blockSeqs(src []byte, from, to, window int) []seq {
-	var out []seq
-	litStart := from
-	i := from
-	for i+4 <= to {
-		f.insert(src, i)
-
-		best, bestLen := 0, 0
-		isRep := false
-		// repeat offset: only with literals ahead of it (a rep with
-		// zero literals selects rep1, a different offset, in the
-		// format), and min 3
-		if f.rep > 0 && i > litStart && i-f.rep >= 0 && f.rep <= window {
-			if l := matchLen(src, i-f.rep, i, to, 3); l >= 3 {
-				best, bestLen, isRep = f.rep, l, true
-			}
-		}
-		// hash chain: walk the candidates, longest wins; equal-length
-		// matches prefer the closer (cheaper offset code)
-		cand := int(f.head[f.hash4(src[i:])])
-		for n := 0; n < chainDepth && cand >= 0; n++ {
-			dist := i - cand
-			if dist > window {
-				break
-			}
-			if dist > 0 && dist != best && cand+4 <= i &&
-				binary.LittleEndian.Uint32(src[cand:]) == binary.LittleEndian.Uint32(src[i:]) {
-				if l := matchLen(src, cand, i, to, 4); l > bestLen {
-					best, bestLen = dist, l
-				}
-			}
-			cand = int(f.prev[cand&chainMask])
-			if cand >= i {
-				break // stale entry from a wrapped ring
-			}
-		}
-
-		if bestLen < 4 {
-			i++
-			continue
-		}
-		// lazy matching: when the very next position starts a longer
-		// match, this one is not worth taking — emit a literal
-		if i+1+4 <= to && !isRep {
-			probe := int(f.head[f.hash4(src[i+1:])])
-			if probe == i {
-				probe = int(f.prev[probe&chainMask])
-			}
-			if probe >= 0 && i+1-probe > 0 && i+1-probe <= window {
-				if binary.LittleEndian.Uint32(src[probe:]) == binary.LittleEndian.Uint32(src[i+1:]) {
-					if l := matchLen(src, probe, i+1, to, 4); l > bestLen {
-						i++
-						continue
-					}
-				}
-			}
-		}
-		// backward extension into the pending literals: the source
-		// moves down with the match, so the byte to compare at i-1
-		// is at i-1-best; a rep match keeps at least one literal so
-		// it stays a rep-0 code
-		for i > litStart && best < window && i-1-best >= 0 && src[i-1] == src[i-1-best] &&
-			(!isRep || i-1 > litStart) {
-			i--
-			bestLen++
-		}
-		out = append(out, seq{litLen: i - litStart, offset: best, matchLen: bestLen})
-		f.rep = best
-		i += bestLen
-		litStart = i
-		for p := i - bestLen; p+4 <= i; p++ {
-			f.insert(src, p)
-		}
-	}
-	if litStart < to {
-		out = append(out, seq{litLen: to - litStart})
-	}
-	return out
 }
 
 // matchLen counts the common run at a and b (a < b, overlap allowed),
@@ -193,7 +109,7 @@ func mlCodeFor(ml int) int {
 // (matching against src[..from]), or returns nil when it would not
 // beat the stored form.
 func compressBlockBody(f *matchFinder, src []byte, from, to, window int, sc *seqCodec) []byte {
-	seqs := f.blockSeqs(src, from, to, window)
+	seqs := f.optimalSeqs(src, from, to, window)
 	var literals []byte
 	pos := from
 	for _, s := range seqs {
@@ -279,6 +195,9 @@ func (sc *seqCodec) sequencesSection(seqs []seq) []byte {
 			return
 		}
 		ov := uint32(s.offset + 3)
+		if s.offWire != 0 {
+			ov = uint32(s.offWire)
+		}
 		ofc = highbit32(ov)
 		ofx = ov - 1<<uint(ofc)
 		ofb = uint8(ofc)

@@ -15,15 +15,19 @@ frames, and skippable frames.  nil from Expand means malformed.
 `NewReader`/`NewWriter` stream block by block, the writer compressing
 with the same matcher across blocks.
 
-Encoder scope: greedy parse with lazy matching and a bounded hash
-chain, Huffman literals, and custom FSE sequence tables — per block
-the encoder normalizes the actual code statistics and picks per table
-between predefined, RLE, fresh-FSE (written description), and repeat
-(previous block's tables, free) by an estimated bit cost.  Ratios
-against `zstd -3`: equal or better on repetitive data; on mixed
-content custom tables cut the gap roughly in half (28% smaller than
-the predefined-only encoder on a 400 KB text-with-random corpus;
-the rest of the gap is optimal parsing).
+Encoder scope: an optimal parse — a shortest-path DP over each
+block (literal and match steps priced by the block's own literal
+entropy and the predefined tables' log-shares, repeat-offset value
+coding with the repeat state carried per DP cell, a merge pass that
+folds cap-split long matches back together) over a bounded hash
+chain, Huffman literals in every wire form (single stream, four
+streams with jump table, direct 4-bit weights or FSE-coded weights
+for high-byte alphabets), and custom-or-predefined FSE sequence
+tables (predefined / RLE / fresh / repeat per block).  On a
+match-poor 632 KB word corpus: 47% of original, where the greedy
+encoder stood at 60% — and the DP also exposed and fixed three
+latent Huffman-encoder bugs that had silently disabled literal
+compression since the feature landed (see docs/packages/zstd.md).
 
 == Wire shape
 

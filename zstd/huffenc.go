@@ -74,14 +74,20 @@ func huffLengths(freq []uint64, maxLen int) []uint8 {
 }
 
 func huffLengthsOnce(freq []uint64, syms []int) []uint8 {
+	// heap.Push/heap.Pop (the package functions), never the raw
+	// methods: a method Push appends without the sift-up, and the
+	// pops then merge the wrong nodes — a valid but arbitrary tree
+	// (or a disconnected one).
 	h := &nodeHeap{}
 	for _, s := range syms {
-		h.Push(&huffNode{weight: freq[s], symbol: s})
+		heap.Push(h, &huffNode{weight: freq[s], symbol: s})
 	}
 	for h.Len() > 1 {
 		a := heap.Pop(h).(*huffNode)
 		b := heap.Pop(h).(*huffNode)
-		h.Push(&huffNode{weight: a.weight + b.weight, a: a, b: b})
+		// symbol -1 marks internal: walk stops at symbol >= 0, and
+		// the zero value of the field is 0 — a real symbol
+		heap.Push(h, &huffNode{weight: a.weight + b.weight, symbol: -1, a: a, b: b})
 	}
 	lengths := make([]uint8, len(freq))
 	var walk func(n *huffNode, d int)
@@ -125,8 +131,10 @@ func buildHuffEnc(lengths []uint8) *huffEnc {
 		return nil
 	}
 	e := &huffEnc{maxBits: maxBits, codes: make([]uint16, len(lengths)), bits: lengths}
+	// longest codes first, natural symbol order within — the decoder
+	// distributes canonical codes in exactly this order
 	var order []int
-	for l := 1; l <= int(maxBits); l++ {
+	for l := int(maxBits); l >= 1; l-- {
 		for s, ls := range lengths {
 			if int(ls) == l {
 				order = append(order, s)
@@ -185,50 +193,187 @@ func huffmanLiterals(lit []byte) []byte {
 			tree[s] = w
 		}
 	}
+	// the weight list covers 0..last-1 (the last symbol's weight is
+	// implied by the Kraft completion)
+	weights := make([]byte, last)
+	for s := 0; s < last; s++ {
+		if lengths[s] > 0 {
+			weights[s] = maxBits + 1 - lengths[s]
+		}
+	}
+	var treeHdr []byte
+	if last <= 128 {
+		for i := 0; i < last; i += 2 {
+			b := weights[i] << 4
+			if i+1 < last {
+				b |= weights[i+1]
+			}
+			treeHdr = append(treeHdr, b)
+		}
+		hdr := append([]byte{byte(127 + last)}, treeHdr...)
+		treeHdr = hdr
+	} else {
+		var ok bool
+		treeHdr, ok = fseWeights(weights)
+		if !ok {
+			return nil // the direct 4-bit form caps at 128 weights
+		}
+	}
 	e := buildHuffEnc(lengths)
 	if e == nil {
 		return nil
 	}
 
-	w := &bitWriter{}
-	for i := len(lit) - 1; i >= 0; i-- {
-		s := lit[i]
-		w.add(uint32(e.codes[s]), uint(e.bits[s]))
-	}
-	w.close()
-
-	var treeBytes []byte
-	for i := 0; i < len(tree); i += 2 {
-		b := tree[i] << 4
-		if i+1 < len(tree) {
-			b |= tree[i+1]
+	encodeStream := func(b []byte) []byte {
+		w := &bitWriter{}
+		for i := len(b) - 1; i >= 0; i-- {
+			s := b[i]
+			w.add(uint32(e.codes[s]), uint(e.bits[s]))
 		}
-		treeBytes = append(treeBytes, b)
+		w.close()
+		return w.out
 	}
-	treeHdr := append([]byte{byte(127 + len(tree))}, treeBytes...)
 
 	n := len(lit)
-	comp := len(treeHdr) + len(w.out)
-	// 2-2-10 header (single stream, sf 0) or 2-2-14 (sf 2), built as
-	// a little-endian integer exactly the way the decoder reads it
-	var hdrInt uint64
-	var hdrLen int
-	switch {
-	case n <= 0x3FF && comp <= 0x3FF:
-		hdrInt = 2 | 0<<2 | uint64(n)<<4 | uint64(comp)<<14
-		hdrLen = 3
-	default:
-		hdrInt = 2 | 2<<2 | uint64(n)<<4 | uint64(comp)<<18
-		hdrLen = 4
+	// one stream while both sizes fit the header's fields; past the
+	// 14-bit form the block splits into four streams with a 6-byte
+	// jump table, the shape the format requires
+	type form struct {
+		hdrInt uint64
+		hdrLen int
 	}
-	hdr := make([]byte, hdrLen)
-	for i := 0; i < hdrLen; i++ {
-		hdr[i] = byte(hdrInt >> uint(8*i))
+	var f form
+	var payload []byte
+	single := encodeStream(lit)
+	switch {
+	case n <= 0x3FF && len(treeHdr)+len(single) <= 0x3FF:
+		// the only single-stream form: 3-byte header, 10-bit sizes
+		f = form{2 | 0<<2 | uint64(n)<<4 | uint64(len(treeHdr)+len(single))<<14, 3}
+		payload = single
+	default:
+		seg := (n + 3) >> 2
+		var jump []byte
+		var streams []byte
+		for i := 0; i < 4; i++ {
+			hi := n
+			if i < 3 {
+				hi = seg * (i + 1)
+			}
+			st := encodeStream(lit[seg*i : hi])
+			if i < 3 {
+				jump = append(jump, byte(len(st)), byte(len(st)>>8))
+			}
+			streams = append(streams, st...)
+		}
+		comp := len(treeHdr) + 6 + len(streams)
+		switch {
+		case n <= 0x3FF && comp <= 0x3FF:
+			f = form{2 | 1<<2 | uint64(n)<<4 | uint64(comp)<<14, 3}
+		case n <= 0x3FFF && comp <= 0x3FFF:
+			f = form{2 | 2<<2 | uint64(n)<<4 | uint64(comp)<<18, 4}
+		default:
+			f = form{2 | 3<<2 | uint64(n)<<4 | uint64(comp)<<22, 5}
+		}
+		payload = append(jump, streams...)
+	}
+	hdr := make([]byte, f.hdrLen)
+	for i := 0; i < f.hdrLen; i++ {
+		hdr[i] = byte(f.hdrInt >> uint(8*i))
 	}
 
-	body := append(append(append([]byte{}, hdr...), treeHdr...), w.out...)
+	body := append(append(append([]byte{}, hdr...), treeHdr...), payload...)
 	if len(body) >= n {
 		return nil
 	}
 	return body
+}
+
+// fseWeights writes the weight list in the FSE-coded form: a table
+// description over weight VALUES, then a backward stream with two
+// interleaved states.  The reader consumes even indices from the
+// first state and odd from the second, strictly alternating, so the
+// writer builds each chain's bit emissions backward (the natural FSE
+// direction), re-derives the reader's alternating order, and emits
+// the whole sequence reversed.  ok is false when the weights do not
+// fit this form.
+func fseWeights(weights []byte) ([]byte, bool) {
+	k := len(weights)
+	if k < 2 {
+		return nil, false
+	}
+	var counts [16]uint32
+	maxSym := 0
+	for _, w := range weights {
+		if int(w) > maxSym {
+			maxSym = int(w)
+		}
+		counts[w]++
+	}
+	norm, log := normalizeCounts(counts[:maxSym+1], maxSym, 6)
+	if norm == nil {
+		return nil, false
+	}
+	desc := writeNCount(norm, log)
+	if len(desc) > 120 {
+		return nil, false // cannot fit the 1-byte size field
+	}
+	tab := buildCTable(norm, log)
+
+	// one chain's emissions in WRITE order (backward): the chain's
+	// symbols in reader order first, then encode backward
+	chainBits := func(syms []int) []ebits {
+		var st cState
+		st.init2(tab, syms[len(syms)-1])
+		var w2 []ebits
+		for i := len(syms) - 2; i >= 0; i-- {
+			tt := tab.tt[syms[i]]
+			nb := (st.v + tt.deltaNbBits) >> 16
+			w2 = append(w2, ebits{st.v, uint(nb)})
+			st.v = uint32(tab.stateTable[(st.v>>nb)+uint32(tt.deltaFindState)])
+		}
+		return append(w2, ebits{st.v, tab.log})
+	}
+
+	var s1syms, s2syms []int
+	for i := 0; i < k; i += 2 {
+		s1syms = append(s1syms, int(weights[i]))
+	}
+	for i := 1; i < k; i += 2 {
+		s2syms = append(s2syms, int(weights[i]))
+	}
+	rev := func(v []ebits) []ebits {
+		out := make([]ebits, len(v))
+		for i, x := range v {
+			out[len(v)-1-i] = x
+		}
+		return out
+	}
+	r1 := rev(chainBits(s1syms)) // reader order for the even chain
+	r2 := rev(chainBits(s2syms))
+
+	// the reader's global order: emissions 0..k-1 alternate states
+	g := make([]ebits, 0, k)
+	for j := 0; j < k; j++ {
+		if j%2 == 0 {
+			g = append(g, r1[j/2])
+		} else {
+			g = append(g, r2[j/2])
+		}
+	}
+	w := &bitWriter{}
+	for i := len(g) - 1; i >= 0; i-- {
+		w.add(g[i].v, g[i].n)
+	}
+	w.close()
+
+	if len(desc)+len(w.out) > 127 {
+		return nil, false // the size byte must stay under the direct form's range
+	}
+	out := append([]byte{byte(len(desc) + len(w.out))}, desc...)
+	return append(out, w.out...), true
+}
+
+type ebits struct {
+	v uint32
+	n uint
 }
