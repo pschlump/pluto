@@ -49,14 +49,14 @@ link:../maxflow/[`maxflow`] immutability precedent.
 
 [options="header"]
 |===
-| Operation                          | Description                                          | complexity
+| Operation                 | Description                                               | complexity
 
-| `NewAssignmentProblem(w)`          | Solve w, an n-by-n matrix of finite weights          | O(n³) time, O(n²) space
-| `Sol(i)`                           | The column matched to row i, or -1 (out of range / nil) | O(1)
-| `RowOf(j)`                         | The row matched to column j — Sol's inverse, or -1   | O(1)
-| `Weight()`                         | The total of the n matched entries of w              | O(n)
-| `DualRow(i)`                       | Row dual u_i of the certificate (0 out of range / nil) | O(1)
-| `DualCol(j)`                       | Column dual v_j of the certificate (0 out of range / nil) | O(1)
+| `NewAssignmentProblem(w)` | Solve w, an n-by-n matrix of finite weights               | O(n³) time, O(n²) space
+| `Sol(i)`                  | The column matched to row i, or -1 (out of range / nil)   | O(1)
+| `RowOf(j)`                | The row matched to column j — Sol's inverse, or -1        | O(1)
+| `Weight()`                | The total of the n matched entries of w                   | O(n)
+| `DualRow(i)`              | Row dual u_i of the certificate (0 out of range / nil)    | O(1)
+| `DualCol(j)`              | Column dual v_j of the certificate (0 out of range / nil) | O(1)
 |===
 
 == Usage

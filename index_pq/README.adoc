@@ -23,21 +23,21 @@ assertions.  Values are stored and returned *by value* (`T`, not `*T`).
 
 [options="header"]
 |===
-| Operation        | Description                                              | Complexity
+| Operation                         | Description                                                             | Complexity
 
-| `Insert(k, v)`   | Add index `k` with value `v`; *replaces* if `k` present  | O(log n)
-| `Change(k, v)`   | Replace the value of a present index (decrease-key)      | O(log n)
-| `Delete(k)`      | Remove index `k`                                         | O(log n)
-| `Contains(k)`    | Is index `k` in the queue                                | O(1)
-| `Value(k)`       | The value associated with index `k`, or `(_, false)`     | O(1)
-| `Peek`           | The minimum `(index, value)`, without removing           | O(1)
-| `Pop`            | Remove and return the minimum `(index, value)`           | O(log n)
-| `All`            | Iterate `(index, value)` in priority order (snapshot)    | O(n log n)
-| `Len` / `IsEmpty`| Size queries                                             | O(1)
-| `Truncate`       | Remove all indices (keeps the ordering and index space)  | O(n)
+| `Insert(k, v)`                    | Add index `k` with value `v`; *replaces* if `k` present                 | O(log n)
+| `Change(k, v)`                    | Replace the value of a present index (decrease-key)                     | O(log n)
+| `Delete(k)`                       | Remove index `k`                                                        | O(log n)
+| `Contains(k)`                     | Is index `k` in the queue                                               | O(1)
+| `Value(k)`                        | The value associated with index `k`, or `(_, false)`                    | O(1)
+| `Peek`                            | The minimum `(index, value)`, without removing                          | O(1)
+| `Pop`                             | Remove and return the minimum `(index, value)`                          | O(log n)
+| `All`                             | Iterate `(index, value)` in priority order (snapshot)                   | O(n log n)
+| `Len` / `IsEmpty`                 | Size queries                                                            | O(1)
+| `Truncate`                        | Remove all indices (keeps the ordering and index space)                 | O(n)
 | `Slice` / `String` / `StringFunc` | Materialize/render the *values* in backing order — *not* priority order | O(n)
-| `Equal`                      | Same index→value *bindings* (a value swap between indices ⇒ not equal) | O(n)
-| `Clone`                      | Deep copy over the same index space; bindings rebuilt pair by pair | O(n log n)
+| `Equal`                           | Same index→value *bindings* (a value swap between indices ⇒ not equal)  | O(n)
+| `Clone`                           | Deep copy over the same index space; bindings rebuilt pair by pair      | O(n log n)
 |===
 
 The index space `0..n-1` is fixed at construction (`n ≥ 1`).  Indices

@@ -31,6 +31,10 @@ lint:
 bench:
 	go test -run='^$$' -bench=. -benchmem ./...
 
+.PHONY: guava-bench
+guava-bench:
+	./internal/guava_compare/run.sh
+
 .PHONY: tidy
 tidy:
 	go mod tidy
