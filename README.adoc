@@ -49,6 +49,8 @@ with an identical public API.
 | link:bag_ts/[bag_ts]                       | Thread-safe bag (RWMutex, snapshot iterators).
 | link:multiset/[multiset]                   | Generic hash/sorted multisets (positive counts, count algebra, JSON, positioned sorted ranges).
 | link:multiset_ts/[multiset_ts]             | Thread-safe hash multiset (RWMutex, atomic batches/algebra, snapshot iterators).
+| link:multimap/[multimap]                   | Generic list/set/sorted-set multimaps (snapshots, utilities, multiset integration).
+| link:multimap_ts/[multimap_ts]             | Thread-safe multimaps (RWMutex, atomic compound writes, snapshot iterators).
 | link:stack/[stack]                         | Generic slice-backed LIFO stack.
 | link:stack_ts/[stack_ts]                   | Thread-safe slice-backed LIFO stack (RWMutex, snapshot iterators).
 | link:stack_sll_ts/[stack_sll_ts]           | Thread-safe LIFO stack on a singly linked list (RWMutex, snapshot iterators).
@@ -296,6 +298,21 @@ writes, and snapshot iterators.
 ordered navigation; unlike `bag`, no per-occurrence storage.
 * Bad: hash iteration order is unspecified; tree ranges are snapshots rather
 than live views; there is no sorted thread-safe twin yet.
+
+=== Multimap — `multimap/`, `multimap_ts/`
+
+`ListMultimap` preserves duplicate values and per-key insertion order;
+`SetMultimap` removes duplicates; `SortedSetMultimap` keeps unique values in
+comparator order. All provide put/get/remove/replace, association and distinct
+key sizes, entry/key/value iteration, snapshot `AsMap`, and key multiset
+integration. `Index`, alias-safe `InvertFrom`, and `ForMap` cover common
+conversions. No key is retained with an empty value collection. The twin wraps
+all three with one RWMutex, atomic compound mutations, and snapshot iterators.
+
+* Good: one-to-many associations with explicit duplicate/order choices and
+custom equality/hash/comparison without boxing elements in `any`.
+* Bad: `Get` and `AsMap` are copies, not live write-through views; sorted-set
+keys are not sorted; insertion into a sorted value slice is O(v).
 
 === Stack — `stack/`, `stack_ts/`
 

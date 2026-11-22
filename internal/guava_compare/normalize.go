@@ -36,13 +36,16 @@ type ResultMetadata struct {
 }
 
 type Metric struct {
-	Benchmark      string  `json:"benchmark"`
-	Implementation string  `json:"implementation"`
-	Threads        int     `json:"threads"`
-	Metric         string  `json:"metric"`
-	Value          float64 `json:"value"`
-	Unit           string  `json:"unit"`
-	Error          float64 `json:"error,omitempty"`
+	Benchmark         string  `json:"benchmark"`
+	Implementation    string  `json:"implementation"`
+	Threads           int     `json:"threads"`
+	Metric            string  `json:"metric"`
+	Value             float64 `json:"value"`
+	Unit              string  `json:"unit"`
+	Error             float64 `json:"error,omitempty"`
+	Capacity          int     `json:"capacity,omitempty"`
+	InputDistribution string  `json:"inputDistribution,omitempty"`
+	Seed              int64   `json:"seed,omitempty"`
 }
 
 type NormalizedResults struct {
@@ -65,6 +68,16 @@ func ParseGoBenchmark(reader io.Reader) ([]Metric, error) {
 			implementation = "pluto-hash-multiset"
 		case "treemultiset":
 			implementation = "pluto-tree-multiset"
+		case "listmultimap":
+			implementation = "pluto-list-multimap"
+		case "setmultimap":
+			implementation = "pluto-set-multimap"
+		case "sortedsetmultimap":
+			implementation = "pluto-sorted-set-multimap"
+		case "listmap":
+			implementation = "go-list-map"
+		case "setmap":
+			implementation = "go-set-map"
 		}
 		for index := 2; index+1 < len(fields); index++ {
 			var metric, unit string
@@ -137,6 +150,16 @@ func ParseJMHResults(reader io.Reader) ([]Metric, error) {
 			implementation = "guava-tree-multiset"
 		case "mapMultiset":
 			implementation = "java-map"
+		case "arrayListMultimap":
+			implementation = "guava-array-list-multimap"
+		case "hashMultimap":
+			implementation = "guava-hash-multimap"
+		case "treeMultimap":
+			implementation = "guava-tree-multimap"
+		case "listMap":
+			implementation = "java-list-map"
+		case "setMap":
+			implementation = "java-set-map"
 		}
 		metrics = append(metrics, Metric{
 			Benchmark:      strings.ToLower(benchmark),
@@ -152,6 +175,14 @@ func ParseJMHResults(reader io.Reader) ([]Metric, error) {
 }
 
 func WriteNormalizedResults(path string, metadata ResultMetadata, metrics []Metric) error {
+	for index := range metrics {
+		switch metrics[index].Benchmark {
+		case "arraylistmultimap", "hashmultimap", "treemultimap", "listmultimap", "setmultimap", "sortedsetmultimap", "listmap", "setmap":
+			metrics[index].Capacity = MultimapBenchmarkCapacity
+			metrics[index].InputDistribution = MultimapBenchmarkInputDistribution
+			metrics[index].Seed = BenchmarkSeed
+		}
+	}
 	sort.SliceStable(metrics, func(i, j int) bool {
 		if metrics[i].Benchmark != metrics[j].Benchmark {
 			return metrics[i].Benchmark < metrics[j].Benchmark

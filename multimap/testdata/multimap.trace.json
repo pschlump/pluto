@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "operations": [
+    {"op": "put", "key": "a", "value": "x"},
+    {"op": "put", "key": "a", "value": "x"},
+    {"op": "putAll", "key": "a", "values": ["y", "x"]},
+    {"op": "put", "key": "b", "value": "z"},
+    {"op": "get", "key": "a"},
+    {"op": "containsEntry", "key": "a", "value": "y"},
+    {"op": "remove", "key": "a", "value": "x"},
+    {"op": "replaceValues", "key": "a", "values": ["q", "q", "r"]},
+    {"op": "removeAll", "key": "b"},
+    {"op": "putAll", "key": "c", "values": ["d", "e"]},
+    {"op": "size"},
+    {"op": "keySize"},
+    {"op": "get", "key": "missing"},
+    {"op": "remove", "key": "c", "value": "d"}
+  ]
+}

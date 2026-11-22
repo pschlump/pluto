@@ -7,7 +7,9 @@ never starts Java, Maven, or JMH.
 The smoke fixture compares a Go `map[string]int` counter model with Guava's
 `HashMultiset`. The same corpus also drives the Phase 1a matched benchmarks for
 Guava and Pluto hash/tree multisets and Go/Java map baselines. Raw and normalized
-Phase 1a results are retained in `docs/benchmarks/multiset/`.
+Phase 1a results are retained in `docs/benchmarks/multiset/`. Phase 1b adds a
+three-variant multimap oracle and a separately seeded multimap corpus; those
+results are retained in `docs/benchmarks/multimap/`.
 
 ## Run
 

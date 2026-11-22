@@ -61,4 +61,11 @@ func TestGeneratedFilesAreDeterministic(t *testing.T) {
 	if generated := GenerateCorpus(corpus.Seed, len(corpus.Operations), corpus.Capacity); !reflect.DeepEqual(generated, corpus) {
 		t.Fatal("committed corpus differs from deterministic generator")
 	}
+	multimapCorpus, err := ReadMultimapCorpus(filepath.Join("testdata", "multimap.corpus.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if generated := GenerateMultimapCorpus(multimapCorpus.Seed, len(multimapCorpus.Operations), multimapCorpus.Capacity, multimapCorpus.ValuesPerKey); !reflect.DeepEqual(generated, multimapCorpus) {
+		t.Fatal("committed multimap corpus differs from deterministic generator")
+	}
 }

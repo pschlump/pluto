@@ -14,11 +14,15 @@ import (
 )
 
 const (
-	BenchmarkSeed              int64 = 1729
-	BenchmarkCapacity                = 4096
-	BenchmarkCorpusSize              = 10000
-	BenchmarkInputDistribution       = "uniform keys; 45% add, 25% remove, 20% count, 10% setCount"
-	BenchmarkJMHSettings             = "throughput; 2x1s warmup; 3x1s measurement; 1 fork; 1 thread"
+	BenchmarkSeed                      int64 = 1729
+	BenchmarkCapacity                        = 4096
+	BenchmarkCorpusSize                      = 10000
+	BenchmarkInputDistribution               = "uniform keys; 45% add, 25% remove, 20% count, 10% setCount"
+	BenchmarkJMHSettings                     = "throughput; 2x1s warmup; 3x1s measurement; 1 fork; 1 thread"
+	MultimapBenchmarkCapacity                = 256
+	MultimapBenchmarkValuesPerKey            = 16
+	MultimapBenchmarkCorpusSize              = 10000
+	MultimapBenchmarkInputDistribution       = "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry"
 )
 
 type Corpus struct {
@@ -28,6 +32,22 @@ type Corpus struct {
 	Capacity          int         `json:"capacity"`
 	InputDistribution string      `json:"inputDistribution"`
 	Operations        []Operation `json:"operations"`
+}
+
+type MultimapOperation struct {
+	Op     string   `json:"op"`
+	Key    string   `json:"key"`
+	Value  string   `json:"value,omitempty"`
+	Values []string `json:"values,omitempty"`
+}
+
+type MultimapCorpus struct {
+	Version           int                 `json:"version"`
+	Seed              int64               `json:"seed"`
+	Capacity          int                 `json:"capacity"`
+	ValuesPerKey      int                 `json:"valuesPerKey"`
+	InputDistribution string              `json:"inputDistribution"`
+	Operations        []MultimapOperation `json:"operations"`
 }
 
 func GenerateTrace(seed int64, operationCount int) Trace {
@@ -70,6 +90,61 @@ func ReadCorpus(path string) (Corpus, error) {
 }
 
 func WriteCorpus(path string, corpus Corpus) error {
+	return writeJSON(path, corpus, true)
+}
+
+func GenerateMultimapCorpus(seed int64, operationCount, capacity, valuesPerKey int) MultimapCorpus {
+	random := rand.New(rand.NewSource(seed))
+	operations := make([]MultimapOperation, operationCount)
+	for index := range operations {
+		key := fmt.Sprintf("key-%04d", random.Intn(capacity))
+		value := fmt.Sprintf("value-%02d", random.Intn(valuesPerKey))
+		operation := MultimapOperation{Key: key, Value: value}
+		choice := random.Intn(100)
+		switch {
+		case choice < 45:
+			operation.Op = "put"
+		case choice < 65:
+			operation.Op = "remove"
+		case choice < 80:
+			operation.Op = "get"
+		case choice < 90:
+			operation.Op = "putAll"
+			operation.Values = []string{value, fmt.Sprintf("value-%02d", random.Intn(valuesPerKey))}
+		default:
+			operation.Op = "containsEntry"
+		}
+		operations[index] = operation
+	}
+	return MultimapCorpus{
+		Version:           TraceVersion,
+		Seed:              seed,
+		Capacity:          capacity,
+		ValuesPerKey:      valuesPerKey,
+		InputDistribution: MultimapBenchmarkInputDistribution,
+		Operations:        operations,
+	}
+}
+
+func ReadMultimapCorpus(path string) (MultimapCorpus, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return MultimapCorpus{}, err
+	}
+	defer func() { _ = file.Close() }()
+	var corpus MultimapCorpus
+	decoder := json.NewDecoder(file)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&corpus); err != nil {
+		return MultimapCorpus{}, err
+	}
+	if err := ensureEOF(decoder); err != nil {
+		return MultimapCorpus{}, err
+	}
+	return corpus, nil
+}
+
+func WriteMultimapCorpus(path string, corpus MultimapCorpus) error {
 	return writeJSON(path, corpus, true)
 }
 

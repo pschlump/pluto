@@ -1,0 +1,45 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/internal/guava_compare
+cpu: Apple M4 Max
+BenchmarkCounter-14    	49805618	        22.30 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCounter-14    	51109230	        22.71 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCounter-14    	50937298	        23.23 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/internal/guava_compare	3.651s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/multiset
+cpu: Apple M4 Max
+BenchmarkHashMultiset-14    	25096945	        44.48 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashMultiset-14    	26452790	        45.09 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashMultiset-14    	26530134	        44.43 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeMultiset-14    	 5812465	       207.6 ns/op	       4 B/op	       0 allocs/op
+BenchmarkTreeMultiset-14    	 5809708	       207.0 ns/op	       4 B/op	       0 allocs/op
+BenchmarkTreeMultiset-14    	 5800038	       207.0 ns/op	       4 B/op	       0 allocs/op
+BenchmarkMapMultiset-14     	42454332	        27.05 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapMultiset-14     	43117708	        26.88 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapMultiset-14     	44034878	        26.69 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/multiset	11.710s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/multimap
+cpu: Apple M4 Max
+BenchmarkListMultimap-14         	 1000000	      1223 ns/op	    6474 B/op	       0 allocs/op
+BenchmarkListMultimap-14         	 1000000	      1235 ns/op	    6473 B/op	       0 allocs/op
+BenchmarkListMultimap-14         	 1000000	      1236 ns/op	    6473 B/op	       0 allocs/op
+BenchmarkSetMultimap-14          	 7593494	       160.2 ns/op	     222 B/op	       1 allocs/op
+BenchmarkSetMultimap-14          	 7819699	       150.8 ns/op	     222 B/op	       1 allocs/op
+BenchmarkSetMultimap-14          	 8078700	       152.6 ns/op	     222 B/op	       1 allocs/op
+BenchmarkSortedSetMultimap-14    	 8664214	       136.4 ns/op	     108 B/op	       0 allocs/op
+BenchmarkSortedSetMultimap-14    	 8642359	       139.1 ns/op	     108 B/op	       0 allocs/op
+BenchmarkSortedSetMultimap-14    	 8539788	       137.8 ns/op	     108 B/op	       0 allocs/op
+BenchmarkListMap-14              	 3842349	      1125 ns/op	      32 B/op	       0 allocs/op
+BenchmarkListMap-14              	 3772154	      1108 ns/op	      32 B/op	       0 allocs/op
+BenchmarkListMap-14              	 3845983	      1130 ns/op	      32 B/op	       0 allocs/op
+BenchmarkSetMap-14               	29051264	        41.00 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSetMap-14               	28638564	        41.00 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSetMap-14               	29308442	        40.72 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/multimap	29.603s

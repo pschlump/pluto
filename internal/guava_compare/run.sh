@@ -38,6 +38,8 @@ fi
 RESULTS=internal/guava_compare/results
 TRACE=internal/guava_compare/testdata/counter.trace.json
 CORPUS=internal/guava_compare/testdata/counter.corpus.json
+MULTIMAP_TRACE=multimap/testdata/multimap.trace.json
+MULTIMAP_CORPUS=internal/guava_compare/testdata/multimap.corpus.json
 POM=internal/guava_compare/java/pom.xml
 JAR=internal/guava_compare/java/target/guava-compare-1.0.0-SNAPSHOT.jar
 mkdir -p "$RESULTS"
@@ -51,13 +53,16 @@ java -cp "$JAR" com.pschlump.pluto.guava.CounterOracle \
   "$TRACE" "$RESULTS/java-oracle.json"
 cmp "$RESULTS/go-oracle.json" "$RESULTS/java-oracle.json"
 cmp "$RESULTS/java-oracle.json" internal/guava_compare/testdata/counter.golden.json
-printf '%s\n' 'Go and Java oracle results match the committed golden.'
+java -cp "$JAR" com.pschlump.pluto.guava.MultimapOracle \
+  "$MULTIMAP_TRACE" "$RESULTS/multimap-oracle.json"
+cmp "$RESULTS/multimap-oracle.json" multimap/testdata/multimap.golden.json
+printf '%s\n' 'Go and Java oracle results match the committed goldens.'
 
-go test ./internal/guava_compare ./multiset -run '^$' \
-  -bench '^(BenchmarkCounter|BenchmarkHashMultiset|BenchmarkTreeMultiset|BenchmarkMapMultiset)$' \
+go test ./internal/guava_compare ./multiset ./multimap -run '^$' \
+  -bench '^(BenchmarkCounter|BenchmarkHashMultiset|BenchmarkTreeMultiset|BenchmarkMapMultiset|BenchmarkListMultimap|BenchmarkSetMultimap|BenchmarkSortedSetMultimap|BenchmarkListMap|BenchmarkSetMap)$' \
   -benchmem -benchtime=1s -count=3 | tee "$RESULTS/go-bench.txt"
-java -Dcorpus="$ROOT/$CORPUS" -jar "$JAR" \
-  'CounterBenchmark|MultisetBenchmark' -rf json -rff "$ROOT/$RESULTS/jmh.json"
+java -Dcorpus="$ROOT/$CORPUS" -DmultimapCorpus="$ROOT/$MULTIMAP_CORPUS" -jar "$JAR" \
+  'CounterBenchmark|MultisetBenchmark|MultimapBenchmark' -rf json -rff "$ROOT/$RESULTS/jmh.json"
 
 go run ./internal/guava_compare/cmd/guava-compare normalize \
   -go "$RESULTS/go-bench.txt" -jmh "$RESULTS/jmh.json" \

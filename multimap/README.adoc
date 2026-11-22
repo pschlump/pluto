@@ -1,0 +1,67 @@
+= multimap
+
+`ListMultimap[K,V]`, `SetMultimap[K,V]`, and `SortedSetMultimap[K,V]` associate
+keys with collections of values. A key never remains mapped to an empty
+collection. `Len()` counts associations; `KeyLen()` counts distinct keys.
+
+== Variants
+
+- `ListMultimap` preserves duplicates and insertion order within each key.
+- `SetMultimap` collapses duplicate values; value order is unspecified.
+- `SortedSetMultimap` collapses duplicates and orders each key's values with its
+  comparator. Keys remain hash-ordered; this is not Guava's sorted-key
+  `TreeMultimap` API.
+
+Natural constructors use comparable keys and values (and `cmp.Ordered` values
+for the sorted variant). `...Func` constructors accept custom key equality/hash
+plus value equality/hash or comparison. Key types need not be comparable in a
+custom construction.
+
+== Core contract
+
+[cols="3,2,2,2",options="header"]
+|===
+|Operation |List |Set |Sorted set
+|Put |amortized O(1) |O(1) expected |O(v) with O(log v) lookup
+|PutAll |O(v+k) |O(v+k) expected |O((v+k) log(v+k))
+|Get |O(v) |O(v) |O(v)
+|Remove / ContainsEntry |O(v) |O(1) expected |O(v) / O(log v)
+|RemoveAll |O(v) |O(v) |O(v)
+|ReplaceValues |O(v+k) |O(v+k) expected |O((v+k) log(v+k))
+|ContainsKey |O(1) expected |O(1) expected |O(1) expected
+|ContainsValue |O(N) |O(N) |O(N log v)
+|Len / KeyLen / IsEmpty |O(1) |O(1) |O(1)
+|Entries / Keys / Values / KeySet |O(N) |O(N) |O(N)
+|AsMap |O(N) |O(N) |O(N)
+|===
+
+`v` is values for one key, `N` all associations, and `k` input values. Put
+reports whether an association was added (always true for lists). PutAll returns
+the number added. RemoveAll and ReplaceValues return former values. Empty
+replacement removes the key. PutAll and ReplaceValues compute a replacement
+before mutation, so overflow cannot expose a partial batch.
+
+== Iteration and snapshots
+
+`Entries` yields every key/value association, `Keys` repeats keys with
+multiplicity, `Values` flattens values, and `KeySet` yields distinct keys.
+`KeyMultiset` integrates with `multiset.HashMultiset` to retain those counts.
+
+`Get` returns a copied slice and `(found bool)`. `AsMap` returns a `MapSnapshot`
+with `Get`, `Entries`, `Keys`, `Len`, and `KeyLen`; its value slices are also
+copied. Neither is a live write-through view. Do not mutate the plain multimap
+while consuming its iterators.
+
+== Utilities
+
+- `Index(values, keyFunc)` builds a list multimap while preserving input order.
+- `InvertFrom(source, destination)` snapshots and adds reverse associations;
+  nil destination allocates a list multimap, and aliasing is safe.
+- `ForMap` copies a Go map into a list multimap.
+
+== Concurrency
+
+`multimap_ts` provides all three variants behind one `sync.RWMutex` each.
+Compound mutations are atomic, iterators are snapshots, and inversion reads a
+source snapshot before taking destination locks. No sorted-key or live-view
+behavior is implied.

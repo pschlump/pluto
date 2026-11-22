@@ -1,0 +1,897 @@
+{
+  "metadata": {
+    "schemaVersion": 1,
+    "recordedAt": "2026-11-22T20:48:05Z",
+    "machine": "bellacoula.local",
+    "os": "darwin",
+    "architecture": "arm64",
+    "goVersion": "go version go1.27.0 darwin/arm64",
+    "jdkVersion": "openjdk version \"11.0.28\" 2025-07-15",
+    "guavaCommit": "36e3995499d6c3b74b1207d362fa9e19915d2589",
+    "jmhSettings": "throughput; 2x1s warmup; 3x1s measurement; 1 fork; 1 thread",
+    "capacity": 4096,
+    "inputDistribution": "uniform keys; 45% add, 25% remove, 20% count, 10% setCount",
+    "seed": 1729
+  },
+  "metrics": [
+    {
+      "benchmark": "arraylistmultimap",
+      "implementation": "guava-array-list-multimap",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 630358.2640109448,
+      "unit": "ops/s",
+      "error": 1870777.779648807,
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "counter",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "counter",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "counter",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "counter",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "counter",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "counter",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "counter",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 22.3,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "counter",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 22.71,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "counter",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 23.23,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "counter",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 68305641.82428657,
+      "unit": "ops/s",
+      "error": 17626666.91946149
+    },
+    {
+      "benchmark": "hashmultimap",
+      "implementation": "guava-hash-multimap",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 36392458.289818995,
+      "unit": "ops/s",
+      "error": 20069900.841926057,
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 67798267.24236934,
+      "unit": "ops/s",
+      "error": 17771873.78989859
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "pluto-hash-multiset",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "pluto-hash-multiset",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "pluto-hash-multiset",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "pluto-hash-multiset",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "pluto-hash-multiset",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "pluto-hash-multiset",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "pluto-hash-multiset",
+      "threads": 1,
+      "metric": "latency",
+      "value": 44.48,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "pluto-hash-multiset",
+      "threads": 1,
+      "metric": "latency",
+      "value": 45.09,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "pluto-hash-multiset",
+      "threads": 1,
+      "metric": "latency",
+      "value": 44.43,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "listmap",
+      "implementation": "go-list-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 32,
+      "unit": "B/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "listmap",
+      "implementation": "go-list-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 32,
+      "unit": "B/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "listmap",
+      "implementation": "go-list-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 32,
+      "unit": "B/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "listmap",
+      "implementation": "go-list-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "listmap",
+      "implementation": "go-list-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "listmap",
+      "implementation": "go-list-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "listmap",
+      "implementation": "go-list-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 1125,
+      "unit": "ns/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "listmap",
+      "implementation": "go-list-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 1108,
+      "unit": "ns/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "listmap",
+      "implementation": "go-list-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 1130,
+      "unit": "ns/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "listmap",
+      "implementation": "java-list-map",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 622830.8796375921,
+      "unit": "ops/s",
+      "error": 1787351.4772957447,
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "listmultimap",
+      "implementation": "pluto-list-multimap",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 6474,
+      "unit": "B/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "listmultimap",
+      "implementation": "pluto-list-multimap",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 6473,
+      "unit": "B/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "listmultimap",
+      "implementation": "pluto-list-multimap",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 6473,
+      "unit": "B/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "listmultimap",
+      "implementation": "pluto-list-multimap",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "listmultimap",
+      "implementation": "pluto-list-multimap",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "listmultimap",
+      "implementation": "pluto-list-multimap",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "listmultimap",
+      "implementation": "pluto-list-multimap",
+      "threads": 1,
+      "metric": "latency",
+      "value": 1223,
+      "unit": "ns/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "listmultimap",
+      "implementation": "pluto-list-multimap",
+      "threads": 1,
+      "metric": "latency",
+      "value": 1235,
+      "unit": "ns/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "listmultimap",
+      "implementation": "pluto-list-multimap",
+      "threads": 1,
+      "metric": "latency",
+      "value": 1236,
+      "unit": "ns/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 27.05,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 26.88,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 26.69,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "java-map",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 51444738.77001705,
+      "unit": "ops/s",
+      "error": 5545830.240409106
+    },
+    {
+      "benchmark": "setmap",
+      "implementation": "go-set-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "setmap",
+      "implementation": "go-set-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "setmap",
+      "implementation": "go-set-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "setmap",
+      "implementation": "go-set-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "setmap",
+      "implementation": "go-set-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "setmap",
+      "implementation": "go-set-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "setmap",
+      "implementation": "go-set-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 41,
+      "unit": "ns/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "setmap",
+      "implementation": "go-set-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 41,
+      "unit": "ns/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "setmap",
+      "implementation": "go-set-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 40.72,
+      "unit": "ns/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "setmap",
+      "implementation": "java-set-map",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 38991183.61348011,
+      "unit": "ops/s",
+      "error": 25826490.25680312,
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "setmultimap",
+      "implementation": "pluto-set-multimap",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 222,
+      "unit": "B/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "setmultimap",
+      "implementation": "pluto-set-multimap",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 222,
+      "unit": "B/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "setmultimap",
+      "implementation": "pluto-set-multimap",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 222,
+      "unit": "B/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "setmultimap",
+      "implementation": "pluto-set-multimap",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "setmultimap",
+      "implementation": "pluto-set-multimap",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "setmultimap",
+      "implementation": "pluto-set-multimap",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "setmultimap",
+      "implementation": "pluto-set-multimap",
+      "threads": 1,
+      "metric": "latency",
+      "value": 160.2,
+      "unit": "ns/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "setmultimap",
+      "implementation": "pluto-set-multimap",
+      "threads": 1,
+      "metric": "latency",
+      "value": 150.8,
+      "unit": "ns/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "setmultimap",
+      "implementation": "pluto-set-multimap",
+      "threads": 1,
+      "metric": "latency",
+      "value": 152.6,
+      "unit": "ns/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "sortedsetmultimap",
+      "implementation": "pluto-sorted-set-multimap",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 108,
+      "unit": "B/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "sortedsetmultimap",
+      "implementation": "pluto-sorted-set-multimap",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 108,
+      "unit": "B/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "sortedsetmultimap",
+      "implementation": "pluto-sorted-set-multimap",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 108,
+      "unit": "B/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "sortedsetmultimap",
+      "implementation": "pluto-sorted-set-multimap",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "sortedsetmultimap",
+      "implementation": "pluto-sorted-set-multimap",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "sortedsetmultimap",
+      "implementation": "pluto-sorted-set-multimap",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "sortedsetmultimap",
+      "implementation": "pluto-sorted-set-multimap",
+      "threads": 1,
+      "metric": "latency",
+      "value": 136.4,
+      "unit": "ns/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "sortedsetmultimap",
+      "implementation": "pluto-sorted-set-multimap",
+      "threads": 1,
+      "metric": "latency",
+      "value": 139.1,
+      "unit": "ns/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "sortedsetmultimap",
+      "implementation": "pluto-sorted-set-multimap",
+      "threads": 1,
+      "metric": "latency",
+      "value": 137.8,
+      "unit": "ns/op",
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "treemultimap",
+      "implementation": "guava-tree-multimap",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 10395315.716642974,
+      "unit": "ops/s",
+      "error": 4550980.36186279,
+      "capacity": 256,
+      "inputDistribution": "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry",
+      "seed": 1729
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "guava-tree-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 6173992.670399495,
+      "unit": "ops/s",
+      "error": 2470016.611341453
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "pluto-tree-multiset",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 4,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "pluto-tree-multiset",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 4,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "pluto-tree-multiset",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 4,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "pluto-tree-multiset",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "pluto-tree-multiset",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "pluto-tree-multiset",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "pluto-tree-multiset",
+      "threads": 1,
+      "metric": "latency",
+      "value": 207.6,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "pluto-tree-multiset",
+      "threads": 1,
+      "metric": "latency",
+      "value": 207,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "pluto-tree-multiset",
+      "threads": 1,
+      "metric": "latency",
+      "value": 207,
+      "unit": "ns/op"
+    }
+  ]
+}
