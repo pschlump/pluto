@@ -23,6 +23,8 @@ const (
 	MultimapBenchmarkValuesPerKey            = 16
 	MultimapBenchmarkCorpusSize              = 10000
 	MultimapBenchmarkInputDistribution       = "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry"
+	BimapBenchmarkCapacity                   = 4096
+	BimapBenchmarkInputDistribution          = "4096 keys/values; 20% put, 10% forcePut, 10% deleteKey, 10% deleteValue, 25% getValue, 25% getKey"
 )
 
 type Corpus struct {
@@ -146,6 +148,40 @@ func ReadMultimapCorpus(path string) (MultimapCorpus, error) {
 
 func WriteMultimapCorpus(path string, corpus MultimapCorpus) error {
 	return writeJSON(path, corpus, true)
+}
+
+func GenerateBimapCorpus(seed int64, operationCount, capacity int) MultimapCorpus {
+	random := rand.New(rand.NewSource(seed))
+	operations := make([]MultimapOperation, operationCount)
+	for index := range operations {
+		key := fmt.Sprintf("key-%04d", random.Intn(capacity))
+		value := fmt.Sprintf("value-%04d", random.Intn(capacity))
+		operation := MultimapOperation{Key: key, Value: value}
+		choice := random.Intn(100)
+		switch {
+		case choice < 20:
+			operation.Op = "put"
+		case choice < 30:
+			operation.Op = "forcePut"
+		case choice < 40:
+			operation.Op = "deleteKey"
+		case choice < 50:
+			operation.Op = "deleteValue"
+		case choice < 75:
+			operation.Op = "getValue"
+		default:
+			operation.Op = "getKey"
+		}
+		operations[index] = operation
+	}
+	return MultimapCorpus{
+		Version:           TraceVersion,
+		Seed:              seed,
+		Capacity:          capacity,
+		ValuesPerKey:      1,
+		InputDistribution: BimapBenchmarkInputDistribution,
+		Operations:        operations,
+	}
 }
 
 func generateOperations(seed int64, operationCount, capacity int, queries bool) []Operation {

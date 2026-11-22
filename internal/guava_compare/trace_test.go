@@ -68,4 +68,11 @@ func TestGeneratedFilesAreDeterministic(t *testing.T) {
 	if generated := GenerateMultimapCorpus(multimapCorpus.Seed, len(multimapCorpus.Operations), multimapCorpus.Capacity, multimapCorpus.ValuesPerKey); !reflect.DeepEqual(generated, multimapCorpus) {
 		t.Fatal("committed multimap corpus differs from deterministic generator")
 	}
+	bimapCorpus, err := ReadMultimapCorpus(filepath.Join("testdata", "bimap.corpus.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if generated := GenerateBimapCorpus(bimapCorpus.Seed, len(bimapCorpus.Operations), bimapCorpus.Capacity); !reflect.DeepEqual(generated, bimapCorpus) {
+		t.Fatal("committed bimap corpus differs from deterministic generator")
+	}
 }

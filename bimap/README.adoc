@@ -1,0 +1,47 @@
+= bimap
+
+`HashBiMap[K,V]` maintains two synchronized hash indexes with unique keys and
+values. Every key has one value and every value one key. Expected lookup,
+insertion, update, and deletion complexity is O(1); iteration and cloning are
+O(n). Memory is O(n) with two associations stored per logical entry.
+
+== Mutation and lookup
+
+- `Put(key,value)` inserts or updates key. If value belongs to a different key,
+  it returns `ErrValueConflict` and changes nothing.
+- `ForcePut` removes a conflicting old association, then performs the update.
+- `GetValue` / `GetKey` return `(value, found)` in either direction.
+- `DeleteKey` / `DeleteValue` remove both directions and return the former
+  association value and found flag.
+- `ContainsKey`, `ContainsValue`, `Len`, `IsEmpty`, and `Clear` complete the core.
+
+Natural construction uses `==` and `maphash` for comparable keys and values.
+`NewHashBiMapFunc` accepts custom equality/hash pairs for any types. Each pair
+must agree: equal values must have equal hashes. Operations involving two maps
+assume consistent functions.
+
+== Inverse
+
+`Inverse()` returns a coupled `HashBiMap[V,K]` sharing the same two tables.
+Mutations through either direction are immediately visible in the other.
+`Inverse().Inverse()` returns the original pointer. JSON replacement and Clear
+preserve existing inverse views. A nil or zero-value bimap has a nil Inverse.
+
+== Iteration, clone, equality, JSON
+
+`Entries`, `Keys`, and `Values` use unspecified hash order and propagate early
+termination. Do not mutate the plain bimap while consuming a live iterator.
+`EntriesSlice` is a fresh snapshot. `Clone` has independent indexes and inverse;
+`Equal` compares content in both directions.
+
+JSON is an array of `{"key":...,"value":...}` entries. Unmarshal validates a
+replacement before changing the original, retains equality/hash functions, and
+returns value conflicts as errors. Duplicate keys update; duplicate values for
+different keys fail. Malformed input leaves the bimap unchanged.
+
+== Concurrency
+
+The plain bimap is not thread-safe. `bimap_ts.HashBiMap` provides the same API.
+Its forward and inverse wrappers share one `sync.RWMutex` as well as the tables;
+there is no lock-order inversion between directions. Twin iterators and equality
+use snapshots, and JSON callbacks run outside the lock.

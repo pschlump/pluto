@@ -9,7 +9,9 @@ The smoke fixture compares a Go `map[string]int` counter model with Guava's
 Guava and Pluto hash/tree multisets and Go/Java map baselines. Raw and normalized
 Phase 1a results are retained in `docs/benchmarks/multiset/`. Phase 1b adds a
 three-variant multimap oracle and a separately seeded multimap corpus; those
-results are retained in `docs/benchmarks/multimap/`.
+results are retained in `docs/benchmarks/multimap/`. Phase 1c adds the HashBiMap
+oracle, two-index workload, inverse iteration, and results in
+`docs/benchmarks/bimap/`.
 
 ## Run
 

@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "operations": [
+    {"op": "put", "key": "a", "value": "1"},
+    {"op": "put", "key": "b", "value": "1"},
+    {"op": "put", "key": "a", "value": "2"},
+    {"op": "getKey", "value": "1"},
+    {"op": "put", "key": "b", "value": "1"},
+    {"op": "forcePut", "key": "c", "value": "2"},
+    {"op": "getValue", "key": "a"},
+    {"op": "deleteKey", "key": "b"},
+    {"op": "forcePut", "key": "c", "value": "3"},
+    {"op": "put", "key": "d", "value": "3"},
+    {"op": "deleteValue", "value": "3"},
+    {"op": "put", "key": "d", "value": "4"},
+    {"op": "size"}
+  ]
+}

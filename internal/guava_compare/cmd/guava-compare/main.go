@@ -46,6 +46,7 @@ func generate(arguments []string) error {
 	tracePath := flags.String("trace", "internal/guava_compare/testdata/counter.trace.json", "trace output")
 	corpusPath := flags.String("corpus", "internal/guava_compare/testdata/counter.corpus.json", "benchmark corpus output")
 	multimapCorpusPath := flags.String("multimap-corpus", "internal/guava_compare/testdata/multimap.corpus.json", "multimap benchmark corpus output")
+	bimapCorpusPath := flags.String("bimap-corpus", "internal/guava_compare/testdata/bimap.corpus.json", "bimap benchmark corpus output")
 	seed := flags.Int64("seed", guava_compare.BenchmarkSeed, "random seed")
 	operations := flags.Int("operations", 68, "trace operation count")
 	corpusOperations := flags.Int("corpus-operations", guava_compare.BenchmarkCorpusSize, "benchmark operation count")
@@ -62,7 +63,10 @@ func generate(arguments []string) error {
 	if err := guava_compare.WriteCorpus(*corpusPath, guava_compare.GenerateCorpus(*seed, *corpusOperations, *capacity)); err != nil {
 		return err
 	}
-	return guava_compare.WriteMultimapCorpus(*multimapCorpusPath, guava_compare.GenerateMultimapCorpus(*seed, *corpusOperations, guava_compare.MultimapBenchmarkCapacity, guava_compare.MultimapBenchmarkValuesPerKey))
+	if err := guava_compare.WriteMultimapCorpus(*multimapCorpusPath, guava_compare.GenerateMultimapCorpus(*seed, *corpusOperations, guava_compare.MultimapBenchmarkCapacity, guava_compare.MultimapBenchmarkValuesPerKey)); err != nil {
+		return err
+	}
+	return guava_compare.WriteMultimapCorpus(*bimapCorpusPath, guava_compare.GenerateBimapCorpus(*seed, *corpusOperations, guava_compare.BimapBenchmarkCapacity))
 }
 
 func oracle(arguments []string) error {

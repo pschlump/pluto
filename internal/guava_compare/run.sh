@@ -40,6 +40,8 @@ TRACE=internal/guava_compare/testdata/counter.trace.json
 CORPUS=internal/guava_compare/testdata/counter.corpus.json
 MULTIMAP_TRACE=multimap/testdata/multimap.trace.json
 MULTIMAP_CORPUS=internal/guava_compare/testdata/multimap.corpus.json
+BIMAP_TRACE=bimap/testdata/bimap.trace.json
+BIMAP_CORPUS=internal/guava_compare/testdata/bimap.corpus.json
 POM=internal/guava_compare/java/pom.xml
 JAR=internal/guava_compare/java/target/guava-compare-1.0.0-SNAPSHOT.jar
 mkdir -p "$RESULTS"
@@ -56,13 +58,16 @@ cmp "$RESULTS/java-oracle.json" internal/guava_compare/testdata/counter.golden.j
 java -cp "$JAR" com.pschlump.pluto.guava.MultimapOracle \
   "$MULTIMAP_TRACE" "$RESULTS/multimap-oracle.json"
 cmp "$RESULTS/multimap-oracle.json" multimap/testdata/multimap.golden.json
+java -cp "$JAR" com.pschlump.pluto.guava.BimapOracle \
+  "$BIMAP_TRACE" "$RESULTS/bimap-oracle.json"
+cmp "$RESULTS/bimap-oracle.json" bimap/testdata/bimap.golden.json
 printf '%s\n' 'Go and Java oracle results match the committed goldens.'
 
-go test ./internal/guava_compare ./multiset ./multimap -run '^$' \
-  -bench '^(BenchmarkCounter|BenchmarkHashMultiset|BenchmarkTreeMultiset|BenchmarkMapMultiset|BenchmarkListMultimap|BenchmarkSetMultimap|BenchmarkSortedSetMultimap|BenchmarkListMap|BenchmarkSetMap)$' \
+go test ./internal/guava_compare ./multiset ./multimap ./bimap -run '^$' \
+  -bench '^(BenchmarkCounter|BenchmarkHashMultiset|BenchmarkTreeMultiset|BenchmarkMapMultiset|BenchmarkListMultimap|BenchmarkSetMultimap|BenchmarkSortedSetMultimap|BenchmarkListMap|BenchmarkSetMap|BenchmarkHashBiMap|BenchmarkMapBiMap|BenchmarkBiMapInverseIteration)$' \
   -benchmem -benchtime=1s -count=3 | tee "$RESULTS/go-bench.txt"
-java -Dcorpus="$ROOT/$CORPUS" -DmultimapCorpus="$ROOT/$MULTIMAP_CORPUS" -jar "$JAR" \
-  'CounterBenchmark|MultisetBenchmark|MultimapBenchmark' -rf json -rff "$ROOT/$RESULTS/jmh.json"
+java -Dcorpus="$ROOT/$CORPUS" -DmultimapCorpus="$ROOT/$MULTIMAP_CORPUS" -DbimapCorpus="$ROOT/$BIMAP_CORPUS" -jar "$JAR" \
+  'CounterBenchmark|MultisetBenchmark|MultimapBenchmark|BimapBenchmark' -rf json -rff "$ROOT/$RESULTS/jmh.json"
 
 go run ./internal/guava_compare/cmd/guava-compare normalize \
   -go "$RESULTS/go-bench.txt" -jmh "$RESULTS/jmh.json" \

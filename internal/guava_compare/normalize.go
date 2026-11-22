@@ -78,6 +78,12 @@ func ParseGoBenchmark(reader io.Reader) ([]Metric, error) {
 			implementation = "go-list-map"
 		case "setmap":
 			implementation = "go-set-map"
+		case "hashbimap":
+			implementation = "pluto-hash-bimap"
+		case "mapbimap":
+			implementation = "go-two-maps"
+		case "bimapinverseiteration":
+			implementation = "pluto-hash-bimap"
 		}
 		for index := 2; index+1 < len(fields); index++ {
 			var metric, unit string
@@ -160,6 +166,10 @@ func ParseJMHResults(reader io.Reader) ([]Metric, error) {
 			implementation = "java-list-map"
 		case "setMap":
 			implementation = "java-set-map"
+		case "hashBiMap", "biMapInverseIteration":
+			implementation = "guava-hash-bimap"
+		case "mapBiMap":
+			implementation = "java-two-maps"
 		}
 		metrics = append(metrics, Metric{
 			Benchmark:      strings.ToLower(benchmark),
@@ -180,6 +190,10 @@ func WriteNormalizedResults(path string, metadata ResultMetadata, metrics []Metr
 		case "arraylistmultimap", "hashmultimap", "treemultimap", "listmultimap", "setmultimap", "sortedsetmultimap", "listmap", "setmap":
 			metrics[index].Capacity = MultimapBenchmarkCapacity
 			metrics[index].InputDistribution = MultimapBenchmarkInputDistribution
+			metrics[index].Seed = BenchmarkSeed
+		case "hashbimap", "mapbimap", "bimapinverseiteration":
+			metrics[index].Capacity = BimapBenchmarkCapacity
+			metrics[index].InputDistribution = BimapBenchmarkInputDistribution
 			metrics[index].Seed = BenchmarkSeed
 		}
 	}

@@ -1,0 +1,21 @@
+= bimap_ts
+
+`HashBiMap[K,V]` is the thread-safe twin of `bimap.HashBiMap`. It supports Put,
+ForcePut, both lookup and deletion directions, content equality, independent
+clones, JSON, and coupled inverses.
+
+Forward and inverse objects share the same underlying hash tables and the same
+`sync.RWMutex`. A mutation through either direction takes that lock, so no
+concurrent observer can see only one index update and opposite-direction calls
+cannot acquire locks in different orders.
+
+`Entries`, `Keys`, `Values`, and `EntriesSlice` are snapshots taken under the
+read lock. `Equal` snapshots each operand under its own lock and never holds two
+bimap locks. `Clone` has new indexes, inverse objects, and lock.
+
+JSON decoding occurs before locking and encoding uses a plain snapshot, so
+user-defined JSON methods do not execute under the bimap lock. Replacement is
+atomic and preserves existing inverse views.
+
+Use `NewHashBiMap` for comparable keys and values or `NewHashBiMapFunc` for
+custom equality/hash functions. The zero value is empty and read-only.

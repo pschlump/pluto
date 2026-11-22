@@ -51,6 +51,8 @@ with an identical public API.
 | link:multiset_ts/[multiset_ts]             | Thread-safe hash multiset (RWMutex, atomic batches/algebra, snapshot iterators).
 | link:multimap/[multimap]                   | Generic list/set/sorted-set multimaps (snapshots, utilities, multiset integration).
 | link:multimap_ts/[multimap_ts]             | Thread-safe multimaps (RWMutex, atomic compound writes, snapshot iterators).
+| link:bimap/[bimap]                         | Generic bidirectional hash map (unique keys/values, coupled inverse, ForcePut, JSON).
+| link:bimap_ts/[bimap_ts]                   | Thread-safe bimap (shared forward/inverse RWMutex, snapshot iterators).
 | link:stack/[stack]                         | Generic slice-backed LIFO stack.
 | link:stack_ts/[stack_ts]                   | Thread-safe slice-backed LIFO stack (RWMutex, snapshot iterators).
 | link:stack_sll_ts/[stack_sll_ts]           | Thread-safe LIFO stack on a singly linked list (RWMutex, snapshot iterators).
@@ -313,6 +315,21 @@ all three with one RWMutex, atomic compound mutations, and snapshot iterators.
 custom equality/hash/comparison without boxing elements in `any`.
 * Bad: `Get` and `AsMap` are copies, not live write-through views; sorted-set
 keys are not sorted; insertion into a sorted value slice is O(v).
+
+=== Bidirectional map — `bimap/`, `bimap_ts/`
+
+`HashBiMap` keeps unique keys and values in two synchronized hash indexes.
+`Put` reports a value conflict without mutation; `ForcePut` removes the
+conflicting association. Lookup and deletion work in either direction.
+`Inverse()` shares the tables and returns the original object for
+inverse-of-inverse. Clone, equality, entry iteration, and entry-array JSON are
+included. The twin's forward and inverse views share one RWMutex and use
+snapshot iterators.
+
+* Good: two-way unique associations such as IDs and names, with custom
+equality/hash for both types and no stale reverse entries.
+* Bad: stores two hash entries per association; iteration order is unspecified;
+the plain iterators must not run concurrently with mutation.
 
 === Stack — `stack/`, `stack_ts/`
 

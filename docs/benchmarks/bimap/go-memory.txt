@@ -1,0 +1,8 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bimap
+cpu: Apple M4 Max
+BenchmarkBiMapMemory/bimap-14         	      86	   1236068 ns/op	    787160 retained-bytes	       192.2 retained-bytes/association	 1480973 B/op	   15931 allocs/op
+BenchmarkBiMapMemory/maps-14          	      99	   1103441 ns/op	    789080 retained-bytes	       192.6 retained-bytes/association	 1467829 B/op	   15987 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/bimap	0.327s
