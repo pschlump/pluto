@@ -19,8 +19,8 @@ const prime = 2147483647 // 2^31 - 1
 // the trailing byte, all mod prime.  This is the deterministic
 // LAS VEGAS variant: on every hash hit the candidate substring is
 // verified byte-for-byte, so the result is exact, never a false
-// positive.  (algs4's published code is the Monte Carlo variant — no
-// verification — with a random prime; see the package README.)
+// positive.  Current algs4 also verifies hits; its remaining hash
+// difference is a random prime per construction (see the package README).
 // It is immutable after construction; the zero value behaves as the
 // searcher for the empty pattern.
 type RabinKarp struct {

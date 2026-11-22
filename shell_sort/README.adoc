@@ -90,3 +90,7 @@ rewrites with no behavioral difference:
 * The algs4 trailing `isSorted` assertion is the test suite's job
   (`checkSorted` cross-checks against the `slices.Sort` oracle at a
   fixed PCG seed), not shipped code.
+* algs4 sorts `Comparable[]`, requiring wrapper objects for primitive
+  Java values and dispatching comparisons through `compareTo`.  Pluto's
+  typed slices and comparator avoid that comparator-path boxing; no
+  matched Java/Go speedup is claimed without a preserved benchmark.

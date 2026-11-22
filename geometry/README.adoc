@@ -106,6 +106,7 @@ needed.
   Robustness); the Java original has each operation separately
   rounded by construction.
 * `FarthestPair` checks the parallel-edge tie pairs of the calipers
-  walk in addition to the algs4 pairs, keeping the diameter correct
-  on tie-dense hulls (rectangles, regular polygons) — verified by
-  the brute-force oracle.
+  walk in addition to the algs4 pairs, and is verified against the
+  brute-force oracle on tie-dense hulls (rectangles, regular polygons).
+  This is a robustness difference; no saved Java counterexample has yet
+  established an upstream farthest-pair correctness defect.

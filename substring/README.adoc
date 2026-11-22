@@ -80,14 +80,15 @@ substring.NewKMP("").Search("abc")  // 0 — empty pattern matches at 0
 
 == Caveats and deliberate deviations from algs4
 
-* *Rabin-Karp is the deterministic Las Vegas variant, not algs4's
-  Monte Carlo variant.*  algs4's published `RabinKarp.java` draws a
-  *random* 31-bit prime per construction (so runs are
-  nondeterministic) and never verifies a hash hit (so a collision is a
-  silent false positive).  This package uses one fixed documented
-  prime, q = 2³¹-1 (a Mersenne prime, small enough that
-  `R*h + c` never overflows `int64`), and *verifies the candidate
-  substring byte-for-byte on every hash hit*, so the result is exact.
+* *Rabin-Karp uses a deterministic Las Vegas variant.*  Both Pluto and
+  the current algs4 `RabinKarp.java` verify every hash hit byte-for-byte,
+  so neither reports a collision as a match.  The remaining hash
+  difference is that algs4 draws a *random* 31-bit prime per construction
+  while this package uses one fixed documented prime, q = 2³¹-1 (small
+  enough that `R*h + c` never overflows `int64`).  The current upstream
+  implementation supersedes an older local note that described algs4 as
+  the unverified Monte Carlo variant; see
+  link:https://algs4.cs.princeton.edu/53substring/RabinKarp.java.html[RabinKarp.java].
 * *Miss reports -1, not n.*  All three algs4 `search` methods return
   the text length `n` on a miss; this package returns -1, matching
   `strings.Index`.

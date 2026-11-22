@@ -96,6 +96,25 @@ assignment, a nil result object reports -1 / 0 everywhere, and
 out-of-range indices report the same as a nil receiver.  There are no
 other panics.
 
+== Deviations from the algs4 reference
+
+The core residual-graph algorithm and dual certificate are the same, with
+these deliberate differences:
+
+* Negative finite weights are supported.  algs4's Javadoc says weights
+  are non-negative, but its implementation already shifts by `minWeight`;
+  this is an upstream documentation inconsistency, not an algorithm fix.
+* Pluto translates the duals back to the caller's original weights, so
+  dual feasibility, complementary slackness, and strong duality can be
+  checked directly on the input matrix.
+* The dense in-matrix Dijkstra below replaces algs4's freshly allocated
+  `EdgeWeightedDigraph` and general `DijkstraSP` on every round.  This is
+  a representation and performance change with the same optimality
+  certificate.
+* NaN and infinities are rejected, ragged matrices are diagnosed, and
+  nil/empty/out-of-range reads have total Go-style results rather than
+  Java exception behavior.
+
 == Scanning the matrix vs composing dijkstra's DijkstraSP
 
 algs4's `AssignmentProblem` materializes the residual graph as an

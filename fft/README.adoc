@@ -69,14 +69,14 @@ Runnable, tested examples live in link:example_test.go[`example_test.go`].
 
 == Deviations from the algs4 reference
 
-* **`Convolve` fixes the reference's fragile contract.**  algs4's
+* **`Convolve` generalizes the reference's narrow contract.**  algs4's
   `convolve` requires two *equal power-of-2* lengths, always pads to
   exactly twice that, and returns the padded length with trailing
-  zeros — correct only when the caller pre-arranges the lengths.
-  pluto's `Convolve` takes any two lengths, pads both to the smallest
-  power of 2 at least `len(x)+len(y)-1` (where circular convolution
-  has no wrap-around), and returns the trimmed `len(x)+len(y)-1`
-  result — the polynomial product, always.
+  zeros.  That is a restricted API, not a correctness bug for inputs
+  meeting its contract.  pluto's `Convolve` takes any two lengths, pads
+  both to the smallest power of 2 at least `len(x)+len(y)-1` (where
+  circular convolution has no wrap-around), and returns the trimmed
+  `len(x)+len(y)-1` result — the polynomial product, always.
 
 == Thread safety
 

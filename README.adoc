@@ -1557,8 +1557,7 @@ compile-once/search-many query objects over byte strings: `NewKMP`
 rule only, like algs4 — sublinear in practice, O(n·m) worst), and
 `NewRabinKarp` (rolling hash; the deterministic Las Vegas variant with
 a fixed prime and byte-for-byte verification on every hash hit —
-algs4's published Monte Carlo version is nondeterministic and never
-verifies). `Search(text)` returns the leftmost index or -1 (the
+current algs4 also verifies hits, but chooses a random prime per run). `Search(text)` returns the leftmost index or -1 (the
 `strings.Index` convention — algs4 returns n on a miss); the empty
 pattern returns 0. No panics anywhere; nil receivers report -1.
 Immutable after construction — concurrent searches are safe, no `_ts`
@@ -1697,9 +1696,11 @@ factors, the reference's single-scratch-buffer trick), `IFFT`
 (conjugate → forward transform → conjugate → 1/n, sharing the one
 core), and the convolution theorem on top: `CConvolve` (circular,
 equal power-of-2 lengths) and `Convolve` (linear — the polynomial
-product).  `Convolve` deliberately fixes the reference's fragile
+product).  `Convolve` deliberately generalizes the reference's narrow
 contract: algs4 demands equal power-of-2 input lengths, pads to
 exactly twice, and returns the padded length with trailing zeros;
+this is a restricted API, not a defect for inputs meeting that
+contract.
 pluto takes any two lengths, pads to the smallest power of 2 at
 least `len(x)+len(y)-1` (where circular convolution provably cannot
 wrap), and returns the trimmed product — `Convolve(x, [1]) == x`

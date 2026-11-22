@@ -101,3 +101,9 @@ documented algs4 `MergeX` improvements, adopted for the top-down path:
 teaching variant, and `Inversions` follows `Inversions.java`'s
 count-during-merge but sorts a private copy where the algs4 client
 mutates its argument.
+
+The Java entry points sort `Comparable[]`, so primitive numeric inputs
+need wrapper objects and comparisons dispatch through `compareTo`.
+Pluto's typed slice and comparator representation avoids that
+comparator-path boxing.  This is a representation difference, not a
+preserved matched Java/Go benchmark claim.

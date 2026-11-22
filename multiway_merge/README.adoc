@@ -95,3 +95,8 @@ improvements:
 * The inputs are materialized sorted slices rather than pull streams
   (`In` readers); merging lazy streams is the caller's iterator
   pattern around the same queue.
+* algs4's object-based `IndexMinPQ<String>` compares through
+  `Comparable`; Pluto uses built-in ordering or a typed comparator.
+  The Java example uses strings, so it does not itself demonstrate
+  primitive wrapper boxing; the typed representation removes the
+  interface-dispatch difference without claiming a Java speedup.

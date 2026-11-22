@@ -89,6 +89,11 @@ this package replaces the shuffle with three robustness measures:
 * *Recurse into the smaller side, loop on the larger side*: recursion
   depth is bounded at O(log n) even on adversarial input, where plain
   algs4 recursion could grow to depth n.
+* *Typed representation*: algs4 accepts `Comparable[]`; primitive Java
+  values need wrapper objects and comparisons dispatch through
+  `compareTo`.  Pluto uses built-in operators or a typed comparator.
+  This removes the comparator-path boxing mechanism, but no matched
+  Java/Go timing is preserved here.
 
 Verified empirically by `TestLargeAdversarial`: 1,000,000
 already-sorted and 1,000,000 reverse-sorted ints sort correctly

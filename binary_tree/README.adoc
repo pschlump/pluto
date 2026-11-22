@@ -19,6 +19,27 @@ Runnable, tested copies of every example below live in
 link:example_test.go[`example_test.go`] (they run under `go test` and appear
 on pkg.go.dev).
 
+== Historical interface/boxing comparison
+
+Commit link:https://github.com/pschlump/pluto/commit/4b0e608[`4b0e608`]
+("Move away from interfaces") added matched benchmarks for the design
+change summarized above.  Three trees saw the same shuffled keys and
+operations: the old `Comparable`-interface tree with a struct element,
+the same struct ordered by a plain typed function, and plain string keys
+ordered by built-in operators.  Build/insert, successful search,
+delete-all, and full iteration were measured at n=1000 and n=10000.
+
+The first design converted the struct to an interface and recovered it
+with a type assertion on every comparison; the other two did not.
+Insert, search, and delete therefore isolate comparison-heavy workloads,
+while iteration is the no-comparison control.  This benchmark source is
+still available with `git show 4b0e608:bench_compare/bench_test.go`, but
+no result file was preserved, so no numerical speedup is claimed here.
+The same interface-dispatch issue exists in Java's object-based ordered
+collections; primitive Java keys additionally require wrapper objects.
+Current Go generics avoid that conversion in the comparator path, though
+allocation and speed still depend on the element type and workload.
+
 == Complexity
 
 [options="header"]

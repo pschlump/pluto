@@ -137,6 +137,18 @@ with no sane fallback:
 Everything else — including every operation with a bad index — tolerates
 a nil queue and the zero value as an empty queue and reports `false`.
 
+== Deviations from the algs4 reference
+
+The heap arrays and inverse position map implement the same `IndexMinPQ`
+algorithm.  The Java version stores `Key extends Comparable<Key>` objects
+and calls `compareTo`; numeric Java priorities therefore use wrapper
+objects and interface dispatch.  Pluto stores values by value and uses
+built-in ordering or a typed comparison function, avoiding that
+comparator-path boxing.  `Insert` replaces an existing index, invalid
+indices report `false` rather than throwing, and iteration, cloning,
+JSON, and the `Nl*` thread-safe twin are Pluto extensions.  These are API
+and representation differences, not reference defect fixes.
+
 == Concurrency
 
 This package is *not* safe for concurrent use.  The mutex-guarded twin
