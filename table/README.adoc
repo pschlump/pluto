@@ -1,0 +1,59 @@
+= table
+
+Generic row/column/value tables with three mutable implementations and independent
+immutable snapshots. `Cell[R,C,V]` uses JSON fields `row`, `column`, and `value`.
+A present zero value is distinct from an absent cell.
+
+== Implementations
+
+- `HashTable`: sparse row-major hash indexes, expected O(1) cell operations, and
+  unspecified iteration order. `NewHashTableFunc` supports arbitrary key types
+  through matching equality/hash functions.
+- `TreeTable`: sparse AVL indexes, O(log n) cell operations, and deterministic
+  row-major comparator order. `NewTreeTableFunc` accepts row/column comparators.
+- `ArrayTable`: a dense fixed-universe matrix. Duplicate constructor keys collapse
+  to first occurrence. `GetAt`, `PutAt`, and `DeleteAt` provide zero-based indexed
+  access. Empty rows and columns remain in their universes.
+
+All variants provide `Put`, `Get`, `Delete`, `Contains`, `ContainsRow`,
+`ContainsColumn`, `Len`, `Clear`, `Cells`, `Row`, `Column`, `Rows`, `Columns`,
+`RowKeys`, `ColumnKeys`, `Transpose`, `Clone`, `Replace`, `Freeze`, and JSON.
+ArrayTable's `Put`/`Delete` additionally return an error for out-of-universe keys;
+sparse `Put`/`Delete` return only the previous value and found flag.
+
+== Snapshots and order
+
+`Row` and `Column` return fresh cell slices. `Rows` and `Columns` eagerly capture
+keys and slices and yield copies to each consumer. They are not live views.
+Sparse rows and columns disappear when their last cell is deleted. Column queries
+scan sparse row-major storage; TreeTable cells iterate in ascending row-major
+order and ArrayTable uses constructor universe order. Plain `Cells` iterators
+must not run concurrently with mutation and propagate early termination.
+
+`Transpose` returns an independent table with exchanged key types. `Freeze`
+returns an `ImmutableTable` with independent lookup indexes (AVL for ordered
+sources) and copied cell, row, and column snapshots in source iteration order. It has no mutation API and
+is safe for concurrent reads. Payload objects are not deep-copied.
+
+== Replacement and JSON
+
+JSON is an array of cells. `Replace` and `UnmarshalJSON` validate a complete new
+cell set before replacing the old one. Duplicate coordinates apply in order.
+Sparse variants retain equality/hash/comparison functions; ArrayTable retains its
+universes and rejects unknown coordinates without mutation. Immutable snapshots
+support JSON marshal only.
+
+== Concurrency
+
+`table_ts` provides mutex-guarded HashTable, TreeTable, and ArrayTable twins.
+Compound replacement, transpose, clone, and freeze are atomic. Iterators are
+snapshots, and caller iteration or JSON code never runs under an internal lock.
+Run `go test -race ./table ./table_ts` after changes.
+
+== Guava differences
+
+Guava ArrayTable does not support removal. Pluto Delete/DeleteAt deliberately
+provide absence using a separate presence bitmap. The differential oracle uses
+Guava HashBasedTable for logical dense-cell changes and Guava ArrayTable for
+fixed-universe keys. Benchmarks use actual Guava ArrayTable indexed `set(null)`
+for removal streams and do not use its cell-set size afterward.

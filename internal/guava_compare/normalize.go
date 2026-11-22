@@ -84,6 +84,23 @@ func ParseGoBenchmark(reader io.Reader) ([]Metric, error) {
 			implementation = "go-two-maps"
 		case "bimapinverseiteration":
 			implementation = "pluto-hash-bimap"
+		case "hashtable":
+			implementation = "pluto-hash-table"
+		case "treetable":
+			implementation = "pluto-tree-table"
+		case "nestedmap":
+			implementation = "go-nested-maps"
+		case "arraytable":
+			implementation = "pluto-array-table"
+		case "flatmatrix":
+			implementation = "go-flat-matrix"
+		}
+		if strings.HasPrefix(benchmark, "hashtable") {
+			implementation = "pluto-hash-table"
+		} else if strings.HasPrefix(benchmark, "treetable") {
+			implementation = "pluto-tree-table"
+		} else if strings.HasPrefix(benchmark, "arraytable") {
+			implementation = "pluto-array-table"
 		}
 		for index := 2; index+1 < len(fields); index++ {
 			var metric, unit string
@@ -170,6 +187,23 @@ func ParseJMHResults(reader io.Reader) ([]Metric, error) {
 			implementation = "guava-hash-bimap"
 		case "mapBiMap":
 			implementation = "java-two-maps"
+		case "hashTable":
+			implementation = "guava-hash-table"
+		case "treeTable":
+			implementation = "guava-tree-table"
+		case "nestedMap":
+			implementation = "java-nested-maps"
+		case "arrayTable":
+			implementation = "guava-array-table"
+		case "flatMatrix":
+			implementation = "java-flat-matrix"
+		}
+		if strings.HasPrefix(benchmark, "hashTable") {
+			implementation = "guava-hash-table"
+		} else if strings.HasPrefix(benchmark, "treeTable") {
+			implementation = "guava-tree-table"
+		} else if strings.HasPrefix(benchmark, "arrayTable") {
+			implementation = "guava-array-table"
 		}
 		metrics = append(metrics, Metric{
 			Benchmark:      strings.ToLower(benchmark),
@@ -194,6 +228,11 @@ func WriteNormalizedResults(path string, metadata ResultMetadata, metrics []Metr
 		case "hashbimap", "mapbimap", "bimapinverseiteration":
 			metrics[index].Capacity = BimapBenchmarkCapacity
 			metrics[index].InputDistribution = BimapBenchmarkInputDistribution
+			metrics[index].Seed = BenchmarkSeed
+		}
+		if strings.Contains(metrics[index].Benchmark, "table") || metrics[index].Benchmark == "nestedmap" || metrics[index].Benchmark == "flatmatrix" {
+			metrics[index].Capacity = TableBenchmarkRows * TableBenchmarkColumns
+			metrics[index].InputDistribution = TableBenchmarkInputDistribution
 			metrics[index].Seed = BenchmarkSeed
 		}
 	}

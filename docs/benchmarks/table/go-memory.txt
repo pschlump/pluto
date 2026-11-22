@@ -1,0 +1,11 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/table
+cpu: Apple M4 Max
+BenchmarkTableMemory/hash-14         	     123	    945190 ns/op	    459888 retained-bytes	       112.3 retained-bytes/cell	  806905 B/op	    8982 allocs/op
+BenchmarkTableMemory/tree-14         	      92	   1151438 ns/op	    337744 retained-bytes	        82.46 retained-bytes/cell	  369498 B/op	   12555 allocs/op
+BenchmarkTableMemory/array-14        	     235	    465490 ns/op	     84728 retained-bytes	        20.69 retained-bytes/cell	   96991 B/op	     180 allocs/op
+BenchmarkTableMemory/nested-14       	     182	    673046 ns/op	    388736 retained-bytes	        94.91 retained-bytes/cell	  674571 B/op	    4878 allocs/op
+BenchmarkTableMemory/flat-14         	     372	    355465 ns/op	     71880 retained-bytes	        17.55 retained-bytes/cell	   71900 B/op	       7 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/table	0.948s

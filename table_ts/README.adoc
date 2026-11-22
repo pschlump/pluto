@@ -1,0 +1,15 @@
+= table_ts
+
+Mutex-guarded twins of `table.HashTable`, `table.TreeTable`, and
+`table.ArrayTable`, with the same constructors and operations behind a
+`sync.RWMutex`.
+
+All `Cells`, `Rows`, `Columns`, `RowKeys`, and `ColumnKeys` iterators use
+snapshots. They can be consumed while the table is mutated without holding the
+lock during caller code. `Row`, `Column`, `Clone`, `Transpose`, and `Freeze`
+return independent results. Whole-table `Replace` and JSON replacement hold one
+write lock; JSON decoding and encoding happen outside the lock.
+
+See `table/README.adoc` for sparse versus fixed-universe semantics, ordering,
+complexity, immutable snapshots, and the deliberate ArrayTable deletion
+difference from Guava.

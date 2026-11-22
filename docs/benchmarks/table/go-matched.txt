@@ -1,0 +1,108 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/internal/guava_compare
+cpu: Apple M4 Max
+BenchmarkCounter-14    	48029538	        23.26 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCounter-14    	50058400	        23.12 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCounter-14    	50883752	        23.70 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/internal/guava_compare	3.693s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/multiset
+cpu: Apple M4 Max
+BenchmarkHashMultiset-14    	25911560	        44.94 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashMultiset-14    	25833534	        44.99 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashMultiset-14    	26572653	        45.01 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeMultiset-14    	 5736975	       209.8 ns/op	       4 B/op	       0 allocs/op
+BenchmarkTreeMultiset-14    	 5698659	       209.7 ns/op	       4 B/op	       0 allocs/op
+BenchmarkTreeMultiset-14    	 5729103	       208.4 ns/op	       4 B/op	       0 allocs/op
+BenchmarkMapMultiset-14     	41895052	        26.12 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapMultiset-14     	42705576	        26.16 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapMultiset-14     	42443132	        25.60 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/multiset	11.525s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/multimap
+cpu: Apple M4 Max
+BenchmarkListMultimap-14         	 1000000	      1246 ns/op	    6474 B/op	       0 allocs/op
+BenchmarkListMultimap-14         	 1000000	      1247 ns/op	    6473 B/op	       0 allocs/op
+BenchmarkListMultimap-14         	 1000000	      1194 ns/op	    6473 B/op	       0 allocs/op
+BenchmarkSetMultimap-14          	 7866897	       154.5 ns/op	     222 B/op	       1 allocs/op
+BenchmarkSetMultimap-14          	 7450944	       158.0 ns/op	     222 B/op	       1 allocs/op
+BenchmarkSetMultimap-14          	 7547325	       163.5 ns/op	     222 B/op	       1 allocs/op
+BenchmarkSortedSetMultimap-14    	 8585929	       138.8 ns/op	     108 B/op	       0 allocs/op
+BenchmarkSortedSetMultimap-14    	 8749243	       138.3 ns/op	     108 B/op	       0 allocs/op
+BenchmarkSortedSetMultimap-14    	 8620039	       137.7 ns/op	     108 B/op	       0 allocs/op
+BenchmarkListMap-14              	 3831746	      1124 ns/op	      32 B/op	       0 allocs/op
+BenchmarkListMap-14              	 3829066	      1129 ns/op	      32 B/op	       0 allocs/op
+BenchmarkListMap-14              	 3776364	      1112 ns/op	      32 B/op	       0 allocs/op
+BenchmarkSetMap-14               	28574971	        41.27 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSetMap-14               	28246010	        40.39 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSetMap-14               	28026360	        41.06 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/multimap	29.575s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bimap
+cpu: Apple M4 Max
+BenchmarkHashBiMap-14                	26258708	        41.60 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashBiMap-14                	27081006	        41.92 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashBiMap-14                	26679338	        41.42 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapBiMap-14                 	45323638	        24.93 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapBiMap-14                 	46654938	        25.06 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapBiMap-14                 	45414906	        24.68 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBiMapInverseIteration-14    	  167272	      7062 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBiMapInverseIteration-14    	  153998	      6989 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBiMapInverseIteration-14    	  166482	      7067 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/bimap	11.869s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/table
+cpu: Apple M4 Max
+BenchmarkHashTable-14              	19110055	        60.26 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashTable-14              	21132573	        62.61 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashTable-14              	20302978	        59.09 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeTable-14              	 9906421	       119.9 ns/op	      25 B/op	       0 allocs/op
+BenchmarkTreeTable-14              	 9837590	       121.4 ns/op	      25 B/op	       0 allocs/op
+BenchmarkTreeTable-14              	 9784735	       120.9 ns/op	      25 B/op	       0 allocs/op
+BenchmarkNestedMap-14              	32625021	        36.31 ns/op	       0 B/op	       0 allocs/op
+BenchmarkNestedMap-14              	32708390	        36.88 ns/op	       0 B/op	       0 allocs/op
+BenchmarkNestedMap-14              	32833682	        36.55 ns/op	       0 B/op	       0 allocs/op
+BenchmarkArrayTable-14             	25159452	        51.15 ns/op	       0 B/op	       0 allocs/op
+BenchmarkArrayTable-14             	26990755	        49.66 ns/op	       0 B/op	       0 allocs/op
+BenchmarkArrayTable-14             	26514550	        45.95 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFlatMatrix-14             	323541303	         3.623 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFlatMatrix-14             	325538310	         3.664 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFlatMatrix-14             	343582756	         3.348 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashTableRow-14           	 2744798	       446.7 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkHashTableRow-14           	 2652008	       462.2 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkHashTableRow-14           	 2650196	       445.0 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkHashTableColumn-14        	  657984	      2498 ns/op	    7504 B/op	       7 allocs/op
+BenchmarkHashTableColumn-14        	  507360	      2100 ns/op	    7504 B/op	       7 allocs/op
+BenchmarkHashTableColumn-14        	  646947	      1851 ns/op	    7504 B/op	       7 allocs/op
+BenchmarkTreeTableRow-14           	 1586569	       763.4 ns/op	    3344 B/op	       6 allocs/op
+BenchmarkTreeTableRow-14           	 1537113	       760.0 ns/op	    3344 B/op	       6 allocs/op
+BenchmarkTreeTableRow-14           	 1589018	       769.4 ns/op	    3344 B/op	       6 allocs/op
+BenchmarkTreeTableColumn-14        	  423082	      2738 ns/op	    7648 B/op	      12 allocs/op
+BenchmarkTreeTableColumn-14        	  431560	      2742 ns/op	    7648 B/op	      12 allocs/op
+BenchmarkTreeTableColumn-14        	  447913	      2731 ns/op	    7648 B/op	      12 allocs/op
+BenchmarkArrayTableRow-14          	 1000000	      1021 ns/op	    7504 B/op	       7 allocs/op
+BenchmarkArrayTableRow-14          	 1000000	      1004 ns/op	    7504 B/op	       7 allocs/op
+BenchmarkArrayTableRow-14          	 1000000	      1001 ns/op	    7504 B/op	       7 allocs/op
+BenchmarkArrayTableColumn-14       	 1000000	      1031 ns/op	    7504 B/op	       7 allocs/op
+BenchmarkArrayTableColumn-14       	 1000000	      1030 ns/op	    7504 B/op	       7 allocs/op
+BenchmarkArrayTableColumn-14       	 1000000	      1023 ns/op	    7504 B/op	       7 allocs/op
+BenchmarkHashTableTranspose-14     	    3836	    298325 ns/op	  706252 B/op	     781 allocs/op
+BenchmarkHashTableTranspose-14     	    3872	    329635 ns/op	  706253 B/op	     781 allocs/op
+BenchmarkHashTableTranspose-14     	    3649	    306308 ns/op	  706254 B/op	     781 allocs/op
+BenchmarkTreeTableTranspose-14     	    2198	    541258 ns/op	  279299 B/op	    4682 allocs/op
+BenchmarkTreeTableTranspose-14     	    2236	    535287 ns/op	  279299 B/op	    4682 allocs/op
+BenchmarkTreeTableTranspose-14     	    2247	    538564 ns/op	  279298 B/op	    4682 allocs/op
+BenchmarkArrayTableTranspose-14    	    9214	    136886 ns/op	   90800 B/op	      41 allocs/op
+BenchmarkArrayTableTranspose-14    	    8948	    125091 ns/op	   90800 B/op	      41 allocs/op
+BenchmarkArrayTableTranspose-14    	    8144	    128830 ns/op	   90800 B/op	      41 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/table	57.406s

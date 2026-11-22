@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "operations": [
+    {"op": "put", "row": "a", "column": "x", "value": "1"},
+    {"op": "put", "row": "a", "column": "y", "value": "2"},
+    {"op": "put", "row": "b", "column": "x", "value": "3"},
+    {"op": "put", "row": "a", "column": "x", "value": "4"},
+    {"op": "get", "row": "a", "column": "x"},
+    {"op": "containsRow", "row": "c"},
+    {"op": "containsColumn", "column": "z"},
+    {"op": "remove", "row": "a", "column": "y"},
+    {"op": "size"},
+    {"op": "put", "row": "c", "column": "z", "value": "0"},
+    {"op": "row", "row": "c"},
+    {"op": "remove", "row": "c", "column": "z"},
+    {"op": "size"},
+    {"op": "column", "column": "x"},
+    {"op": "remove", "row": "b", "column": "x"},
+    {"op": "containsRow", "row": "b"},
+    {"op": "containsColumn", "column": "z"}
+  ]
+}

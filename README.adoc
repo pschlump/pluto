@@ -53,6 +53,8 @@ with an identical public API.
 | link:multimap_ts/[multimap_ts]             | Thread-safe multimaps (RWMutex, atomic compound writes, snapshot iterators).
 | link:bimap/[bimap]                         | Generic bidirectional hash map (unique keys/values, coupled inverse, ForcePut, JSON).
 | link:bimap_ts/[bimap_ts]                   | Thread-safe bimap (shared forward/inverse RWMutex, snapshot iterators).
+| link:table/[table]                         | Generic sparse hash/ordered and dense tables (snapshots, transpose, immutable conversion, JSON).
+| link:table_ts/[table_ts]                   | Thread-safe tables (RWMutex, atomic replacement, snapshot iterators).
 | link:stack/[stack]                         | Generic slice-backed LIFO stack.
 | link:stack_ts/[stack_ts]                   | Thread-safe slice-backed LIFO stack (RWMutex, snapshot iterators).
 | link:stack_sll_ts/[stack_sll_ts]           | Thread-safe LIFO stack on a singly linked list (RWMutex, snapshot iterators).
@@ -330,6 +332,22 @@ snapshot iterators.
 equality/hash for both types and no stale reverse entries.
 * Bad: stores two hash entries per association; iteration order is unspecified;
 the plain iterators must not run concurrently with mutation.
+
+=== Tables — `table/`, `table_ts/`
+
+`HashTable` stores sparse row/column cells in hash indexes; `TreeTable` provides
+comparator-ordered AVL indexes; `ArrayTable` stores a dense fixed-universe matrix
+with a separate presence bitmap and O(1) indexed access. All provide previous-value
+put/delete, row and column snapshots, cell iteration, transpose, clone, validated
+replacement, JSON, and read-only `Freeze` snapshots. Dense empty rows and columns
+remain in their universes; sparse ones disappear. The twins wrap all three with
+RWMutexes, atomic replacement, and snapshot iterators.
+
+* Good: two-key associations with a choice of sparse, ordered, or dense storage;
+custom equality/hash/comparison; stored zero values remain distinguishable from
+absence; immutable snapshots preserve source iteration order.
+* Bad: sparse column operations scan rows; rows and columns are snapshots, not
+live write-through views; ArrayTable deliberately supports deletion unlike Guava.
 
 === Stack — `stack/`, `stack_ts/`
 

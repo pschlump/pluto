@@ -25,6 +25,9 @@ const (
 	MultimapBenchmarkInputDistribution       = "256 keys x 16 values; 45% put, 20% remove, 15% get, 10% putAll, 10% containsEntry"
 	BimapBenchmarkCapacity                   = 4096
 	BimapBenchmarkInputDistribution          = "4096 keys/values; 20% put, 10% forcePut, 10% deleteKey, 10% deleteValue, 25% getValue, 25% getKey"
+	TableBenchmarkRows                       = 64
+	TableBenchmarkColumns                    = 64
+	TableBenchmarkInputDistribution          = "64 rows x 64 columns; 40% put, 20% remove, 40% get"
 )
 
 type Corpus struct {
@@ -50,6 +53,24 @@ type MultimapCorpus struct {
 	ValuesPerKey      int                 `json:"valuesPerKey"`
 	InputDistribution string              `json:"inputDistribution"`
 	Operations        []MultimapOperation `json:"operations"`
+}
+
+type TableOperation struct {
+	Op          string `json:"op"`
+	Row         string `json:"row"`
+	Column      string `json:"column"`
+	Value       string `json:"value,omitempty"`
+	RowIndex    int    `json:"rowIndex"`
+	ColumnIndex int    `json:"columnIndex"`
+}
+
+type TableCorpus struct {
+	Version           int              `json:"version"`
+	Seed              int64            `json:"seed"`
+	Rows              int              `json:"rows"`
+	Columns           int              `json:"columns"`
+	InputDistribution string           `json:"inputDistribution"`
+	Operations        []TableOperation `json:"operations"`
 }
 
 func GenerateTrace(seed int64, operationCount int) Trace {
@@ -182,6 +203,54 @@ func GenerateBimapCorpus(seed int64, operationCount, capacity int) MultimapCorpu
 		InputDistribution: BimapBenchmarkInputDistribution,
 		Operations:        operations,
 	}
+}
+
+func GenerateTableCorpus(seed int64, operationCount, rows, columns int) TableCorpus {
+	random := rand.New(rand.NewSource(seed))
+	operations := make([]TableOperation, operationCount)
+	for index := range operations {
+		rowIndex, columnIndex := random.Intn(rows), random.Intn(columns)
+		operation := TableOperation{
+			Row: fmt.Sprintf("row-%03d", rowIndex), Column: fmt.Sprintf("column-%03d", columnIndex),
+			Value: fmt.Sprintf("value-%04d", index), RowIndex: rowIndex, ColumnIndex: columnIndex,
+		}
+		choice := random.Intn(100)
+		switch {
+		case choice < 40:
+			operation.Op = "put"
+		case choice < 60:
+			operation.Op = "remove"
+		default:
+			operation.Op = "get"
+		}
+		operations[index] = operation
+	}
+	return TableCorpus{
+		Version: TraceVersion, Seed: seed, Rows: rows, Columns: columns,
+		InputDistribution: TableBenchmarkInputDistribution, Operations: operations,
+	}
+}
+
+func ReadTableCorpus(path string) (TableCorpus, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return TableCorpus{}, err
+	}
+	defer func() { _ = file.Close() }()
+	var corpus TableCorpus
+	decoder := json.NewDecoder(file)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&corpus); err != nil {
+		return TableCorpus{}, err
+	}
+	if err := ensureEOF(decoder); err != nil {
+		return TableCorpus{}, err
+	}
+	return corpus, nil
+}
+
+func WriteTableCorpus(path string, corpus TableCorpus) error {
+	return writeJSON(path, corpus, true)
 }
 
 func generateOperations(seed int64, operationCount, capacity int, queries bool) []Operation {
