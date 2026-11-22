@@ -5,8 +5,9 @@ production package. Normal `go test ./...` only reads committed JSON files; it
 never starts Java, Maven, or JMH.
 
 The smoke fixture compares a Go `map[string]int` counter model with Guava's
-`HashMultiset`. It validates the harness only and is not a performance claim
-about a future Pluto multiset implementation.
+`HashMultiset`. The same corpus also drives the Phase 1a matched benchmarks for
+Guava and Pluto hash/tree multisets and Go/Java map baselines. Raw and normalized
+Phase 1a results are retained in `docs/benchmarks/multiset/`.
 
 ## Run
 

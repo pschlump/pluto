@@ -1,0 +1,24 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/internal/guava_compare
+cpu: Apple M4 Max
+BenchmarkCounter-14    	44899676	        23.19 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCounter-14    	50235214	        23.15 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCounter-14    	49018021	        23.64 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/internal/guava_compare	3.697s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/multiset
+cpu: Apple M4 Max
+BenchmarkHashMultiset-14    	23041510	        45.98 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashMultiset-14    	25859722	        46.82 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashMultiset-14    	25939776	        45.40 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeMultiset-14    	 5832889	       204.6 ns/op	       4 B/op	       0 allocs/op
+BenchmarkTreeMultiset-14    	 5888190	       204.3 ns/op	       4 B/op	       0 allocs/op
+BenchmarkTreeMultiset-14    	 5899842	       205.7 ns/op	       4 B/op	       0 allocs/op
+BenchmarkMapMultiset-14     	41966479	        26.86 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapMultiset-14     	43654816	        27.18 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapMultiset-14     	43562702	        26.78 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/multiset	11.693s

@@ -59,6 +59,13 @@ func ParseGoBenchmark(reader io.Reader) ([]Metric, error) {
 			continue
 		}
 		benchmark := strings.ToLower(benchmarkSuffix.ReplaceAllString(strings.TrimPrefix(fields[0], "Benchmark"), ""))
+		implementation := "go-map"
+		switch benchmark {
+		case "hashmultiset":
+			implementation = "pluto-hash-multiset"
+		case "treemultiset":
+			implementation = "pluto-tree-multiset"
+		}
 		for index := 2; index+1 < len(fields); index++ {
 			var metric, unit string
 			switch fields[index+1] {
@@ -77,7 +84,7 @@ func ParseGoBenchmark(reader io.Reader) ([]Metric, error) {
 			}
 			metrics = append(metrics, Metric{
 				Benchmark:      benchmark,
-				Implementation: "go-map",
+				Implementation: implementation,
 				Threads:        1,
 				Metric:         metric,
 				Value:          value,
@@ -123,9 +130,17 @@ func ParseJMHResults(reader io.Reader) ([]Metric, error) {
 			metric = "latency"
 		}
 		parts := strings.Split(result.Benchmark, ".")
+		benchmark := parts[len(parts)-1]
+		implementation := "guava-hash-multiset"
+		switch benchmark {
+		case "treeMultiset":
+			implementation = "guava-tree-multiset"
+		case "mapMultiset":
+			implementation = "java-map"
+		}
 		metrics = append(metrics, Metric{
-			Benchmark:      parts[len(parts)-1],
-			Implementation: "guava-hash-multiset",
+			Benchmark:      strings.ToLower(benchmark),
+			Implementation: implementation,
 			Threads:        result.Threads,
 			Metric:         metric,
 			Value:          result.Primary.Score,

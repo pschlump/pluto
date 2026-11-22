@@ -1,0 +1,79 @@
+= multiset
+
+`HashMultiset[T]` and `TreeMultiset[T]` store positive occurrence counts for
+distinct values. `Len()` is the total occurrence count; `DistinctLen()` is the
+number of stored values. Counts and sizes are `int`. This is count-aware and
+removable, unlike the add-only, insertion-ordered `bag` package.
+
+== Construction
+
+[source,go]
+----
+hash := multiset.NewHashMultiset[string]()
+hashFunc := multiset.NewHashMultisetFunc(eq, hashFn)
+tree := multiset.NewTreeMultiset[int]()
+treeFunc := multiset.NewTreeMultisetFunc(compare)
+----
+
+Natural hash construction requires `comparable`; natural tree construction
+requires `cmp.Ordered`. Custom functions work with any element type. Equality
+and hash must agree. Comparators define both equality (result zero) and order.
+
+== Operations and complexity
+
+Let `n` be distinct values, `N` total occurrences, and `k` returned entries.
+
+[cols="3,2,2,4",options="header"]
+|===
+|Operation |HashMultiset |TreeMultiset |Contract
+|Add / Remove / SetCount |O(1) expected |O(log n) |Add/Remove return the resulting count; SetCount returns the old count.
+|Count / Contains |O(1) expected |O(log n) |Missing values have count zero.
+|DeleteAll |O(1) expected |O(log n) |Returns the previous count.
+|Len / DistinctLen / IsEmpty |O(1) |O(1) |Total and distinct sizes are deliberately different.
+|Clear |O(n) |O(1) |Keeps constructor functions.
+|AddSlice / AddIter |O(n+k) expected |O((n+k) log n) |Atomic on overflow; iterator drained first.
+|RemoveSlice / RemoveIter |O(k) expected |O(k log n) |Iterator drained first.
+|Entries / Elements / All |O(n) / O(n) / O(N) |same |Entries are distinct pairs; All repeats values Count times.
+|HighestCountFirst |O(n log n) |O(n log n) |Fresh decreasing-count copy; tree ties ascending.
+|Clone / Equal / ContainsOccurrences |O(n) expected |O(n log n) |Content, not representation or order.
+|Union / Sum / Intersection / Minus |O(n+m) expected |O((n+m) log(n+m)) |Destination-form, alias-safe count algebra.
+|FindMin / FindMax / Floor / Ceil |— |O(log n) |Distinct values.
+|SubRange / HeadRange / TailRange |— |O(log n+k) |Independent count-preserving snapshots with open/closed bounds.
+|JSON |O(n) expected |O(n log n) |Entry array; replacement keeps constructor functions.
+|===
+
+Zero counts are no-ops for Add/Remove and remove a value for SetCount. Negative
+counts, count overflow, and total-size overflow panic. A failed AddSlice or Sum
+leaves the receiver unchanged. Only positive entries are stored.
+
+Nil and zero-value values are empty for reads and non-storing mutations.
+Storing a positive count requires a constructor and panics otherwise. Empty
+batches and zero-count mutations are accepted on nil and zero-value receivers.
+
+== Algebra and ranges
+
+`Union` uses maximum counts, `Sum` adds, `Intersection` takes minima, and
+`Minus` subtracts with saturation at zero. The receiver is replaced, not merged
+into. Operands may alias the receiver. A zero-value receiver adopts an operand's
+comparison/equality functions, yy before zz. Operands must use consistent
+functions; Go cannot compare function values to check this precondition.
+
+Tree ranges are snapshots, not live write-through views. Mutating a range does
+not mutate its source. SubRange panics for reversed bounds. Hash iteration order
+and hash JSON entry order are unspecified. Tree iteration and JSON are ascending.
+All iterators propagate early termination.
+
+== JSON
+
+The wire representation is an array of `{"value":..., "count":...}` entries.
+Unmarshal replaces content, sums duplicate values, ignores zero entries, and
+retains constructor functions. Malformed JSON and negative counts return an
+error without mutation. Overflow remains a programmer-error panic.
+
+== Concurrency
+
+The plain types are not thread-safe. `multiset_ts.HashMultiset` wraps the hash
+implementation with one `sync.RWMutex`. Compound writes are atomic; iterators
+are snapshots; JSON marshal and user iterator callbacks run without locks.
+Equality, containment, and algebra snapshot each operand under its own lock and
+never hold two multiset locks simultaneously. There is no sorted twin yet.

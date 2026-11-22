@@ -47,6 +47,8 @@ with an identical public API.
 | link:queue_dll/[queue_dll]                 | Generic FIFO queue on a doubly linked list (stable O(1) memory).
 | link:bag/[bag]                             | Generic bag — add-only collection with insertion-order iteration (Sedgwick §1.3 Bag).
 | link:bag_ts/[bag_ts]                       | Thread-safe bag (RWMutex, snapshot iterators).
+| link:multiset/[multiset]                   | Generic hash/sorted multisets (positive counts, count algebra, JSON, positioned sorted ranges).
+| link:multiset_ts/[multiset_ts]             | Thread-safe hash multiset (RWMutex, atomic batches/algebra, snapshot iterators).
 | link:stack/[stack]                         | Generic slice-backed LIFO stack.
 | link:stack_ts/[stack_ts]                   | Thread-safe slice-backed LIFO stack (RWMutex, snapshot iterators).
 | link:stack_sll_ts/[stack_sll_ts]           | Thread-safe LIFO stack on a singly linked list (RWMutex, snapshot iterators).
@@ -278,6 +280,22 @@ structure — collecting samples, evidence, work items before their
 order matters; O(1) `Add` with stable memory.
 * Bad: no search, no delete of a single element (it is a bag);
 the plain twin must not be mutated while an iterator runs.
+
+=== Multiset — `multiset/`, `multiset_ts/`
+
+Count-aware multisets with `Add`/`Remove`/`SetCount`, total and distinct sizes,
+entry and occurrence iteration, JSON, highest-count-first copies, and alias-safe
+`Union` (maximum), `Sum`, `Intersection` (minimum), and `Minus` (saturating).
+`HashMultiset` uses `hash_grow`; `TreeMultiset` uses a dedicated AVL tree with
+O(log n) navigation and O(log n + k) open/closed range snapshots. Counts and
+sizes are `int`; negative counts and overflow panic, and zero counts remove or
+do nothing. `multiset_ts` wraps the hash form with one RWMutex, atomic compound
+writes, and snapshot iterators.
+
+* Good: duplicate-heavy collections that need counts, removal, algebra, or
+ordered navigation; unlike `bag`, no per-occurrence storage.
+* Bad: hash iteration order is unspecified; tree ranges are snapshots rather
+than live views; there is no sorted thread-safe twin yet.
 
 === Stack — `stack/`, `stack_ts/`
 

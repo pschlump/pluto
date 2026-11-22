@@ -1,0 +1,342 @@
+{
+  "metadata": {
+    "schemaVersion": 1,
+    "recordedAt": "2026-11-22T20:21:14Z",
+    "machine": "bellacoula.local",
+    "os": "darwin",
+    "architecture": "arm64",
+    "goVersion": "go version go1.27.0 darwin/arm64",
+    "jdkVersion": "openjdk version \"11.0.28\" 2025-07-15",
+    "guavaCommit": "36e3995499d6c3b74b1207d362fa9e19915d2589",
+    "jmhSettings": "throughput; 2x1s warmup; 3x1s measurement; 1 fork; 1 thread",
+    "capacity": 4096,
+    "inputDistribution": "uniform keys; 45% add, 25% remove, 20% count, 10% setCount",
+    "seed": 1729
+  },
+  "metrics": [
+    {
+      "benchmark": "counter",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "counter",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "counter",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "counter",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "counter",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "counter",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "counter",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 23.19,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "counter",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 23.15,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "counter",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 23.64,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "counter",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 67232369.29475476,
+      "unit": "ops/s",
+      "error": 11432707.208326582
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 67886044.43194805,
+      "unit": "ops/s",
+      "error": 7739130.668545553
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "pluto-hash-multiset",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "pluto-hash-multiset",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "pluto-hash-multiset",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "pluto-hash-multiset",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "pluto-hash-multiset",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "pluto-hash-multiset",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "pluto-hash-multiset",
+      "threads": 1,
+      "metric": "latency",
+      "value": 45.98,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "pluto-hash-multiset",
+      "threads": 1,
+      "metric": "latency",
+      "value": 46.82,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "hashmultiset",
+      "implementation": "pluto-hash-multiset",
+      "threads": 1,
+      "metric": "latency",
+      "value": 45.4,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 26.86,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 27.18,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 26.78,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "mapmultiset",
+      "implementation": "java-map",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 52866644.4273145,
+      "unit": "ops/s",
+      "error": 8255917.817400339
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "guava-tree-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 6074818.00560194,
+      "unit": "ops/s",
+      "error": 1529161.6260900584
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "pluto-tree-multiset",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 4,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "pluto-tree-multiset",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 4,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "pluto-tree-multiset",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 4,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "pluto-tree-multiset",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "pluto-tree-multiset",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "pluto-tree-multiset",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "pluto-tree-multiset",
+      "threads": 1,
+      "metric": "latency",
+      "value": 204.6,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "pluto-tree-multiset",
+      "threads": 1,
+      "metric": "latency",
+      "value": 204.3,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "treemultiset",
+      "implementation": "pluto-tree-multiset",
+      "threads": 1,
+      "metric": "latency",
+      "value": 205.7,
+      "unit": "ns/op"
+    }
+  ]
+}

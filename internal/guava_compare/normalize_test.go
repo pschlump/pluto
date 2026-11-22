@@ -28,6 +28,17 @@ func TestParseGoBenchmark(t *testing.T) {
 	}
 }
 
+func TestMultisetImplementationLabels(t *testing.T) {
+	goMetrics, err := ParseGoBenchmark(strings.NewReader("BenchmarkHashMultiset-8  100  10 ns/op\n"))
+	if err != nil || len(goMetrics) != 1 || goMetrics[0].Implementation != "pluto-hash-multiset" {
+		t.Fatalf("unexpected Go labels: %+v, %v", goMetrics, err)
+	}
+	jmhMetrics, err := ParseJMHResults(strings.NewReader(`[{"benchmark":"com.example.MultisetBenchmark.treeMultiset","mode":"thrpt","threads":1,"primaryMetric":{"score":10,"scoreError":1,"scoreUnit":"ops/s"}}]`))
+	if err != nil || len(jmhMetrics) != 1 || jmhMetrics[0].Implementation != "guava-tree-multiset" || jmhMetrics[0].Benchmark != "treemultiset" {
+		t.Fatalf("unexpected JMH labels: %+v, %v", jmhMetrics, err)
+	}
+}
+
 func TestParseEmptyJMHResultsFails(t *testing.T) {
 	if _, err := ParseJMHResults(strings.NewReader("[]")); err == nil {
 		t.Fatal("empty JMH output must be rejected")

@@ -53,10 +53,11 @@ cmp "$RESULTS/go-oracle.json" "$RESULTS/java-oracle.json"
 cmp "$RESULTS/java-oracle.json" internal/guava_compare/testdata/counter.golden.json
 printf '%s\n' 'Go and Java oracle results match the committed golden.'
 
-go test ./internal/guava_compare -run '^$' -bench '^BenchmarkCounter$' \
+go test ./internal/guava_compare ./multiset -run '^$' \
+  -bench '^(BenchmarkCounter|BenchmarkHashMultiset|BenchmarkTreeMultiset|BenchmarkMapMultiset)$' \
   -benchmem -benchtime=1s -count=3 | tee "$RESULTS/go-bench.txt"
 java -Dcorpus="$ROOT/$CORPUS" -jar "$JAR" \
-  CounterBenchmark -rf json -rff "$ROOT/$RESULTS/jmh.json"
+  'CounterBenchmark|MultisetBenchmark' -rf json -rff "$ROOT/$RESULTS/jmh.json"
 
 go run ./internal/guava_compare/cmd/guava-compare normalize \
   -go "$RESULTS/go-bench.txt" -jmh "$RESULTS/jmh.json" \

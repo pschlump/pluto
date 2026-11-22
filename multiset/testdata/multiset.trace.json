@@ -1,0 +1,311 @@
+{
+  "version": 1,
+  "fixture": "counter",
+  "seed": 1729,
+  "operations": [
+    {
+      "op": "count",
+      "value": "key-0016"
+    },
+    {
+      "op": "add",
+      "value": "key-0018",
+      "count": 4
+    },
+    {
+      "op": "count",
+      "value": "key-0030"
+    },
+    {
+      "op": "add",
+      "value": "key-0026",
+      "count": 2
+    },
+    {
+      "op": "add",
+      "value": "key-0019",
+      "count": 1
+    },
+    {
+      "op": "remove",
+      "value": "key-0016",
+      "count": 2
+    },
+    {
+      "op": "remove",
+      "value": "key-0029",
+      "count": 1
+    },
+    {
+      "op": "count",
+      "value": "key-0020"
+    },
+    {
+      "op": "add",
+      "value": "key-0027",
+      "count": 4
+    },
+    {
+      "op": "remove",
+      "value": "key-0009",
+      "count": 2
+    },
+    {
+      "op": "size"
+    },
+    {
+      "op": "remove",
+      "value": "key-0018",
+      "count": 1
+    },
+    {
+      "op": "add",
+      "value": "key-0001",
+      "count": 2
+    },
+    {
+      "op": "add",
+      "value": "key-0011",
+      "count": 3
+    },
+    {
+      "op": "setCount",
+      "value": "key-0010"
+    },
+    {
+      "op": "add",
+      "value": "key-0023",
+      "count": 2
+    },
+    {
+      "op": "distinctSize"
+    },
+    {
+      "op": "add",
+      "value": "key-0031",
+      "count": 4
+    },
+    {
+      "op": "add",
+      "value": "key-0003",
+      "count": 3
+    },
+    {
+      "op": "add",
+      "value": "key-0003",
+      "count": 2
+    },
+    {
+      "op": "count",
+      "value": "key-0019"
+    },
+    {
+      "op": "size"
+    },
+    {
+      "op": "setCount",
+      "value": "key-0027",
+      "count": 4
+    },
+    {
+      "op": "count",
+      "value": "key-0021"
+    },
+    {
+      "op": "remove",
+      "value": "key-0028",
+      "count": 4
+    },
+    {
+      "op": "add",
+      "value": "key-0018",
+      "count": 1
+    },
+    {
+      "op": "count",
+      "value": "key-0002"
+    },
+    {
+      "op": "setCount",
+      "value": "key-0011",
+      "count": 1
+    },
+    {
+      "op": "remove",
+      "value": "key-0024",
+      "count": 4
+    },
+    {
+      "op": "count",
+      "value": "key-0028"
+    },
+    {
+      "op": "remove",
+      "value": "key-0003",
+      "count": 4
+    },
+    {
+      "op": "count",
+      "value": "key-0002"
+    },
+    {
+      "op": "size"
+    },
+    {
+      "op": "distinctSize"
+    },
+    {
+      "op": "count",
+      "value": "key-0028"
+    },
+    {
+      "op": "add",
+      "value": "key-0005",
+      "count": 1
+    },
+    {
+      "op": "add",
+      "value": "key-0018",
+      "count": 4
+    },
+    {
+      "op": "add",
+      "value": "key-0014",
+      "count": 2
+    },
+    {
+      "op": "add",
+      "value": "key-0026",
+      "count": 4
+    },
+    {
+      "op": "count",
+      "value": "key-0023"
+    },
+    {
+      "op": "add",
+      "value": "key-0025",
+      "count": 2
+    },
+    {
+      "op": "remove",
+      "value": "key-0002",
+      "count": 1
+    },
+    {
+      "op": "remove",
+      "value": "key-0001",
+      "count": 2
+    },
+    {
+      "op": "size"
+    },
+    {
+      "op": "remove",
+      "value": "key-0026",
+      "count": 2
+    },
+    {
+      "op": "add",
+      "value": "key-0012",
+      "count": 1
+    },
+    {
+      "op": "add",
+      "value": "key-0009",
+      "count": 3
+    },
+    {
+      "op": "remove",
+      "value": "key-0002",
+      "count": 2
+    },
+    {
+      "op": "remove",
+      "value": "key-0002",
+      "count": 3
+    },
+    {
+      "op": "add",
+      "value": "key-0022",
+      "count": 4
+    },
+    {
+      "op": "distinctSize"
+    },
+    {
+      "op": "remove",
+      "value": "key-0011",
+      "count": 4
+    },
+    {
+      "op": "count",
+      "value": "key-0011"
+    },
+    {
+      "op": "count",
+      "value": "key-0025"
+    },
+    {
+      "op": "size"
+    },
+    {
+      "op": "remove",
+      "value": "key-0009",
+      "count": 1
+    },
+    {
+      "op": "count",
+      "value": "key-0003"
+    },
+    {
+      "op": "count",
+      "value": "key-0015"
+    },
+    {
+      "op": "setCount",
+      "value": "key-0012",
+      "count": 3
+    },
+    {
+      "op": "add",
+      "value": "key-0000",
+      "count": 4
+    },
+    {
+      "op": "add",
+      "value": "key-0029",
+      "count": 4
+    },
+    {
+      "op": "remove",
+      "value": "key-0031",
+      "count": 2
+    },
+    {
+      "op": "remove",
+      "value": "key-0024",
+      "count": 3
+    },
+    {
+      "op": "add",
+      "value": "key-0031",
+      "count": 2
+    },
+    {
+      "op": "count",
+      "value": "key-0020"
+    },
+    {
+      "op": "size"
+    },
+    {
+      "op": "setCount",
+      "value": "key-0028",
+      "count": 2
+    },
+    {
+      "op": "distinctSize"
+    }
+  ]
+}

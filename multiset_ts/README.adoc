@@ -1,0 +1,31 @@
+= multiset_ts
+
+`multiset_ts.HashMultiset[T]` is the thread-safe twin of
+`multiset.HashMultiset[T]`. It has the same counts, sizes, batch operations,
+iteration, JSON, equality, containment, cloning, highest-count-first copy, and
+count-aware algebra. See `multiset/README.adoc` for collection semantics.
+
+== Concurrency
+
+One `sync.RWMutex` guards the plain hash multiset. Add, Remove, SetCount, Clear,
+and each batch or algebra operation take the write lock, so readers observe
+compound writes atomically. Count and size queries take the read lock.
+
+`Entries`, `Elements`, and `All` clone under the read lock and return
+slice-backed snapshot iterators. The lock is released before iteration, so the
+loop body may call back into the multiset and early stop releases no resources.
+`Slice`, `EntriesSlice`, `HighestCountFirst`, and `Clone` are independent
+snapshots.
+
+`Equal`, `ContainsOccurrences`, `Union`, `Sum`, `Intersection`, and `Minus`
+snapshot operands under one lock at a time. They never hold two multiset locks,
+so opposite-direction operations do not deadlock. Algebra is atomic on the
+destination, not a transaction across both operands.
+
+JSON decoding occurs before locking and encoding uses a snapshot, so custom
+`MarshalJSON` or `UnmarshalJSON` methods on T do not run under the multiset lock.
+Malformed input and negative counts leave the existing value unchanged.
+
+The zero value is empty and read-only. Use `NewHashMultiset` for comparable
+values or `NewHashMultisetFunc` for custom equality and hashing. The sorted
+`multiset.TreeMultiset` has no thread-safe twin yet.
