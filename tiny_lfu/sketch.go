@@ -67,7 +67,7 @@ func (s *FrequencySketch[K]) EnsureCapacity(maximumSize int) {
 	}
 
 	maximum := max(maximumSize, minSketchSize)
-	sampleSize := maximum
+	var sampleSize int
 	if maximum > int(^uint(0)>>1)/10 {
 		sampleSize = int(^uint(0) >> 1)
 	} else {

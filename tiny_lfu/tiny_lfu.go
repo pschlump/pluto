@@ -232,9 +232,10 @@ func (c *TinyLfu[K, V]) Put(key K, value V) {
 	weight := c.weight(key, value)
 	if node, ok := c.data[key]; ok {
 		delta := weight - node.weight
-		if node.region == windowRegion {
+		switch node.region {
+		case windowRegion:
 			c.sizeWindow += delta
-		} else if node.region == protectedRegion {
+		case protectedRegion:
 			c.sizeProtected += delta
 		}
 		c.sizeData += delta
@@ -400,9 +401,10 @@ func (c *TinyLfu[K, V]) canEvict(node *entry[K, V]) bool {
 }
 
 func (c *TinyLfu[K, V]) evictEntry(node *entry[K, V]) {
-	if node.region == windowRegion {
+	switch node.region {
+	case windowRegion:
 		c.sizeWindow -= node.weight
-	} else if node.region == protectedRegion {
+	case protectedRegion:
 		c.sizeProtected -= node.weight
 	}
 	c.sizeData -= node.weight
@@ -423,9 +425,10 @@ func firstEntry[K comparable, V any](head *entry[K, V]) *entry[K, V] {
 
 func (c *TinyLfu[K, V]) successor(node *entry[K, V]) *entry[K, V] {
 	head := &c.protected
-	if node.region == windowRegion {
+	switch node.region {
+	case windowRegion:
 		head = &c.window
-	} else if node.region == probationRegion {
+	case probationRegion:
 		head = &c.probation
 	}
 	if node.next == head {
@@ -464,9 +467,10 @@ func (c *TinyLfu[K, V]) Delete(key K) bool {
 	if !ok {
 		return false
 	}
-	if node.region == windowRegion {
+	switch node.region {
+	case windowRegion:
 		c.sizeWindow -= node.weight
-	} else if node.region == protectedRegion {
+	case protectedRegion:
 		c.sizeProtected -= node.weight
 	}
 	c.sizeData -= node.weight
