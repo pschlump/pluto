@@ -134,33 +134,33 @@ I/O are outside this data-structure/algorithm plan. Go's `strings`, `bytes`,
 
 ## 4. Coverage map
 
-| Guava capability | Pluto today | Disposition |
-|---|---|---|
-| Lists, stacks, queues, deques | `dll`, `sll`, `stack`, `queue`, `dqueue`, `quicklist`, twins | Covered; add bounded eviction separately |
-| Hash and sorted sets | `hash_set`, `tree_set`, twins | Covered; add non-destructive/lazy algebra and richer navigation |
-| Mutable hash/sorted maps | Go `map`; ordered key/value `binary_search_st`, disk stores | Mostly covered by Go; immutable maps remain missing |
-| `HashMultiset`, `TreeMultiset`, concurrent and immutable multisets | None; `bag` is not equivalent | **Build** |
-| List/set/sorted multimaps, immutable multimaps | None | **Build** |
-| `HashBiMap`, immutable bimap, live inverse | None | **Build** |
-| Hash/tree/dense/immutable tables | None | **Build** |
-| Immutable list/set/sorted set/map/sorted map | None | **Build** |
-| `Range`, `DiscreteDomain`, `ContiguousSet` | Closed `Interval` only | **Build general model** |
-| `RangeSet`, `RangeMap`, immutable forms | None | **Build** |
-| `EvictingQueue` | Manual eviction with existing queues | **Build ring buffer + twin** |
-| `MinMaxPriorityQueue` | Separate min/max or heap structures only | **Build min-max heap + twin** |
-| Lazy iterable/iterator algorithms | Partial coverage through `iter.Seq`, `slices`, `maps`, `g_lib` | **Build focused `iter_util`** |
-| Comparator composition, top-k, sorted copies | Stored comparators, sorts, min/max | **Build `ordering`** |
-| Set Cartesian product/power set, map difference/index | Set algebra exists; these utilities do not | **Build utilities** |
-| Generic `Graph`, `ValueGraph`, `Network` | Integer `graph`/`digraph`; weighted int graphs | **Build generic model** |
-| Generic graph traverser and graph views | Many int-vertex algorithms, but no generic lazy traverser | **Build and adapt to existing algorithms** |
-| Graph algorithm breadth | DFS/BFS, SCC, closure, Euler, shortest path, MST, flow, matching, min-cut | Already exceeds Guava; no port needed |
-| Loading/expiration/refresh cache | LRU/LFU/W-TinyLFU eviction, weights, stats; no loading/TTL/refresh | **Build cache layer** |
-| Bloom filter | `bloom` + twin, merge, clone, approximate count | Add FPP/compatibility; build generic funnel variant |
-| Hash functions/funnels/consistent hash | Internal table hashes, Bloom's frozen hashes, CRC | **Build public hashing package** |
-| Online/paired statistics, quantiles | None | **Build** |
-| Checked/saturating arithmetic and rounded integer operations | Small `g_lib` numeric surface | **Build focused math utilities** |
-| Primitive conversion/unsigned operations | Native Go types, `strconv`, `encoding/binary`, `math/bits` | No parity project required |
-| Strong/weak interning | None | Optional later capability |
+| Guava capability                                                   | Pluto today                                                               | Disposition                                                     |
+|--------------------------------------------------------------------|---------------------------------------------------------------------------|-----------------------------------------------------------------|
+| Lists, stacks, queues, deques                                      | `dll`, `sll`, `stack`, `queue`, `dqueue`, `quicklist`, twins              | Covered; add bounded eviction separately                        |
+| Hash and sorted sets                                               | `hash_set`, `tree_set`, twins                                             | Covered; add non-destructive/lazy algebra and richer navigation |
+| Mutable hash/sorted maps                                           | Go `map`; ordered key/value `binary_search_st`, disk stores               | Mostly covered by Go; immutable maps remain missing             |
+| `HashMultiset`, `TreeMultiset`, concurrent and immutable multisets | None; `bag` is not equivalent                                             | **Build**                                                       |
+| List/set/sorted multimaps, immutable multimaps                     | None                                                                      | **Build**                                                       |
+| `HashBiMap`, immutable bimap, live inverse                         | None                                                                      | **Build**                                                       |
+| Hash/tree/dense/immutable tables                                   | None                                                                      | **Build**                                                       |
+| Immutable list/set/sorted set/map/sorted map                       | None                                                                      | **Build**                                                       |
+| `Range`, `DiscreteDomain`, `ContiguousSet`                         | Closed `Interval` only                                                    | **Build general model**                                         |
+| `RangeSet`, `RangeMap`, immutable forms                            | None                                                                      | **Build**                                                       |
+| `EvictingQueue`                                                    | Manual eviction with existing queues                                      | **Build ring buffer + twin**                                    |
+| `MinMaxPriorityQueue`                                              | Separate min/max or heap structures only                                  | **Build min-max heap + twin**                                   |
+| Lazy iterable/iterator algorithms                                  | Partial coverage through `iter.Seq`, `slices`, `maps`, `g_lib`            | **Build focused `iter_util`**                                   |
+| Comparator composition, top-k, sorted copies                       | Stored comparators, sorts, min/max                                        | **Build `ordering`**                                            |
+| Set Cartesian product/power set, map difference/index              | Set algebra exists; these utilities do not                                | **Build utilities**                                             |
+| Generic `Graph`, `ValueGraph`, `Network`                           | Integer `graph`/`digraph`; weighted int graphs                            | **Build generic model**                                         |
+| Generic graph traverser and graph views                            | Many int-vertex algorithms, but no generic lazy traverser                 | **Build and adapt to existing algorithms**                      |
+| Graph algorithm breadth                                            | DFS/BFS, SCC, closure, Euler, shortest path, MST, flow, matching, min-cut | Already exceeds Guava; no port needed                           |
+| Loading/expiration/refresh cache                                   | LRU/LFU/W-TinyLFU eviction, weights, stats; no loading/TTL/refresh        | **Build cache layer**                                           |
+| Bloom filter                                                       | `bloom` + twin, merge, clone, approximate count                           | Add FPP/compatibility; build generic funnel variant             |
+| Hash functions/funnels/consistent hash                             | Internal table hashes, Bloom's frozen hashes, CRC                         | **Build public hashing package**                                |
+| Online/paired statistics, quantiles                                | None                                                                      | **Build**                                                       |
+| Checked/saturating arithmetic and rounded integer operations       | Small `g_lib` numeric surface                                             | **Build focused math utilities**                                |
+| Primitive conversion/unsigned operations                           | Native Go types, `strconv`, `encoding/binary`, `math/bits`                | No parity project required                                      |
+| Strong/weak interning                                              | None                                                                      | Optional later capability                                       |
 
 ## 5. Phase 0 — contracts, golden oracles, and comparison harness
 

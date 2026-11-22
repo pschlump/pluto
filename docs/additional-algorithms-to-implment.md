@@ -22,33 +22,33 @@ Ultima-driven and not reconsidered here.
 
 ## 1. Already covered (for the record)
 
-| algs4 program(s) | pluto package |
-|---|---|
-| Stack, Queue (linked + resizing array) | `stack`, `queue`, `stack_sll_ts`, `queue_dll`, `dqueue` |
-| Bag | `bag` (+ `_ts`) |
-| UF / WeightedQuickUnionUF | `union_find` (+ `_ts`) |
-| Quick / Quick3way / QuickX ideas | `quick_sort` (3-way, median-of-3, cutoff) |
-| Shell | `shell_sort` (3x+1 gaps) |
-| Heap (heapsort), MaxPQ/MinPQ | `heap_sort` (+ `_ts`), `heap` (+ `_ts`) |
-| IndexMinPQ / IndexMaxPQ | `index_pq` (+ `_ts`) |
-| BinomialMinPQ | `binomial_queue` |
-| BST | `binary_tree` (+ `_ts`), `splay_tree`, `b_tree` |
-| AVLTreeST (§9) | `avl_tree` (+ `_ts`) |
-| RedBlackBST | `rb_tree` (+ `_ts`) |
-| SeparateChainingHashST | `hash_tab`, `hash_tab_dll`, `hash_tab_bt` (+ `_ts` each), `sharded_hash_ts` |
-| LinearProbingHashST | `hash_grow` (+ `_ts`), `cuckoo` (+ `_ts`) |
-| TrieST, TST, PatriciaST/SET | `trie`, `tst`, `patricia_trie` (+ `_ts` each) |
-| KMP, BoyerMoore, RabinKarp | `substring` |
-| LZW | `lzw` |
-| RunLength | `run_length` |
-| SuffixArray (+ LRS client) | `suffix_array` |
-| BTree | `b_tree`, `b_tree_disk_ts` |
-| Graph, DFS/BFS paths, CC | `graph` (+ `_ts`) |
-| Digraph, DirectedDFS, paths, DirectedCycle, DepthFirstOrder, Topological, KosarajuSCC | `digraph` (+ `_ts`) |
-| EdgeWeightedGraph, LazyPrim/Prim/Kruskal | `mst` (+ `_ts`) over `dijkstra` |
-| DijkstraSP/Undirected/AllPairs, AcyclicSP/LP, BellmanFordSP, EdgeWeightedDirectedCycle (internal) | `dijkstra`, `bellman_ford` (+ `_ts` each) |
-| FordFulkerson, FlowNetwork, FlowEdge | `maxflow` |
-| FenwickTree, SegmentTree (§9) | `fenwick_tree`, `segment_tree` (+ `_ts` each) |
+| algs4 program(s)                                                                                  | pluto package                                                               |
+|---------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
+| Stack, Queue (linked + resizing array)                                                            | `stack`, `queue`, `stack_sll_ts`, `queue_dll`, `dqueue`                     |
+| Bag                                                                                               | `bag` (+ `_ts`)                                                             |
+| UF / WeightedQuickUnionUF                                                                         | `union_find` (+ `_ts`)                                                      |
+| Quick / Quick3way / QuickX ideas                                                                  | `quick_sort` (3-way, median-of-3, cutoff)                                   |
+| Shell                                                                                             | `shell_sort` (3x+1 gaps)                                                    |
+| Heap (heapsort), MaxPQ/MinPQ                                                                      | `heap_sort` (+ `_ts`), `heap` (+ `_ts`)                                     |
+| IndexMinPQ / IndexMaxPQ                                                                           | `index_pq` (+ `_ts`)                                                        |
+| BinomialMinPQ                                                                                     | `binomial_queue`                                                            |
+| BST                                                                                               | `binary_tree` (+ `_ts`), `splay_tree`, `b_tree`                             |
+| AVLTreeST (§9)                                                                                    | `avl_tree` (+ `_ts`)                                                        |
+| RedBlackBST                                                                                       | `rb_tree` (+ `_ts`)                                                         |
+| SeparateChainingHashST                                                                            | `hash_tab`, `hash_tab_dll`, `hash_tab_bt` (+ `_ts` each), `sharded_hash_ts` |
+| LinearProbingHashST                                                                               | `hash_grow` (+ `_ts`), `cuckoo` (+ `_ts`)                                   |
+| TrieST, TST, PatriciaST/SET                                                                       | `trie`, `tst`, `patricia_trie` (+ `_ts` each)                               |
+| KMP, BoyerMoore, RabinKarp                                                                        | `substring`                                                                 |
+| LZW                                                                                               | `lzw`                                                                       |
+| RunLength                                                                                         | `run_length`                                                                |
+| SuffixArray (+ LRS client)                                                                        | `suffix_array`                                                              |
+| BTree                                                                                             | `b_tree`, `b_tree_disk_ts`                                                  |
+| Graph, DFS/BFS paths, CC                                                                          | `graph` (+ `_ts`)                                                           |
+| Digraph, DirectedDFS, paths, DirectedCycle, DepthFirstOrder, Topological, KosarajuSCC             | `digraph` (+ `_ts`)                                                         |
+| EdgeWeightedGraph, LazyPrim/Prim/Kruskal                                                          | `mst` (+ `_ts`) over `dijkstra`                                             |
+| DijkstraSP/Undirected/AllPairs, AcyclicSP/LP, BellmanFordSP, EdgeWeightedDirectedCycle (internal) | `dijkstra`, `bellman_ford` (+ `_ts` each)                                   |
+| FordFulkerson, FlowNetwork, FlowEdge                                                              | `maxflow`                                                                   |
+| FenwickTree, SegmentTree (§9)                                                                     | `fenwick_tree`, `segment_tree` (+ `_ts` each)                               |
 
 ---
 
