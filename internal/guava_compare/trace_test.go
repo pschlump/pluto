@@ -82,4 +82,18 @@ func TestGeneratedFilesAreDeterministic(t *testing.T) {
 	if generated := GenerateTableCorpus(tableCorpus.Seed, len(tableCorpus.Operations), tableCorpus.Rows, tableCorpus.Columns); !reflect.DeepEqual(generated, tableCorpus) {
 		t.Fatal("committed table corpus differs from deterministic generator")
 	}
+	queueCorpus, err := ReadEvictingQueueCorpus(filepath.Join("testdata", "evicting_queue.corpus.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if generated := GenerateEvictingQueueCorpus(queueCorpus.Seed, len(queueCorpus.Operations), queueCorpus.Capacity); !reflect.DeepEqual(generated, queueCorpus) {
+		t.Fatal("committed evicting-queue corpus differs from deterministic generator")
+	}
+	minMaxCorpus, err := ReadMinMaxCorpus(filepath.Join("testdata", "min_max_pq.corpus.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if generated := GenerateMinMaxCorpus(minMaxCorpus.Seed, len(minMaxCorpus.Operations), minMaxCorpus.MaximumSize); !reflect.DeepEqual(generated, minMaxCorpus) {
+		t.Fatal("committed min-max corpus differs from deterministic generator")
+	}
 }

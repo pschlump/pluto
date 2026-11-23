@@ -1,0 +1,8 @@
+= evicting_queue_ts
+
+Thread-safe twin of `evicting_queue`. All operations use an RWMutex; bulk pushes
+and JSON replacement hold one write lock. Iterators, slices, clones, and equality
+operate on snapshots, and caller JSON/iterator code runs outside the lock.
+
+See `evicting_queue/README.adoc` and `docs/packages/evicting_queue.md` for the
+fixed-capacity FIFO contract, zero-capacity behavior, complexity, and examples.

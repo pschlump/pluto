@@ -55,6 +55,10 @@ with an identical public API.
 | link:bimap_ts/[bimap_ts]                   | Thread-safe bimap (shared forward/inverse RWMutex, snapshot iterators).
 | link:table/[table]                         | Generic sparse hash/ordered and dense tables (snapshots, transpose, immutable conversion, JSON).
 | link:table_ts/[table_ts]                   | Thread-safe tables (RWMutex, atomic replacement, snapshot iterators).
+| link:evicting_queue/[evicting_queue]       | Fixed-capacity FIFO ring buffer (automatic oldest eviction, bulk fast path, JSON).
+| link:evicting_queue_ts/[evicting_queue_ts] | Thread-safe evicting queue (RWMutex, atomic bulk writes, snapshot iterators).
+| link:min_max_pq/[min_max_pq]               | Double-ended priority queue on a single-array min-max heap (optional bound, JSON).
+| link:min_max_pq_ts/[min_max_pq_ts]         | Thread-safe min-max priority queue (RWMutex, atomic batches, snapshot iterators).
 | link:stack/[stack]                         | Generic slice-backed LIFO stack.
 | link:stack_ts/[stack_ts]                   | Thread-safe slice-backed LIFO stack (RWMutex, snapshot iterators).
 | link:stack_sll_ts/[stack_sll_ts]           | Thread-safe LIFO stack on a singly linked list (RWMutex, snapshot iterators).

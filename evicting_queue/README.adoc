@@ -1,0 +1,31 @@
+= evicting_queue
+
+A generic fixed-capacity FIFO queue implemented as a ring buffer. `Push` always
+succeeds; a full queue evicts its oldest element. Capacity zero accepts and
+immediately discards writes, matching Guava EvictingQueue. Negative capacity is
+a programmer error and panics.
+
+== API and complexity
+
+- `NewQueue(capacity)`, `Capacity`, `RemainingCapacity`, `Len`, and `IsEmpty`.
+- O(1) `Push`, `Pop`, and `Peek`; empty removal/peek returns `(zero, false)`.
+- `PushAll` retains the newest values that fit. Inputs at least as large as the
+  capacity are copied directly instead of repeatedly evicting.
+- `Slice`, oldest-to-newest `All`, order-sensitive `Equal`, independent `Clone`,
+  `Clear`, and JSON arrays in logical order.
+- Pop, eviction, Clear, and replacement do not retain stale element references.
+
+The zero value and nil queue are empty for reads. A constructor is required
+before a nonempty write. `Equal` compares elements with `==` and therefore
+requires comparable dynamic element values. Plain iterators must not run with
+concurrent mutation and propagate early termination.
+
+JSON decode validates the complete input before mutation and applies normal
+capacity eviction. `Clone` preserves capacity but shares no storage.
+
+== Thread-safe twin
+
+`evicting_queue_ts` has the same API behind `sync.RWMutex`. `PushAll` and JSON
+replacement are atomic. `All`, `Slice`, `Clone`, and JSON encoding use snapshots;
+iteration and JSON callbacks run without the queue lock. Opposite-way `Equal`
+calls never hold two locks. Run `go test -race ./evicting_queue_ts` after changes.

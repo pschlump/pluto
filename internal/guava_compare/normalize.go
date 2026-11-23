@@ -94,6 +94,16 @@ func ParseGoBenchmark(reader io.Reader) ([]Metric, error) {
 			implementation = "pluto-array-table"
 		case "flatmatrix":
 			implementation = "go-flat-matrix"
+		case "evictingqueue", "evictingqueueiteration":
+			implementation = "pluto-evicting-queue"
+		case "dqueueeviction", "dqueueiteration":
+			implementation = "pluto-dqueue"
+		case "minmaxpriorityqueue", "boundedminmaxpriorityqueue", "minmaxoneend":
+			implementation = "pluto-min-max-pq"
+		case "twoheap":
+			implementation = "go-two-heap"
+		case "priorityqueue":
+			implementation = "pluto-heap"
 		}
 		if strings.HasPrefix(benchmark, "hashtable") {
 			implementation = "pluto-hash-table"
@@ -197,6 +207,16 @@ func ParseJMHResults(reader io.Reader) ([]Metric, error) {
 			implementation = "guava-array-table"
 		case "flatMatrix":
 			implementation = "java-flat-matrix"
+		case "evictingQueue", "evictingQueueIteration":
+			implementation = "guava-evicting-queue"
+		case "dQueueEviction", "dQueueIteration":
+			implementation = "java-array-deque"
+		case "minMaxPriorityQueue", "boundedMinMaxPriorityQueue", "minMaxOneEnd":
+			implementation = "guava-min-max-pq"
+		case "twoHeap":
+			implementation = "java-two-heap"
+		case "priorityQueue":
+			implementation = "java-priority-queue"
 		}
 		if strings.HasPrefix(benchmark, "hashTable") {
 			implementation = "guava-hash-table"
@@ -228,6 +248,17 @@ func WriteNormalizedResults(path string, metadata ResultMetadata, metrics []Metr
 		case "hashbimap", "mapbimap", "bimapinverseiteration":
 			metrics[index].Capacity = BimapBenchmarkCapacity
 			metrics[index].InputDistribution = BimapBenchmarkInputDistribution
+			metrics[index].Seed = BenchmarkSeed
+		case "evictingqueue", "dqueueeviction", "evictingqueueiteration", "dqueueiteration":
+			metrics[index].Capacity = EvictingQueueBenchmarkCapacity
+			metrics[index].InputDistribution = EvictingQueueBenchmarkInputDistribution
+			metrics[index].Seed = BenchmarkSeed
+		case "minmaxpriorityqueue", "boundedminmaxpriorityqueue", "twoheap":
+			metrics[index].Capacity = MinMaxBenchmarkMaximumSize
+			metrics[index].InputDistribution = MinMaxBenchmarkInputDistribution
+			metrics[index].Seed = BenchmarkSeed
+		case "minmaxoneend", "priorityqueue":
+			metrics[index].InputDistribution = MinMaxOneEndBenchmarkInputDistribution
 			metrics[index].Seed = BenchmarkSeed
 		}
 		if strings.Contains(metrics[index].Benchmark, "table") || metrics[index].Benchmark == "nestedmap" || metrics[index].Benchmark == "flatmatrix" {

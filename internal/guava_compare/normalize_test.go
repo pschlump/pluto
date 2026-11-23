@@ -39,6 +39,17 @@ func TestMultisetImplementationLabels(t *testing.T) {
 	}
 }
 
+func TestSmallStructureImplementationLabels(t *testing.T) {
+	goMetrics, err := ParseGoBenchmark(strings.NewReader("BenchmarkEvictingQueue-8  100  10 ns/op\nBenchmarkMinMaxPriorityQueue-8  100  20 ns/op\n"))
+	if err != nil || len(goMetrics) != 2 || goMetrics[0].Implementation != "pluto-evicting-queue" || goMetrics[1].Implementation != "pluto-min-max-pq" {
+		t.Fatalf("unexpected Go labels: %+v, %v", goMetrics, err)
+	}
+	jmhMetrics, err := ParseJMHResults(strings.NewReader(`[{"benchmark":"com.example.EvictingQueueBenchmark.evictingQueue","mode":"thrpt","threads":1,"primaryMetric":{"score":10,"scoreError":1,"scoreUnit":"ops/s"}},{"benchmark":"com.example.MinMaxPriorityQueueBenchmark.minMaxPriorityQueue","mode":"thrpt","threads":1,"primaryMetric":{"score":20,"scoreError":1,"scoreUnit":"ops/s"}}]`))
+	if err != nil || len(jmhMetrics) != 2 || jmhMetrics[0].Implementation != "guava-evicting-queue" || jmhMetrics[1].Implementation != "guava-min-max-pq" {
+		t.Fatalf("unexpected JMH labels: %+v, %v", jmhMetrics, err)
+	}
+}
+
 func TestParseEmptyJMHResultsFails(t *testing.T) {
 	if _, err := ParseJMHResults(strings.NewReader("[]")); err == nil {
 		t.Fatal("empty JMH output must be rejected")

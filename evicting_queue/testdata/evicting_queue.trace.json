@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "capacities": [0, 1, 3],
+  "operations": [
+    {"op": "size"},
+    {"op": "peek"},
+    {"op": "poll"},
+    {"op": "add", "value": "a"},
+    {"op": "add", "value": "b"},
+    {"op": "peek"},
+    {"op": "remainingCapacity"},
+    {"op": "addAll", "values": ["c", "d"]},
+    {"op": "size"},
+    {"op": "poll"},
+    {"op": "addAll", "values": ["e", "f", "g", "h"]},
+    {"op": "peek"},
+    {"op": "poll"},
+    {"op": "poll"},
+    {"op": "poll"},
+    {"op": "remainingCapacity"}
+  ]
+}

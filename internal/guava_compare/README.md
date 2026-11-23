@@ -16,7 +16,10 @@ sparse/dense workloads, row/column/transpose benchmarks, and results in
 `docs/benchmarks/table/`. Guava ArrayTable does not support removal: the oracle
 uses HashBasedTable for logical dense cells plus ArrayTable for fixed universes;
 matched ArrayTable streams use indexed `set(null)` and never query its size
-afterward.
+afterward. Phase 1e adds zero/one/general-capacity evicting-queue oracles,
+bounded and unbounded min-max oracles, ring/deque and min-max/two-heap/normal-heap
+workloads, and results in `docs/benchmarks/evicting_queue/` and
+`docs/benchmarks/min_max_pq/`.
 
 ## Run
 

@@ -48,6 +48,8 @@ func generate(arguments []string) error {
 	multimapCorpusPath := flags.String("multimap-corpus", "internal/guava_compare/testdata/multimap.corpus.json", "multimap benchmark corpus output")
 	bimapCorpusPath := flags.String("bimap-corpus", "internal/guava_compare/testdata/bimap.corpus.json", "bimap benchmark corpus output")
 	tableCorpusPath := flags.String("table-corpus", "internal/guava_compare/testdata/table.corpus.json", "table benchmark corpus output")
+	evictingQueueCorpusPath := flags.String("evicting-queue-corpus", "internal/guava_compare/testdata/evicting_queue.corpus.json", "evicting queue benchmark corpus output")
+	minMaxCorpusPath := flags.String("min-max-corpus", "internal/guava_compare/testdata/min_max_pq.corpus.json", "min-max queue benchmark corpus output")
 	seed := flags.Int64("seed", guava_compare.BenchmarkSeed, "random seed")
 	operations := flags.Int("operations", 68, "trace operation count")
 	corpusOperations := flags.Int("corpus-operations", guava_compare.BenchmarkCorpusSize, "benchmark operation count")
@@ -70,7 +72,13 @@ func generate(arguments []string) error {
 	if err := guava_compare.WriteMultimapCorpus(*bimapCorpusPath, guava_compare.GenerateBimapCorpus(*seed, *corpusOperations, guava_compare.BimapBenchmarkCapacity)); err != nil {
 		return err
 	}
-	return guava_compare.WriteTableCorpus(*tableCorpusPath, guava_compare.GenerateTableCorpus(*seed, *corpusOperations, guava_compare.TableBenchmarkRows, guava_compare.TableBenchmarkColumns))
+	if err := guava_compare.WriteTableCorpus(*tableCorpusPath, guava_compare.GenerateTableCorpus(*seed, *corpusOperations, guava_compare.TableBenchmarkRows, guava_compare.TableBenchmarkColumns)); err != nil {
+		return err
+	}
+	if err := guava_compare.WriteEvictingQueueCorpus(*evictingQueueCorpusPath, guava_compare.GenerateEvictingQueueCorpus(*seed, *corpusOperations, guava_compare.EvictingQueueBenchmarkCapacity)); err != nil {
+		return err
+	}
+	return guava_compare.WriteMinMaxCorpus(*minMaxCorpusPath, guava_compare.GenerateMinMaxCorpus(*seed, *corpusOperations, guava_compare.MinMaxBenchmarkMaximumSize))
 }
 
 func oracle(arguments []string) error {

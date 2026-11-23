@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "maximumSizes": [-1, 1, 3],
+  "operations": [
+    {"op": "size"},
+    {"op": "peek"},
+    {"op": "peekLast"},
+    {"op": "poll"},
+    {"op": "offer", "value": 5},
+    {"op": "offer", "value": 2},
+    {"op": "offer", "value": 8},
+    {"op": "peek"},
+    {"op": "peekLast"},
+    {"op": "offer", "value": 1},
+    {"op": "offer", "value": 9},
+    {"op": "size"},
+    {"op": "pollLast"},
+    {"op": "offer", "value": 4},
+    {"op": "offer", "value": 4},
+    {"op": "poll"},
+    {"op": "peek"},
+    {"op": "pollLast"},
+    {"op": "pollLast"},
+    {"op": "pollLast"},
+    {"op": "size"}
+  ]
+}

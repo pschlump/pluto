@@ -1,0 +1,9 @@
+= min_max_pq_ts
+
+Thread-safe twin of `min_max_pq`, using an RWMutex. Batch insertion and JSON
+replacement are atomic. Iterators, slices, clones, equality, and JSON encoding
+use snapshots; caller iterator and JSON code runs outside the lock. Comparators
+run under the operation lock and must not re-enter the same queue.
+
+See `min_max_pq/README.adoc` and `docs/packages/min_max_pq.md` for the heap
+contract, bounded eviction behavior, complexity, and examples.

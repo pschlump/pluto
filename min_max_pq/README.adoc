@@ -1,0 +1,35 @@
+= min_max_pq
+
+A generic double-ended priority queue stored as one min-max heap array. Natural
+construction accepts `cmp.Ordered`; `...Func` constructors accept a comparator
+and support non-comparable element types.
+
+== API and complexity
+
+- `NewMinMaxPriorityQueue` and `NewMinMaxPriorityQueueFunc` create unbounded heaps.
+- `NewBoundedMinMaxPriorityQueue` and its Func form retain at most a positive
+  maximum number of least elements. A full insertion evicts the greatest value,
+  possibly the new value; an incoming value equal to the maximum is discarded.
+- O(1) `PeekMin`, `PeekMax`, `Len`, `IsEmpty`, and `MaximumSize`.
+- O(log n) `Push`, `PopMin`, and `PopMax`; sequential `PushAll` and O(n) `Clear`.
+- `Slice` and `All` use internal breadth-first order, not sorted order. `Clone`
+  preserves layout, comparator, and bound. `Equal` is comparator-based multiset
+  equality, independent of layout. JSON uses internal order and heapifies on decode.
+
+The zero value and nil queue are empty for reads. Constructors are required
+before nonempty writes. Empty peeks/pops return `(zero, false)`. `Clear` and
+removals release element references. Plain mutation must not run concurrently.
+
+== Thread-safe twin
+
+`min_max_pq_ts` has the same API behind `sync.RWMutex`. `PushAll` and JSON
+replacement are atomic. Iterators, clones, equality, and JSON encoding use
+snapshots; caller iterator and JSON code never runs under the internal lock.
+Comparators execute under the operation lock and must not re-enter that queue.
+Opposite-way `Equal` calls never hold two locks.
+
+== Performance note
+
+If only one end is needed, a normal min-heap is usually simpler and faster. The
+matched benchmarks compare both-ended use with Guava and a two-heap alternative,
+and one-ended use with Pluto `heap` and Java `PriorityQueue`.
