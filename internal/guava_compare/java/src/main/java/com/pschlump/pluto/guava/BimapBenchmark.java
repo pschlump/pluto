@@ -142,6 +142,6 @@ public class BimapBenchmark {
   }
 
   private MultimapBenchmark.Operation next() {
-    return operations[index++ % operations.length];
+    return operations[Math.floorMod(index++, operations.length)];
   }
 }

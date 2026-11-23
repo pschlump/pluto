@@ -96,7 +96,7 @@ public class MinMaxPriorityQueueBenchmark {
     }
   }
 
-  private Operation next() { return operations[index++ % operations.length]; }
+  private Operation next() { return operations[Math.floorMod(index++, operations.length)]; }
   private Operation nextOneEnd() { return oneEnded[oneEndIndex++ % oneEnded.length]; }
 
   private static final class Entry {

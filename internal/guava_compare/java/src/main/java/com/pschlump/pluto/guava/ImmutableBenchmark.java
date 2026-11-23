@@ -74,7 +74,7 @@ public class ImmutableBenchmark {
     return ImmutableList.copyOf(Arrays.asList(values));
   }
   @Benchmark public ImmutableList<Integer> immutableListCopyOf() { return ImmutableList.copyOf(list); }
-  @Benchmark public int immutableListAt() { return list.get(index++ % size); }
+  @Benchmark public int immutableListAt() { return list.get(Math.floorMod(index++, size)); }
   @Benchmark public int immutableListIteration() {
     int result = 0;
     for (int value : list) result += value;
@@ -84,32 +84,32 @@ public class ImmutableBenchmark {
   @Benchmark public ImmutableSet<Integer> immutableSetBuild() {
     return ImmutableSet.copyOf(Arrays.asList(values));
   }
-  @Benchmark public boolean immutableSetContains() { return set.contains(values[index++ % size]); }
+  @Benchmark public boolean immutableSetContains() { return set.contains(values[Math.floorMod(index++, size)]); }
 
   @Benchmark public ImmutableMap<String, Integer> immutableMapBuild() { return buildMap(); }
-  @Benchmark public int immutableMapGet() { return map.get(keys[index++ % size]); }
+  @Benchmark public int immutableMapGet() { return map.get(keys[Math.floorMod(index++, size)]); }
 
   @Benchmark public ImmutableSortedSet<Integer> immutableSortedSetBuild() {
     return ImmutableSortedSet.copyOf(Arrays.asList(values));
   }
-  @Benchmark public boolean immutableSortedSetContains() { return sortedSet.contains(values[index++ % size]); }
+  @Benchmark public boolean immutableSortedSetContains() { return sortedSet.contains(values[Math.floorMod(index++, size)]); }
   @Benchmark public int immutableSortedSetSubRange() {
     return sortedSet.subSet(size / 4, true, size * 3 / 4, true).size();
   }
 
   @Benchmark public ImmutableSortedMap<String, Integer> immutableSortedMapBuild() { return buildSortedMap(); }
-  @Benchmark public int immutableSortedMapGet() { return sortedMap.get(keys[index++ % size]); }
+  @Benchmark public int immutableSortedMapGet() { return sortedMap.get(keys[Math.floorMod(index++, size)]); }
 
   @Benchmark public ImmutableMultiset<Integer> immutableMultisetBuild() {
     return ImmutableMultiset.copyOf(Arrays.asList(values));
   }
-  @Benchmark public int immutableMultisetCount() { return multiset.count(values[index++ % size]); }
+  @Benchmark public int immutableMultisetCount() { return multiset.count(values[Math.floorMod(index++, size)]); }
 
   @Benchmark public ImmutableListMultimap<String, Integer> immutableMultimapBuild() { return buildMultimap(); }
-  @Benchmark public int immutableMultimapGet() { return multimap.get(keys[index++ % 64]).size(); }
+  @Benchmark public int immutableMultimapGet() { return multimap.get(keys[Math.floorMod(index++, 64)]).size(); }
 
   @Benchmark public ImmutableBiMap<String, Integer> immutableBiMapBuild() { return buildBiMap(); }
-  @Benchmark public int immutableBiMapGet() { return bimap.get(keys[index++ % size]); }
+  @Benchmark public int immutableBiMapGet() { return bimap.get(keys[Math.floorMod(index++, size)]); }
 
   private ImmutableMap<String, Integer> buildMap() {
     ImmutableMap.Builder<String, Integer> builder = ImmutableMap.builder();

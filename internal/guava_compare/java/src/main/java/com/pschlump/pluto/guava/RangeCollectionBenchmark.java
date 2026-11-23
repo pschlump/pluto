@@ -98,7 +98,7 @@ public class RangeCollectionBenchmark {
   }
 
   private Range<Integer> range(Operation operation) { return Range.closedOpen(operation.low, operation.high); }
-  private Operation next() { return operations[index++ % operations.length]; }
+  private Operation next() { return operations[Math.floorMod(index++, operations.length)]; }
 
   public static final class Corpus {
     public int version;

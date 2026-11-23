@@ -1,0 +1,32 @@
+{
+  "version" : 1,
+  "guavaCommit" : "36e3995499d6c3b74b1207d362fa9e19915d2589",
+  "graph" : {
+    "nodes" : [ "a", "b", "c", "d", "e", "isolated" ],
+    "edges" : [ "a->b", "a->c", "b->d", "c->d", "d->e", "e->b" ],
+    "successorsA" : [ "b", "c" ],
+    "predecessorsB" : [ "a", "e" ],
+    "breadthFirst" : [ "a", "b", "c", "d", "e" ],
+    "preOrder" : [ "a", "b", "d", "e", "c" ],
+    "postOrder" : [ "e", "d", "b", "c", "a" ],
+    "reachableC" : [ "c", "d", "e", "b" ],
+    "closureAlways" : [ "a->a", "a->b", "a->c", "a->d", "a->e", "b->b", "b->d", "b->e", "c->c", "c->d", "c->e", "c->b", "d->d", "d->e", "d->b", "e->e", "e->b", "e->d", "isolated->isolated" ],
+    "closureCycles" : [ "a->b", "a->c", "a->d", "a->e", "b->d", "b->e", "b->b", "c->d", "c->e", "c->b", "d->e", "d->b", "d->d", "e->b", "e->d", "e->e" ],
+    "transpose" : [ "b->a", "b->e", "c->a", "d->b", "d->c", "e->d" ],
+    "induced" : [ "a->b", "b->d" ]
+  },
+  "valueGraph" : {
+    "nodes" : [ "isolated", "a", "b", "c" ],
+    "edges" : [ "a->b", "b->c" ],
+    "ab" : 4,
+    "transposeBA" : 4
+  },
+  "network" : {
+    "nodes" : [ "a", "b", "isolated" ],
+    "edges" : [ "ab1", "ab2", "ba", "aa" ],
+    "connectingAB" : [ "ab2", "ab1" ],
+    "degreeA" : 5,
+    "incidentA" : [ "aa", "ba", "ab2", "ab1" ],
+    "ba" : [ "b->a" ]
+  }
+}

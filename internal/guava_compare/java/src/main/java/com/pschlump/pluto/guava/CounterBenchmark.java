@@ -50,7 +50,7 @@ public class CounterBenchmark {
 
   @Benchmark
   public int counter() {
-    CounterOracle.Operation operation = operations[index++ % operations.length];
+    CounterOracle.Operation operation = operations[Math.floorMod(index++, operations.length)];
     switch (operation.op) {
       case "add":
         counts.add(operation.value, operation.count);

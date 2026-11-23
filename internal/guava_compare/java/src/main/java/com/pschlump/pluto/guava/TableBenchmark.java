@@ -170,7 +170,7 @@ public class TableBenchmark {
   }
 
   private Operation next() {
-    return operations[index++ % operations.length];
+    return operations[Math.floorMod(index++, operations.length)];
   }
 
   private static Table<String, String, String> copyTree(Table<String, String, String> source) {

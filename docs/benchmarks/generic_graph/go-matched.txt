@@ -1,0 +1,48 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/generic_graph
+cpu: Apple M4 Max
+BenchmarkGenericGraphInsert-14             	     219	   5404680 ns/op	 7879669 B/op	   41962 allocs/op
+BenchmarkGenericGraphInsert-14             	     220	   5421350 ns/op	 7879615 B/op	   41962 allocs/op
+BenchmarkGenericGraphInsert-14             	     218	   5474962 ns/op	 7879594 B/op	   41962 allocs/op
+BenchmarkGenericGraphInsertDense-14        	      15	  73983458 ns/op	97673379 B/op	   29851 allocs/op
+BenchmarkGenericGraphInsertDense-14        	      15	  72479200 ns/op	97673378 B/op	   29851 allocs/op
+BenchmarkGenericGraphInsertDense-14        	      16	  73866924 ns/op	97669919 B/op	   29850 allocs/op
+BenchmarkGenericGraphLookup-14             	16813030	        70.75 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericGraphLookup-14             	16965266	        70.38 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericGraphLookup-14             	17060893	        70.42 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericGraphRemoval-14            	     541	   2204206 ns/op	 4304180 B/op	   24655 allocs/op
+BenchmarkGenericGraphRemoval-14            	     542	   2223176 ns/op	 4304162 B/op	   24655 allocs/op
+BenchmarkGenericGraphRemoval-14            	     540	   2204824 ns/op	 4304159 B/op	   24655 allocs/op
+BenchmarkGenericGraphAdjacency-14          	 6976273	       173.6 ns/op	     238 B/op	       8 allocs/op
+BenchmarkGenericGraphAdjacency-14          	 6859552	       174.9 ns/op	     238 B/op	       8 allocs/op
+BenchmarkGenericGraphAdjacency-14          	 6764182	       176.4 ns/op	     238 B/op	       8 allocs/op
+BenchmarkGenericGraphTraversal-14          	    1113	   1048815 ns/op	 1713126 B/op	   17556 allocs/op
+BenchmarkGenericGraphTraversal-14          	    1149	   1037850 ns/op	 1713126 B/op	   17556 allocs/op
+BenchmarkGenericGraphTraversal-14          	    1162	   1045378 ns/op	 1713125 B/op	   17556 allocs/op
+BenchmarkGenericValueGraphInsert-14        	     172	   6904272 ns/op	 9626619 B/op	   42109 allocs/op
+BenchmarkGenericValueGraphInsert-14        	     169	   7043485 ns/op	 9626613 B/op	   42109 allocs/op
+BenchmarkGenericValueGraphInsert-14        	     171	   7041700 ns/op	 9626621 B/op	   42109 allocs/op
+BenchmarkGenericValueGraphLookup-14        	25057488	        48.01 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericValueGraphLookup-14        	25579444	        47.30 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericValueGraphLookup-14        	25105039	        47.51 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericNetworkInsert-14           	     314	   3872121 ns/op	 9203491 B/op	   25156 allocs/op
+BenchmarkGenericNetworkInsert-14           	     312	   3843718 ns/op	 9203493 B/op	   25156 allocs/op
+BenchmarkGenericNetworkInsert-14           	     313	   3823803 ns/op	 9203498 B/op	   25156 allocs/op
+BenchmarkGenericGraphDenseAdapter-14       	     960	   1239310 ns/op	 1639717 B/op	   12512 allocs/op
+BenchmarkGenericGraphDenseAdapter-14       	     954	   1244717 ns/op	 1639717 B/op	   12512 allocs/op
+BenchmarkGenericGraphDenseAdapter-14       	     951	   1258649 ns/op	 1639716 B/op	   12512 allocs/op
+BenchmarkGenericGraphDijkstraAdapter-14    	     326	   3700291 ns/op	 5240425 B/op	   47219 allocs/op
+BenchmarkGenericGraphDijkstraAdapter-14    	     321	   3743922 ns/op	 5240424 B/op	   47219 allocs/op
+BenchmarkGenericGraphDijkstraAdapter-14    	     324	   3665019 ns/op	 5240425 B/op	   47219 allocs/op
+BenchmarkGenericGraphDijkstraDirect-14     	    2034	    577244 ns/op	  233568 B/op	       8 allocs/op
+BenchmarkGenericGraphDijkstraDirect-14     	    2112	    576799 ns/op	  233568 B/op	       8 allocs/op
+BenchmarkGenericGraphDijkstraDirect-14     	    1980	    572301 ns/op	  233568 B/op	       8 allocs/op
+BenchmarkGenericGraphDenseMemory-14        	      15	  71849389 ns/op	  41940712 retained-bytes	       160.0 retained-bytes/input	97669868 B/op	   29851 allocs/op
+BenchmarkGenericGraphDenseMemory-14        	      15	  74743689 ns/op	  41940488 retained-bytes	       160.0 retained-bytes/input	97673361 B/op	   29850 allocs/op
+BenchmarkGenericGraphDenseMemory-14        	      15	  73723919 ns/op	  41940600 retained-bytes	       160.0 retained-bytes/input	97673480 B/op	   29851 allocs/op
+BenchmarkGenericGraphMemory-14             	     201	   5935755 ns/op	   4394976 retained-bytes	       214.6 retained-bytes/input	 7879617 B/op	   41962 allocs/op
+BenchmarkGenericGraphMemory-14             	     201	   5953008 ns/op	   4394944 retained-bytes	       214.6 retained-bytes/input	 7879623 B/op	   41962 allocs/op
+BenchmarkGenericGraphMemory-14             	     201	   5936289 ns/op	   4395104 retained-bytes	       214.6 retained-bytes/input	 7879620 B/op	   41962 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/generic_graph	50.109s

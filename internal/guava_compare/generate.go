@@ -33,6 +33,9 @@ const (
 	MinMaxBenchmarkMaximumSize                    = 256
 	MinMaxBenchmarkInputDistribution              = "uniform integers; 45% push, 20% popMin, 20% popMax, 10% peekMin, 5% peekMax"
 	MinMaxOneEndBenchmarkInputDistribution        = "uniform integers; 60% push, 25% popMin, 15% peekMin"
+	GraphBenchmarkNodes                           = 4096
+	GraphBenchmarkEdges                           = 16384
+	GraphBenchmarkInputDistribution               = "4096 nodes; 16384 unique directed edges; 10000 mixed hit/miss lookups"
 )
 
 type Corpus struct {

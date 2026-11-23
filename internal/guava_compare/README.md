@@ -30,7 +30,10 @@ hit/write/miss/expiration/refresh workloads, with results in
 `docs/benchmarks/cache/`. Phase 5 adds byte-exact hash vectors, generic Bloom
 bit-array/compact-stream differentials, hash-throughput/chunking and Bloom
 operation workloads, with results in `docs/benchmarks/hashing/` and
-`docs/benchmarks/bloom_filter/`.
+`docs/benchmarks/bloom_filter/`. Phase 6 adds graph/value-graph/network oracles,
+a shared sparse/dense corpus, traversal and mutation workloads, adapter-cost
+benchmarks, and JOL graph memory output in `results/graph-memory.json`; retained
+results are under `docs/benchmarks/generic_graph/`.
 
 ## Run
 

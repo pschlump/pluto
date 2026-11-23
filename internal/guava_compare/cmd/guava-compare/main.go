@@ -53,6 +53,7 @@ func generate(arguments []string) error {
 	immutableCorpusPath := flags.String("immutable-corpus", "internal/guava_compare/testdata/immutable.corpus.json", "immutable benchmark corpus output")
 	rangeCorpusPath := flags.String("range-corpus", "internal/guava_compare/testdata/range.corpus.json", "range benchmark corpus output")
 	cacheCorpusPath := flags.String("cache-corpus", "internal/guava_compare/testdata/cache.corpus.json", "cache benchmark corpus output")
+	graphCorpusPath := flags.String("graph-corpus", "internal/guava_compare/testdata/graph.corpus.json", "graph benchmark corpus output")
 	seed := flags.Int64("seed", guava_compare.BenchmarkSeed, "random seed")
 	operations := flags.Int("operations", 68, "trace operation count")
 	corpusOperations := flags.Int("corpus-operations", guava_compare.BenchmarkCorpusSize, "benchmark operation count")
@@ -90,7 +91,10 @@ func generate(arguments []string) error {
 	if err := guava_compare.WriteRangeCorpus(*rangeCorpusPath, guava_compare.GenerateRangeCorpus(*seed, *corpusOperations, guava_compare.RangeBenchmarkCapacity)); err != nil {
 		return err
 	}
-	return guava_compare.WriteCacheCorpus(*cacheCorpusPath, guava_compare.GenerateCacheCorpus(*seed, *corpusOperations, guava_compare.CacheBenchmarkCapacity))
+	if err := guava_compare.WriteCacheCorpus(*cacheCorpusPath, guava_compare.GenerateCacheCorpus(*seed, *corpusOperations, guava_compare.CacheBenchmarkCapacity)); err != nil {
+		return err
+	}
+	return guava_compare.WriteGraphCorpus(*graphCorpusPath, guava_compare.GenerateGraphCorpus(*seed, guava_compare.GraphBenchmarkNodes, guava_compare.GraphBenchmarkEdges, *corpusOperations))
 }
 
 func oracle(arguments []string) error {

@@ -1,0 +1,27 @@
+= generic_graph
+
+Generic directed/undirected graphs, valued graphs, and unique-edge networks.
+
+- Graph[N]: unique comparable or custom-indexed nodes, isolated nodes, at most
+  one edge per endpoint pair, add/remove node/edge, adjacency and degree queries.
+- ValueGraph[N,V]: Graph topology plus non-unique edge values and SetEdgeValue.
+- Network[N,E]: unique edge identities, configurable parallel edges, endpoint
+  lookup/checks, incident edges, and edges connecting a pair.
+- Config supports directedness, self-loops, expected capacity, unordered,
+  insertion, and sorted iteration. Func constructors accept equality/hash and
+  ordering functions without boxing node values.
+- Traverser supplies lazy BFS, DFS preorder, and DFS postorder. Graph traversals
+  deduplicate; ForFunc is for unique-path trees and deliberately has no visited
+  set. All iterators propagate early termination and use snapshots at each
+  adjacency access.
+- ReachableNodes, transitive closure with Guava's two self-loop strategies,
+  transpose, induced subgraphs, and independent copies are snapshots, not live
+  views. ImmutableGraph/ValueGraph/Network snapshots support concurrent reads.
+- Dense assigns temporary integer IDs and builds independent graph/digraph
+  snapshots. Dijkstra maps nonnegative float64 ValueGraph paths back to nodes.
+
+Nodes must be added before edges. Errors identify unknown/duplicate nodes and
+edges, disallowed loops/parallel edges, and inconsistent endpoints. Undirected
+reverse lookups address the same edge. Directed and undirected self-loops count
+twice in Degree and once in edge count. No mutable _ts twin is provided; use an
+immutable snapshot for sharing. Existing integer graph packages are unchanged.

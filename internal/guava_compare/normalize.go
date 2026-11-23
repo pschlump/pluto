@@ -168,6 +168,16 @@ func ParseGoBenchmark(reader io.Reader) ([]Metric, error) {
 		case strings.HasPrefix(benchmark, "immutablebimap"):
 			implementation = "pluto-immutable-bimap"
 		}
+		switch {
+		case strings.HasPrefix(benchmark, "genericvaluegraph"):
+			implementation = "pluto-generic-value-graph"
+		case strings.HasPrefix(benchmark, "genericnetwork"):
+			implementation = "pluto-generic-network"
+		case strings.HasPrefix(benchmark, "genericgraphdijkstradirect"):
+			implementation = "pluto-integer-dijkstra"
+		case strings.HasPrefix(benchmark, "genericgraph"):
+			implementation = "pluto-generic-graph"
+		}
 		for index := 2; index+1 < len(fields); index++ {
 			var metric, unit string
 			switch fields[index+1] {
@@ -314,6 +324,14 @@ func ParseJMHResults(reader io.Reader) ([]Metric, error) {
 		case strings.HasPrefix(benchmark, "immutableBiMap"):
 			implementation = "guava-immutable-bimap"
 		}
+		if strings.Contains(result.Benchmark, ".GraphBenchmark.") {
+			implementation = "guava-graph"
+			if strings.HasPrefix(benchmark, "valueGraph") {
+				implementation = "guava-value-graph"
+			} else if strings.HasPrefix(benchmark, "network") {
+				implementation = "guava-network"
+			}
+		}
 		metrics = append(metrics, Metric{
 			Benchmark:      strings.ToLower(benchmark),
 			Implementation: implementation,
@@ -348,6 +366,11 @@ func WriteNormalizedResults(path string, metadata ResultMetadata, metrics []Metr
 			metrics[index].Seed = BenchmarkSeed
 		case "minmaxoneend", "priorityqueue":
 			metrics[index].InputDistribution = MinMaxOneEndBenchmarkInputDistribution
+			metrics[index].Seed = BenchmarkSeed
+		}
+		if strings.Contains(metrics[index].Implementation, "generic-graph") || strings.Contains(metrics[index].Implementation, "generic-value-graph") || strings.Contains(metrics[index].Implementation, "generic-network") || metrics[index].Implementation == "guava-graph" || metrics[index].Implementation == "guava-value-graph" || metrics[index].Implementation == "guava-network" {
+			metrics[index].Capacity = GraphBenchmarkNodes
+			metrics[index].InputDistribution = GraphBenchmarkInputDistribution
 			metrics[index].Seed = BenchmarkSeed
 		}
 		if strings.HasPrefix(metrics[index].Benchmark, "cache") {

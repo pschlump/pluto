@@ -143,7 +143,7 @@ public class MultimapBenchmark {
   }
 
   private Operation next() {
-    return operations[index++ % operations.length];
+    return operations[Math.floorMod(index++, operations.length)];
   }
 
   public static final class Corpus {

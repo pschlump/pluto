@@ -118,6 +118,6 @@ public class MultisetBenchmark {
   }
 
   private CounterOracle.Operation next() {
-    return operations[index++ % operations.length];
+    return operations[Math.floorMod(index++, operations.length)];
   }
 }

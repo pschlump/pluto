@@ -99,7 +99,7 @@ public class EvictingQueueBenchmark {
     deque.addLast(value);
   }
 
-  private Operation next() { return operations[index++ % operations.length]; }
+  private Operation next() { return operations[Math.floorMod(index++, operations.length)]; }
 
   public static final class Corpus {
     public int version;

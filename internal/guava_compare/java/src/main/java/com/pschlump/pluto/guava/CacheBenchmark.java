@@ -124,7 +124,7 @@ public class CacheBenchmark {
     return hits.getIfPresent(operation.key) != null ? 1 : 0;
   }
 
-  private Operation next() { return operations[index++ % operations.length]; }
+  private Operation next() { return operations[Math.floorMod(index++, operations.length)]; }
   private static final class FakeTicker extends Ticker {
     long nanos;
     @Override public long read() { return nanos; }
