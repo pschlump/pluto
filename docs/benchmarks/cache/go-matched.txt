@@ -1,0 +1,45 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/cache
+cpu: Apple M4 Max
+BenchmarkCacheHit-14                	  440936	      2696 ns/op	     206 B/op	       1 allocs/op
+BenchmarkCacheHit-14                	  430182	      2657 ns/op	     206 B/op	       1 allocs/op
+BenchmarkCacheHit-14                	  403264	      2697 ns/op	     206 B/op	       1 allocs/op
+BenchmarkCacheEvictingWrite-14      	  904448	      1303 ns/op	     511 B/op	       3 allocs/op
+BenchmarkCacheEvictingWrite-14      	  938800	      1298 ns/op	     511 B/op	       3 allocs/op
+BenchmarkCacheEvictingWrite-14      	  923348	      1303 ns/op	     511 B/op	       3 allocs/op
+BenchmarkCacheMissLoading-14        	  127526	     12809 ns/op	     994 B/op	      10 allocs/op
+BenchmarkCacheMissLoading-14        	  121501	     12879 ns/op	     994 B/op	      10 allocs/op
+BenchmarkCacheMissLoading-14        	  127027	     12744 ns/op	     994 B/op	      10 allocs/op
+BenchmarkCacheExpiration-14         	 3980138	       302.5 ns/op	     880 B/op	      11 allocs/op
+BenchmarkCacheExpiration-14         	 3841992	       303.6 ns/op	     880 B/op	      11 allocs/op
+BenchmarkCacheExpiration-14         	 3962851	       305.8 ns/op	     880 B/op	      11 allocs/op
+BenchmarkCacheRefresh-14            	  129684	     12479 ns/op	     586 B/op	       8 allocs/op
+BenchmarkCacheRefresh-14            	  126582	     12672 ns/op	     587 B/op	       8 allocs/op
+BenchmarkCacheRefresh-14            	  130275	     12553 ns/op	     586 B/op	       8 allocs/op
+BenchmarkCacheLRUHit-14             	33729024	        35.19 ns/op	       6 B/op	       0 allocs/op
+BenchmarkCacheLRUHit-14             	33373117	        35.53 ns/op	       6 B/op	       0 allocs/op
+BenchmarkCacheLRUHit-14             	33588042	        35.41 ns/op	       6 B/op	       0 allocs/op
+BenchmarkCacheTinyLFUHit-14         	18062790	        69.07 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheTinyLFUHit-14         	17882000	        70.36 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheTinyLFUHit-14         	17522383	        72.69 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitZipf-14            	13721851	        87.26 ns/op	     128 B/op	       1 allocs/op
+BenchmarkCacheHitZipf-14            	13893150	        87.99 ns/op	     128 B/op	       1 allocs/op
+BenchmarkCacheHitZipf-14            	14373652	        85.90 ns/op	     128 B/op	       1 allocs/op
+BenchmarkCacheHitScan-14            	12820472	        95.37 ns/op	     128 B/op	       1 allocs/op
+BenchmarkCacheHitScan-14            	12440528	        93.96 ns/op	     128 B/op	       1 allocs/op
+BenchmarkCacheHitScan-14            	12677551	        97.59 ns/op	     128 B/op	       1 allocs/op
+BenchmarkCacheHitPhase-14           	14067528	        87.79 ns/op	     128 B/op	       1 allocs/op
+BenchmarkCacheHitPhase-14           	14188974	        86.63 ns/op	     128 B/op	       1 allocs/op
+BenchmarkCacheHitPhase-14           	13643353	        85.39 ns/op	     128 B/op	       1 allocs/op
+BenchmarkCacheConcurrentHit8-14     	 3951279	       308.2 ns/op	     128 B/op	       1 allocs/op
+BenchmarkCacheConcurrentHit8-14     	 3942246	       310.1 ns/op	     128 B/op	       1 allocs/op
+BenchmarkCacheConcurrentHit8-14     	 3944070	       315.1 ns/op	     128 B/op	       1 allocs/op
+BenchmarkCacheConcurrentHit16-14    	 2945586	       413.3 ns/op	     128 B/op	       1 allocs/op
+BenchmarkCacheConcurrentHit16-14    	 2871691	       420.9 ns/op	     128 B/op	       1 allocs/op
+BenchmarkCacheConcurrentHit16-14    	 2920270	       418.4 ns/op	     128 B/op	       1 allocs/op
+BenchmarkCacheCoalescedMiss8-14     	 1654528	       741.8 ns/op	         0.01203 hit-rate	   1455243 loads	     904 B/op	      10 allocs/op
+BenchmarkCacheCoalescedMiss8-14     	 1632190	       729.9 ns/op	         0.01216 hit-rate	   1434740 loads	     903 B/op	      10 allocs/op
+BenchmarkCacheCoalescedMiss8-14     	 1642716	       732.2 ns/op	         0.01205 hit-rate	   1442300 loads	     903 B/op	      10 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/cache	65.895s

@@ -1,0 +1,26 @@
+= cache
+
+Concurrent loading, expiring, refreshing caches with configurable LRU size and
+weight eviction. Cache is inherently thread-safe and has no `_ts` twin.
+
+- New/NewFunc and NewLoading/NewLoadingFunc cover comparable and custom keys.
+- GetIfPresent/Peek, Put, atomic PutIfAbsent/Replace/DeleteValue, individual,
+  bulk, and full invalidation, CleanUp, snapshots, iteration, and stats.
+- Get/GetWith coalesce same-key misses, allow unrelated loads concurrently, and
+  never run loaders under the policy lock. Recursive same-key loads through the
+  loader context return ErrRecursiveLoad. Waiter cancellation is independent;
+  the initiating caller controls the shared load.
+- Expire after write/access and refresh after write use an injectable clock.
+  Refresh returns the old value while replacement runs; failure retains it.
+  Direct writes/invalidate prevent late load completion from overwriting them.
+- Maximum size/weight use static write-time weights and LRU eviction. Maximum
+  zero discards completed writes.
+- Optional bulk loading preserves input order and retains partial successes.
+- Removal listeners report explicit, replaced, expired, size, and loader-error
+  causes outside locks, synchronously by default or with a listener executor.
+- Stats include hits, misses, loads, successes/failures, load time, and evictions.
+  Expiration and size eviction both count as evictions, matching Guava.
+
+Operation-driven cleanup is the baseline; no goroutine runs per cache by default.
+Refresh uses short-lived executor tasks. Weak/soft references and existing cache
+serialization formats are unchanged and out of scope.

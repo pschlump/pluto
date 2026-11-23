@@ -25,6 +25,9 @@ matched construction/copy/lookup/iteration/subrange workloads, with results in
 as `results/immutable-memory.json`; Go retained-memory benchmarks are opt-in.
 Phase 3 adds canonical-range/range-set/range-map differential traces and matched
 range/positioned-tree benchmarks, with results in `docs/benchmarks/ranges/`.
+Phase 4 adds a fake-clock loading/expiration/statistics oracle and matched
+hit/write/miss/expiration/refresh workloads, with results in
+`docs/benchmarks/cache/`.
 
 ## Run
 

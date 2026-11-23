@@ -1,6 +1,6 @@
 # Guava-to-Pluto data structures and algorithms development plan
 
-Status: Phases 0, 1a–1e, 2, and 3 complete; Phase 4 and later phases proposed.
+Status: Phases 0, 1a–1e, 2, 3, and 4 complete; Phase 5 and later phases proposed.
 
 Date: 2026-11-22
 
@@ -733,22 +733,22 @@ not code to vendor wholesale.
 
 ## 16. Rollout, dependencies, and rough effort
 
-| Order | Deliverable | Depends on | Priority | Estimate |
-|---|---|---|---|---|
-| 0 | Golden/differential and Go/JMH harness | None | P0 | 2–3 days |
-| 1a | Multiset + twin | Phase 0 | P0 | 4–6 days |
-| 1b | Multimap + twin | Phase 0; multiset integration | P0 | 5–8 days |
-| 1c | Bimap + twin | Phase 0 | P0 | 3–4 days |
-| 1d | Table + twin | Phase 0 | P1 | 4–6 days |
-| 1e | Evicting queue and min-max PQ | Phase 0 | P1 | 3–4 days |
-| 2 | Immutable family and conversions | Relevant mutable bases | P0/P1 | 8–12 days |
-| 3 | Ranges, range set/map, ordered upgrades | Phase 2 for immutable forms | P0/P1 | 8–12 days |
-| 4 | Loading/expiring cache | Phase 0; existing cache cores | P0 | 8–12 days |
-| 5 | Hashing and generic Bloom | Phase 0 | P1 | 6–10 days |
-| 6 | Generic graph family and adapters | Phase 2 for immutable forms | P1 | 12–18 days |
-| 7 | Iterator/ordering/collection utilities | Existing sets/maps; immutable index | P2 | 5–8 days |
-| 8 | Math/statistics/quantiles | Phase 0 | P2 | 6–10 days |
-| 9 | Optional interning/live-view completion | Corresponding base types | P3 | 3–5 days |
+| Order | Deliverable                             | Depends on                          | Priority | Estimate   |
+|-------|-----------------------------------------|-------------------------------------|----------|------------|
+| 0     | Golden/differential and Go/JMH harness  | None                                | P0       | 2–3 days   |
+| 1a    | Multiset + twin                         | Phase 0                             | P0       | 4–6 days   |
+| 1b    | Multimap + twin                         | Phase 0; multiset integration       | P0       | 5–8 days   |
+| 1c    | Bimap + twin                            | Phase 0                             | P0       | 3–4 days   |
+| 1d    | Table + twin                            | Phase 0                             | P1       | 4–6 days   |
+| 1e    | Evicting queue and min-max PQ           | Phase 0                             | P1       | 3–4 days   |
+| 2     | Immutable family and conversions        | Relevant mutable bases              | P0/P1    | 8–12 days  |
+| 3     | Ranges, range set/map, ordered upgrades | Phase 2 for immutable forms         | P0/P1    | 8–12 days  |
+| 4     | Loading/expiring cache                  | Phase 0; existing cache cores       | P0       | 8–12 days  |
+| 5     | Hashing and generic Bloom               | Phase 0                             | P1       | 6–10 days  |
+| 6     | Generic graph family and adapters       | Phase 2 for immutable forms         | P1       | 12–18 days |
+| 7     | Iterator/ordering/collection utilities  | Existing sets/maps; immutable index | P2       | 5–8 days   |
+| 8     | Math/statistics/quantiles               | Phase 0                             | P2       | 6–10 days  |
+| 9     | Optional interning/live-view completion | Corresponding base types            | P3       | 3–5 days   |
 
 Rough total: 70–105 focused working days at Pluto's documentation, testing,
 race, and benchmarking standard. Phases 1a–1e can be parallelized after the

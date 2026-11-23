@@ -532,3 +532,74 @@ func ReadRangeCorpus(path string) (RangeCorpus, error) {
 }
 
 func WriteRangeCorpus(path string, corpus RangeCorpus) error { return writeJSON(path, corpus, true) }
+
+const (
+	CacheBenchmarkCapacity          = 4096
+	CacheBenchmarkEvictionCapacity  = 256
+	CacheBenchmarkInputDistribution = "4096 keys; 80% get, 20% put; seeded uniform workload"
+)
+
+type CacheOperation struct {
+	Op    string `json:"op"`
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+type CacheCorpus struct {
+	Version           int              `json:"version"`
+	Seed              int64            `json:"seed"`
+	Capacity          int              `json:"capacity"`
+	InputDistribution string           `json:"inputDistribution"`
+	Operations        []CacheOperation `json:"operations"`
+	ZipfKeys          []string         `json:"zipfKeys"`
+	ScanKeys          []string         `json:"scanKeys"`
+	PhaseKeys         []string         `json:"phaseKeys"`
+}
+
+func GenerateCacheCorpus(seed int64, operationCount, capacity int) CacheCorpus {
+	random := rand.New(rand.NewSource(seed))
+	operations := make([]CacheOperation, operationCount)
+	for index := range operations {
+		key := fmt.Sprintf("key-%04d", random.Intn(capacity))
+		operation := CacheOperation{Op: "get", Key: key, Value: fmt.Sprintf("value-%04d", index)}
+		if random.Intn(100) < 20 {
+			operation.Op = "put"
+		}
+		operations[index] = operation
+	}
+	zipf := rand.NewZipf(rand.New(rand.NewSource(seed+1)), 1.1, 1, uint64(capacity-1))
+	zipfKeys, scanKeys, phaseKeys := make([]string, operationCount), make([]string, operationCount), make([]string, operationCount)
+	for index := range zipfKeys {
+		zipfKeys[index] = fmt.Sprintf("key-%04d", zipf.Uint64())
+		scanKeys[index] = fmt.Sprintf("key-%04d", index%capacity)
+		phaseKey := index % 256
+		if index >= operationCount/2 {
+			phaseKey += capacity / 2
+		}
+		phaseKeys[index] = fmt.Sprintf("key-%04d", phaseKey)
+	}
+	return CacheCorpus{
+		Version: TraceVersion, Seed: seed, Capacity: capacity, InputDistribution: CacheBenchmarkInputDistribution,
+		Operations: operations, ZipfKeys: zipfKeys, ScanKeys: scanKeys, PhaseKeys: phaseKeys,
+	}
+}
+
+func ReadCacheCorpus(path string) (CacheCorpus, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return CacheCorpus{}, err
+	}
+	defer func() { _ = file.Close() }()
+	var corpus CacheCorpus
+	decoder := json.NewDecoder(file)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&corpus); err != nil {
+		return CacheCorpus{}, err
+	}
+	if err := ensureEOF(decoder); err != nil {
+		return CacheCorpus{}, err
+	}
+	return corpus, nil
+}
+
+func WriteCacheCorpus(path string, corpus CacheCorpus) error { return writeJSON(path, corpus, true) }

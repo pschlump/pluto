@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "operations": [
+    {"op": "put", "key": "a", "value": "1"},
+    {"op": "getIfPresent", "key": "a"},
+    {"op": "get", "key": "b"},
+    {"op": "size"},
+    {"op": "advance", "nanos": 5},
+    {"op": "get", "key": "a"},
+    {"op": "advance", "nanos": 5},
+    {"op": "getIfPresent", "key": "b"},
+    {"op": "get", "key": "a"},
+    {"op": "advance", "nanos": 10},
+    {"op": "getIfPresent", "key": "a"},
+    {"op": "get", "key": "bad"},
+    {"op": "invalidate", "key": "a"},
+    {"op": "size"},
+    {"op": "invalidateAll"},
+    {"op": "size"}
+  ]
+}

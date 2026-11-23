@@ -136,6 +136,12 @@ func ParseGoBenchmark(reader io.Reader) ([]Metric, error) {
 			implementation = "pluto-tree-set-positioned"
 		case "treesetrangefiltered":
 			implementation = "pluto-tree-set-filtered"
+		case "cachehit", "cacheevictingwrite", "cachemissloading", "cacheexpiration", "cacherefresh", "cachehitzipf", "cachehitscan", "cachehitphase", "cacheconcurrenthit8", "cacheconcurrenthit16", "cachecoalescedmiss8":
+			implementation = "pluto-cache"
+		case "cachelruhit":
+			implementation = "pluto-lru-ts"
+		case "cachetinylfuhit":
+			implementation = "pluto-tiny-lfu-ts"
 		}
 		if strings.HasPrefix(benchmark, "hashtable") {
 			implementation = "pluto-hash-table"
@@ -178,10 +184,17 @@ func ParseGoBenchmark(reader io.Reader) ([]Metric, error) {
 			if err != nil {
 				return nil, fmt.Errorf("parse Go benchmark %q: %w", fields[0], err)
 			}
+			threads := 1
+			if strings.HasSuffix(benchmark, "hit8") || strings.HasSuffix(benchmark, "miss8") {
+				threads = 8
+			}
+			if strings.HasSuffix(benchmark, "hit16") {
+				threads = 16
+			}
 			metrics = append(metrics, Metric{
 				Benchmark:      benchmark,
 				Implementation: implementation,
-				Threads:        1,
+				Threads:        threads,
 				Metric:         metric,
 				Value:          value,
 				Unit:           unit,
@@ -273,6 +286,8 @@ func ParseJMHResults(reader io.Reader) ([]Metric, error) {
 			implementation = "guava-tree-range-map"
 		case "treeSetRangePositioned":
 			implementation = "guava-tree-set-positioned"
+		case "cacheHit", "cacheEvictingWrite", "cacheMissLoading", "cacheExpiration", "cacheRefresh", "cacheHitZipf", "cacheHitScan", "cacheHitPhase", "cacheConcurrentHit8", "cacheConcurrentHit16", "cacheCoalescedMiss8":
+			implementation = "guava-local-cache"
 		}
 		if strings.HasPrefix(benchmark, "hashTable") {
 			implementation = "guava-hash-table"
@@ -334,6 +349,14 @@ func WriteNormalizedResults(path string, metadata ResultMetadata, metrics []Metr
 		case "minmaxoneend", "priorityqueue":
 			metrics[index].InputDistribution = MinMaxOneEndBenchmarkInputDistribution
 			metrics[index].Seed = BenchmarkSeed
+		}
+		if strings.HasPrefix(metrics[index].Benchmark, "cache") {
+			metrics[index].Capacity = CacheBenchmarkCapacity
+			metrics[index].InputDistribution = CacheBenchmarkInputDistribution
+			metrics[index].Seed = BenchmarkSeed
+			if metrics[index].Benchmark == "cacheevictingwrite" {
+				metrics[index].Capacity = CacheBenchmarkEvictionCapacity
+			}
 		}
 		if metrics[index].Benchmark == "rangeset" || metrics[index].Benchmark == "rangesetiteration" || metrics[index].Benchmark == "rangemap" || metrics[index].Benchmark == "rangemapiteration" {
 			metrics[index].Capacity = RangeBenchmarkCapacity

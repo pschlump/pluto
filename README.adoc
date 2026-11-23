@@ -68,6 +68,7 @@ with an identical public API.
 | link:set_view/[set_view]                   | Live lazy union/intersection/difference/symmetric-difference set views.
 | link:set_util/[set_util]                   | Lazy Cartesian-product and power-set iterators with early termination.
 | link:map_util/[map_util]                   | Immutable UniqueIndex and four-way map difference (custom value equality).
+| link:cache/[cache]                         | Concurrent loading/expiring/refreshing cache (single-flight, LRU size/weight, listeners, stats).
 | link:stack/[stack]                         | Generic slice-backed LIFO stack.
 | link:stack_ts/[stack_ts]                   | Thread-safe slice-backed LIFO stack (RWMutex, snapshot iterators).
 | link:stack_sll_ts/[stack_sll_ts]           | Thread-safe LIFO stack on a singly linked list (RWMutex, snapshot iterators).
