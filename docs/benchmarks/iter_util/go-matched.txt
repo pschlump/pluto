@@ -1,0 +1,30 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/iter_util
+cpu: Apple M4 Max
+BenchmarkIterConcat-14               	   24578	     49114 ns/op	     152 B/op	       6 allocs/op
+BenchmarkIterConcat-14               	   24794	     48343 ns/op	     152 B/op	       6 allocs/op
+BenchmarkIterConcat-14               	   24687	     48667 ns/op	     152 B/op	       6 allocs/op
+BenchmarkIterFilter-14               	  159747	      7504 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIterFilter-14               	  163363	      7503 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIterFilter-14               	  158143	      7569 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIterPartition-14            	   93966	     12854 ns/op	   79872 B/op	     312 allocs/op
+BenchmarkIterPartition-14            	   92608	     13050 ns/op	   79872 B/op	     312 allocs/op
+BenchmarkIterPartition-14            	   91456	     13092 ns/op	   79872 B/op	     312 allocs/op
+BenchmarkIterPeeking-14              	    2652	    447033 ns/op	     256 B/op	       7 allocs/op
+BenchmarkIterPeeking-14              	    2732	    445209 ns/op	     256 B/op	       7 allocs/op
+BenchmarkIterPeeking-14              	    2668	    445605 ns/op	     256 B/op	       7 allocs/op
+BenchmarkIterConcatBaseline-14       	   55977	     21258 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIterConcatBaseline-14       	   56577	     21183 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIterConcatBaseline-14       	   56212	     21480 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIterFilterBaseline-14       	  154309	      7765 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIterFilterBaseline-14       	  153808	      7721 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIterFilterBaseline-14       	  158274	      7676 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIterPartitionBaseline-14    	  132818	      9212 ns/op	   80000 B/op	     313 allocs/op
+BenchmarkIterPartitionBaseline-14    	  131082	      9120 ns/op	   80000 B/op	     313 allocs/op
+BenchmarkIterPartitionBaseline-14    	  132434	      9090 ns/op	   80000 B/op	     313 allocs/op
+BenchmarkIterPeekingBaseline-14      	    3138	    370770 ns/op	     256 B/op	       7 allocs/op
+BenchmarkIterPeekingBaseline-14      	    3242	    370142 ns/op	     256 B/op	       7 allocs/op
+BenchmarkIterPeekingBaseline-14      	    3244	    371853 ns/op	     256 B/op	       7 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/iter_util	32.422s

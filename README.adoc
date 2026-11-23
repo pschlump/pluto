@@ -68,6 +68,8 @@ with an identical public API.
 | link:set_view/[set_view]                   | Live lazy union/intersection/difference/symmetric-difference set views.
 | link:set_util/[set_util]                   | Lazy Cartesian-product and power-set iterators with early termination.
 | link:map_util/[map_util]                   | Immutable UniqueIndex and four-way map difference (custom value equality).
+| link:iter_util/[iter_util]                 | Lazy iter.Seq/Seq2 algorithms, early-stop queries, pair adapters, and pull-based peeking.
+| link:ordering/[ordering]                   | Composable typed ordering, stable sorted copies, and bounded-heap least/greatest top-k.
 | link:cache/[cache]                         | Concurrent loading/expiring/refreshing cache (single-flight, LRU size/weight, listeners, stats).
 | link:hashing/[hashing]                     | Immutable endian-explicit hashes, typed funnels, Guava-compatible Murmur3/SipHash/FarmHash/Fingerprint2011, checksums, and jump hashing.
 | link:stack/[stack]                         | Generic slice-backed LIFO stack.

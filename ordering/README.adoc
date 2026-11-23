@@ -1,0 +1,15 @@
+= ordering
+
+Composable function-backed generic ordering without interface boxing.
+
+- Natural, FromFunc, Reverse, Then, ByKey, Lexicographical, and AllEqual.
+- Min/Max and ordered/strictly-ordered checks consume `iter.Seq` values and
+  retain the first equal extremum.
+- SortedCopy is stable and does not modify its input.
+- LeastOf/GreatestOf use a bounded heap: O(n log k) time and O(k) auxiliary
+  space, returning results in order. k=0 returns an empty result; k greater
+  than the input length returns all values; negative k panics.
+
+Ordering values are immutable after construction and safe for concurrent use
+when their caller-supplied comparison and key functions are safe. No `_ts` twin
+is needed.

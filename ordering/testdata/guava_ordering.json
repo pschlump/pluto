@@ -1,0 +1,28 @@
+{
+  "version" : 1,
+  "sortedCopy" : [ 1, 1, 3, 4, 5, 7, 9 ],
+  "reverse" : [ 9, 7, 5, 4, 3, 1, 1 ],
+  "leastOf" : [ 1, 1, 3 ],
+  "greatestOf" : [ 9, 7, 5 ],
+  "lexicographical" : [ [ ], [ 0, 9 ], [ 1 ], [ 1, 2 ], [ 1, 2, 0 ] ],
+  "min" : 1,
+  "max" : 9,
+  "ordered" : [ true, false ],
+  "strictlyOrdered" : [ false, true ],
+  "stableByKey" : [ {
+    "key" : 0,
+    "id" : 1
+  }, {
+    "key" : 0,
+    "id" : 3
+  }, {
+    "key" : 1,
+    "id" : 0
+  }, {
+    "key" : 1,
+    "id" : 2
+  }, {
+    "key" : 1,
+    "id" : 4
+  } ]
+}

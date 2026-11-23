@@ -33,7 +33,10 @@ operation workloads, with results in `docs/benchmarks/hashing/` and
 `docs/benchmarks/bloom_filter/`. Phase 6 adds graph/value-graph/network oracles,
 a shared sparse/dense corpus, traversal and mutation workloads, adapter-cost
 benchmarks, and JOL graph memory output in `results/graph-memory.json`; retained
-results are under `docs/benchmarks/generic_graph/`.
+results are under `docs/benchmarks/generic_graph/`. Phase 7 adds Guava ordering
+goldens and stable-sort/top-k/full-sort workloads, plus Go iterator early-stop
+benchmarks; results are under `docs/benchmarks/ordering/` and
+`docs/benchmarks/iter_util/`.
 
 ## Run
 

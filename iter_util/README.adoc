@@ -1,0 +1,17 @@
+= iter_util
+
+Focused lazy algorithms for Go 1.27 `iter.Seq` and `iter.Seq2`.
+
+- Concat, Filter, Map, Take, Skip, and Partition propagate early termination to
+  their inputs. Take(0) does not start its input. Partition yields independent
+  slices, including a shorter final part.
+- Frequency, ElementsEqual, First, Last, Only, At, IsEmpty, and Len consume only
+  as much input as their result requires. Only stops after a second value.
+- NewPeeking creates a pull cursor with idempotent Peek, Next, and Close. Close
+  is required when abandoning a cursor before exhaustion.
+- Pairs/Seq2, Keys/Values, FromSlice, and ToSlice make pair adaptation and
+  materialization explicit. FromSlice takes a snapshot.
+
+Counts and partition sizes that cannot be meaningful are programmer errors.
+These are stateless functions or per-cursor values, so no `_ts` twin is needed.
+Callers must not use one Peeking cursor concurrently without synchronization.

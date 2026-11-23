@@ -178,6 +178,20 @@ func ParseGoBenchmark(reader io.Reader) ([]Metric, error) {
 		case strings.HasPrefix(benchmark, "genericgraph"):
 			implementation = "pluto-generic-graph"
 		}
+		if strings.HasPrefix(benchmark, "iter") {
+			implementation = "pluto-iter-util"
+			if strings.HasSuffix(benchmark, "baseline") {
+				implementation = "go-baseline"
+			}
+		}
+		switch {
+		case strings.HasPrefix(benchmark, "orderingleast") || strings.HasPrefix(benchmark, "orderinggreatest"):
+			implementation = "pluto-ordering-top-k"
+		case strings.HasPrefix(benchmark, "orderingsorted"):
+			implementation = "pluto-ordering"
+		case strings.HasPrefix(benchmark, "orderingfullsort"):
+			implementation = "go-full-sort"
+		}
 		for index := 2; index+1 < len(fields); index++ {
 			var metric, unit string
 			switch fields[index+1] {
@@ -324,6 +338,12 @@ func ParseJMHResults(reader io.Reader) ([]Metric, error) {
 		case strings.HasPrefix(benchmark, "immutableBiMap"):
 			implementation = "guava-immutable-bimap"
 		}
+		if strings.Contains(result.Benchmark, ".OrderingBenchmark.") {
+			implementation = "guava-ordering"
+			if benchmark == "orderingFullSort" {
+				implementation = "java-full-sort"
+			}
+		}
 		if strings.Contains(result.Benchmark, ".GraphBenchmark.") {
 			implementation = "guava-graph"
 			if strings.HasPrefix(benchmark, "valueGraph") {
@@ -389,6 +409,11 @@ func WriteNormalizedResults(path string, metadata ResultMetadata, metrics []Metr
 		if metrics[index].Benchmark == "treesetrangepositioned" || metrics[index].Benchmark == "treesetrangefiltered" {
 			metrics[index].Capacity = 4096
 			metrics[index].InputDistribution = "4096 ordered integers; closed range [1024,1035]"
+			metrics[index].Seed = BenchmarkSeed
+		}
+		if strings.HasPrefix(metrics[index].Benchmark, "ordering") || strings.HasPrefix(metrics[index].Benchmark, "iter") {
+			metrics[index].Capacity = 10000
+			metrics[index].InputDistribution = "10,000 deterministic integers modulo 100,000; top-k k=32 where applicable"
 			metrics[index].Seed = BenchmarkSeed
 		}
 		if strings.HasPrefix(metrics[index].Benchmark, "immutable") {

@@ -1,0 +1,18 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/ordering
+cpu: Apple M4 Max
+BenchmarkOrderingSortedCopy-14    	    1352	    843427 ns/op	   81924 B/op	       1 allocs/op
+BenchmarkOrderingSortedCopy-14    	    1440	    837115 ns/op	   81920 B/op	       1 allocs/op
+BenchmarkOrderingSortedCopy-14    	    1425	    835007 ns/op	   81920 B/op	       1 allocs/op
+BenchmarkOrderingLeastOf-14       	   38180	     31278 ns/op	     336 B/op	       4 allocs/op
+BenchmarkOrderingLeastOf-14       	   38439	     31098 ns/op	     336 B/op	       4 allocs/op
+BenchmarkOrderingLeastOf-14       	   38355	     31496 ns/op	     336 B/op	       4 allocs/op
+BenchmarkOrderingGreatestOf-14    	   31778	     37554 ns/op	     360 B/op	       5 allocs/op
+BenchmarkOrderingGreatestOf-14    	   32019	     37547 ns/op	     360 B/op	       5 allocs/op
+BenchmarkOrderingGreatestOf-14    	   31818	     37768 ns/op	     360 B/op	       5 allocs/op
+BenchmarkOrderingFullSort-14      	    7346	    163054 ns/op	   81920 B/op	       1 allocs/op
+BenchmarkOrderingFullSort-14      	    7917	    169817 ns/op	   81920 B/op	       1 allocs/op
+BenchmarkOrderingFullSort-14      	    7980	    162915 ns/op	   81920 B/op	       1 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/ordering	18.055s
