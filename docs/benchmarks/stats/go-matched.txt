@@ -1,0 +1,18 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/stats
+cpu: Apple M4 Max
+BenchmarkStatsAccumulator-14      	   17821	     67339 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatsAccumulator-14      	   17826	     67070 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatsAccumulator-14      	   17842	     67451 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatsPaired-14           	   13363	     89735 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatsPaired-14           	   13257	     90418 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatsPaired-14           	   13357	     89780 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatsQuantiles-14        	    3166	    352820 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantiles-14        	    3312	    350979 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantiles-14        	    3028	    345519 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesSort-14    	    8967	    135677 ns/op	   82016 B/op	       2 allocs/op
+BenchmarkStatsQuantilesSort-14    	    8661	    139244 ns/op	   82016 B/op	       2 allocs/op
+BenchmarkStatsQuantilesSort-14    	    7123	    140937 ns/op	   82016 B/op	       2 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/stats	19.926s

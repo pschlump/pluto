@@ -36,7 +36,10 @@ benchmarks, and JOL graph memory output in `results/graph-memory.json`; retained
 results are under `docs/benchmarks/generic_graph/`. Phase 7 adds Guava ordering
 goldens and stable-sort/top-k/full-sort workloads, plus Go iterator early-stop
 benchmarks; results are under `docs/benchmarks/ordering/` and
-`docs/benchmarks/iter_util/`.
+`docs/benchmarks/iter_util/`. Phase 8 adds checked-math and online/paired-stats
+and quantile goldens, with matched arithmetic, accumulator, regression, and
+multi-quantile workloads under `docs/benchmarks/math_util/` and
+`docs/benchmarks/stats/`.
 
 ## Run
 

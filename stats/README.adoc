@@ -1,0 +1,18 @@
+= stats
+
+Online statistics and exact quantiles.
+
+- Zero-value Accumulator with stable Welford updates and immutable Stats
+  snapshots: count, sum, mean, min/max, population/sample variance/deviation.
+- Merge combines finite or non-finite datasets without retaining observations.
+- PairedAccumulator/PairedStats provide Pearson correlation and ordinary least-
+  squares fits. LinearTransformation supports regular, horizontal, vertical,
+  inverse, and NaN forms.
+- Type-7 Quantile/Quantiles, Median, and Percentile, with copying and in-place
+  variants. Multiple indexes share one deterministic median-of-medians selection
+  pass; duplicate indexes and result order are preserved.
+
+Empty means/extrema and insufficient sample/correlation results are NaN; empty
+sum is zero. Non-finite observations propagate NaN as documented by the API.
+Accumulators are mutable and not internally synchronized; immutable snapshots
+support concurrent reads. No `_ts` twin is provided.

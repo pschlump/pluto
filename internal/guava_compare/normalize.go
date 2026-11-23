@@ -185,6 +185,12 @@ func ParseGoBenchmark(reader io.Reader) ([]Metric, error) {
 			}
 		}
 		switch {
+		case strings.HasPrefix(benchmark, "math"):
+			implementation = "pluto-math-util"
+		case strings.HasPrefix(benchmark, "statsquantilessort"):
+			implementation = "go-sort-quantiles"
+		case strings.HasPrefix(benchmark, "stats"):
+			implementation = "pluto-stats"
 		case strings.HasPrefix(benchmark, "orderingleast") || strings.HasPrefix(benchmark, "orderinggreatest"):
 			implementation = "pluto-ordering-top-k"
 		case strings.HasPrefix(benchmark, "orderingsorted"):
@@ -338,6 +344,15 @@ func ParseJMHResults(reader io.Reader) ([]Metric, error) {
 		case strings.HasPrefix(benchmark, "immutableBiMap"):
 			implementation = "guava-immutable-bimap"
 		}
+		if strings.Contains(result.Benchmark, ".MathBenchmark.") {
+			implementation = "guava-math"
+		}
+		if strings.Contains(result.Benchmark, ".StatsBenchmark.") {
+			implementation = "guava-stats"
+			if benchmark == "statsQuantilesSort" {
+				implementation = "java-sort-quantiles"
+			}
+		}
 		if strings.Contains(result.Benchmark, ".OrderingBenchmark.") {
 			implementation = "guava-ordering"
 			if benchmark == "orderingFullSort" {
@@ -409,6 +424,16 @@ func WriteNormalizedResults(path string, metadata ResultMetadata, metrics []Metr
 		if metrics[index].Benchmark == "treesetrangepositioned" || metrics[index].Benchmark == "treesetrangefiltered" {
 			metrics[index].Capacity = 4096
 			metrics[index].InputDistribution = "4096 ordered integers; closed range [1024,1035]"
+			metrics[index].Seed = BenchmarkSeed
+		}
+		if strings.HasPrefix(metrics[index].Benchmark, "math") {
+			metrics[index].Capacity = 64
+			metrics[index].InputDistribution = "fixed signed/unsigned 64-bit boundary and non-trivial arithmetic inputs"
+			metrics[index].Seed = BenchmarkSeed
+		}
+		if strings.HasPrefix(metrics[index].Benchmark, "stats") {
+			metrics[index].Capacity = 10000
+			metrics[index].InputDistribution = "10,000 deterministic double values; percentiles 0,10,...,100 where applicable"
 			metrics[index].Seed = BenchmarkSeed
 		}
 		if strings.HasPrefix(metrics[index].Benchmark, "ordering") || strings.HasPrefix(metrics[index].Benchmark, "iter") {

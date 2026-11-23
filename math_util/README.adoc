@@ -1,0 +1,17 @@
+= math_util
+
+Checked integer arithmetic and number-theoretic utilities with no external
+dependencies.
+
+- Generic signed/unsigned CheckedAdd/Subtract/Multiply/Pow and saturating forms.
+- CheckedConvert and SaturatingConvert between standard integer widths.
+- Divide, Log2, Log10, and Sqrt with floor/ceiling, toward/away-from-zero,
+  half-up/down/even, and exact modes. Invalid divisors, domains, inexact exact-
+  mode results, and overflow are reported with errors.
+- Nonnegative Modulo, checked GCD, factorial/binomial, power-of-two checks,
+  overflow-safe Mean, and deterministic uint64 Miller-Rabin IsPrime.
+
+Checked operations return `(result, true)` on success and `(zero, false)` on
+overflow. Negative powers panic as programmer errors. Factorial and Binomial
+return false when their uint64 result cannot represent the answer. Mean rounds
+toward negative infinity. No mutable state or `_ts` twin is involved.

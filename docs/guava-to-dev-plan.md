@@ -1,6 +1,6 @@
 # Guava-to-Pluto data structures and algorithms development plan
 
-Status: Phases 0, 1a–1e, 2, 3, 4, 5, 6, and 7 complete; Phase 8 and later phases proposed.
+Status: Phases 0, 1a–1e, 2, 3, 4, 5, 6, 7, and 8 complete; Phase 9 is optional and proposed.
 
 Date: 2026-11-22
 

@@ -1,0 +1,2972 @@
+{
+  "version" : 1,
+  "vectors" : [ {
+    "operation" : "checkedAdd",
+    "a" : "9223372036854775807",
+    "b" : "1",
+    "mode" : "",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "checkedSubtract",
+    "a" : "9223372036854775807",
+    "b" : "1",
+    "mode" : "",
+    "result" : "9223372036854775806",
+    "ok" : true
+  }, {
+    "operation" : "checkedMultiply",
+    "a" : "9223372036854775807",
+    "b" : "1",
+    "mode" : "",
+    "result" : "9223372036854775807",
+    "ok" : true
+  }, {
+    "operation" : "saturatingAdd",
+    "a" : "9223372036854775807",
+    "b" : "1",
+    "mode" : "",
+    "result" : "9223372036854775807",
+    "ok" : true
+  }, {
+    "operation" : "saturatingSubtract",
+    "a" : "9223372036854775807",
+    "b" : "1",
+    "mode" : "",
+    "result" : "9223372036854775806",
+    "ok" : true
+  }, {
+    "operation" : "saturatingMultiply",
+    "a" : "9223372036854775807",
+    "b" : "1",
+    "mode" : "",
+    "result" : "9223372036854775807",
+    "ok" : true
+  }, {
+    "operation" : "checkedAdd",
+    "a" : "-9223372036854775808",
+    "b" : "-1",
+    "mode" : "",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "checkedSubtract",
+    "a" : "-9223372036854775808",
+    "b" : "-1",
+    "mode" : "",
+    "result" : "-9223372036854775807",
+    "ok" : true
+  }, {
+    "operation" : "checkedMultiply",
+    "a" : "-9223372036854775808",
+    "b" : "-1",
+    "mode" : "",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "saturatingAdd",
+    "a" : "-9223372036854775808",
+    "b" : "-1",
+    "mode" : "",
+    "result" : "-9223372036854775808",
+    "ok" : true
+  }, {
+    "operation" : "saturatingSubtract",
+    "a" : "-9223372036854775808",
+    "b" : "-1",
+    "mode" : "",
+    "result" : "-9223372036854775807",
+    "ok" : true
+  }, {
+    "operation" : "saturatingMultiply",
+    "a" : "-9223372036854775808",
+    "b" : "-1",
+    "mode" : "",
+    "result" : "9223372036854775807",
+    "ok" : true
+  }, {
+    "operation" : "checkedAdd",
+    "a" : "123456789",
+    "b" : "98765",
+    "mode" : "",
+    "result" : "123555554",
+    "ok" : true
+  }, {
+    "operation" : "checkedSubtract",
+    "a" : "123456789",
+    "b" : "98765",
+    "mode" : "",
+    "result" : "123358024",
+    "ok" : true
+  }, {
+    "operation" : "checkedMultiply",
+    "a" : "123456789",
+    "b" : "98765",
+    "mode" : "",
+    "result" : "12193209765585",
+    "ok" : true
+  }, {
+    "operation" : "saturatingAdd",
+    "a" : "123456789",
+    "b" : "98765",
+    "mode" : "",
+    "result" : "123555554",
+    "ok" : true
+  }, {
+    "operation" : "saturatingSubtract",
+    "a" : "123456789",
+    "b" : "98765",
+    "mode" : "",
+    "result" : "123358024",
+    "ok" : true
+  }, {
+    "operation" : "saturatingMultiply",
+    "a" : "123456789",
+    "b" : "98765",
+    "mode" : "",
+    "result" : "12193209765585",
+    "ok" : true
+  }, {
+    "operation" : "checkedAdd",
+    "a" : "-123456789",
+    "b" : "98765",
+    "mode" : "",
+    "result" : "-123358024",
+    "ok" : true
+  }, {
+    "operation" : "checkedSubtract",
+    "a" : "-123456789",
+    "b" : "98765",
+    "mode" : "",
+    "result" : "-123555554",
+    "ok" : true
+  }, {
+    "operation" : "checkedMultiply",
+    "a" : "-123456789",
+    "b" : "98765",
+    "mode" : "",
+    "result" : "-12193209765585",
+    "ok" : true
+  }, {
+    "operation" : "saturatingAdd",
+    "a" : "-123456789",
+    "b" : "98765",
+    "mode" : "",
+    "result" : "-123358024",
+    "ok" : true
+  }, {
+    "operation" : "saturatingSubtract",
+    "a" : "-123456789",
+    "b" : "98765",
+    "mode" : "",
+    "result" : "-123555554",
+    "ok" : true
+  }, {
+    "operation" : "saturatingMultiply",
+    "a" : "-123456789",
+    "b" : "98765",
+    "mode" : "",
+    "result" : "-12193209765585",
+    "ok" : true
+  }, {
+    "operation" : "checkedAdd",
+    "a" : "9223372036854775807",
+    "b" : "9223372036854775807",
+    "mode" : "",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "checkedSubtract",
+    "a" : "9223372036854775807",
+    "b" : "9223372036854775807",
+    "mode" : "",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "checkedMultiply",
+    "a" : "9223372036854775807",
+    "b" : "9223372036854775807",
+    "mode" : "",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "saturatingAdd",
+    "a" : "9223372036854775807",
+    "b" : "9223372036854775807",
+    "mode" : "",
+    "result" : "9223372036854775807",
+    "ok" : true
+  }, {
+    "operation" : "saturatingSubtract",
+    "a" : "9223372036854775807",
+    "b" : "9223372036854775807",
+    "mode" : "",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "saturatingMultiply",
+    "a" : "9223372036854775807",
+    "b" : "9223372036854775807",
+    "mode" : "",
+    "result" : "9223372036854775807",
+    "ok" : true
+  }, {
+    "operation" : "checkedAdd",
+    "a" : "0",
+    "b" : "-1",
+    "mode" : "",
+    "result" : "-1",
+    "ok" : true
+  }, {
+    "operation" : "checkedSubtract",
+    "a" : "0",
+    "b" : "-1",
+    "mode" : "",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "checkedMultiply",
+    "a" : "0",
+    "b" : "-1",
+    "mode" : "",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "saturatingAdd",
+    "a" : "0",
+    "b" : "-1",
+    "mode" : "",
+    "result" : "-1",
+    "ok" : true
+  }, {
+    "operation" : "saturatingSubtract",
+    "a" : "0",
+    "b" : "-1",
+    "mode" : "",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "saturatingMultiply",
+    "a" : "0",
+    "b" : "-1",
+    "mode" : "",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "-4",
+    "b" : "0",
+    "mode" : "",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "-4",
+    "b" : "0",
+    "mode" : "",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "-4",
+    "b" : "1",
+    "mode" : "",
+    "result" : "-4",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "-4",
+    "b" : "1",
+    "mode" : "",
+    "result" : "-4",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "-4",
+    "b" : "3",
+    "mode" : "",
+    "result" : "-64",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "-4",
+    "b" : "3",
+    "mode" : "",
+    "result" : "-64",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "-4",
+    "b" : "4",
+    "mode" : "",
+    "result" : "256",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "-4",
+    "b" : "4",
+    "mode" : "",
+    "result" : "256",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "-4",
+    "b" : "10",
+    "mode" : "",
+    "result" : "1048576",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "-4",
+    "b" : "10",
+    "mode" : "",
+    "result" : "1048576",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "-4",
+    "b" : "63",
+    "mode" : "",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "-4",
+    "b" : "63",
+    "mode" : "",
+    "result" : "-9223372036854775808",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "-2",
+    "b" : "0",
+    "mode" : "",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "-2",
+    "b" : "0",
+    "mode" : "",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "-2",
+    "b" : "1",
+    "mode" : "",
+    "result" : "-2",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "-2",
+    "b" : "1",
+    "mode" : "",
+    "result" : "-2",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "-2",
+    "b" : "3",
+    "mode" : "",
+    "result" : "-8",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "-2",
+    "b" : "3",
+    "mode" : "",
+    "result" : "-8",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "-2",
+    "b" : "4",
+    "mode" : "",
+    "result" : "16",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "-2",
+    "b" : "4",
+    "mode" : "",
+    "result" : "16",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "-2",
+    "b" : "10",
+    "mode" : "",
+    "result" : "1024",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "-2",
+    "b" : "10",
+    "mode" : "",
+    "result" : "1024",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "-2",
+    "b" : "63",
+    "mode" : "",
+    "result" : "-9223372036854775808",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "-2",
+    "b" : "63",
+    "mode" : "",
+    "result" : "-9223372036854775808",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "2",
+    "b" : "1",
+    "mode" : "",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "2",
+    "b" : "1",
+    "mode" : "",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "2",
+    "b" : "3",
+    "mode" : "",
+    "result" : "8",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "2",
+    "b" : "3",
+    "mode" : "",
+    "result" : "8",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "2",
+    "b" : "4",
+    "mode" : "",
+    "result" : "16",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "2",
+    "b" : "4",
+    "mode" : "",
+    "result" : "16",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "2",
+    "b" : "10",
+    "mode" : "",
+    "result" : "1024",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "2",
+    "b" : "10",
+    "mode" : "",
+    "result" : "1024",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "2",
+    "b" : "63",
+    "mode" : "",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "2",
+    "b" : "63",
+    "mode" : "",
+    "result" : "9223372036854775807",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "10",
+    "b" : "1",
+    "mode" : "",
+    "result" : "10",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "10",
+    "b" : "1",
+    "mode" : "",
+    "result" : "10",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "10",
+    "b" : "3",
+    "mode" : "",
+    "result" : "1000",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "10",
+    "b" : "3",
+    "mode" : "",
+    "result" : "1000",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "10",
+    "b" : "4",
+    "mode" : "",
+    "result" : "10000",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "10",
+    "b" : "4",
+    "mode" : "",
+    "result" : "10000",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "10",
+    "b" : "10",
+    "mode" : "",
+    "result" : "10000000000",
+    "ok" : true
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "10",
+    "b" : "10",
+    "mode" : "",
+    "result" : "10000000000",
+    "ok" : true
+  }, {
+    "operation" : "checkedPow",
+    "a" : "10",
+    "b" : "63",
+    "mode" : "",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "saturatingPow",
+    "a" : "10",
+    "b" : "63",
+    "mode" : "",
+    "result" : "9223372036854775807",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "3",
+    "mode" : "FLOOR",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "3",
+    "mode" : "CEILING",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "3",
+    "mode" : "DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "3",
+    "mode" : "UP",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "3",
+    "mode" : "HALF_EVEN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "3",
+    "mode" : "HALF_UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "3",
+    "mode" : "HALF_DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "3",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "divide",
+    "a" : "-7",
+    "b" : "3",
+    "mode" : "FLOOR",
+    "result" : "-3",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "-7",
+    "b" : "3",
+    "mode" : "CEILING",
+    "result" : "-2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "-7",
+    "b" : "3",
+    "mode" : "DOWN",
+    "result" : "-2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "-7",
+    "b" : "3",
+    "mode" : "UP",
+    "result" : "-3",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "-7",
+    "b" : "3",
+    "mode" : "HALF_EVEN",
+    "result" : "-2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "-7",
+    "b" : "3",
+    "mode" : "HALF_UP",
+    "result" : "-2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "-7",
+    "b" : "3",
+    "mode" : "HALF_DOWN",
+    "result" : "-2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "-7",
+    "b" : "3",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "-3",
+    "mode" : "FLOOR",
+    "result" : "-3",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "-3",
+    "mode" : "CEILING",
+    "result" : "-2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "-3",
+    "mode" : "DOWN",
+    "result" : "-2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "-3",
+    "mode" : "UP",
+    "result" : "-3",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "-3",
+    "mode" : "HALF_EVEN",
+    "result" : "-2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "-3",
+    "mode" : "HALF_UP",
+    "result" : "-2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "-3",
+    "mode" : "HALF_DOWN",
+    "result" : "-2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "-3",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "divide",
+    "a" : "-7",
+    "b" : "-3",
+    "mode" : "FLOOR",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "-7",
+    "b" : "-3",
+    "mode" : "CEILING",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "-7",
+    "b" : "-3",
+    "mode" : "DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "-7",
+    "b" : "-3",
+    "mode" : "UP",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "-7",
+    "b" : "-3",
+    "mode" : "HALF_EVEN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "-7",
+    "b" : "-3",
+    "mode" : "HALF_UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "-7",
+    "b" : "-3",
+    "mode" : "HALF_DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "-7",
+    "b" : "-3",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "divide",
+    "a" : "5",
+    "b" : "2",
+    "mode" : "FLOOR",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "5",
+    "b" : "2",
+    "mode" : "CEILING",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "5",
+    "b" : "2",
+    "mode" : "DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "5",
+    "b" : "2",
+    "mode" : "UP",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "5",
+    "b" : "2",
+    "mode" : "HALF_EVEN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "5",
+    "b" : "2",
+    "mode" : "HALF_UP",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "5",
+    "b" : "2",
+    "mode" : "HALF_DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "5",
+    "b" : "2",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "2",
+    "mode" : "FLOOR",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "2",
+    "mode" : "CEILING",
+    "result" : "4",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "2",
+    "mode" : "DOWN",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "2",
+    "mode" : "UP",
+    "result" : "4",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "2",
+    "mode" : "HALF_EVEN",
+    "result" : "4",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "2",
+    "mode" : "HALF_UP",
+    "result" : "4",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "2",
+    "mode" : "HALF_DOWN",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "7",
+    "b" : "2",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "divide",
+    "a" : "6",
+    "b" : "3",
+    "mode" : "FLOOR",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "6",
+    "b" : "3",
+    "mode" : "CEILING",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "6",
+    "b" : "3",
+    "mode" : "DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "6",
+    "b" : "3",
+    "mode" : "UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "6",
+    "b" : "3",
+    "mode" : "HALF_EVEN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "6",
+    "b" : "3",
+    "mode" : "HALF_UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "6",
+    "b" : "3",
+    "mode" : "HALF_DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "divide",
+    "a" : "6",
+    "b" : "3",
+    "mode" : "UNNECESSARY",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "isPrime",
+    "a" : "1",
+    "b" : "0",
+    "mode" : "",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "sqrt",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "isPrime",
+    "a" : "2",
+    "b" : "0",
+    "mode" : "",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "log10",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "sqrt",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "isPrime",
+    "a" : "3",
+    "b" : "0",
+    "mode" : "",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "sqrt",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "isPrime",
+    "a" : "4",
+    "b" : "0",
+    "mode" : "",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "log10",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "sqrt",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "isPrime",
+    "a" : "5",
+    "b" : "0",
+    "mode" : "",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "log10",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "sqrt",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "isPrime",
+    "a" : "6",
+    "b" : "0",
+    "mode" : "",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "4",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "4",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "4",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "4",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "3",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "log10",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "isPrime",
+    "a" : "10",
+    "b" : "0",
+    "mode" : "",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "4",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "5",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "5",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "6",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "4",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "5",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "5",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "6",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "5",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "6",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "5",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "6",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "5",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "6",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "log10",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "sqrt",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "isPrime",
+    "a" : "31",
+    "b" : "0",
+    "mode" : "",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "5",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "5",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "5",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "6",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "5",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "5",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "5",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "6",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "5",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "6",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "5",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "6",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "5",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "6",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "5",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "sqrt",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "isPrime",
+    "a" : "32",
+    "b" : "0",
+    "mode" : "",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "6",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "10",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "7",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "10",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "6",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "10",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "7",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "10",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "7",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "10",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "7",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "10",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "7",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "10",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "log10",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "10",
+    "ok" : true
+  }, {
+    "operation" : "isPrime",
+    "a" : "100",
+    "b" : "0",
+    "mode" : "",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "62",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "18",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "FLOOR",
+    "result" : "3037000499",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "63",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "19",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "CEILING",
+    "result" : "3037000500",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "62",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "18",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "DOWN",
+    "result" : "3037000499",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "63",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "19",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "UP",
+    "result" : "3037000500",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "63",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "19",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "HALF_EVEN",
+    "result" : "3037000500",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "63",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "19",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "HALF_UP",
+    "result" : "3037000500",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "63",
+    "ok" : true
+  }, {
+    "operation" : "log10",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "19",
+    "ok" : true
+  }, {
+    "operation" : "sqrt",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "HALF_DOWN",
+    "result" : "3037000500",
+    "ok" : true
+  }, {
+    "operation" : "log2",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "log10",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "sqrt",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "UNNECESSARY",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "isPrime",
+    "a" : "9223372036854775807",
+    "b" : "0",
+    "mode" : "",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "isPrime",
+    "a" : "3825123056546413051",
+    "b" : "0",
+    "mode" : "",
+    "result" : "0",
+    "ok" : true
+  }, {
+    "operation" : "mod",
+    "a" : "-7",
+    "b" : "3",
+    "mode" : "",
+    "result" : "2",
+    "ok" : true
+  }, {
+    "operation" : "mod",
+    "a" : "7",
+    "b" : "3",
+    "mode" : "",
+    "result" : "1",
+    "ok" : true
+  }, {
+    "operation" : "gcd",
+    "a" : "54",
+    "b" : "24",
+    "mode" : "",
+    "result" : "6",
+    "ok" : true
+  }, {
+    "operation" : "factorial",
+    "a" : "20",
+    "b" : "0",
+    "mode" : "",
+    "result" : "2432902008176640000",
+    "ok" : true
+  }, {
+    "operation" : "binomial",
+    "a" : "30",
+    "b" : "15",
+    "mode" : "",
+    "result" : "155117520",
+    "ok" : true
+  }, {
+    "operation" : "mean",
+    "a" : "-9223372036854775808",
+    "b" : "9223372036854775807",
+    "mode" : "",
+    "result" : "-1",
+    "ok" : true
+  }, {
+    "operation" : "checkedConvert",
+    "a" : "2147483648",
+    "b" : "32",
+    "mode" : "",
+    "result" : "0",
+    "ok" : false
+  }, {
+    "operation" : "saturatingConvert",
+    "a" : "2147483648",
+    "b" : "32",
+    "mode" : "",
+    "result" : "2147483647",
+    "ok" : true
+  } ]
+}

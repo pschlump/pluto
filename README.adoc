@@ -70,6 +70,8 @@ with an identical public API.
 | link:map_util/[map_util]                   | Immutable UniqueIndex and four-way map difference (custom value equality).
 | link:iter_util/[iter_util]                 | Lazy iter.Seq/Seq2 algorithms, early-stop queries, pair adapters, and pull-based peeking.
 | link:ordering/[ordering]                   | Composable typed ordering, stable sorted copies, and bounded-heap least/greatest top-k.
+| link:math_util/[math_util]                 | Checked/saturating integer arithmetic and conversions, explicit rounding, number theory, and uint64 primality.
+| link:stats/[stats]                         | Mergeable online and paired statistics, least-squares transformations, and exact Type-7 quantiles.
 | link:cache/[cache]                         | Concurrent loading/expiring/refreshing cache (single-flight, LRU size/weight, listeners, stats).
 | link:hashing/[hashing]                     | Immutable endian-explicit hashes, typed funnels, Guava-compatible Murmur3/SipHash/FarmHash/Fingerprint2011, checksums, and jump hashing.
 | link:stack/[stack]                         | Generic slice-backed LIFO stack.

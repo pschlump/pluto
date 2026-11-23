@@ -1,0 +1,51 @@
+{
+  "version" : 1,
+  "basic" : {
+    "count" : 5,
+    "sum" : "15.0",
+    "mean" : "3.0",
+    "min" : "1.0",
+    "max" : "5.0",
+    "populationVariance" : "2.0",
+    "sampleVariance" : "2.5",
+    "populationStandardDeviation" : "1.4142135623730951",
+    "sampleStandardDeviation" : "1.5811388300841898"
+  },
+  "merged" : {
+    "count" : 1000,
+    "sum" : "1.0000000000499269E15",
+    "mean" : "1.0000000000499269E12",
+    "min" : "1.0E12",
+    "max" : "1.0000000001E12",
+    "populationVariance" : "850.0134335689694",
+    "sampleVariance" : "850.8642978668362",
+    "populationStandardDeviation" : "29.154989857123418",
+    "sampleStandardDeviation" : "29.16957829429209"
+  },
+  "onePass" : {
+    "count" : 1000,
+    "sum" : "1.0000000000499264E15",
+    "mean" : "1.0000000000499264E12",
+    "min" : "1.0E12",
+    "max" : "1.0000000001E12",
+    "populationVariance" : "850.0135589160473",
+    "sampleVariance" : "850.8644233393866",
+    "populationStandardDeviation" : "29.154992006791",
+    "sampleStandardDeviation" : "29.169580445035315"
+  },
+  "paired" : {
+    "correlation" : "1.0",
+    "slope" : "3.0",
+    "transform4" : "14.0",
+    "inverse14" : "3.9999999999999996"
+  },
+  "horizontal" : {
+    "isHorizontal" : true,
+    "transform99" : "7.0"
+  },
+  "quantiles" : {
+    "scale" : 4,
+    "indexes" : [ 0, 1, 2, 3, 4, 2 ],
+    "values" : [ "0.0", "7.5", "15.0", "22.5", "30.0" ]
+  }
+}

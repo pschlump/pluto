@@ -58,6 +58,8 @@ HASHING_GOLDEN=hashing/testdata/guava_vectors.json
 GRAPH_GOLDEN=generic_graph/testdata/guava_graph.json
 GRAPH_CORPUS=internal/guava_compare/testdata/graph.corpus.json
 ORDERING_GOLDEN=ordering/testdata/guava_ordering.json
+MATH_GOLDEN=math_util/testdata/guava_math.json
+STATS_GOLDEN=stats/testdata/guava_stats.json
 POM=internal/guava_compare/java/pom.xml
 JAR=internal/guava_compare/java/target/guava-compare-1.0.0-SNAPSHOT.jar
 JOL_JAR=${JOL_JAR:-"$HOME/.m2/repository/org/openjdk/jol/jol-core/0.17/jol-core-0.17.jar"}
@@ -103,13 +105,17 @@ java -cp "$JAR" com.pschlump.pluto.guava.GraphOracle "$RESULTS/graph-oracle.json
 cmp "$RESULTS/graph-oracle.json" "$GRAPH_GOLDEN"
 java -cp "$JAR" com.pschlump.pluto.guava.OrderingOracle "$RESULTS/ordering-oracle.json"
 cmp "$RESULTS/ordering-oracle.json" "$ORDERING_GOLDEN"
+java -cp "$JAR" com.pschlump.pluto.guava.MathOracle "$RESULTS/math-oracle.json"
+cmp "$RESULTS/math-oracle.json" "$MATH_GOLDEN"
+java -cp "$JAR" com.pschlump.pluto.guava.StatsOracle "$RESULTS/stats-oracle.json"
+cmp "$RESULTS/stats-oracle.json" "$STATS_GOLDEN"
 printf '%s\n' 'Go and Java oracle results match the committed goldens.'
 
-go test ./internal/guava_compare ./multiset ./multimap ./bimap ./table ./evicting_queue ./min_max_pq ./immutable ./range_set ./range_map ./tree_set ./cache ./hashing ./bloom ./bloom_filter ./generic_graph ./iter_util ./ordering -run '^$' \
-  -bench '^(BenchmarkCounter|BenchmarkHashMultiset|BenchmarkTreeMultiset|BenchmarkMapMultiset|BenchmarkListMultimap|BenchmarkSetMultimap|BenchmarkSortedSetMultimap|BenchmarkListMap|BenchmarkSetMap|BenchmarkHashBiMap|BenchmarkMapBiMap|BenchmarkBiMapInverseIteration|BenchmarkHashTable|BenchmarkTreeTable|BenchmarkNestedMap|BenchmarkArrayTable|BenchmarkFlatMatrix|BenchmarkHashTableRow|BenchmarkHashTableColumn|BenchmarkTreeTableRow|BenchmarkTreeTableColumn|BenchmarkArrayTableRow|BenchmarkArrayTableColumn|BenchmarkHashTableTranspose|BenchmarkTreeTableTranspose|BenchmarkArrayTableTranspose|BenchmarkEvictingQueue|BenchmarkDQueueEviction|BenchmarkEvictingQueueIteration|BenchmarkDQueueIteration|BenchmarkMinMaxPriorityQueue|BenchmarkBoundedMinMaxPriorityQueue|BenchmarkTwoHeap|BenchmarkMinMaxOneEnd|BenchmarkPriorityQueue|BenchmarkImmutable.*|BenchmarkRangeSet.*|BenchmarkRangeMap.*|BenchmarkTreeSetRange.*|BenchmarkCache.*|BenchmarkMurmur3.*|BenchmarkSipHash.*|BenchmarkFarmHash.*|BenchmarkFingerprint.*|BenchmarkConsistentHash|BenchmarkBloom.*|BenchmarkGeneric.*|BenchmarkIter.*|BenchmarkOrdering.*)$' \
+go test ./internal/guava_compare ./multiset ./multimap ./bimap ./table ./evicting_queue ./min_max_pq ./immutable ./range_set ./range_map ./tree_set ./cache ./hashing ./bloom ./bloom_filter ./generic_graph ./iter_util ./ordering ./math_util ./stats -run '^$' \
+  -bench '^(BenchmarkCounter|BenchmarkHashMultiset|BenchmarkTreeMultiset|BenchmarkMapMultiset|BenchmarkListMultimap|BenchmarkSetMultimap|BenchmarkSortedSetMultimap|BenchmarkListMap|BenchmarkSetMap|BenchmarkHashBiMap|BenchmarkMapBiMap|BenchmarkBiMapInverseIteration|BenchmarkHashTable|BenchmarkTreeTable|BenchmarkNestedMap|BenchmarkArrayTable|BenchmarkFlatMatrix|BenchmarkHashTableRow|BenchmarkHashTableColumn|BenchmarkTreeTableRow|BenchmarkTreeTableColumn|BenchmarkArrayTableRow|BenchmarkArrayTableColumn|BenchmarkHashTableTranspose|BenchmarkTreeTableTranspose|BenchmarkArrayTableTranspose|BenchmarkEvictingQueue|BenchmarkDQueueEviction|BenchmarkEvictingQueueIteration|BenchmarkDQueueIteration|BenchmarkMinMaxPriorityQueue|BenchmarkBoundedMinMaxPriorityQueue|BenchmarkTwoHeap|BenchmarkMinMaxOneEnd|BenchmarkPriorityQueue|BenchmarkImmutable.*|BenchmarkRangeSet.*|BenchmarkRangeMap.*|BenchmarkTreeSetRange.*|BenchmarkCache.*|BenchmarkMurmur3.*|BenchmarkSipHash.*|BenchmarkFarmHash.*|BenchmarkFingerprint.*|BenchmarkConsistentHash|BenchmarkBloom.*|BenchmarkGeneric.*|BenchmarkIter.*|BenchmarkOrdering.*|BenchmarkMath.*|BenchmarkStats.*)$' \
   -benchmem -benchtime=1s -count=3 | tee "$RESULTS/go-bench.txt"
 java -Dcorpus="$ROOT/$CORPUS" -DmultimapCorpus="$ROOT/$MULTIMAP_CORPUS" -DbimapCorpus="$ROOT/$BIMAP_CORPUS" -DtableCorpus="$ROOT/$TABLE_CORPUS" -DevictingQueueCorpus="$ROOT/$EVICTING_QUEUE_CORPUS" -DminMaxCorpus="$ROOT/$MIN_MAX_CORPUS" -DimmutableCorpus="$ROOT/$IMMUTABLE_CORPUS" -DrangeCorpus="$ROOT/$RANGE_CORPUS" -DcacheCorpus="$ROOT/$CACHE_CORPUS" -DgraphCorpus="$ROOT/$GRAPH_CORPUS" -jar "$JAR" \
-  'CounterBenchmark|MultisetBenchmark|MultimapBenchmark|BimapBenchmark|TableBenchmark|EvictingQueueBenchmark|MinMaxPriorityQueueBenchmark|ImmutableBenchmark|RangeCollectionBenchmark|CacheBenchmark|HashingBenchmark|BloomFilterBenchmark|GraphBenchmark|OrderingBenchmark' -rf json -rff "$ROOT/$RESULTS/jmh.json"
+  'CounterBenchmark|MultisetBenchmark|MultimapBenchmark|BimapBenchmark|TableBenchmark|EvictingQueueBenchmark|MinMaxPriorityQueueBenchmark|ImmutableBenchmark|RangeCollectionBenchmark|CacheBenchmark|HashingBenchmark|BloomFilterBenchmark|GraphBenchmark|OrderingBenchmark|MathBenchmark|StatsBenchmark' -rf json -rff "$ROOT/$RESULTS/jmh.json"
 
 go run ./internal/guava_compare/cmd/guava-compare normalize \
   -go "$RESULTS/go-bench.txt" -jmh "$RESULTS/jmh.json" \
