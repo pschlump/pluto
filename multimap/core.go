@@ -34,14 +34,15 @@ type keyEntry[K any, V any, C any] struct {
 }
 
 type core[K any, V any, C any] struct {
-	tab  *hash_grow.HashTab[keyEntry[K, V, C]]
-	eq   func(K, K) bool
-	hash func(K) uint64
-	ops  collectionOps[V, C]
-	size int
+	tab     *hash_grow.HashTab[keyEntry[K, V, C]]
+	eq      func(K, K) bool
+	hash    func(K) uint64
+	ops     collectionOps[V, C]
+	valueEq func(V, V) bool
+	size    int
 }
 
-func newCore[K any, V any, C any](eq func(K, K) bool, hash func(K) uint64, ops collectionOps[V, C]) core[K, V, C] {
+func newCore[K any, V any, C any](eq func(K, K) bool, hash func(K) uint64, ops collectionOps[V, C], valueEq func(V, V) bool) core[K, V, C] {
 	if eq == nil || hash == nil {
 		panic("multimap: key equality and hash functions must not be nil")
 	}
@@ -52,9 +53,10 @@ func newCore[K any, V any, C any](eq func(K, K) bool, hash func(K) uint64, ops c
 			16,
 			0,
 		),
-		eq:   eq,
-		hash: hash,
-		ops:  ops,
+		eq:      eq,
+		hash:    hash,
+		ops:     ops,
+		valueEq: valueEq,
 	}
 }
 

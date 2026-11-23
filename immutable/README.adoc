@@ -1,0 +1,34 @@
+= immutable
+
+Defensive, read-only snapshots of Pluto's generic collection families. Every
+constructor copies its input, iterators never expose mutable internals, and all
+values are safe for concurrent reads. Payload objects are not deeply immutable.
+There is no `_ts` twin.
+
+== Types
+
+- `List`: O(1) indexed access, sublists, forward/reverse iteration.
+- `Set` and `Map`: expected O(1) lookup with natural comparable keys or custom
+  equality/hash functions; first occurrence/entry iteration order.
+- `SortedSet` and `SortedMap`: comparator order, binary-search membership and
+  Lower/Floor/Ceil/Higher, rank/random access, head/tail/subrange selection, and
+  reverse iteration.
+- `Multiset`: occurrence counts, distinct entries/elements, and full iteration;
+  hash and ordered-tree snapshots.
+- `Multimap`: list-multimap semantics, duplicate values, key multiplicity, and
+  copied Get/AsMap values.
+- `BiMap`: unique keys and values with a coupled immutable Inverse.
+- `Table`: aliases the existing `table.ImmutableTable`; Freeze functions accept
+  all three mutable table variants.
+
+Builders support incremental input followed by independent Build snapshots.
+Map and bimap duplicates return errors; set/sorted-set duplicates collapse, and
+multiset/multimap duplicates follow their base semantics. CopyOf functions return
+an existing immutable value unchanged.
+
+JSON marshals arrays in deterministic iteration order. Immutable values
+intentionally do not implement UnmarshalJSON; parse into ordinary Go values and
+then construct or build a snapshot.
+
+See `docs/packages/immutable.md` for the complete API and complexity contract,
+and `docs/benchmarks/immutable/` for matched Guava measurements.

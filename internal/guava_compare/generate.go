@@ -417,3 +417,53 @@ func ReadMinMaxCorpus(path string) (MinMaxCorpus, error) {
 func WriteMinMaxCorpus(path string, corpus MinMaxCorpus) error {
 	return writeJSON(path, corpus, true)
 }
+
+const (
+	ImmutableBenchmarkSize              = 4096
+	ImmutableBenchmarkInputDistribution = "4096 unique keys; seeded uniform integer values; 64 multimap keys"
+)
+
+type ImmutableCorpus struct {
+	Version           int      `json:"version"`
+	Seed              int64    `json:"seed"`
+	Size              int      `json:"size"`
+	InputDistribution string   `json:"inputDistribution"`
+	Values            []int    `json:"values"`
+	Keys              []string `json:"keys"`
+}
+
+func GenerateImmutableCorpus(seed int64, size int) ImmutableCorpus {
+	random := rand.New(rand.NewSource(seed))
+	values := make([]int, size)
+	keys := make([]string, size)
+	for index := range values {
+		values[index] = random.Intn(size)
+		keys[index] = fmt.Sprintf("key-%04d", index)
+	}
+	return ImmutableCorpus{
+		Version: TraceVersion, Seed: seed, Size: size,
+		InputDistribution: ImmutableBenchmarkInputDistribution, Values: values, Keys: keys,
+	}
+}
+
+func ReadImmutableCorpus(path string) (ImmutableCorpus, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return ImmutableCorpus{}, err
+	}
+	defer func() { _ = file.Close() }()
+	var corpus ImmutableCorpus
+	decoder := json.NewDecoder(file)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&corpus); err != nil {
+		return ImmutableCorpus{}, err
+	}
+	if err := ensureEOF(decoder); err != nil {
+		return ImmutableCorpus{}, err
+	}
+	return corpus, nil
+}
+
+func WriteImmutableCorpus(path string, corpus ImmutableCorpus) error {
+	return writeJSON(path, corpus, true)
+}

@@ -1,0 +1,2 @@
+Premain-Class: org.openjdk.jol.vm.InstrumentationSupport
+

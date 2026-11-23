@@ -96,4 +96,11 @@ func TestGeneratedFilesAreDeterministic(t *testing.T) {
 	if generated := GenerateMinMaxCorpus(minMaxCorpus.Seed, len(minMaxCorpus.Operations), minMaxCorpus.MaximumSize); !reflect.DeepEqual(generated, minMaxCorpus) {
 		t.Fatal("committed min-max corpus differs from deterministic generator")
 	}
+	immutableCorpus, err := ReadImmutableCorpus(filepath.Join("testdata", "immutable.corpus.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if generated := GenerateImmutableCorpus(immutableCorpus.Seed, immutableCorpus.Size); !reflect.DeepEqual(generated, immutableCorpus) {
+		t.Fatal("committed immutable corpus differs from deterministic generator")
+	}
 }

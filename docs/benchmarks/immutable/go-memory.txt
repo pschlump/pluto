@@ -1,0 +1,14 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/immutable
+cpu: Apple M4 Max
+BenchmarkImmutableMemory/list-14         	     250	    427897 ns/op	     32768 retained-bytes	         8.000 retained-bytes/input	   32812 B/op	       1 allocs/op
+BenchmarkImmutableMemory/set-14          	     214	    558495 ns/op	    224128 retained-bytes	        54.72 retained-bytes/input	  480369 B/op	      42 allocs/op
+BenchmarkImmutableMemory/map-14          	     186	    637969 ns/op	    360672 retained-bytes	        88.05 retained-bytes/input	  627169 B/op	      28 allocs/op
+BenchmarkImmutableMemory/sortedSet-14    	     162	    724678 ns/op	     32816 retained-bytes	         8.012 retained-bytes/input	   32816 B/op	       3 allocs/op
+BenchmarkImmutableMemory/sortedMap-14    	     265	    455514 ns/op	     98352 retained-bytes	        24.01 retained-bytes/input	   98357 B/op	       3 allocs/op
+BenchmarkImmutableMemory/multiset-14     	     204	    578591 ns/op	    254208 retained-bytes	        62.06 retained-bytes/input	  570480 B/op	      42 allocs/op
+BenchmarkImmutableMemory/multimap-14     	     255	    467007 ns/op	     40256 retained-bytes	         9.828 retained-bytes/input	   79115 B/op	     478 allocs/op
+BenchmarkImmutableMemory/bimap-14        	     128	    896087 ns/op	    655840 retained-bytes	       160.1 retained-bytes/input	 1118567 B/op	      56 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/immutable	1.268s

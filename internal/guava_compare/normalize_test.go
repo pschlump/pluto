@@ -50,6 +50,25 @@ func TestSmallStructureImplementationLabels(t *testing.T) {
 	}
 }
 
+func TestImmutableImplementationLabels(t *testing.T) {
+	goMetrics, err := ParseGoBenchmark(strings.NewReader("BenchmarkImmutableListBuild-8  100  10 ns/op\n"))
+	if err != nil || len(goMetrics) != 1 || goMetrics[0].Implementation != "pluto-immutable-list" {
+		t.Fatalf("unexpected immutable Go label: %+v, %v", goMetrics, err)
+	}
+	jmhMetrics, err := ParseJMHResults(strings.NewReader(`[{"benchmark":"com.example.ImmutableBenchmark.immutableMapGet","mode":"thrpt","threads":1,"primaryMetric":{"score":10,"scoreError":1,"scoreUnit":"ops/s"}}]`))
+	if err != nil || len(jmhMetrics) != 1 || jmhMetrics[0].Implementation != "guava-immutable-map" {
+		t.Fatalf("unexpected immutable JMH label: %+v, %v", jmhMetrics, err)
+	}
+}
+
+func TestParseJMHUnavailableError(t *testing.T) {
+	input := `[{"benchmark":"com.example.ImmutableBenchmark.immutableListAt","mode":"thrpt","threads":1,"primaryMetric":{"score":123.0,"scoreError":"NaN","scoreUnit":"ops/s"}}]`
+	metrics, err := ParseJMHResults(strings.NewReader(input))
+	if err != nil || len(metrics) != 1 || metrics[0].Error != 0 {
+		t.Fatalf("unavailable JMH error was not omitted: %+v, %v", metrics, err)
+	}
+}
+
 func TestParseEmptyJMHResultsFails(t *testing.T) {
 	if _, err := ParseJMHResults(strings.NewReader("[]")); err == nil {
 		t.Fatal("empty JMH output must be rejected")

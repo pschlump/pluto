@@ -43,6 +43,14 @@ func NewTreeMultisetFunc[T any](compare func(a, b T) int) *TreeMultiset[T] {
 	return &TreeMultiset[T]{cmp: compare}
 }
 
+// Compare returns the stored comparison function, or nil for a zero value.
+func (m *TreeMultiset[T]) Compare() func(a, b T) int {
+	if m == nil {
+		return nil
+	}
+	return m.cmp
+}
+
 func compareOrdered[T cmp.Ordered](a, b T) int {
 	switch {
 	case a < b:

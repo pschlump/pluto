@@ -20,6 +20,30 @@ import (
 
 var benchmarkSuffix = regexp.MustCompile(`-[0-9]+$`)
 
+type optionalFloat float64
+
+func (value *optionalFloat) UnmarshalJSON(data []byte) error {
+	var number float64
+	if err := json.Unmarshal(data, &number); err == nil {
+		*value = optionalFloat(number)
+		return nil
+	}
+	var text string
+	if err := json.Unmarshal(data, &text); err != nil {
+		return err
+	}
+	if text == "NaN" {
+		*value = 0
+		return nil
+	}
+	number, err := strconv.ParseFloat(text, 64)
+	if err != nil {
+		return err
+	}
+	*value = optionalFloat(number)
+	return nil
+}
+
 type ResultMetadata struct {
 	SchemaVersion     int    `json:"schemaVersion"`
 	RecordedAt        string `json:"recordedAt"`
@@ -112,6 +136,24 @@ func ParseGoBenchmark(reader io.Reader) ([]Metric, error) {
 		} else if strings.HasPrefix(benchmark, "arraytable") {
 			implementation = "pluto-array-table"
 		}
+		switch {
+		case strings.HasPrefix(benchmark, "immutablelist"):
+			implementation = "pluto-immutable-list"
+		case strings.HasPrefix(benchmark, "immutableset"):
+			implementation = "pluto-immutable-set"
+		case strings.HasPrefix(benchmark, "immutablemap"):
+			implementation = "pluto-immutable-map"
+		case strings.HasPrefix(benchmark, "immutablesortedset"):
+			implementation = "pluto-immutable-sorted-set"
+		case strings.HasPrefix(benchmark, "immutablesortedmap"):
+			implementation = "pluto-immutable-sorted-map"
+		case strings.HasPrefix(benchmark, "immutablemultiset"):
+			implementation = "pluto-immutable-multiset"
+		case strings.HasPrefix(benchmark, "immutablemultimap"):
+			implementation = "pluto-immutable-multimap"
+		case strings.HasPrefix(benchmark, "immutablebimap"):
+			implementation = "pluto-immutable-bimap"
+		}
 		for index := 2; index+1 < len(fields); index++ {
 			var metric, unit string
 			switch fields[index+1] {
@@ -150,9 +192,9 @@ func ParseJMHResults(reader io.Reader) ([]Metric, error) {
 		Mode      string `json:"mode"`
 		Threads   int    `json:"threads"`
 		Primary   struct {
-			Score      float64 `json:"score"`
-			ScoreError float64 `json:"scoreError"`
-			ScoreUnit  string  `json:"scoreUnit"`
+			Score      optionalFloat `json:"score"`
+			ScoreError optionalFloat `json:"scoreError"`
+			ScoreUnit  string        `json:"scoreUnit"`
 		} `json:"primaryMetric"`
 	}
 	decoder := json.NewDecoder(reader)
@@ -225,14 +267,32 @@ func ParseJMHResults(reader io.Reader) ([]Metric, error) {
 		} else if strings.HasPrefix(benchmark, "arrayTable") {
 			implementation = "guava-array-table"
 		}
+		switch {
+		case strings.HasPrefix(benchmark, "immutableList"):
+			implementation = "guava-immutable-list"
+		case strings.HasPrefix(benchmark, "immutableSet"):
+			implementation = "guava-immutable-set"
+		case strings.HasPrefix(benchmark, "immutableMap"):
+			implementation = "guava-immutable-map"
+		case strings.HasPrefix(benchmark, "immutableSortedSet"):
+			implementation = "guava-immutable-sorted-set"
+		case strings.HasPrefix(benchmark, "immutableSortedMap"):
+			implementation = "guava-immutable-sorted-map"
+		case strings.HasPrefix(benchmark, "immutableMultiset"):
+			implementation = "guava-immutable-multiset"
+		case strings.HasPrefix(benchmark, "immutableMultimap"):
+			implementation = "guava-immutable-multimap"
+		case strings.HasPrefix(benchmark, "immutableBiMap"):
+			implementation = "guava-immutable-bimap"
+		}
 		metrics = append(metrics, Metric{
 			Benchmark:      strings.ToLower(benchmark),
 			Implementation: implementation,
 			Threads:        result.Threads,
 			Metric:         metric,
-			Value:          result.Primary.Score,
+			Value:          float64(result.Primary.Score),
 			Unit:           result.Primary.ScoreUnit,
-			Error:          result.Primary.ScoreError,
+			Error:          float64(result.Primary.ScoreError),
 		})
 	}
 	return metrics, nil
@@ -259,6 +319,11 @@ func WriteNormalizedResults(path string, metadata ResultMetadata, metrics []Metr
 			metrics[index].Seed = BenchmarkSeed
 		case "minmaxoneend", "priorityqueue":
 			metrics[index].InputDistribution = MinMaxOneEndBenchmarkInputDistribution
+			metrics[index].Seed = BenchmarkSeed
+		}
+		if strings.HasPrefix(metrics[index].Benchmark, "immutable") {
+			metrics[index].Capacity = ImmutableBenchmarkSize
+			metrics[index].InputDistribution = ImmutableBenchmarkInputDistribution
 			metrics[index].Seed = BenchmarkSeed
 		}
 		if strings.Contains(metrics[index].Benchmark, "table") || metrics[index].Benchmark == "nestedmap" || metrics[index].Benchmark == "flatmatrix" {

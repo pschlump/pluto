@@ -57,7 +57,7 @@ func newListMultimap[K any, V any](keyEq func(K, K) bool, keyHash func(K) uint64
 		length:  func(values []V) int { return len(values) },
 		values:  func(values []V) []V { return slices.Clone(values) },
 		replace: func(values []V) []V { return slices.Clone(values) },
-	})}
+	}, valueEq)}
 }
 
 func naturalFunctions[T comparable]() (func(T, T) bool, func(T) uint64) {
@@ -65,6 +65,26 @@ func naturalFunctions[T comparable]() (func(T, T) bool, func(T) uint64) {
 	return func(a, b T) bool { return a == b }, func(value T) uint64 {
 		return maphash.Comparable(seed, value)
 	}
+}
+
+// KeyEq, KeyHash, and ValueEq expose the stored functions for snapshots.
+func (m *ListMultimap[K, V]) KeyEq() func(K, K) bool {
+	if m == nil {
+		return nil
+	}
+	return m.core.eq
+}
+func (m *ListMultimap[K, V]) KeyHash() func(K) uint64 {
+	if m == nil {
+		return nil
+	}
+	return m.core.hash
+}
+func (m *ListMultimap[K, V]) ValueEq() func(V, V) bool {
+	if m == nil {
+		return nil
+	}
+	return m.core.valueEq
 }
 
 // Put appends value to key's list and always returns true.

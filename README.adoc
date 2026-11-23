@@ -59,6 +59,7 @@ with an identical public API.
 | link:evicting_queue_ts/[evicting_queue_ts] | Thread-safe evicting queue (RWMutex, atomic bulk writes, snapshot iterators).
 | link:min_max_pq/[min_max_pq]               | Double-ended priority queue on a single-array min-max heap (optional bound, JSON).
 | link:min_max_pq_ts/[min_max_pq_ts]         | Thread-safe min-max priority queue (RWMutex, atomic batches, snapshot iterators).
+| link:immutable/[immutable]                 | Defensive immutable list/set/map, sorted, multiset/multimap/bimap/table snapshots (builders, JSON, concurrent reads).
 | link:stack/[stack]                         | Generic slice-backed LIFO stack.
 | link:stack_ts/[stack_ts]                   | Thread-safe slice-backed LIFO stack (RWMutex, snapshot iterators).
 | link:stack_sll_ts/[stack_sll_ts]           | Thread-safe LIFO stack on a singly linked list (RWMutex, snapshot iterators).

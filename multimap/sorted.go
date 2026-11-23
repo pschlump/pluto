@@ -89,7 +89,7 @@ func NewSortedSetMultimapFunc[K any, V any](keyEq func(K, K) bool, keyHash func(
 			}
 			return result[:write]
 		},
-	})}
+	}, func(a, b V) bool { return valueCompare(a, b) == 0 })}
 }
 
 func compareValues[V cmp.Ordered](a, b V) int {
@@ -101,6 +101,26 @@ func compareValues[V cmp.Ordered](a, b V) int {
 	default:
 		return 0
 	}
+}
+
+// KeyEq, KeyHash, and ValueEq expose the stored functions for snapshots.
+func (m *SortedSetMultimap[K, V]) KeyEq() func(K, K) bool {
+	if m == nil {
+		return nil
+	}
+	return m.core.eq
+}
+func (m *SortedSetMultimap[K, V]) KeyHash() func(K) uint64 {
+	if m == nil {
+		return nil
+	}
+	return m.core.hash
+}
+func (m *SortedSetMultimap[K, V]) ValueEq() func(V, V) bool {
+	if m == nil {
+		return nil
+	}
+	return m.core.valueEq
 }
 
 // Put adds a unique association and reports whether it was new.

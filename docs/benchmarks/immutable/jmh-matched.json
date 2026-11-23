@@ -1,0 +1,3027 @@
+[
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.BimapBenchmark.biMapInverseIteration",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 28788.54829555457,
+            "scoreError" : 4477.1689313830875,
+            "scoreConfidence" : [
+                24311.379364171484,
+                33265.71722693766
+            ],
+            "scorePercentiles" : {
+                "0.0" : 28517.505623624365,
+                "50.0" : 28852.464111318543,
+                "90.0" : 28995.675151720796,
+                "95.0" : 28995.675151720796,
+                "99.0" : 28995.675151720796,
+                "99.9" : 28995.675151720796,
+                "99.99" : 28995.675151720796,
+                "99.999" : 28995.675151720796,
+                "99.9999" : 28995.675151720796,
+                "100.0" : 28995.675151720796
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    28517.505623624365,
+                    28852.464111318543,
+                    28995.675151720796
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.BimapBenchmark.hashBiMap",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 2.0343933997250035E7,
+            "scoreError" : 1.0283499460106743E7,
+            "scoreConfidence" : [
+                1.0060434537143292E7,
+                3.062743345735678E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.976260872917407E7,
+                "50.0" : 2.0381074847447384E7,
+                "90.0" : 2.0888118415128656E7,
+                "95.0" : 2.0888118415128656E7,
+                "99.0" : 2.0888118415128656E7,
+                "99.9" : 2.0888118415128656E7,
+                "99.99" : 2.0888118415128656E7,
+                "99.999" : 2.0888118415128656E7,
+                "99.9999" : 2.0888118415128656E7,
+                "100.0" : 2.0888118415128656E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    1.976260872917407E7,
+                    2.0888118415128656E7,
+                    2.0381074847447384E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.BimapBenchmark.mapBiMap",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 5.745826269178728E7,
+            "scoreError" : 1.3090795706790825E7,
+            "scoreConfidence" : [
+                4.436746698499645E7,
+                7.05490583985781E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 5.6756552422234505E7,
+                "50.0" : 5.742756703098152E7,
+                "90.0" : 5.819066862214582E7,
+                "95.0" : 5.819066862214582E7,
+                "99.0" : 5.819066862214582E7,
+                "99.9" : 5.819066862214582E7,
+                "99.99" : 5.819066862214582E7,
+                "99.999" : 5.819066862214582E7,
+                "99.9999" : 5.819066862214582E7,
+                "100.0" : 5.819066862214582E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    5.742756703098152E7,
+                    5.6756552422234505E7,
+                    5.819066862214582E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.CounterBenchmark.counter",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 6.639441830834114E7,
+            "scoreError" : 1.9957248820941273E7,
+            "scoreConfidence" : [
+                4.643716948739986E7,
+                8.635166712928241E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 6.522200214516349E7,
+                "50.0" : 6.657350195870973E7,
+                "90.0" : 6.738775082115018E7,
+                "95.0" : 6.738775082115018E7,
+                "99.0" : 6.738775082115018E7,
+                "99.9" : 6.738775082115018E7,
+                "99.99" : 6.738775082115018E7,
+                "99.999" : 6.738775082115018E7,
+                "99.9999" : 6.738775082115018E7,
+                "100.0" : 6.738775082115018E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    6.522200214516349E7,
+                    6.738775082115018E7,
+                    6.657350195870973E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.EvictingQueueBenchmark.dQueueEviction",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 9.786398216528517E7,
+            "scoreError" : 2.010644542334923E7,
+            "scoreConfidence" : [
+                7.775753674193594E7,
+                1.179704275886344E8
+            ],
+            "scorePercentiles" : {
+                "0.0" : 9.659636343880172E7,
+                "50.0" : 9.84003946307209E7,
+                "90.0" : 9.859518842633289E7,
+                "95.0" : 9.859518842633289E7,
+                "99.0" : 9.859518842633289E7,
+                "99.9" : 9.859518842633289E7,
+                "99.99" : 9.859518842633289E7,
+                "99.999" : 9.859518842633289E7,
+                "99.9999" : 9.859518842633289E7,
+                "100.0" : 9.859518842633289E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    9.84003946307209E7,
+                    9.659636343880172E7,
+                    9.859518842633289E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.EvictingQueueBenchmark.dQueueIteration",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 8247345.038045076,
+            "scoreError" : 191929.41656101582,
+            "scoreConfidence" : [
+                8055415.62148406,
+                8439274.454606092
+            ],
+            "scorePercentiles" : {
+                "0.0" : 8237004.830557713,
+                "50.0" : 8246993.659015507,
+                "90.0" : 8258036.624562009,
+                "95.0" : 8258036.624562009,
+                "99.0" : 8258036.624562009,
+                "99.9" : 8258036.624562009,
+                "99.99" : 8258036.624562009,
+                "99.999" : 8258036.624562009,
+                "99.9999" : 8258036.624562009,
+                "100.0" : 8258036.624562009
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    8246993.659015507,
+                    8258036.624562009,
+                    8237004.830557713
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.EvictingQueueBenchmark.evictingQueue",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 1.1459774228811704E8,
+            "scoreError" : 4570581.5865890635,
+            "scoreConfidence" : [
+                1.1002716070152797E8,
+                1.191683238747061E8
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.1437578225415795E8,
+                "50.0" : 1.1454805156388026E8,
+                "90.0" : 1.1486939304631288E8,
+                "95.0" : 1.1486939304631288E8,
+                "99.0" : 1.1486939304631288E8,
+                "99.9" : 1.1486939304631288E8,
+                "99.99" : 1.1486939304631288E8,
+                "99.999" : 1.1486939304631288E8,
+                "99.9999" : 1.1486939304631288E8,
+                "100.0" : 1.1486939304631288E8
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    1.1437578225415795E8,
+                    1.1454805156388026E8,
+                    1.1486939304631288E8
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.EvictingQueueBenchmark.evictingQueueIteration",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 8225196.81473359,
+            "scoreError" : 403681.5058771507,
+            "scoreConfidence" : [
+                7821515.308856439,
+                8628878.320610741
+            ],
+            "scorePercentiles" : {
+                "0.0" : 8201060.900028284,
+                "50.0" : 8230005.034904125,
+                "90.0" : 8244524.509268359,
+                "95.0" : 8244524.509268359,
+                "99.0" : 8244524.509268359,
+                "99.9" : 8244524.509268359,
+                "99.99" : 8244524.509268359,
+                "99.999" : 8244524.509268359,
+                "99.9999" : 8244524.509268359,
+                "100.0" : 8244524.509268359
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    8201060.900028284,
+                    8230005.034904125,
+                    8244524.509268359
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.ImmutableBenchmark.immutableBiMapBuild",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 12257.12221746543,
+            "scoreError" : 1037.1667486677813,
+            "scoreConfidence" : [
+                11219.955468797649,
+                13294.288966133212
+            ],
+            "scorePercentiles" : {
+                "0.0" : 12198.851580787272,
+                "50.0" : 12260.07755397249,
+                "90.0" : 12312.437517636528,
+                "95.0" : 12312.437517636528,
+                "99.0" : 12312.437517636528,
+                "99.9" : 12312.437517636528,
+                "99.99" : 12312.437517636528,
+                "99.999" : 12312.437517636528,
+                "99.9999" : 12312.437517636528,
+                "100.0" : 12312.437517636528
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    12198.851580787272,
+                    12260.07755397249,
+                    12312.437517636528
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.ImmutableBenchmark.immutableBiMapGet",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 1.7460839297861704E8,
+            "scoreError" : 8271805.968148954,
+            "scoreConfidence" : [
+                1.663365870104681E8,
+                1.82880198946766E8
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.7422158954744342E8,
+                "50.0" : 1.7449623951967454E8,
+                "90.0" : 1.751073498687332E8,
+                "95.0" : 1.751073498687332E8,
+                "99.0" : 1.751073498687332E8,
+                "99.9" : 1.751073498687332E8,
+                "99.99" : 1.751073498687332E8,
+                "99.999" : 1.751073498687332E8,
+                "99.9999" : 1.751073498687332E8,
+                "100.0" : 1.751073498687332E8
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    1.751073498687332E8,
+                    1.7449623951967454E8,
+                    1.7422158954744342E8
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.ImmutableBenchmark.immutableListAt",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 4.8408551478994036E8,
+            "scoreError" : "NaN",
+            "scoreConfidence" : [
+                "NaN",
+                "NaN"
+            ],
+            "scorePercentiles" : {
+                "0.0" : 4.833651257476871E8,
+                "50.0" : 4.8408551478994036E8,
+                "90.0" : 4.848059038321936E8,
+                "95.0" : 4.848059038321936E8,
+                "99.0" : 4.848059038321936E8,
+                "99.9" : 4.848059038321936E8,
+                "99.99" : 4.848059038321936E8,
+                "99.999" : 4.848059038321936E8,
+                "99.9999" : 4.848059038321936E8,
+                "100.0" : 4.848059038321936E8
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    4.848059038321936E8,
+                    4.833651257476871E8
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.ImmutableBenchmark.immutableListBuild",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 1391038.9203383627,
+            "scoreError" : 56267.057597973886,
+            "scoreConfidence" : [
+                1334771.8627403888,
+                1447305.9779363365
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1389185.408697949,
+                "50.0" : 1389332.1268047562,
+                "90.0" : 1394599.225512383,
+                "95.0" : 1394599.225512383,
+                "99.0" : 1394599.225512383,
+                "99.9" : 1394599.225512383,
+                "99.99" : 1394599.225512383,
+                "99.999" : 1394599.225512383,
+                "99.9999" : 1394599.225512383,
+                "100.0" : 1394599.225512383
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    1394599.225512383,
+                    1389185.408697949,
+                    1389332.1268047562
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.ImmutableBenchmark.immutableListCopyOf",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 4.527348030451164E8,
+            "scoreError" : 2.8213770046415013E8,
+            "scoreConfidence" : [
+                1.705971025809663E8,
+                7.348725035092666E8
+            ],
+            "scorePercentiles" : {
+                "0.0" : 4.355163574484029E8,
+                "50.0" : 4.572443209429626E8,
+                "90.0" : 4.654437307439838E8,
+                "95.0" : 4.654437307439838E8,
+                "99.0" : 4.654437307439838E8,
+                "99.9" : 4.654437307439838E8,
+                "99.99" : 4.654437307439838E8,
+                "99.999" : 4.654437307439838E8,
+                "99.9999" : 4.654437307439838E8,
+                "100.0" : 4.654437307439838E8
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    4.654437307439838E8,
+                    4.572443209429626E8,
+                    4.355163574484029E8
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.ImmutableBenchmark.immutableListIteration",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 724950.4175326223,
+            "scoreError" : 18706.44730231014,
+            "scoreConfidence" : [
+                706243.9702303122,
+                743656.8648349325
+            ],
+            "scorePercentiles" : {
+                "0.0" : 723971.3482060502,
+                "50.0" : 724863.3780507812,
+                "90.0" : 726016.5263410356,
+                "95.0" : 726016.5263410356,
+                "99.0" : 726016.5263410356,
+                "99.9" : 726016.5263410356,
+                "99.99" : 726016.5263410356,
+                "99.999" : 726016.5263410356,
+                "99.9999" : 726016.5263410356,
+                "100.0" : 726016.5263410356
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    724863.3780507812,
+                    726016.5263410356,
+                    723971.3482060502
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.ImmutableBenchmark.immutableMapBuild",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 20033.84509547459,
+            "scoreError" : 1865.012771100653,
+            "scoreConfidence" : [
+                18168.832324373936,
+                21898.857866575243
+            ],
+            "scorePercentiles" : {
+                "0.0" : 19915.807867396645,
+                "50.0" : 20091.914698197033,
+                "90.0" : 20093.812720830098,
+                "95.0" : 20093.812720830098,
+                "99.0" : 20093.812720830098,
+                "99.9" : 20093.812720830098,
+                "99.99" : 20093.812720830098,
+                "99.999" : 20093.812720830098,
+                "99.9999" : 20093.812720830098,
+                "100.0" : 20093.812720830098
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    20093.812720830098,
+                    20091.914698197033,
+                    19915.807867396645
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.ImmutableBenchmark.immutableMapGet",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 1.6865060204018822E8,
+            "scoreError" : 8271461.75628711,
+            "scoreConfidence" : [
+                1.6037914028390113E8,
+                1.7692206379647532E8
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.682467077154979E8,
+                "50.0" : 1.685640850669919E8,
+                "90.0" : 1.6914101333807492E8,
+                "95.0" : 1.6914101333807492E8,
+                "99.0" : 1.6914101333807492E8,
+                "99.9" : 1.6914101333807492E8,
+                "99.99" : 1.6914101333807492E8,
+                "99.999" : 1.6914101333807492E8,
+                "99.9999" : 1.6914101333807492E8,
+                "100.0" : 1.6914101333807492E8
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    1.682467077154979E8,
+                    1.685640850669919E8,
+                    1.6914101333807492E8
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.ImmutableBenchmark.immutableMultimapBuild",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 31545.446097858858,
+            "scoreError" : 4809.923756512624,
+            "scoreConfidence" : [
+                26735.522341346234,
+                36355.369854371485
+            ],
+            "scorePercentiles" : {
+                "0.0" : 31241.12805735713,
+                "50.0" : 31690.308171169243,
+                "90.0" : 31704.902065050188,
+                "95.0" : 31704.902065050188,
+                "99.0" : 31704.902065050188,
+                "99.9" : 31704.902065050188,
+                "99.99" : 31704.902065050188,
+                "99.999" : 31704.902065050188,
+                "99.9999" : 31704.902065050188,
+                "100.0" : 31704.902065050188
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    31690.308171169243,
+                    31241.12805735713,
+                    31704.902065050188
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.ImmutableBenchmark.immutableMultimapGet",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 2.773711515765789E8,
+            "scoreError" : 1.780115298023421E7,
+            "scoreConfidence" : [
+                2.595699985963447E8,
+                2.951723045568131E8
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2.7628413013498574E8,
+                "50.0" : 2.776580316293062E8,
+                "90.0" : 2.7817129296544486E8,
+                "95.0" : 2.7817129296544486E8,
+                "99.0" : 2.7817129296544486E8,
+                "99.9" : 2.7817129296544486E8,
+                "99.99" : 2.7817129296544486E8,
+                "99.999" : 2.7817129296544486E8,
+                "99.9999" : 2.7817129296544486E8,
+                "100.0" : 2.7817129296544486E8
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    2.776580316293062E8,
+                    2.7817129296544486E8,
+                    2.7628413013498574E8
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.ImmutableBenchmark.immutableMultisetBuild",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 9911.229142852011,
+            "scoreError" : 1884.2241545795493,
+            "scoreConfidence" : [
+                8027.004988272462,
+                11795.45329743156
+            ],
+            "scorePercentiles" : {
+                "0.0" : 9828.772166667937,
+                "50.0" : 9877.84171451537,
+                "90.0" : 10027.073547372724,
+                "95.0" : 10027.073547372724,
+                "99.0" : 10027.073547372724,
+                "99.9" : 10027.073547372724,
+                "99.99" : 10027.073547372724,
+                "99.999" : 10027.073547372724,
+                "99.9999" : 10027.073547372724,
+                "100.0" : 10027.073547372724
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    10027.073547372724,
+                    9877.84171451537,
+                    9828.772166667937
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.ImmutableBenchmark.immutableMultisetCount",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 2.3425374494573057E8,
+            "scoreError" : 1.6024244111442862E7,
+            "scoreConfidence" : [
+                2.182295008342877E8,
+                2.5027798905717343E8
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2.332772099998651E8,
+                "50.0" : 2.3450479762350807E8,
+                "90.0" : 2.3497922721381852E8,
+                "95.0" : 2.3497922721381852E8,
+                "99.0" : 2.3497922721381852E8,
+                "99.9" : 2.3497922721381852E8,
+                "99.99" : 2.3497922721381852E8,
+                "99.999" : 2.3497922721381852E8,
+                "99.9999" : 2.3497922721381852E8,
+                "100.0" : 2.3497922721381852E8
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    2.332772099998651E8,
+                    2.3450479762350807E8,
+                    2.3497922721381852E8
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.ImmutableBenchmark.immutableSetBuild",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 34150.75564702803,
+            "scoreError" : 13798.872306713196,
+            "scoreConfidence" : [
+                20351.88334031484,
+                47949.62795374123
+            ],
+            "scorePercentiles" : {
+                "0.0" : 33396.53647538224,
+                "50.0" : 34146.48655557385,
+                "90.0" : 34909.243910128,
+                "95.0" : 34909.243910128,
+                "99.0" : 34909.243910128,
+                "99.9" : 34909.243910128,
+                "99.99" : 34909.243910128,
+                "99.999" : 34909.243910128,
+                "99.9999" : 34909.243910128,
+                "100.0" : 34909.243910128
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    34909.243910128,
+                    34146.48655557385,
+                    33396.53647538224
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.ImmutableBenchmark.immutableSetContains",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 3.07827524319393E8,
+            "scoreError" : 2.5433301403776456E7,
+            "scoreConfidence" : [
+                2.823942229156165E8,
+                3.3326082572316945E8
+            ],
+            "scorePercentiles" : {
+                "0.0" : 3.064995765512489E8,
+                "50.0" : 3.077035329578086E8,
+                "90.0" : 3.0927946344912136E8,
+                "95.0" : 3.0927946344912136E8,
+                "99.0" : 3.0927946344912136E8,
+                "99.9" : 3.0927946344912136E8,
+                "99.99" : 3.0927946344912136E8,
+                "99.999" : 3.0927946344912136E8,
+                "99.9999" : 3.0927946344912136E8,
+                "100.0" : 3.0927946344912136E8
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    3.0927946344912136E8,
+                    3.077035329578086E8,
+                    3.064995765512489E8
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.ImmutableBenchmark.immutableSortedMapBuild",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 18119.35301143435,
+            "scoreError" : 572.2080443111686,
+            "scoreConfidence" : [
+                17547.14496712318,
+                18691.56105574552
+            ],
+            "scorePercentiles" : {
+                "0.0" : 18087.43182647416,
+                "50.0" : 18120.497397680254,
+                "90.0" : 18150.12981014863,
+                "95.0" : 18150.12981014863,
+                "99.0" : 18150.12981014863,
+                "99.9" : 18150.12981014863,
+                "99.99" : 18150.12981014863,
+                "99.999" : 18150.12981014863,
+                "99.9999" : 18150.12981014863,
+                "100.0" : 18150.12981014863
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    18087.43182647416,
+                    18120.497397680254,
+                    18150.12981014863
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.ImmutableBenchmark.immutableSortedMapGet",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 1.9967195035809558E7,
+            "scoreError" : 3661069.7849452603,
+            "scoreConfidence" : [
+                1.6306125250864297E7,
+                2.362826482075482E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.9741079101550393E7,
+                "50.0" : 2.0036385246199165E7,
+                "90.0" : 2.012412075967912E7,
+                "95.0" : 2.012412075967912E7,
+                "99.0" : 2.012412075967912E7,
+                "99.9" : 2.012412075967912E7,
+                "99.99" : 2.012412075967912E7,
+                "99.999" : 2.012412075967912E7,
+                "99.9999" : 2.012412075967912E7,
+                "100.0" : 2.012412075967912E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    1.9741079101550393E7,
+                    2.012412075967912E7,
+                    2.0036385246199165E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.ImmutableBenchmark.immutableSortedSetBuild",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 4153.807368956458,
+            "scoreError" : 221.00266450645816,
+            "scoreConfidence" : [
+                3932.80470445,
+                4374.810033462916
+            ],
+            "scorePercentiles" : {
+                "0.0" : 4142.23018587726,
+                "50.0" : 4152.797192935722,
+                "90.0" : 4166.394728056392,
+                "95.0" : 4166.394728056392,
+                "99.0" : 4166.394728056392,
+                "99.9" : 4166.394728056392,
+                "99.99" : 4166.394728056392,
+                "99.999" : 4166.394728056392,
+                "99.9999" : 4166.394728056392,
+                "100.0" : 4166.394728056392
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    4142.23018587726,
+                    4166.394728056392,
+                    4152.797192935722
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.ImmutableBenchmark.immutableSortedSetContains",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 3.547975165030611E7,
+            "scoreError" : 3774459.2686315207,
+            "scoreConfidence" : [
+                3.170529238167459E7,
+                3.925421091893763E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 3.53465279814406E7,
+                "50.0" : 3.5374629929832205E7,
+                "90.0" : 3.5718097039645545E7,
+                "95.0" : 3.5718097039645545E7,
+                "99.0" : 3.5718097039645545E7,
+                "99.9" : 3.5718097039645545E7,
+                "99.99" : 3.5718097039645545E7,
+                "99.999" : 3.5718097039645545E7,
+                "99.9999" : 3.5718097039645545E7,
+                "100.0" : 3.5718097039645545E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    3.53465279814406E7,
+                    3.5374629929832205E7,
+                    3.5718097039645545E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.ImmutableBenchmark.immutableSortedSetSubRange",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 2.015320702613187E7,
+            "scoreError" : 1971040.1880148803,
+            "scoreConfidence" : [
+                1.818216683811699E7,
+                2.212424721414675E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2.0041761346582055E7,
+                "50.0" : 2.0160376807433184E7,
+                "90.0" : 2.025748292438037E7,
+                "95.0" : 2.025748292438037E7,
+                "99.0" : 2.025748292438037E7,
+                "99.9" : 2.025748292438037E7,
+                "99.99" : 2.025748292438037E7,
+                "99.999" : 2.025748292438037E7,
+                "99.9999" : 2.025748292438037E7,
+                "100.0" : 2.025748292438037E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    2.0160376807433184E7,
+                    2.025748292438037E7,
+                    2.0041761346582055E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.MinMaxPriorityQueueBenchmark.boundedMinMaxPriorityQueue",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 1.996174649356605E7,
+            "scoreError" : 3032286.817469503,
+            "scoreConfidence" : [
+                1.6929459676096547E7,
+                2.2994033311035555E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.98595394554733E7,
+                "50.0" : 1.987216947832962E7,
+                "90.0" : 2.0153530546895232E7,
+                "95.0" : 2.0153530546895232E7,
+                "99.0" : 2.0153530546895232E7,
+                "99.9" : 2.0153530546895232E7,
+                "99.99" : 2.0153530546895232E7,
+                "99.999" : 2.0153530546895232E7,
+                "99.9999" : 2.0153530546895232E7,
+                "100.0" : 2.0153530546895232E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    1.987216947832962E7,
+                    1.98595394554733E7,
+                    2.0153530546895232E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.MinMaxPriorityQueueBenchmark.minMaxOneEnd",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 1.3658916893269137E7,
+            "scoreError" : 3496747.8663507057,
+            "scoreConfidence" : [
+                1.016216902691843E7,
+                1.7155664759619843E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.3495090383085564E7,
+                "50.0" : 1.3611960101787027E7,
+                "90.0" : 1.386970019493482E7,
+                "95.0" : 1.386970019493482E7,
+                "99.0" : 1.386970019493482E7,
+                "99.9" : 1.386970019493482E7,
+                "99.99" : 1.386970019493482E7,
+                "99.999" : 1.386970019493482E7,
+                "99.9999" : 1.386970019493482E7,
+                "100.0" : 1.386970019493482E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    1.3611960101787027E7,
+                    1.386970019493482E7,
+                    1.3495090383085564E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.MinMaxPriorityQueueBenchmark.minMaxPriorityQueue",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 1.0680983456898896E7,
+            "scoreError" : 4653980.645605172,
+            "scoreConfidence" : [
+                6027002.811293724,
+                1.5334964102504067E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.0395780285717955E7,
+                "50.0" : 1.0759784031984592E7,
+                "90.0" : 1.0887386052994141E7,
+                "95.0" : 1.0887386052994141E7,
+                "99.0" : 1.0887386052994141E7,
+                "99.9" : 1.0887386052994141E7,
+                "99.99" : 1.0887386052994141E7,
+                "99.999" : 1.0887386052994141E7,
+                "99.9999" : 1.0887386052994141E7,
+                "100.0" : 1.0887386052994141E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    1.0887386052994141E7,
+                    1.0759784031984592E7,
+                    1.0395780285717955E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.MinMaxPriorityQueueBenchmark.priorityQueue",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 2.1478963076828755E7,
+            "scoreError" : 1.2307772104151905E7,
+            "scoreConfidence" : [
+                9171190.97267685,
+                3.378673518098066E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2.0920951227870245E7,
+                "50.0" : 2.1287231897938862E7,
+                "90.0" : 2.222870610467716E7,
+                "95.0" : 2.222870610467716E7,
+                "99.0" : 2.222870610467716E7,
+                "99.9" : 2.222870610467716E7,
+                "99.99" : 2.222870610467716E7,
+                "99.999" : 2.222870610467716E7,
+                "99.9999" : 2.222870610467716E7,
+                "100.0" : 2.222870610467716E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    2.0920951227870245E7,
+                    2.222870610467716E7,
+                    2.1287231897938862E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.MinMaxPriorityQueueBenchmark.twoHeap",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 6806762.938522103,
+            "scoreError" : 1.2815038595743785E7,
+            "scoreConfidence" : [
+                -6008275.657221681,
+                1.9621801534265887E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 6069017.348156719,
+                "50.0" : 6883720.976280808,
+                "90.0" : 7467550.491128782,
+                "95.0" : 7467550.491128782,
+                "99.0" : 7467550.491128782,
+                "99.9" : 7467550.491128782,
+                "99.99" : 7467550.491128782,
+                "99.999" : 7467550.491128782,
+                "99.9999" : 7467550.491128782,
+                "100.0" : 7467550.491128782
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    6883720.976280808,
+                    7467550.491128782,
+                    6069017.348156719
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.MultimapBenchmark.arrayListMultimap",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 633025.8512072939,
+            "scoreError" : 1673646.7908469276,
+            "scoreConfidence" : [
+                -1040620.9396396336,
+                2306672.6420542216
+            ],
+            "scorePercentiles" : {
+                "0.0" : 547702.8133900738,
+                "50.0" : 621319.3013303168,
+                "90.0" : 730055.4389014912,
+                "95.0" : 730055.4389014912,
+                "99.0" : 730055.4389014912,
+                "99.9" : 730055.4389014912,
+                "99.99" : 730055.4389014912,
+                "99.999" : 730055.4389014912,
+                "99.9999" : 730055.4389014912,
+                "100.0" : 730055.4389014912
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    730055.4389014912,
+                    621319.3013303168,
+                    547702.8133900738
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.MultimapBenchmark.hashMultimap",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 3.5557662250413366E7,
+            "scoreError" : 2.1003286764196828E7,
+            "scoreConfidence" : [
+                1.4554375486216538E7,
+                5.656094901461019E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 3.460188526050239E7,
+                "50.0" : 3.523538220358993E7,
+                "90.0" : 3.6835719287147775E7,
+                "95.0" : 3.6835719287147775E7,
+                "99.0" : 3.6835719287147775E7,
+                "99.9" : 3.6835719287147775E7,
+                "99.99" : 3.6835719287147775E7,
+                "99.999" : 3.6835719287147775E7,
+                "99.9999" : 3.6835719287147775E7,
+                "100.0" : 3.6835719287147775E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    3.460188526050239E7,
+                    3.6835719287147775E7,
+                    3.523538220358993E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.MultimapBenchmark.listMap",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 623885.0367790269,
+            "scoreError" : 1633079.6624479082,
+            "scoreConfidence" : [
+                -1009194.6256688813,
+                2256964.699226935
+            ],
+            "scorePercentiles" : {
+                "0.0" : 539580.8062805382,
+                "50.0" : 614244.6585104401,
+                "90.0" : 717829.6455461021,
+                "95.0" : 717829.6455461021,
+                "99.0" : 717829.6455461021,
+                "99.9" : 717829.6455461021,
+                "99.99" : 717829.6455461021,
+                "99.999" : 717829.6455461021,
+                "99.9999" : 717829.6455461021,
+                "100.0" : 717829.6455461021
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    717829.6455461021,
+                    614244.6585104401,
+                    539580.8062805382
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.MultimapBenchmark.setMap",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 4.092429432312169E7,
+            "scoreError" : 2.036682271602419E7,
+            "scoreConfidence" : [
+                2.05574716070975E7,
+                6.129111703914588E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 3.964134563185254E7,
+                "50.0" : 4.1457032658716135E7,
+                "90.0" : 4.167450467879639E7,
+                "95.0" : 4.167450467879639E7,
+                "99.0" : 4.167450467879639E7,
+                "99.9" : 4.167450467879639E7,
+                "99.99" : 4.167450467879639E7,
+                "99.999" : 4.167450467879639E7,
+                "99.9999" : 4.167450467879639E7,
+                "100.0" : 4.167450467879639E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    3.964134563185254E7,
+                    4.1457032658716135E7,
+                    4.167450467879639E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.MultimapBenchmark.treeMultimap",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 1.0317814382870128E7,
+            "scoreError" : 1501380.781666086,
+            "scoreConfidence" : [
+                8816433.601204041,
+                1.1819195164536215E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.0229574174870593E7,
+                "50.0" : 1.0331392070221215E7,
+                "90.0" : 1.0392476903518574E7,
+                "95.0" : 1.0392476903518574E7,
+                "99.0" : 1.0392476903518574E7,
+                "99.9" : 1.0392476903518574E7,
+                "99.99" : 1.0392476903518574E7,
+                "99.999" : 1.0392476903518574E7,
+                "99.9999" : 1.0392476903518574E7,
+                "100.0" : 1.0392476903518574E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    1.0229574174870593E7,
+                    1.0392476903518574E7,
+                    1.0331392070221215E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.MultisetBenchmark.hashMultiset",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 6.95913439116528E7,
+            "scoreError" : 1.3109978235806044E7,
+            "scoreConfidence" : [
+                5.6481365675846756E7,
+                8.270132214745885E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 6.892953894831814E7,
+                "50.0" : 6.948877242027111E7,
+                "90.0" : 7.035572036636916E7,
+                "95.0" : 7.035572036636916E7,
+                "99.0" : 7.035572036636916E7,
+                "99.9" : 7.035572036636916E7,
+                "99.99" : 7.035572036636916E7,
+                "99.999" : 7.035572036636916E7,
+                "99.9999" : 7.035572036636916E7,
+                "100.0" : 7.035572036636916E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    6.892953894831814E7,
+                    7.035572036636916E7,
+                    6.948877242027111E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.MultisetBenchmark.mapMultiset",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 4.720902632758639E7,
+            "scoreError" : 1.8007100542694625E7,
+            "scoreConfidence" : [
+                2.9201925784891766E7,
+                6.521612687028101E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 4.657898578849172E7,
+                "50.0" : 4.6701541400997736E7,
+                "90.0" : 4.834655179326972E7,
+                "95.0" : 4.834655179326972E7,
+                "99.0" : 4.834655179326972E7,
+                "99.9" : 4.834655179326972E7,
+                "99.99" : 4.834655179326972E7,
+                "99.999" : 4.834655179326972E7,
+                "99.9999" : 4.834655179326972E7,
+                "100.0" : 4.834655179326972E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    4.657898578849172E7,
+                    4.6701541400997736E7,
+                    4.834655179326972E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.MultisetBenchmark.treeMultiset",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 5989362.53722319,
+            "scoreError" : 380252.6773620708,
+            "scoreConfidence" : [
+                5609109.85986112,
+                6369615.2145852605
+            ],
+            "scorePercentiles" : {
+                "0.0" : 5968966.203535194,
+                "50.0" : 5988496.346513714,
+                "90.0" : 6010625.061620666,
+                "95.0" : 6010625.061620666,
+                "99.0" : 6010625.061620666,
+                "99.9" : 6010625.061620666,
+                "99.99" : 6010625.061620666,
+                "99.999" : 6010625.061620666,
+                "99.9999" : 6010625.061620666,
+                "100.0" : 6010625.061620666
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    5968966.203535194,
+                    5988496.346513714,
+                    6010625.061620666
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.TableBenchmark.arrayTable",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 5.581485062933556E7,
+            "scoreError" : 1.755319208415495E7,
+            "scoreConfidence" : [
+                3.826165854518061E7,
+                7.336804271349052E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 5.502737031020482E7,
+                "50.0" : 5.552988755202013E7,
+                "90.0" : 5.688729402578173E7,
+                "95.0" : 5.688729402578173E7,
+                "99.0" : 5.688729402578173E7,
+                "99.9" : 5.688729402578173E7,
+                "99.99" : 5.688729402578173E7,
+                "99.999" : 5.688729402578173E7,
+                "99.9999" : 5.688729402578173E7,
+                "100.0" : 5.688729402578173E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    5.552988755202013E7,
+                    5.688729402578173E7,
+                    5.502737031020482E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.TableBenchmark.arrayTableColumn",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 2.935497557387257E8,
+            "scoreError" : 1.1389706166277286E7,
+            "scoreConfidence" : [
+                2.8216004957244843E8,
+                3.04939461905003E8
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2.929970748603185E8,
+                "50.0" : 2.934252612389574E8,
+                "90.0" : 2.9422693111690134E8,
+                "95.0" : 2.9422693111690134E8,
+                "99.0" : 2.9422693111690134E8,
+                "99.9" : 2.9422693111690134E8,
+                "99.99" : 2.9422693111690134E8,
+                "99.999" : 2.9422693111690134E8,
+                "99.9999" : 2.9422693111690134E8,
+                "100.0" : 2.9422693111690134E8
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    2.929970748603185E8,
+                    2.934252612389574E8,
+                    2.9422693111690134E8
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.TableBenchmark.arrayTableRow",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 2.8731856973436636E8,
+            "scoreError" : 1.9418199884476017E7,
+            "scoreConfidence" : [
+                2.6790036984989035E8,
+                3.0673676961884236E8
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2.8646246366225934E8,
+                "50.0" : 2.8698294069019467E8,
+                "90.0" : 2.885103048506451E8,
+                "95.0" : 2.885103048506451E8,
+                "99.0" : 2.885103048506451E8,
+                "99.9" : 2.885103048506451E8,
+                "99.99" : 2.885103048506451E8,
+                "99.999" : 2.885103048506451E8,
+                "99.9999" : 2.885103048506451E8,
+                "100.0" : 2.885103048506451E8
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    2.8646246366225934E8,
+                    2.8698294069019467E8,
+                    2.885103048506451E8
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.TableBenchmark.arrayTableTranspose",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 22481.72888999979,
+            "scoreError" : 1914.6310037322314,
+            "scoreConfidence" : [
+                20567.09788626756,
+                24396.359893732024
+            ],
+            "scorePercentiles" : {
+                "0.0" : 22360.57835856699,
+                "50.0" : 22539.882303660517,
+                "90.0" : 22544.726007771867,
+                "95.0" : 22544.726007771867,
+                "99.0" : 22544.726007771867,
+                "99.9" : 22544.726007771867,
+                "99.99" : 22544.726007771867,
+                "99.999" : 22544.726007771867,
+                "99.9999" : 22544.726007771867,
+                "100.0" : 22544.726007771867
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    22539.882303660517,
+                    22544.726007771867,
+                    22360.57835856699
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.TableBenchmark.flatMatrix",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 2.0167673160313097E8,
+            "scoreError" : 4.779319991551879E7,
+            "scoreConfidence" : [
+                1.5388353168761218E8,
+                2.4946993151864976E8
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.9875016080436033E8,
+                "50.0" : 2.0247725764088136E8,
+                "90.0" : 2.0380277636415115E8,
+                "95.0" : 2.0380277636415115E8,
+                "99.0" : 2.0380277636415115E8,
+                "99.9" : 2.0380277636415115E8,
+                "99.99" : 2.0380277636415115E8,
+                "99.999" : 2.0380277636415115E8,
+                "99.9999" : 2.0380277636415115E8,
+                "100.0" : 2.0380277636415115E8
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    2.0380277636415115E8,
+                    2.0247725764088136E8,
+                    1.9875016080436033E8
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.TableBenchmark.hashTable",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 3.517122387278605E7,
+            "scoreError" : 2.2696412095080737E7,
+            "scoreConfidence" : [
+                1.2474811777705316E7,
+                5.786763596786679E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 3.384199835657355E7,
+                "50.0" : 3.536406107203399E7,
+                "90.0" : 3.630761218975063E7,
+                "95.0" : 3.630761218975063E7,
+                "99.0" : 3.630761218975063E7,
+                "99.9" : 3.630761218975063E7,
+                "99.99" : 3.630761218975063E7,
+                "99.999" : 3.630761218975063E7,
+                "99.9999" : 3.630761218975063E7,
+                "100.0" : 3.630761218975063E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    3.384199835657355E7,
+                    3.536406107203399E7,
+                    3.630761218975063E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.TableBenchmark.hashTableColumn",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 5295481.594780669,
+            "scoreError" : 579621.554373186,
+            "scoreConfidence" : [
+                4715860.040407483,
+                5875103.149153855
+            ],
+            "scorePercentiles" : {
+                "0.0" : 5260689.626665641,
+                "50.0" : 5302801.0467788875,
+                "90.0" : 5322954.110897478,
+                "95.0" : 5322954.110897478,
+                "99.0" : 5322954.110897478,
+                "99.9" : 5322954.110897478,
+                "99.99" : 5322954.110897478,
+                "99.999" : 5322954.110897478,
+                "99.9999" : 5322954.110897478,
+                "100.0" : 5322954.110897478
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    5260689.626665641,
+                    5322954.110897478,
+                    5302801.0467788875
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.TableBenchmark.hashTableRow",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 2.941847281824829E8,
+            "scoreError" : 2.2209374349342525E7,
+            "scoreConfidence" : [
+                2.719753538331404E8,
+                3.163941025318254E8
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2.927792625376732E8,
+                "50.0" : 2.948652960653532E8,
+                "90.0" : 2.949096259444222E8,
+                "95.0" : 2.949096259444222E8,
+                "99.0" : 2.949096259444222E8,
+                "99.9" : 2.949096259444222E8,
+                "99.99" : 2.949096259444222E8,
+                "99.999" : 2.949096259444222E8,
+                "99.9999" : 2.949096259444222E8,
+                "100.0" : 2.949096259444222E8
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    2.948652960653532E8,
+                    2.949096259444222E8,
+                    2.927792625376732E8
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.TableBenchmark.hashTableTranspose",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 12004.902508614352,
+            "scoreError" : 1916.048145113398,
+            "scoreConfidence" : [
+                10088.854363500954,
+                13920.95065372775
+            ],
+            "scorePercentiles" : {
+                "0.0" : 11914.844083288495,
+                "50.0" : 11979.594148520735,
+                "90.0" : 12120.269294033826,
+                "95.0" : 12120.269294033826,
+                "99.0" : 12120.269294033826,
+                "99.9" : 12120.269294033826,
+                "99.99" : 12120.269294033826,
+                "99.999" : 12120.269294033826,
+                "99.9999" : 12120.269294033826,
+                "100.0" : 12120.269294033826
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    12120.269294033826,
+                    11979.594148520735,
+                    11914.844083288495
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.TableBenchmark.nestedMap",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 5.134386321701393E7,
+            "scoreError" : 1.939426247311219E7,
+            "scoreConfidence" : [
+                3.1949600743901744E7,
+                7.073812569012612E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 5.0246720361063406E7,
+                "50.0" : 5.141565870822202E7,
+                "90.0" : 5.23692105817564E7,
+                "95.0" : 5.23692105817564E7,
+                "99.0" : 5.23692105817564E7,
+                "99.9" : 5.23692105817564E7,
+                "99.99" : 5.23692105817564E7,
+                "99.999" : 5.23692105817564E7,
+                "99.9999" : 5.23692105817564E7,
+                "100.0" : 5.23692105817564E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    5.0246720361063406E7,
+                    5.23692105817564E7,
+                    5.141565870822202E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.TableBenchmark.treeTable",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 1.10412855611436E7,
+            "scoreError" : 5139660.498976803,
+            "scoreConfidence" : [
+                5901625.062166796,
+                1.6180946060120404E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.0770027990456497E7,
+                "50.0" : 1.1021409172672443E7,
+                "90.0" : 1.1332419520301858E7,
+                "95.0" : 1.1332419520301858E7,
+                "99.0" : 1.1332419520301858E7,
+                "99.9" : 1.1332419520301858E7,
+                "99.99" : 1.1332419520301858E7,
+                "99.999" : 1.1332419520301858E7,
+                "99.9999" : 1.1332419520301858E7,
+                "100.0" : 1.1332419520301858E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    1.0770027990456497E7,
+                    1.1332419520301858E7,
+                    1.1021409172672443E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.TableBenchmark.treeTableColumn",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 1363073.7963524915,
+            "scoreError" : 122982.36548033166,
+            "scoreConfidence" : [
+                1240091.4308721598,
+                1486056.1618328232
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1357873.28194952,
+                "50.0" : 1360658.2658833012,
+                "90.0" : 1370689.8412246534,
+                "95.0" : 1370689.8412246534,
+                "99.0" : 1370689.8412246534,
+                "99.9" : 1370689.8412246534,
+                "99.99" : 1370689.8412246534,
+                "99.999" : 1370689.8412246534,
+                "99.9999" : 1370689.8412246534,
+                "100.0" : 1370689.8412246534
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    1360658.2658833012,
+                    1370689.8412246534,
+                    1357873.28194952
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.TableBenchmark.treeTableRow",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 6.2017685734942466E7,
+            "scoreError" : 7886191.448117508,
+            "scoreConfidence" : [
+                5.413149428682496E7,
+                6.990387718305998E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 6.1527984638487734E7,
+                "50.0" : 6.217886483369964E7,
+                "90.0" : 6.2346207732640035E7,
+                "95.0" : 6.2346207732640035E7,
+                "99.0" : 6.2346207732640035E7,
+                "99.9" : 6.2346207732640035E7,
+                "99.99" : 6.2346207732640035E7,
+                "99.999" : 6.2346207732640035E7,
+                "99.9999" : 6.2346207732640035E7,
+                "100.0" : 6.2346207732640035E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    6.2346207732640035E7,
+                    6.217886483369964E7,
+                    6.1527984638487734E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.TableBenchmark.treeTableTranspose",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-Dcorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/counter.corpus.json",
+            "-DmultimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/multimap.corpus.json",
+            "-DbimapCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/bimap.corpus.json",
+            "-DtableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/table.corpus.json",
+            "-DevictingQueueCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/evicting_queue.corpus.json",
+            "-DminMaxCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/min_max_pq.corpus.json",
+            "-DimmutableCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/immutable.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 4252.051810104951,
+            "scoreError" : 1236.7561927919655,
+            "scoreConfidence" : [
+                3015.2956173129855,
+                5488.808002896916
+            ],
+            "scorePercentiles" : {
+                "0.0" : 4175.8273027045425,
+                "50.0" : 4274.738169009584,
+                "90.0" : 4305.589958600726,
+                "95.0" : 4305.589958600726,
+                "99.0" : 4305.589958600726,
+                "99.9" : 4305.589958600726,
+                "99.99" : 4305.589958600726,
+                "99.999" : 4305.589958600726,
+                "99.9999" : 4305.589958600726,
+                "100.0" : 4305.589958600726
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    4305.589958600726,
+                    4175.8273027045425,
+                    4274.738169009584
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    }
+]
+
+

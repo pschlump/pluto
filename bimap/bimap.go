@@ -90,6 +90,36 @@ func naturalFunctions[T comparable]() (func(T, T) bool, func(T) uint64) {
 	}
 }
 
+// KeyEq and KeyHash return the forward key functions, or nil for a zero value.
+func (m *HashBiMap[K, V]) KeyEq() func(K, K) bool {
+	if m == nil || m.direction == nil {
+		return nil
+	}
+	return m.direction.keyEq
+}
+
+func (m *HashBiMap[K, V]) KeyHash() func(K) uint64 {
+	if m == nil || m.direction == nil {
+		return nil
+	}
+	return m.direction.keyHash
+}
+
+// ValueEq and ValueHash return the reverse key functions, or nil for a zero value.
+func (m *HashBiMap[K, V]) ValueEq() func(V, V) bool {
+	if m == nil || m.direction == nil {
+		return nil
+	}
+	return m.direction.valueEq
+}
+
+func (m *HashBiMap[K, V]) ValueHash() func(V) uint64 {
+	if m == nil || m.direction == nil {
+		return nil
+	}
+	return m.direction.valueHash
+}
+
 func (m *HashBiMap[K, V]) writeContract(caller string) {
 	if m == nil || m.direction == nil {
 		panic(fmt.Sprintf("bimap: %s on a nil or zero-value HashBiMap; use a constructor", caller))

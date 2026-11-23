@@ -75,7 +75,27 @@ func newSetMultimap[K any, V any](keyEq func(K, K) bool, keyHash func(K) uint64,
 			}
 			return result
 		},
-	})}
+	}, valueEq)}
+}
+
+// KeyEq, KeyHash, and ValueEq expose the stored functions for snapshots.
+func (m *SetMultimap[K, V]) KeyEq() func(K, K) bool {
+	if m == nil {
+		return nil
+	}
+	return m.core.eq
+}
+func (m *SetMultimap[K, V]) KeyHash() func(K) uint64 {
+	if m == nil {
+		return nil
+	}
+	return m.core.hash
+}
+func (m *SetMultimap[K, V]) ValueEq() func(V, V) bool {
+	if m == nil {
+		return nil
+	}
+	return m.core.valueEq
 }
 
 // Put adds a unique association and reports whether it was new.

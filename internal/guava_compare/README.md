@@ -19,7 +19,10 @@ matched ArrayTable streams use indexed `set(null)` and never query its size
 afterward. Phase 1e adds zero/one/general-capacity evicting-queue oracles,
 bounded and unbounded min-max oracles, ring/deque and min-max/two-heap/normal-heap
 workloads, and results in `docs/benchmarks/evicting_queue/` and
-`docs/benchmarks/min_max_pq/`.
+`docs/benchmarks/min_max_pq/`. Phase 2 adds a nine-family immutable oracle and
+matched construction/copy/lookup/iteration/subrange workloads, with results in
+`docs/benchmarks/immutable/`. JOL retained-footprint output is written separately
+as `results/immutable-memory.json`; Go retained-memory benchmarks are opt-in.
 
 ## Run
 

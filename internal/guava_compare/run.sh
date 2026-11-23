@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 cd "$ROOT"
 
-for tool in go java git cmp tee; do
+for tool in go java jar git cmp tee; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     printf 'guava-bench: required tool %q was not found in PATH\n' "$tool" >&2
     exit 1
@@ -48,8 +48,12 @@ EVICTING_QUEUE_TRACE=evicting_queue/testdata/evicting_queue.trace.json
 EVICTING_QUEUE_CORPUS=internal/guava_compare/testdata/evicting_queue.corpus.json
 MIN_MAX_TRACE=min_max_pq/testdata/min_max_pq.trace.json
 MIN_MAX_CORPUS=internal/guava_compare/testdata/min_max_pq.corpus.json
+IMMUTABLE_TRACE=immutable/testdata/immutable.trace.json
+IMMUTABLE_CORPUS=internal/guava_compare/testdata/immutable.corpus.json
 POM=internal/guava_compare/java/pom.xml
 JAR=internal/guava_compare/java/target/guava-compare-1.0.0-SNAPSHOT.jar
+JOL_JAR=${JOL_JAR:-"$HOME/.m2/repository/org/openjdk/jol/jol-core/0.17/jol-core-0.17.jar"}
+JOL_AGENT=internal/guava_compare/java/target/jol-agent.jar
 mkdir -p "$RESULTS"
 
 printf '%s\n' 'Compiling the pinned Guava source and comparison drivers...'
@@ -76,15 +80,26 @@ cmp "$RESULTS/evicting-queue-oracle.json" evicting_queue/testdata/evicting_queue
 java -cp "$JAR" com.pschlump.pluto.guava.MinMaxPriorityQueueOracle \
   "$MIN_MAX_TRACE" "$RESULTS/min-max-oracle.json"
 cmp "$RESULTS/min-max-oracle.json" min_max_pq/testdata/min_max_pq.golden.json
+java -cp "$JAR" com.pschlump.pluto.guava.ImmutableOracle \
+  "$IMMUTABLE_TRACE" "$RESULTS/immutable-oracle.json"
+cmp "$RESULTS/immutable-oracle.json" immutable/testdata/immutable.golden.json
 printf '%s\n' 'Go and Java oracle results match the committed goldens.'
 
-go test ./internal/guava_compare ./multiset ./multimap ./bimap ./table ./evicting_queue ./min_max_pq -run '^$' \
-  -bench '^(BenchmarkCounter|BenchmarkHashMultiset|BenchmarkTreeMultiset|BenchmarkMapMultiset|BenchmarkListMultimap|BenchmarkSetMultimap|BenchmarkSortedSetMultimap|BenchmarkListMap|BenchmarkSetMap|BenchmarkHashBiMap|BenchmarkMapBiMap|BenchmarkBiMapInverseIteration|BenchmarkHashTable|BenchmarkTreeTable|BenchmarkNestedMap|BenchmarkArrayTable|BenchmarkFlatMatrix|BenchmarkHashTableRow|BenchmarkHashTableColumn|BenchmarkTreeTableRow|BenchmarkTreeTableColumn|BenchmarkArrayTableRow|BenchmarkArrayTableColumn|BenchmarkHashTableTranspose|BenchmarkTreeTableTranspose|BenchmarkArrayTableTranspose|BenchmarkEvictingQueue|BenchmarkDQueueEviction|BenchmarkEvictingQueueIteration|BenchmarkDQueueIteration|BenchmarkMinMaxPriorityQueue|BenchmarkBoundedMinMaxPriorityQueue|BenchmarkTwoHeap|BenchmarkMinMaxOneEnd|BenchmarkPriorityQueue)$' \
+go test ./internal/guava_compare ./multiset ./multimap ./bimap ./table ./evicting_queue ./min_max_pq ./immutable -run '^$' \
+  -bench '^(BenchmarkCounter|BenchmarkHashMultiset|BenchmarkTreeMultiset|BenchmarkMapMultiset|BenchmarkListMultimap|BenchmarkSetMultimap|BenchmarkSortedSetMultimap|BenchmarkListMap|BenchmarkSetMap|BenchmarkHashBiMap|BenchmarkMapBiMap|BenchmarkBiMapInverseIteration|BenchmarkHashTable|BenchmarkTreeTable|BenchmarkNestedMap|BenchmarkArrayTable|BenchmarkFlatMatrix|BenchmarkHashTableRow|BenchmarkHashTableColumn|BenchmarkTreeTableRow|BenchmarkTreeTableColumn|BenchmarkArrayTableRow|BenchmarkArrayTableColumn|BenchmarkHashTableTranspose|BenchmarkTreeTableTranspose|BenchmarkArrayTableTranspose|BenchmarkEvictingQueue|BenchmarkDQueueEviction|BenchmarkEvictingQueueIteration|BenchmarkDQueueIteration|BenchmarkMinMaxPriorityQueue|BenchmarkBoundedMinMaxPriorityQueue|BenchmarkTwoHeap|BenchmarkMinMaxOneEnd|BenchmarkPriorityQueue|BenchmarkImmutable.*)$' \
   -benchmem -benchtime=1s -count=3 | tee "$RESULTS/go-bench.txt"
-java -Dcorpus="$ROOT/$CORPUS" -DmultimapCorpus="$ROOT/$MULTIMAP_CORPUS" -DbimapCorpus="$ROOT/$BIMAP_CORPUS" -DtableCorpus="$ROOT/$TABLE_CORPUS" -DevictingQueueCorpus="$ROOT/$EVICTING_QUEUE_CORPUS" -DminMaxCorpus="$ROOT/$MIN_MAX_CORPUS" -jar "$JAR" \
-  'CounterBenchmark|MultisetBenchmark|MultimapBenchmark|BimapBenchmark|TableBenchmark|EvictingQueueBenchmark|MinMaxPriorityQueueBenchmark' -rf json -rff "$ROOT/$RESULTS/jmh.json"
+java -Dcorpus="$ROOT/$CORPUS" -DmultimapCorpus="$ROOT/$MULTIMAP_CORPUS" -DbimapCorpus="$ROOT/$BIMAP_CORPUS" -DtableCorpus="$ROOT/$TABLE_CORPUS" -DevictingQueueCorpus="$ROOT/$EVICTING_QUEUE_CORPUS" -DminMaxCorpus="$ROOT/$MIN_MAX_CORPUS" -DimmutableCorpus="$ROOT/$IMMUTABLE_CORPUS" -jar "$JAR" \
+  'CounterBenchmark|MultisetBenchmark|MultimapBenchmark|BimapBenchmark|TableBenchmark|EvictingQueueBenchmark|MinMaxPriorityQueueBenchmark|ImmutableBenchmark' -rf json -rff "$ROOT/$RESULTS/jmh.json"
 
 go run ./internal/guava_compare/cmd/guava-compare normalize \
   -go "$RESULTS/go-bench.txt" -jmh "$RESULTS/jmh.json" \
   -output "$RESULTS/normalized.json"
+if [[ ! -f "$JOL_JAR" ]]; then
+  printf 'guava-bench: JOL jar not found at %s; set JOL_JAR to its path\n' "$JOL_JAR" >&2
+  exit 1
+fi
+cp "$JOL_JAR" "$JOL_AGENT"
+jar --update --file "$JOL_AGENT" --manifest internal/guava_compare/java/jol-agent.mf
+java -Djol.skipHotspotSAAttach=true -javaagent:"$JOL_AGENT" -cp "$JAR" com.pschlump.pluto.guava.ImmutableMemory \
+  "$IMMUTABLE_CORPUS" "$RESULTS/immutable-memory.json"
 printf 'Raw and normalized results are in %s\n' "$RESULTS"
