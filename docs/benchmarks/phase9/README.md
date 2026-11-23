@@ -7,14 +7,18 @@ Go ran three 1-second measurements. JMH ran two 1-second warmups and three
 multiset/multimap corpora as Phases 1a/1b. Interning uses 10,000 strings with
 50% existing and 50% new canonical values.
 
-| Workload | Pluto/Go | Guava/Java or baseline |
-|---|---:|---:|
-| Strong intern hit/miss | 27.79–27.90 ns; 16 B, 1 alloc | Guava: 40,341,748 ops/s ± 4,192,691 |
-| Map+RWMutex baseline | 18.54–18.71 ns; 16 B, 1 alloc | Go baseline, not Java |
-| Linked map put/get | 41.35–41.65 ns; 0 B, 0 allocs | LinkedHashMap: 132,527,419 ops/s ± 34,457,924 |
-| Linked multiset operation | 63.62–63.94 ns; 4 B, 0 allocs | Guava: 64,822,847 ops/s ± 31,189,604 |
-| Linked list multimap operation | 16.905–17.079 µs; 2,646 B, 0 allocs | Guava: 69,169 ops/s ± 246,284 |
-| Linked hash multimap operation | 130.2–132.1 ns; 60 B, 0 allocs | Guava: 33,931,813 ops/s ± 2,424,405 |
+All comparison rates use operations/second (K=thousand, M=million,
+G=billion). Go ranges are reciprocal conversions of measured latency,
+slowest to fastest; JMH rates are reported directly.
+
+| Workload                       | Pluto/Go                                | Guava/Java or baseline                        |
+|--------------------------------|----------------------------------------:|----------------------------------------------:|
+| Strong intern hit/miss         | 35.842–35.984M ops/s; 16 B, 1 alloc     | Guava: 40,341,748 ops/s ± 4,192,691           |
+| Map+RWMutex baseline           | 53.447–53.937M ops/s; 16 B, 1 alloc     | Go baseline, not Java                         |
+| Linked map put/get             | 24.010–24.184M ops/s; 0 B, 0 allocs     | LinkedHashMap: 132,527,419 ops/s ± 34,457,924 |
+| Linked multiset operation      | 15.640–15.718M ops/s; 4 B, 0 allocs     | Guava: 64,822,847 ops/s ± 31,189,604          |
+| Linked list multimap operation | 58.551–59.154K ops/s; 2,646 B, 0 allocs | Guava: 69,169 ops/s ± 246,284                 |
+| Linked hash multimap operation | 7.570–7.680M ops/s; 60 B, 0 allocs      | Guava: 33,931,813 ops/s ± 2,424,405           |
 
 Zero allocs/op is the rounded steady-state average; allocated bytes come from
 occasional growth. The persistent list workload accumulates duplicates and long

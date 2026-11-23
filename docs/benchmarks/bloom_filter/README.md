@@ -6,13 +6,17 @@ measurements; JMH 1.37 ran two 1-second warmups and three 1-second measurements,
 one fork/thread. Values are UTF-8 `value-%04d` strings. Put creates a 100,000-entry
 shape and inserts 1,000 values per operation. Other filters contain 1,000 values.
 
-| Workload | Pluto Go | Guava JMH |
-|---|---:|---:|
-| Create + 1,000 puts | 85.00–85.67 µs; 314945 B, 7002 allocs | 14.808K ops/s ± 1.007K |
-| Membership hit | 71.92–72.73 ns; 192 B, 7 allocs | 19.088M ops/s ± 4.206M |
-| Membership miss | 77.83–79.47 ns; 192 B, 7 allocs | 16.739M ops/s ± 2.535M |
-| Copy + merge | 206.5–207.7 ns; 1280 B, 1 alloc | 1.026M ops/s ± 0.092M |
-| Guava compact serialization | 1.015–1.030 µs; 4096 B, 9 allocs | 1.074M ops/s ± 0.105M |
+All comparison rates use operations/second (K=thousand, M=million,
+G=billion). Go ranges are reciprocal conversions of measured latency,
+slowest to fastest; JMH rates are reported directly.
+
+| Workload                    | Pluto Go                                    | Guava JMH              |
+|-----------------------------|--------------------------------------------:|-----------------------:|
+| Create + 1,000 puts         | 11.673–11.765K ops/s; 314945 B, 7002 allocs | 14.808K ops/s ± 1.007K |
+| Membership hit              | 13.749–13.904M ops/s; 192 B, 7 allocs       | 19.088M ops/s ± 4.206M |
+| Membership miss             | 12.583–12.849M ops/s; 192 B, 7 allocs       | 16.739M ops/s ± 2.535M |
+| Copy + merge                | 4.815–4.843M ops/s; 1280 B, 1 alloc         | 1.026M ops/s ± 0.092M  |
+| Guava compact serialization | 970.874–985.222K ops/s; 4096 B, 9 allocs    | 1.074M ops/s ± 0.105M  |
 
 The differential fixture is 1,000 insertions at design FPP 0.03. Every bit and
 compact-stream byte matches Guava. A separate 10,000-member/10,000-disjoint-

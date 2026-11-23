@@ -6,12 +6,16 @@ deterministic double values. Quantile workloads request percentiles
 0,10,...,100 together. Go ran three 1-second measurements; JMH 1.37 ran two
 1-second warmups and three 1-second measurements, one fork/thread.
 
-| Workload | Pluto Go | Guava JMH |
-|---|---:|---:|
-| Online accumulator | 67.07–67.45 µs; 0 allocs | 24,349.163 ops/s ± 18,173.246 |
-| Paired accumulator + Pearson | 89.74–90.42 µs; 0 allocs | 15,467.886 ops/s ± 3,387.031 |
-| Eleven quantiles, one selection pass | 345.5–352.8 µs; 82,384 B, 5 allocs | 18,263.465 ops/s ± 6,886.860 |
-| Eleven quantiles, full-sort baseline | 135.7–140.9 µs; 82,016 B, 2 allocs | 10,406.276 ops/s ± 2,440.566 |
+All comparison rates use operations/second (K=thousand, M=million,
+G=billion). Go ranges are reciprocal conversions of measured latency,
+slowest to fastest; JMH rates are reported directly.
+
+| Workload                             | Pluto Go                               | Guava JMH                     |
+|--------------------------------------|---------------------------------------:|------------------------------:|
+| Online accumulator                   | 14.826–14.910K ops/s; 0 allocs         | 24,349.163 ops/s ± 18,173.246 |
+| Paired accumulator + Pearson         | 11.060–11.143K ops/s; 0 allocs         | 15,467.886 ops/s ± 3,387.031  |
+| Eleven quantiles, one selection pass | 2.834–2.894K ops/s; 82,384 B, 5 allocs | 18,263.465 ops/s ± 6,886.860  |
+| Eleven quantiles, full-sort baseline | 7.097–7.369K ops/s; 82,016 B, 2 allocs | 10,406.276 ops/s ± 2,440.566  |
 
 For this random 10,000-value workload, the full-sort baseline was faster than
 Pluto's guaranteed-pivot selection while using slightly less storage. The

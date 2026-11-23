@@ -6,12 +6,16 @@ Guava commit `36e3995499d6c3b74b1207d362fa9e19915d2589`. Each workload uses
 1-second measurements. JMH 1.37 ran two 1-second warmups and three 1-second
 measurements, one fork/thread.
 
-| Workload | Pluto/Go | Guava/Java |
-|---|---:|---:|
-| Stable sorted copy | 835.0–843.4 µs; 81,920 B, 1 alloc | 1,971.834 ops/s ± 208.328 |
-| Least 32 | 31.10–31.50 µs; 336 B, 4 allocs | 45,074.272 ops/s ± 2,211.602 |
-| Greatest 32 | 37.55–37.77 µs; 360 B, 5 allocs | 46,628.871 ops/s ± 1,368.965 |
-| Full-sort baseline | 162.9–169.8 µs; 81,920 B, 1 alloc | 7,860.844 ops/s ± 4,965.949 |
+All comparison rates use operations/second (K=thousand, M=million,
+G=billion). Go ranges are reciprocal conversions of measured latency,
+slowest to fastest; JMH rates are reported directly.
+
+| Workload           | Pluto/Go                              | Guava/Java                   |
+|--------------------|--------------------------------------:|-----------------------------:|
+| Stable sorted copy | 1.186–1.198K ops/s; 81,920 B, 1 alloc | 1,971.834 ops/s ± 208.328    |
+| Least 32           | 31.746–32.154K ops/s; 336 B, 4 allocs | 45,074.272 ops/s ± 2,211.602 |
+| Greatest 32        | 26.476–26.631K ops/s; 360 B, 5 allocs | 46,628.871 ops/s ± 1,368.965 |
+| Full-sort baseline | 5.889–6.139K ops/s; 81,920 B, 1 alloc | 7,860.844 ops/s ± 4,965.949  |
 
 The baseline is Go `slices.Sort` on an `[]int` copy versus Java `Arrays.sort` on
 an `int[]` copy, so its primitive representation differs from the boxed generic

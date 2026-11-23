@@ -7,18 +7,22 @@ OpenJDK 11.0.28. Guava source commit:
 The matched workload uses the committed 10,000-operation corpus, seed 1729,
 4096 distinct string keys, and 45% add / 25% remove / 20% count / 10% setCount.
 Go ran three 1-second measurements with `testing.B`; JMH 1.37 ran two 1-second
-warmups and three 1-second measurements, one fork and one thread. Throughput,
-latency, allocations, and memory are separate measurements. No cross-runtime
+warmups and three 1-second measurements, one fork and one thread. Allocations
+and memory remain separate from the normalized comparison rates. No cross-runtime
 speed ratio is inferred from these numbers.
 
-| Implementation     | Runtime | Result                                 |
-|--------------------|---------|---------------------------------------:|
-| Pluto HashMultiset | Go      | 45.40–46.82 ns/op; 0 B/op, 0 allocs/op |
-| Pluto TreeMultiset | Go      | 204.3–205.7 ns/op; 4 B/op, 0 allocs/op |
-| Go map model       | Go      | 26.78–27.18 ns/op; 0 B/op, 0 allocs/op |
-| Guava HashMultiset | JMH     | 67.886M ops/s ± 7.739M                 |
-| Guava TreeMultiset | JMH     | 6.075M ops/s ± 1.529M                  |
-| Java HashMap model | JMH     | 52.867M ops/s ± 8.256M                 |
+All comparison rates use operations/second (K=thousand, M=million,
+G=billion). Go ranges are reciprocal conversions of measured latency,
+slowest to fastest; JMH rates are reported directly.
+
+| Implementation     | Runtime | Result                                    |
+|--------------------|---------|------------------------------------------:|
+| Pluto HashMultiset | Go      | 21.358–22.026M ops/s; 0 B/op, 0 allocs/op |
+| Pluto TreeMultiset | Go      | 4.861–4.895M ops/s; 4 B/op, 0 allocs/op   |
+| Go map model       | Go      | 36.792–37.341M ops/s; 0 B/op, 0 allocs/op |
+| Guava HashMultiset | JMH     | 67.886M ops/s ± 7.739M                    |
+| Guava TreeMultiset | JMH     | 6.075M ops/s ± 1.529M                     |
+| Java HashMap model | JMH     | 52.867M ops/s ± 8.256M                    |
 
 The additional Go workloads use 4096 keys for hit/miss Count, 1024 distinct keys
 for entry/occurrence iteration and algebra, and 4096 distinct keys for retained

@@ -6,13 +6,17 @@ measurements; JMH 1.37 ran two 1-second warmups and three 1-second measurements,
 one fork/thread. Inputs are fixed non-trivial signed 64-bit boundaries; the
 prime is `2^63-25`.
 
-| Workload | Pluto Go | Guava JMH |
-|---|---:|---:|
-| Half-even divide | 3.984–4.015 ns; 0 allocs | 782.434M ops/s ± 76.631M |
-| Half-even log10 | 83.47–84.13 ns; 160 B, 5 allocs | 426.631M ops/s ± 15.926M |
-| Half-even sqrt | 2.402–2.467 ns; 0 allocs | 783.048M ops/s ± 28.969M |
-| Deterministic primality | 43.63–44.12 µs; 0 allocs | 8,749.352 ops/s ± 581.679 |
-| Binomial(30,15) | 258.7–259.5 ns; 56 B, 2 allocs | 782.063M ops/s ± 88.575M |
+All comparison rates use operations/second (K=thousand, M=million,
+G=billion). Go ranges are reciprocal conversions of measured latency,
+slowest to fastest; JMH rates are reported directly.
+
+| Workload                | Pluto Go                              | Guava JMH                 |
+|-------------------------|--------------------------------------:|--------------------------:|
+| Half-even divide        | 249.066–251.004M ops/s; 0 allocs      | 782.434M ops/s ± 76.631M  |
+| Half-even log10         | 11.886–11.980M ops/s; 160 B, 5 allocs | 426.631M ops/s ± 15.926M  |
+| Half-even sqrt          | 405.351–416.320M ops/s; 0 allocs      | 783.048M ops/s ± 28.969M  |
+| Deterministic primality | 22.665–22.920K ops/s; 0 allocs        | 8,749.352 ops/s ± 581.679 |
+| Binomial(30,15)         | 3.854–3.865M ops/s; 56 B, 2 allocs    | 782.063M ops/s ± 88.575M  |
 
 The exact-midpoint log10 implementation deliberately allocates big-integer
 storage. Guava uses algorithm-specific tables and the JVM may optimize fixed
