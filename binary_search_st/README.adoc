@@ -120,3 +120,9 @@ read-mostly tables, or as the classic teaching shape it is.
   JSON, and nil/zero-value behavior are Pluto additions.  The central
   sorted-arrays representation and O(log n) reads/O(n) shifting writes
   are unchanged.
+
+
+== Phase 3 navigation
+
+`Lower`/`Higher` add strict O(log₂ n) neighboring-entry lookup. `RangeOf`
+accepts open/closed/unbounded ranges with O(log₂ n + m) iteration.

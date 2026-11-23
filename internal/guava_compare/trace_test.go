@@ -103,4 +103,11 @@ func TestGeneratedFilesAreDeterministic(t *testing.T) {
 	if generated := GenerateImmutableCorpus(immutableCorpus.Seed, immutableCorpus.Size); !reflect.DeepEqual(generated, immutableCorpus) {
 		t.Fatal("committed immutable corpus differs from deterministic generator")
 	}
+	rangeCorpus, err := ReadRangeCorpus(filepath.Join("testdata", "range.corpus.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if generated := GenerateRangeCorpus(rangeCorpus.Seed, len(rangeCorpus.Operations), rangeCorpus.Capacity); !reflect.DeepEqual(generated, rangeCorpus) {
+		t.Fatal("committed range corpus differs from deterministic generator")
+	}
 }

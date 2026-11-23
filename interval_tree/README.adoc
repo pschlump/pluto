@@ -212,3 +212,9 @@ pluto's differences, per house convention:
   `Stab` is the classic stabbing query the algs4 exercise asks for.
 * `searchAll` yields a queue in the algs4 version; pluto's `Overlaps` is
   a range-over-func iterator in ascending (Lo, Hi) order.
+
+
+== General-range adapter
+
+`IntervalFromRange`, `InsertRange`, and `OverlapsRange` accept only closed bounded
+`ranges.Range` values; open or unbounded inputs return ErrUnsupportedRange.

@@ -1,0 +1,10 @@
+= range_map / range_map_ts
+
+Ordered mutable maps from disjoint ranges to values. Put replaces overlaps and
+preserves exact left/right fragments; Remove splits similarly. Adjacent equal
+values are deliberately not coalesced. Includes Get, RangeContaining,
+SubRangeMap, ordered entries, clone, and function-based equality. Optional
+discrete domains use canonical ranges. Derived maps are snapshots.
+
+`range_map_ts` supplies atomic writes, snapshot entries/submaps, and non-nested
+equality locks through an RWMutex. Immutable conversions live in `immutable`.

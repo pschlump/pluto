@@ -77,6 +77,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/pschlump/pluto/ranges"
 	"github.com/pschlump/pluto/tree_set"
 )
 
@@ -881,32 +882,20 @@ func (t *TreeSet[T]) Backward() iter.Seq[T] {
 // ascending sequence; lo > hi iterates as empty.  Like All it yields a
 // snapshot taken under the read lock — the bounds and the elements are
 // captured atomically, and the set may be mutated while it is consumed.
-// The bounds comparisons use the set's comparison function; as in the
-// plain package the walk starts at the smallest element and stops once
-// past hi (O(n) worst case, not skip_list's positioned descent).
-// Complexity is O(n).
+// The bounds comparisons use the set's comparison function. Only the m
+// matching values are snapshotted after a positioned AVL descent.
+// Complexity is O(log₂ n + m), where m is the number of results.
 func (t *TreeSet[T]) Range(lo, hi T) iter.Seq[T] {
-	return func(yield func(T) bool) {
-		if t == nil {
-			return
-		}
-		t.lock.RLock()
-		compare, snapshot := t.cmp, t.inner.Slice()
-		t.lock.RUnlock()
-		if compare == nil || compare(lo, hi) > 0 {
-			return
-		}
-		for _, v := range snapshot {
-			if compare(v, hi) > 0 {
-				return // past hi: nothing later can be in range
-			}
-			if compare(v, lo) >= 0 {
-				if !yield(v) {
-					return
-				}
-			}
-		}
+	if t == nil {
+		return func(func(T) bool) {}
 	}
+	t.lock.RLock()
+	compare := t.cmp
+	t.lock.RUnlock()
+	if compare == nil || compare(lo, hi) > 0 {
+		return func(func(T) bool) {}
+	}
+	return t.RangeOf(ranges.ClosedFunc(compare, lo, hi))
 }
 
 // WalkInOrder visits every element in ascending order; returning false

@@ -1,0 +1,7 @@
+= map_util
+
+UniqueIndex builds an immutable map from values and a key function, rejecting
+duplicates; a Func form supports custom key equality/hash. Difference and
+DifferenceFunc partition two Go maps into common, differing, left-only, and
+right-only entries. The Func form accepts non-comparable values. Results are
+fresh mutable maps. No `_ts` twin is needed for these stateless functions.

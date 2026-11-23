@@ -96,3 +96,11 @@ small consistent win; misses and `Floor` similar).  Writes are the
 cost: a random-position `Put`+`Delete` pair ~810 ns vs ~360 ns for the
 skip_list pair, and the shift grows linearly with n.  Read-mostly
 tables, or the teaching shape — the README says so.
+
+
+## Phase 3 range additions
+
+`Lower`/`Higher` return strict neighboring entries in O(log n). `RangeOf` accepts
+open/closed/unbounded ranges and uses binary-searched array spans in
+O(log n + results). Existing inclusive Range and mutation APIs are unchanged;
+the `_ts` form returns a snapshot.

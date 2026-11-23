@@ -1,0 +1,12 @@
+= ranges
+
+Immutable open/closed/unbounded ranges with natural and custom comparators.
+Constructors cover Open, Closed, ClosedOpen, OpenClosed, one-sided ranges, and
+All. Bounds are explicit; Contains, Encloses, IsConnected, Intersection, Span,
+and emptiness follow Guava endpoint rules. Reversed endpoints and public `(a,a)`
+construction panic, while intersection can represent empty `(a,a)` internally.
+
+Checked signed/unsigned DiscreteDomain values detect successor, predecessor, and
+distance overflow. Canonical uses discrete closed-open form. ContiguousSet is
+lazy and supports finite-domain extrema, exact size/rank, membership, and early-
+stoppable iteration without materializing the set. No `_ts` twin is needed.

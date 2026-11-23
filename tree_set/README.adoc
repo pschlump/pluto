@@ -37,7 +37,7 @@ on pkg.go.dev.
 | `Floor` / `Ceil`                                                 | Largest element ≤ key / smallest ≥ key             | O(log₂ n)
 | `DeleteAtHead` / `DeleteAtTail`                                  | Remove the smallest / largest element              | O(log₂ n)
 | `Index`                                                          | Return the pos-th element, ascending (0-based)     | O(n)
-| `Range`                                                          | Iterate lo ≤ x ≤ hi, ascending, inclusive          | O(n)
+| `Range` / `RangeOf`                                               | Iterate closed bounds / general ranges, ascending  | O(log₂ n + m)
 | `IsEmpty` / `Len` / `Length`                                     | Size queries                                       | O(1)
 | `Truncate`                                                       | Remove all elements (keeps the comparator)         | O(1)
 | `InsertSlice` / `InsertIter`                                     | Batch insert (slice / range-over-func)             | O(k·log₂ n)
@@ -123,10 +123,10 @@ constructor over the same element type always satisfy it).
 * `All()` / `Backward()` — range-over-func iterators (Go 1.23+),
   ascending / descending.
 * `Range(lo, hi)` — the bounded form, inclusive on both ends, `lo > hi`
-  iterates as empty.  It is an `iter.Seq[T]` (a set element carries no
-  index/rank) and walks from the smallest element, stopping once past
-  `hi` — O(n) worst case, not skip_list's O(log₂ n + m) positioned
-  descent; that is the documented price of the avl facade reuse.
+  iterates as empty. `RangeOf` accepts open/closed/unbounded ranges. Both use a
+  positioned AVL descent in O(log₂ n + m), and `Lower`/`Higher` add strict
+  O(log₂ n) navigation. Non-destructive `UnionOf`/`IntersectionOf`/
+  `DifferenceOf`/`SymmetricDifferenceOf` constructors complement destination algebra.
 * `WalkInOrder` / `WalkPreOrder` / `WalkPostOrder` — callback walks
   (position, depth, data); returning `false` stops the walk.
 

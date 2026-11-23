@@ -171,3 +171,9 @@ func main() {
 }
 ----
 
+
+
+== Phase 3 navigation
+
+`Lower`/`Higher` add strict navigation. `RangeOf` supports general ranges and
+returns a snapshot containing only matching values.

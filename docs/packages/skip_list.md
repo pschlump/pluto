@@ -6,3 +6,11 @@
 
 The phase-2 set-convenience capabilities live in `capabilities.go`: `Contains`/`ContainsSlice`/`ContainsAny`, `InsertSlice`/`InsertIter`/`DeleteSlice`/`DeleteFunc`, `Slice`/`String`/`StringFunc`/`Equal`/`Clone`. The shared `insertContractCheck(caller)` + `insertAll` pair carries the insert panic contract to the batch inserters (panic only when a batch would store; empty batch tolerated); the messages say "nil list", mirroring `Insert`. `Slice` walks the level-0 lane directly (ascending, no sorting; nil/never-filled list → nil, drained list → empty slice); `All` is `iter.Seq[T]` here, so `InsertIter` takes another list's `All()` directly and self-feeding via `self.All()` is safe (drained first). `Equal` is Len + one-way Search (membership, never tower layout). **`Clone` is re-insertion, not a structural copy** — fresh tower heights drawn from the global RNG, so never compare a clone's `level`/`Dump` against the receiver's; the clone test instead cross-checks `AtIndex`/`Rank` (the spans must be real) plus independent mutation. `DeleteFunc` is collect-then-delete; batch mutators return "receiver changed"; read side total over nil/zero-value. Tests use the generic `checkCapLevel0` (level-0 ascending + count == Length) plus the typed `checkInvariant` on `TestSkipListNode` paths — tower heights are RNG-drawn and never asserted (`TestCapabilitiesDeleteFuncMassDelete` also re-verifies `Rank` positions after the bulk delete).
 
+
+
+## Phase 3 range additions
+
+`Lower` and `Higher` provide strict expected-O(log n) navigation. `RangeOf`
+accepts open/closed/unbounded ranges, preserves global result ranks, and runs in
+expected O(log n + results). Existing inclusive Range/RangeBackward behavior is
+unchanged. The `_ts` form returns a matching snapshot.

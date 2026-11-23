@@ -467,3 +467,68 @@ func ReadImmutableCorpus(path string) (ImmutableCorpus, error) {
 func WriteImmutableCorpus(path string, corpus ImmutableCorpus) error {
 	return writeJSON(path, corpus, true)
 }
+
+const (
+	RangeBenchmarkCapacity          = 4096
+	RangeBenchmarkInputDistribution = "4096 endpoint universe; 50% add/put, 20% remove, 30% point query; mixed uniform/clustered ranges"
+)
+
+type RangeOperation struct {
+	Op    string `json:"op"`
+	Low   int    `json:"low"`
+	High  int    `json:"high"`
+	Point int    `json:"point"`
+	Value string `json:"value,omitempty"`
+}
+
+type RangeCorpus struct {
+	Version           int              `json:"version"`
+	Seed              int64            `json:"seed"`
+	Capacity          int              `json:"capacity"`
+	InputDistribution string           `json:"inputDistribution"`
+	Operations        []RangeOperation `json:"operations"`
+}
+
+func GenerateRangeCorpus(seed int64, operationCount, capacity int) RangeCorpus {
+	random := rand.New(rand.NewSource(seed))
+	operations := make([]RangeOperation, operationCount)
+	for index := range operations {
+		low := random.Intn(capacity)
+		if index%3 == 0 {
+			low = capacity/2 + random.Intn(65) - 32
+		}
+		operation := RangeOperation{Low: low, High: low + random.Intn(16) + 1, Value: fmt.Sprintf("value-%04d", index)}
+		operation.Point = operation.Low + random.Intn(operation.High-operation.Low)
+		choice := random.Intn(100)
+		switch {
+		case choice < 50:
+			operation.Op = "add"
+		case choice < 70:
+			operation.Op = "remove"
+		default:
+			operation.Op = "query"
+		}
+		operations[index] = operation
+	}
+	return RangeCorpus{Version: TraceVersion, Seed: seed, Capacity: capacity, InputDistribution: RangeBenchmarkInputDistribution, Operations: operations}
+}
+
+func ReadRangeCorpus(path string) (RangeCorpus, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return RangeCorpus{}, err
+	}
+	defer func() { _ = file.Close() }()
+	var corpus RangeCorpus
+	decoder := json.NewDecoder(file)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&corpus); err != nil {
+		return RangeCorpus{}, err
+	}
+	if err := ensureEOF(decoder); err != nil {
+		return RangeCorpus{}, err
+	}
+	return corpus, nil
+}
+
+func WriteRangeCorpus(path string, corpus RangeCorpus) error { return writeJSON(path, corpus, true) }

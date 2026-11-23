@@ -1,0 +1,36 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/range_set
+cpu: Apple M4 Max
+BenchmarkRangeSet-14             	  497055	      2249 ns/op	    5241 B/op	       1 allocs/op
+BenchmarkRangeSet-14             	  539265	      2258 ns/op	    5242 B/op	       1 allocs/op
+BenchmarkRangeSet-14             	  539958	      2244 ns/op	    5242 B/op	       1 allocs/op
+BenchmarkRangeSetIteration-14    	  651574	      1877 ns/op	   18432 B/op	       1 allocs/op
+BenchmarkRangeSetIteration-14    	  668295	      1910 ns/op	   18432 B/op	       1 allocs/op
+BenchmarkRangeSetIteration-14    	  636686	      1938 ns/op	   18432 B/op	       1 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/range_set	7.548s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/range_map
+cpu: Apple M4 Max
+BenchmarkRangeMap-14             	  112947	     12091 ns/op	   26508 B/op	       2 allocs/op
+BenchmarkRangeMap-14             	  112989	     12151 ns/op	   26509 B/op	       2 allocs/op
+BenchmarkRangeMap-14             	  111577	     12247 ns/op	   26497 B/op	       2 allocs/op
+BenchmarkRangeMapIteration-14    	  511111	      2384 ns/op	   27264 B/op	       1 allocs/op
+BenchmarkRangeMapIteration-14    	  510625	      2413 ns/op	   27264 B/op	       1 allocs/op
+BenchmarkRangeMapIteration-14    	  518992	      2418 ns/op	   27264 B/op	       1 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/range_map	8.289s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/tree_set
+cpu: Apple M4 Max
+BenchmarkTreeSetRangePositioned-14    	 6899959	       170.8 ns/op	     280 B/op	       5 allocs/op
+BenchmarkTreeSetRangePositioned-14    	 7030298	       169.4 ns/op	     280 B/op	       5 allocs/op
+BenchmarkTreeSetRangePositioned-14    	 6909375	       172.7 ns/op	     280 B/op	       5 allocs/op
+BenchmarkTreeSetRangeFiltered-14      	  413050	      2941 ns/op	      24 B/op	       2 allocs/op
+BenchmarkTreeSetRangeFiltered-14      	  409059	      2946 ns/op	      24 B/op	       2 allocs/op
+BenchmarkTreeSetRangeFiltered-14      	  412704	      2957 ns/op	      24 B/op	       2 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/tree_set	7.336s

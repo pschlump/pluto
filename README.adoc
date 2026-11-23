@@ -59,7 +59,15 @@ with an identical public API.
 | link:evicting_queue_ts/[evicting_queue_ts] | Thread-safe evicting queue (RWMutex, atomic bulk writes, snapshot iterators).
 | link:min_max_pq/[min_max_pq]               | Double-ended priority queue on a single-array min-max heap (optional bound, JSON).
 | link:min_max_pq_ts/[min_max_pq_ts]         | Thread-safe min-max priority queue (RWMutex, atomic batches, snapshot iterators).
-| link:immutable/[immutable]                 | Defensive immutable list/set/map, sorted, multiset/multimap/bimap/table snapshots (builders, JSON, concurrent reads).
+| link:immutable/[immutable]                 | Defensive immutable list/set/map, sorted, multiset/multimap/bimap/table/range snapshots (builders, JSON, concurrent reads).
+| link:ranges/[ranges]                       | Immutable open/closed/unbounded ranges, checked discrete domains, lazy contiguous sets.
+| link:range_set/[range_set]                 | Ordered disjoint range set (coalescing, exact removal, complement, discrete domains).
+| link:range_set_ts/[range_set_ts]           | Thread-safe range set (RWMutex, snapshot iterators/derived sets).
+| link:range_map/[range_map]                 | Ordered range/value map (exact put/remove splits, no equal-value coalescing).
+| link:range_map_ts/[range_map_ts]           | Thread-safe range map (RWMutex, snapshot entries/submaps).
+| link:set_view/[set_view]                   | Live lazy union/intersection/difference/symmetric-difference set views.
+| link:set_util/[set_util]                   | Lazy Cartesian-product and power-set iterators with early termination.
+| link:map_util/[map_util]                   | Immutable UniqueIndex and four-way map difference (custom value equality).
 | link:stack/[stack]                         | Generic slice-backed LIFO stack.
 | link:stack_ts/[stack_ts]                   | Thread-safe slice-backed LIFO stack (RWMutex, snapshot iterators).
 | link:stack_sll_ts/[stack_sll_ts]           | Thread-safe LIFO stack on a singly linked list (RWMutex, snapshot iterators).

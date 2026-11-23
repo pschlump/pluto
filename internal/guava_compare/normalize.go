@@ -128,6 +128,14 @@ func ParseGoBenchmark(reader io.Reader) ([]Metric, error) {
 			implementation = "go-two-heap"
 		case "priorityqueue":
 			implementation = "pluto-heap"
+		case "rangeset", "rangesetiteration":
+			implementation = "pluto-range-set"
+		case "rangemap", "rangemapiteration":
+			implementation = "pluto-range-map"
+		case "treesetrangepositioned":
+			implementation = "pluto-tree-set-positioned"
+		case "treesetrangefiltered":
+			implementation = "pluto-tree-set-filtered"
 		}
 		if strings.HasPrefix(benchmark, "hashtable") {
 			implementation = "pluto-hash-table"
@@ -259,6 +267,12 @@ func ParseJMHResults(reader io.Reader) ([]Metric, error) {
 			implementation = "java-two-heap"
 		case "priorityQueue":
 			implementation = "java-priority-queue"
+		case "rangeSet", "rangeSetIteration":
+			implementation = "guava-tree-range-set"
+		case "rangeMap", "rangeMapIteration":
+			implementation = "guava-tree-range-map"
+		case "treeSetRangePositioned":
+			implementation = "guava-tree-set-positioned"
 		}
 		if strings.HasPrefix(benchmark, "hashTable") {
 			implementation = "guava-hash-table"
@@ -319,6 +333,16 @@ func WriteNormalizedResults(path string, metadata ResultMetadata, metrics []Metr
 			metrics[index].Seed = BenchmarkSeed
 		case "minmaxoneend", "priorityqueue":
 			metrics[index].InputDistribution = MinMaxOneEndBenchmarkInputDistribution
+			metrics[index].Seed = BenchmarkSeed
+		}
+		if metrics[index].Benchmark == "rangeset" || metrics[index].Benchmark == "rangesetiteration" || metrics[index].Benchmark == "rangemap" || metrics[index].Benchmark == "rangemapiteration" {
+			metrics[index].Capacity = RangeBenchmarkCapacity
+			metrics[index].InputDistribution = RangeBenchmarkInputDistribution
+			metrics[index].Seed = BenchmarkSeed
+		}
+		if metrics[index].Benchmark == "treesetrangepositioned" || metrics[index].Benchmark == "treesetrangefiltered" {
+			metrics[index].Capacity = 4096
+			metrics[index].InputDistribution = "4096 ordered integers; closed range [1024,1035]"
 			metrics[index].Seed = BenchmarkSeed
 		}
 		if strings.HasPrefix(metrics[index].Benchmark, "immutable") {

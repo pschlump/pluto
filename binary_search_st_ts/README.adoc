@@ -110,3 +110,9 @@ Safe for concurrent use by multiple goroutines.  Run the package's tests
 with `-race` (`make race` from the repo root) — the battery includes
 concurrent producers against a snapshot-iterating reader and an exact
 head/tail drain accounting.
+
+
+== Phase 3 navigation
+
+`Lower`/`Higher` add strict navigation. `RangeOf` accepts general ranges and
+returns an entry snapshot.

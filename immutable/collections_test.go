@@ -18,6 +18,9 @@ import (
 	"github.com/pschlump/pluto/bimap"
 	"github.com/pschlump/pluto/multimap"
 	"github.com/pschlump/pluto/multiset"
+	"github.com/pschlump/pluto/range_map"
+	"github.com/pschlump/pluto/range_set"
+	"github.com/pschlump/pluto/ranges"
 	"github.com/pschlump/pluto/table"
 )
 
@@ -230,6 +233,37 @@ func TestFreezeBiMapAndTables(t *testing.T) {
 	_, _, _ = array.Put("a", "x", 1)
 	if got, found := FreezeArrayTable(array).Get("a", "x"); !found || got != 1 {
 		t.Fatal("array table snapshot")
+	}
+}
+
+func TestRangeImmutableSnapshots(t *testing.T) {
+	set := range_set.NewDiscreteRangeSet[int](ranges.SignedDomain[int]())
+	set.Add(ranges.Closed(1, 3))
+	set.Add(ranges.Closed(4, 5))
+	frozenSet := FreezeRangeSet(set)
+	set.Remove(ranges.Closed(2, 4))
+	if !frozenSet.Contains(2) || frozenSet.Len() != 1 || CopyOfRangeSet(frozenSet) != frozenSet {
+		t.Fatal("range set snapshot changed with source")
+	}
+	if got := frozenSet.SubRangeSet(ranges.Closed(2, 4)); !got.Contains(3) || got.Contains(1) {
+		t.Fatal("immutable subrange")
+	}
+	if complement := frozenSet.Complement(); complement.Contains(2) || !complement.Contains(0) {
+		t.Fatal("immutable complement")
+	}
+
+	mapped := range_map.NewRangeMap[int, string]()
+	mapped.Put(ranges.Closed(1, 5), "a")
+	frozenMap := FreezeRangeMap(mapped)
+	mapped.Put(ranges.Closed(2, 3), "b")
+	if value, found := frozenMap.Get(2); !found || value != "a" || CopyOfRangeMap(frozenMap) != frozenMap {
+		t.Fatal("range map snapshot changed with source")
+	}
+	if got := frozenMap.SubRangeMap(ranges.Closed(2, 3)); got.Len() != 1 {
+		t.Fatal("immutable range-map subrange")
+	}
+	if frozenMap.Equal(FreezeRangeMap(mapped.Clone()), func(a, b string) bool { return a == b }) {
+		t.Fatal("different range maps are equal")
 	}
 }
 

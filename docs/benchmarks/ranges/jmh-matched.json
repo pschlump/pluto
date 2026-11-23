@@ -1,0 +1,254 @@
+[
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.RangeCollectionBenchmark.rangeMap",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-DrangeCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/range.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 2891883.024934767,
+            "scoreError" : 307761.0606253656,
+            "scoreConfidence" : [
+                2584121.9643094013,
+                3199644.0855601323
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2881713.7289018575,
+                "50.0" : 2882579.6060245126,
+                "90.0" : 2911355.73987793,
+                "95.0" : 2911355.73987793,
+                "99.0" : 2911355.73987793,
+                "99.9" : 2911355.73987793,
+                "99.99" : 2911355.73987793,
+                "99.999" : 2911355.73987793,
+                "99.9999" : 2911355.73987793,
+                "100.0" : 2911355.73987793
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    2911355.73987793,
+                    2881713.7289018575,
+                    2882579.6060245126
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.RangeCollectionBenchmark.rangeMapIteration",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-DrangeCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/range.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 312869.13771488954,
+            "scoreError" : 11498.184997137638,
+            "scoreConfidence" : [
+                301370.9527177519,
+                324367.3227120272
+            ],
+            "scorePercentiles" : {
+                "0.0" : 312342.09314137563,
+                "50.0" : 312698.046933232,
+                "90.0" : 313567.273070061,
+                "95.0" : 313567.273070061,
+                "99.0" : 313567.273070061,
+                "99.9" : 313567.273070061,
+                "99.99" : 313567.273070061,
+                "99.999" : 313567.273070061,
+                "99.9999" : 313567.273070061,
+                "100.0" : 313567.273070061
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    312342.09314137563,
+                    312698.046933232,
+                    313567.273070061
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.RangeCollectionBenchmark.rangeSet",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-DrangeCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/range.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 4393685.662912977,
+            "scoreError" : 321344.4141115805,
+            "scoreConfidence" : [
+                4072341.248801396,
+                4715030.077024558
+            ],
+            "scorePercentiles" : {
+                "0.0" : 4378063.401363425,
+                "50.0" : 4390218.02133013,
+                "90.0" : 4412775.566045378,
+                "95.0" : 4412775.566045378,
+                "99.0" : 4412775.566045378,
+                "99.9" : 4412775.566045378,
+                "99.99" : 4412775.566045378,
+                "99.999" : 4412775.566045378,
+                "99.9999" : 4412775.566045378,
+                "100.0" : 4412775.566045378
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    4378063.401363425,
+                    4412775.566045378,
+                    4390218.02133013
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.RangeCollectionBenchmark.rangeSetIteration",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-DrangeCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/range.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 599122.143030587,
+            "scoreError" : 60371.27173642157,
+            "scoreConfidence" : [
+                538750.8712941654,
+                659493.4147670086
+            ],
+            "scorePercentiles" : {
+                "0.0" : 595923.3786142386,
+                "50.0" : 598911.4357348178,
+                "90.0" : 602531.6147427046,
+                "95.0" : 602531.6147427046,
+                "99.0" : 602531.6147427046,
+                "99.9" : 602531.6147427046,
+                "99.99" : 602531.6147427046,
+                "99.999" : 602531.6147427046,
+                "99.9999" : 602531.6147427046,
+                "100.0" : 602531.6147427046
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    602531.6147427046,
+                    595923.3786142386,
+                    598911.4357348178
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.37",
+        "benchmark" : "com.pschlump.pluto.guava.RangeCollectionBenchmark.treeSetRangePositioned",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/opt/homebrew/Cellar/openjdk@11/11.0.28/libexec/openjdk.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+            "-DrangeCorpus=/Users/philip/go/src/github.com/pschlump/pluto/internal/guava_compare/testdata/range.corpus.json"
+        ],
+        "jdkVersion" : "11.0.28",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.28+0",
+        "warmupIterations" : 2,
+        "warmupTime" : "1 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 3,
+        "measurementTime" : "1 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 1.8214252383713875E7,
+            "scoreError" : 2238980.9680897202,
+            "scoreConfidence" : [
+                1.5975271415624155E7,
+                2.0453233351803593E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.812596664455482E7,
+                "50.0" : 1.81623956840282E7,
+                "90.0" : 1.8354394822558608E7,
+                "95.0" : 1.8354394822558608E7,
+                "99.0" : 1.8354394822558608E7,
+                "99.9" : 1.8354394822558608E7,
+                "99.99" : 1.8354394822558608E7,
+                "99.999" : 1.8354394822558608E7,
+                "99.9999" : 1.8354394822558608E7,
+                "100.0" : 1.8354394822558608E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    1.81623956840282E7,
+                    1.8354394822558608E7,
+                    1.812596664455482E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    }
+]
+
+

@@ -51,6 +51,7 @@ func generate(arguments []string) error {
 	evictingQueueCorpusPath := flags.String("evicting-queue-corpus", "internal/guava_compare/testdata/evicting_queue.corpus.json", "evicting queue benchmark corpus output")
 	minMaxCorpusPath := flags.String("min-max-corpus", "internal/guava_compare/testdata/min_max_pq.corpus.json", "min-max queue benchmark corpus output")
 	immutableCorpusPath := flags.String("immutable-corpus", "internal/guava_compare/testdata/immutable.corpus.json", "immutable benchmark corpus output")
+	rangeCorpusPath := flags.String("range-corpus", "internal/guava_compare/testdata/range.corpus.json", "range benchmark corpus output")
 	seed := flags.Int64("seed", guava_compare.BenchmarkSeed, "random seed")
 	operations := flags.Int("operations", 68, "trace operation count")
 	corpusOperations := flags.Int("corpus-operations", guava_compare.BenchmarkCorpusSize, "benchmark operation count")
@@ -82,7 +83,10 @@ func generate(arguments []string) error {
 	if err := guava_compare.WriteMinMaxCorpus(*minMaxCorpusPath, guava_compare.GenerateMinMaxCorpus(*seed, *corpusOperations, guava_compare.MinMaxBenchmarkMaximumSize)); err != nil {
 		return err
 	}
-	return guava_compare.WriteImmutableCorpus(*immutableCorpusPath, guava_compare.GenerateImmutableCorpus(*seed, guava_compare.ImmutableBenchmarkSize))
+	if err := guava_compare.WriteImmutableCorpus(*immutableCorpusPath, guava_compare.GenerateImmutableCorpus(*seed, guava_compare.ImmutableBenchmarkSize)); err != nil {
+		return err
+	}
+	return guava_compare.WriteRangeCorpus(*rangeCorpusPath, guava_compare.GenerateRangeCorpus(*seed, *corpusOperations, guava_compare.RangeBenchmarkCapacity))
 }
 
 func oracle(arguments []string) error {

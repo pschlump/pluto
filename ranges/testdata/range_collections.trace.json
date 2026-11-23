@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "canonical": [
+    {"low": 1, "high": 5, "lowerOpen": true, "upperOpen": true},
+    {"low": 1, "high": 5, "lowerOpen": false, "upperOpen": true},
+    {"low": 1, "high": 5, "lowerOpen": true, "upperOpen": false},
+    {"low": 1, "high": 5, "lowerOpen": false, "upperOpen": false}
+  ],
+  "contiguous": [
+    {"low": 1, "high": 5, "lowerOpen": true, "upperOpen": false},
+    {"low": 2, "high": 5, "lowerOpen": false, "upperOpen": true}
+  ],
+  "setOperations": [
+    {"op": "add", "low": 1, "high": 3},
+    {"op": "add", "low": 3, "high": 5, "upperOpen": true},
+    {"op": "remove", "low": 1, "high": 3, "lowerOpen": true},
+    {"op": "size"},
+    {"op": "contains", "point": 1},
+    {"op": "contains", "point": 2},
+    {"op": "contains", "point": 3}
+  ],
+  "mapOperations": [
+    {"op": "put", "low": 1, "high": 10, "value": "a"},
+    {"op": "put", "low": 3, "high": 5, "value": "b"},
+    {"op": "get", "point": 2},
+    {"op": "get", "point": 3},
+    {"op": "get", "point": 5},
+    {"op": "remove", "low": 2, "high": 4, "lowerOpen": true},
+    {"op": "size"}
+  ]
+}

@@ -157,3 +157,9 @@ func main() {
 }
 ----
 
+
+
+== Phase 3 navigation
+
+`Lower`/`Higher` add strict navigation. `RangeOf` supports general ranges and
+returns matching rank/value snapshots.

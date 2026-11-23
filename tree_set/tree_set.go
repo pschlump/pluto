@@ -93,6 +93,8 @@ import (
 	"iter"
 	"strings"
 
+	"github.com/pschlump/pluto/ranges"
+
 	"github.com/pschlump/pluto/avl_tree"
 )
 
@@ -665,11 +667,9 @@ func (ts *TreeSet[T]) Backward() iter.Seq[T] {
 // while it is being consumed, and it supports early exit via break.
 //
 // The elements carry no index (a set has no ranks in iteration), so this
-// is an iter.Seq[T], not the iter.Seq2[int, T] of skip_list.Range; and
-// the walk starts at the smallest element, stopping once past hi —
-// O(n) worst case, not skip_list's O(log₂ n + m) positioned descent.
-// That is the documented price of the avl facade reuse.
-// Complexity is O(n).
+// is an iter.Seq[T], not the iter.Seq2[int, T] of skip_list.Range.
+// A positioned AVL descent avoids scanning values below lo.
+// Complexity is O(log₂ n + m), where m is the number of results.
 func (ts *TreeSet[T]) Range(lo, hi T) iter.Seq[T] {
 	if ts == nil || ts.cmp == nil {
 		return func(func(T) bool) {} // a nil or zero-value set iterates as an empty one
@@ -678,18 +678,7 @@ func (ts *TreeSet[T]) Range(lo, hi T) iter.Seq[T] {
 	if compare(lo, hi) > 0 {
 		return func(func(T) bool) {}
 	}
-	return func(yield func(T) bool) {
-		for v := range ts.inner.All() { // ascending
-			if compare(v, hi) > 0 {
-				return // past hi: nothing later can be in range
-			}
-			if compare(v, lo) >= 0 {
-				if !yield(v) {
-					return
-				}
-			}
-		}
-	}
+	return ts.RangeOf(ranges.ClosedFunc(compare, lo, hi))
 }
 
 // WalkInOrder visits every element in ascending order.  Returning false

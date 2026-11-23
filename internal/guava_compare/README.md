@@ -23,6 +23,8 @@ workloads, and results in `docs/benchmarks/evicting_queue/` and
 matched construction/copy/lookup/iteration/subrange workloads, with results in
 `docs/benchmarks/immutable/`. JOL retained-footprint output is written separately
 as `results/immutable-memory.json`; Go retained-memory benchmarks are opt-in.
+Phase 3 adds canonical-range/range-set/range-map differential traces and matched
+range/positioned-tree benchmarks, with results in `docs/benchmarks/ranges/`.
 
 ## Run
 

@@ -20,6 +20,8 @@ There is no `_ts` twin.
 - `BiMap`: unique keys and values with a coupled immutable Inverse.
 - `Table`: aliases the existing `table.ImmutableTable`; Freeze functions accept
   all three mutable table variants.
+- `RangeSet` and `RangeMap`: immutable Phase 3 range snapshots with queries,
+  complements/subranges, and retained discrete-domain behavior.
 
 Builders support incremental input followed by independent Build snapshots.
 Map and bimap duplicates return errors; set/sorted-set duplicates collapse, and

@@ -1,0 +1,5 @@
+= range_set_ts
+
+Thread-safe twin of `range_set`, using an RWMutex. Mutations are atomic and
+iterators, complements, subranges, clones, and equality use snapshots. See
+`range_set/README.adoc` and `docs/packages/range_set.md`.

@@ -6,3 +6,11 @@ The phase-2 set-convenience capabilities live in `capabilities.go`: `Contains`/`
 
 `avl_tree_ts` adds the `lock sync.RWMutex` and `nl*` lock-free internals to the same structure; its `snapshot()` returns both the in-order data and the tree's comparison function read under the read lock, which is how the set operations adopt a comparator without racing with concurrent adoption on the operand.
 
+
+
+## Phase 3 positioned ranges
+
+`Lower` and `Higher` add strict O(log n) navigation. `RangeOf` performs a
+positioned descent followed by an in-order stack walk in O(log n + results), with
+open/closed/unbounded bounds and early termination. The `_ts` implementation
+collects only matching values under the read lock before iteration.

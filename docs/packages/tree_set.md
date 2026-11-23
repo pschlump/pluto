@@ -153,3 +153,13 @@ because the invariant "built ⇔ cmp set" holds at the twin level too.
   mirror three-way over int keys with the same conclusion.
 - avl_tree's own note applies underneath: ties poison mirror oracles —
   the satellite-replacement tests here use distinct payloads.
+
+
+## Phase 3 range and algebra additions
+
+`Lower`/`Higher` provide strict O(log n) navigation. `RangeOf` accepts open,
+closed, and unbounded `ranges.Range` values. Existing inclusive `Range` is now a
+positioned AVL walk in O(log n + results), replacing the former full-prefix scan.
+`UnionOf`, `IntersectionOf`, `DifferenceOf`, and `SymmetricDifferenceOf` return
+independent results without mutating operands. The `_ts` twin snapshots only the
+matching range and retains the same API.

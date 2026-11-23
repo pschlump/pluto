@@ -69,6 +69,17 @@ func TestParseJMHUnavailableError(t *testing.T) {
 	}
 }
 
+func TestRangeImplementationLabels(t *testing.T) {
+	goMetrics, err := ParseGoBenchmark(strings.NewReader("BenchmarkRangeSet-8  100  10 ns/op\n"))
+	if err != nil || len(goMetrics) != 1 || goMetrics[0].Implementation != "pluto-range-set" {
+		t.Fatalf("unexpected range Go label: %+v, %v", goMetrics, err)
+	}
+	jmhMetrics, err := ParseJMHResults(strings.NewReader(`[{"benchmark":"com.example.RangeCollectionBenchmark.rangeMap","mode":"thrpt","threads":1,"primaryMetric":{"score":10,"scoreError":1,"scoreUnit":"ops/s"}}]`))
+	if err != nil || len(jmhMetrics) != 1 || jmhMetrics[0].Implementation != "guava-tree-range-map" {
+		t.Fatalf("unexpected range JMH label: %+v, %v", jmhMetrics, err)
+	}
+}
+
 func TestParseEmptyJMHResultsFails(t *testing.T) {
 	if _, err := ParseJMHResults(strings.NewReader("[]")); err == nil {
 		t.Fatal("empty JMH output must be rejected")

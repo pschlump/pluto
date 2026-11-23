@@ -211,3 +211,9 @@ tolerated everywhere.  Every other new method is a total function on the
 read side (`Slice` of nil is nil, `String` of nil is `[]`, `Equal` of nil
 is equality with an empty list, `DeleteFunc` on nil returns false).
 
+
+
+== Phase 3 navigation
+
+`Lower`/`Higher` add strict navigation. `RangeOf` accepts general ranges and
+preserves global result ranks with positioned expected-O(log₂ n + m) iteration.

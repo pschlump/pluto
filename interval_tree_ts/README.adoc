@@ -116,3 +116,9 @@ Safe for concurrent use: one `sync.RWMutex` guards every field.
 Reads (`Search`, `AnyOverlap`, `Min`/`Max`, the snapshot iterators)
 share the read lock; `Insert`/`Delete`/`Truncate` take the write lock.
 Run the test suite with `-race`.
+
+
+== General-range adapter
+
+`InsertRange` and `OverlapsRange` accept closed bounded ranges and reject other
+inputs with interval_tree.ErrUnsupportedRange.

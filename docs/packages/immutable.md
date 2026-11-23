@@ -22,8 +22,8 @@ list values in input order, including duplicates. `table.ImmutableTable` is
 reused as `immutable.Table`, with `FreezeHashTable`, `FreezeTreeTable`, and
 `FreezeArrayTable` conversions.
 
-Immutable RangeSet and RangeMap remain deferred until their mutable bases land in
-Phase 3.
+`immutable.RangeSet` and `immutable.RangeMap` freeze the Phase 3 mutable bases,
+retain discrete-domain behavior, and support safe concurrent reads.
 
 ## Types and complexity
 
@@ -49,7 +49,7 @@ was an ordered tree snapshot. Min/max APIs on sorted values use comparator order
 
 ## JSON
 
-All new immutable values marshal as JSON arrays. Lists, sets, and sorted sets use
+List/set/map/sorted/multiset/multimap/bimap/table values marshal as JSON arrays. Lists, sets, and sorted sets use
 element arrays; maps, multimaps, and bimaps use lowercase `key`/`value` entries;
 multisets use `value`/`count` entries; tables retain the existing cell format.
 Iteration order is deterministic for each implementation.

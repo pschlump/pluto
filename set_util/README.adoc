@@ -1,0 +1,7 @@
+= set_util
+
+Lazy Cartesian-product and power-set iterators over slices. Each yielded tuple
+or subset is a fresh slice. Cartesian uses odometer order and supports arbitrary
+dimension counts; PowerSet uses binary inclusion order. Both stop immediately on
+consumer termination. Output is multiplicative/exponential by definition. This
+is a stateless algorithm package with no `_ts` twin.

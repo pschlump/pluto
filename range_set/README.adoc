@@ -1,0 +1,10 @@
+= range_set / range_set_ts
+
+Ordered mutable sets of disjoint ranges. Add coalesces connected ranges; empty
+ranges are no-ops; Remove splits exact boundaries. Optional discrete domains
+canonicalize before merging integer-successor ranges. Queries include Contains,
+RangeContaining, Encloses, Span, Complement, SubRangeSet, ordered iteration,
+clone, and equality. Derived sets are snapshots, not live views.
+
+`range_set_ts` wraps the same contract with an RWMutex, atomic writes, snapshot
+iterators/derived values, and opposite-way equality without nested locks.

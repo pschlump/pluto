@@ -192,3 +192,9 @@ tolerated everywhere.  Every other new method is a total function on the
 read side (`Slice` of nil is nil, `String` of nil is `[]`, `Equal` of nil
 is equality with an empty tree, `DeleteFunc` on nil returns false).
 
+
+
+== Phase 3 navigation
+
+`Lower`/`Higher` provide strict O(log₂ n) navigation. `RangeOf` accepts general
+`ranges.Range` values and iterates in O(log₂ n + m), where m is the result count.

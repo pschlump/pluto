@@ -1,0 +1,5 @@
+= range_map_ts
+
+Thread-safe twin of `range_map`, using an RWMutex. Mutations are atomic and
+entries, submaps, clones, and equality use snapshots. See
+`range_map/README.adoc` and `docs/packages/range_map.md`.

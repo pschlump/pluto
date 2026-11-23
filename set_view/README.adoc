@@ -1,0 +1,7 @@
+= set_view
+
+Live lazy read-only union, intersection, difference, and symmetric-difference
+views over Pluto plain or thread-safe sets. Contains and All implement algebra
+through operand membership; no auxiliary set is allocated. Duplicate values are
+suppressed, early termination propagates, and later operand mutations are visible.
+There is no mutation API or separate `_ts` twin.
