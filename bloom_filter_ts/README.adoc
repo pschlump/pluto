@@ -1,0 +1,7 @@
+= bloom_filter_ts
+
+Thread-safe twin of bloom_filter. One RWMutex guards the generic Murmur3 Bloom
+filter; the API includes Put/MightContain, copy, compatibility, atomic validated
+merge, load/FPP/count queries, and both Pluto PBF1 and Guava compact codecs.
+Merge snapshots operands under their own locks before taking the destination
+lock, so opposite-direction merges do not deadlock. Run tests with -race.

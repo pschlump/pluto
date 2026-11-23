@@ -282,6 +282,46 @@ func (b *Bloom) HashCount() int {
 	return b.inner.HashCount()
 }
 
+// ExpectedFPP returns Saturation()^HashCount() under the read lock.
+func (b *Bloom) ExpectedFPP() float64 {
+	if b == nil {
+		return 0
+	}
+	b.lock.RLock()
+	defer b.lock.RUnlock()
+	return b.inner.ExpectedFPP()
+}
+
+// Compatible reports whether other has the same shape and frozen strategy.
+// Both operands are read one at a time; no nested locks are acquired.
+func (b *Bloom) Compatible(other *Bloom) bool {
+	var leftBits, rightBits uint64
+	var leftHashes, rightHashes int
+	if b != nil {
+		b.lock.RLock()
+		leftBits, leftHashes = b.inner.BitCount(), b.inner.HashCount()
+		b.lock.RUnlock()
+	}
+	if other != nil {
+		other.lock.RLock()
+		rightBits, rightHashes = other.inner.BitCount(), other.inner.HashCount()
+		other.lock.RUnlock()
+	}
+	return leftBits == rightBits && leftHashes == rightHashes
+}
+
+// NlExpectedFPP is the no-lock ExpectedFPP for use while holding Lock.
+func (b *Bloom) NlExpectedFPP() float64 { return b.inner.ExpectedFPP() }
+
+// NlCompatible is the no-lock Compatible for use while holding Lock. The other
+// filter must be quiet because its lock is not acquired.
+func (b *Bloom) NlCompatible(other *Bloom) bool {
+	if other == nil {
+		return b.inner.Compatible(nil)
+	}
+	return b.inner.Compatible(other.inner)
+}
+
 // Bytes returns the serialized form (the plain package's 24-byte header
 // plus bit words) taken under the read lock, a fresh copy owned by the
 // caller.  A nil or zero-value Bloom returns nil — unlike the

@@ -1,0 +1,24 @@
+= bloom_filter
+
+Generic Bloom filters encoded by hashing.Funnel[T] and Guava's Murmur3-128
+64-bit double-hashing strategy. This is a separate strategy and wire format
+from the frozen byte-slice filter in package bloom.
+
+- New sizes from expected distinct insertions and target FPP. NewWithBits takes
+  an explicit shape; storage and probe arithmetic round up to whole uint64 words,
+  exactly as Guava's LockFreeBitArray does.
+- Put and MightContain provide one-sided membership. Copy/Clone are independent.
+  Merge validates every shape before mutation. Compatible checks shape and
+  strategy; callers must ensure funnels are semantically identical because Go
+  cannot compare function behavior.
+- Saturation, ExpectedFPP and Count/ApproximateElementCount expose load and
+  estimates. Full saturation gives ExpectedFPP 1 and Count bitSize.
+- Bytes/WriteTo and FromBytes/ReadFrom use Pluto's versioned PBF1 little-endian
+  stream. WriteGuavaTo, ReadGuavaFrom and FromGuavaBytes explicitly support
+  Guava's compact big-endian Murmur3 encoding. Never decode bloom.Bytes with
+  these functions.
+- bloom_filter_ts is the RWMutex twin. It snapshots merge operands one at a time
+  and takes no caller locks while running a funnel beyond its own filter lock.
+
+Tests compare every bit and compact stream byte against Guava, measure FPP over
+disjoint non-members, exercise serialization corruption, and run race tests.

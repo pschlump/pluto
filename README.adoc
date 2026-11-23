@@ -69,6 +69,7 @@ with an identical public API.
 | link:set_util/[set_util]                   | Lazy Cartesian-product and power-set iterators with early termination.
 | link:map_util/[map_util]                   | Immutable UniqueIndex and four-way map difference (custom value equality).
 | link:cache/[cache]                         | Concurrent loading/expiring/refreshing cache (single-flight, LRU size/weight, listeners, stats).
+| link:hashing/[hashing]                     | Immutable endian-explicit hashes, typed funnels, Guava-compatible Murmur3/SipHash/FarmHash/Fingerprint2011, checksums, and jump hashing.
 | link:stack/[stack]                         | Generic slice-backed LIFO stack.
 | link:stack_ts/[stack_ts]                   | Thread-safe slice-backed LIFO stack (RWMutex, snapshot iterators).
 | link:stack_sll_ts/[stack_sll_ts]           | Thread-safe LIFO stack on a singly linked list (RWMutex, snapshot iterators).
@@ -163,6 +164,8 @@ with an identical public API.
 | link:hyperloglog/[hyperloglog]             | HyperLogLog cardinality estimator, dense 6-bit registers (Redis PFADD/PFCOUNT/PFMERGE behavior; LinearCounting + Ertl estimator, ~0.8% error).
 | link:hyperloglog_ts/[hyperloglog_ts]       | Thread-safe HyperLogLog (RWMutex, snapshot merging, Lock+Nl* compound ops).
 | link:bloom/[bloom]                         | Classic Bloom filter (Bloom 1970): fixed-shape membership sketch, one-sided error, Kirsch–Mitzenmacher probes from a frozen MurmurHash2/SuperFastHash pair; optimal sizing from (n, p).
+| link:bloom_filter/[bloom_filter]           | Generic funnel-based Guava-compatible Murmur3 Bloom filter (merge, FPP/count, versioned and Guava streams).
+| link:bloom_filter_ts/[bloom_filter_ts]     | Thread-safe generic Bloom filter (RWMutex, snapshot merges).
 | link:bloom_ts/[bloom_ts]                   | Thread-safe Bloom filter (RWMutex, snapshot merging, Lock+Nl* compound ops).
 | link:lfu/[lfu]                             | LFU frequency counters for eviction (8-bit Morris counter + 16-bit minute clock per key, Redis allkeys-lfu/OBJECT FREQ semantics; on hash_grow).
 | link:lfu_ts/[lfu_ts]                       | Thread-safe LFU frequency counters (RWMutex, Lock+Nl* compound ops).
@@ -674,6 +677,26 @@ lock, `Merge` snapshots operands under their own read locks before
 taking the destination's write lock (no nested locks, so opposite-way
 merges cannot deadlock), plus the real `Lock`/`Unlock` and `Nl*`
 methods for atomic add-batch-then-count compounds.
+
+== Hashing — `hashing/`
+
+`hashing` provides immutable `HashCode` bytes with explicit endianness, streaming
+primitive writes and generic `Funnel[T]` encoders. Murmur3-32/128, SipHash-2-4,
+FarmHashFingerprint64, and Fingerprint2011 are byte-compatible with Guava;
+CRC32/CRC32C/Adler32 and MD5/SHA wrappers cover standard-library interoperability.
+Ordered/unordered combination and jump-consistent hashing include fixed Guava
+vectors and minimal-remapping tests. Hash functions and immutable codes are safe
+for concurrent use; individual hashers are not. MD5/SHA-1 are not recommended
+for new secure designs.
+
+== Generic Bloom Filter — `bloom_filter/`, `bloom_filter_ts/`
+
+The generic Bloom filter uses a typed funnel and Guava's Murmur3-128 strategy.
+It supports put/membership, copy, validated merge, compatibility, expected FPP,
+approximate count, a versioned Pluto stream, and explicit Guava compact codecs.
+Its bit arrays and Guava streams are covered by byte-exact differential vectors.
+The `_ts` twin uses an RWMutex and snapshot merges. This package is deliberately
+separate from the frozen hashes and encoding in `bloom`.
 
 == Bloom Filter — `bloom/`, `bloom_ts/`
 

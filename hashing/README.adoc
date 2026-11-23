@@ -1,0 +1,21 @@
+= hashing
+
+Immutable, endian-explicit hash codes; streaming primitive writes; typed funnels;
+Guava-compatible Murmur3-32/128, SipHash-2-4, FarmHashFingerprint64 and
+Fingerprint2011; CRC32/CRC32C/Adler32 and MD5/SHA wrappers; ordered/unordered
+combining and jump-consistent hashing.
+
+- NewHashCode defensively copies input. Bytes returns a copy; AsUint32/AsUint64
+  use the declared order and PadToUint64 zero-extends short codes.
+- HashFunction.NewHasher accepts byte, string, signed/unsigned integer and float
+  writes. Primitive integers are little-endian. Hash results match direct calls
+  for every chunk boundary. The current general hasher buffers its input until
+  Hash; HashBytes avoids that buffer.
+- Funnel[T] is a function over PrimitiveSink. Add lengths or delimiters when
+  concatenated fields would otherwise be ambiguous.
+- MD5 and SHA-1 are interoperability algorithms, not secure new designs. None
+  of these APIs is a password hash.
+- CombineOrdered/CombineUnordered and ConsistentHash match Guava. ConsistentHash
+  requires a positive bucket count and minimally remaps when buckets are added.
+
+Guava golden vectors are committed in testdata; ordinary tests do not run Java.

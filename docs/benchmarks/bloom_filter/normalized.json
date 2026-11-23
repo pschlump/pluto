@@ -1,0 +1,1314 @@
+{
+  "metadata": {
+    "schemaVersion": 1,
+    "recordedAt": "2026-11-23T03:42:40Z",
+    "machine": "bellacoula.local",
+    "os": "darwin",
+    "architecture": "arm64",
+    "goVersion": "go version go1.27.0 darwin/arm64",
+    "jdkVersion": "openjdk version \"11.0.28\" 2025-07-15",
+    "guavaCommit": "36e3995499d6c3b74b1207d362fa9e19915d2589",
+    "jmhSettings": "throughput; 2x1s warmup; 3x1s measurement; 1 fork; 1 thread",
+    "capacity": 4096,
+    "inputDistribution": "uniform keys; 45% add, 25% remove, 20% count, 10% setCount",
+    "seed": 1729
+  },
+  "metrics": [
+    {
+      "benchmark": "bloomfilterhit",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 19088194.56442798,
+      "unit": "ops/s",
+      "error": 4206439.0007924
+    },
+    {
+      "benchmark": "bloomfiltermerge",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 1280,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "bloomfiltermerge",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 1280,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "bloomfiltermerge",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 1280,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "bloomfiltermerge",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "bloomfiltermerge",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "bloomfiltermerge",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "bloomfiltermerge",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 207.6,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "bloomfiltermerge",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 207.7,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "bloomfiltermerge",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 206.5,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "bloomfiltermerge",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 1026255.9504689424,
+      "unit": "ops/s",
+      "error": 92158.73817456994
+    },
+    {
+      "benchmark": "bloomfiltermightcontain/hit",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 192,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "bloomfiltermightcontain/hit",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 192,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "bloomfiltermightcontain/hit",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 192,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "bloomfiltermightcontain/hit",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 7,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "bloomfiltermightcontain/hit",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 7,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "bloomfiltermightcontain/hit",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 7,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "bloomfiltermightcontain/hit",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 71.92,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "bloomfiltermightcontain/hit",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 72.14,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "bloomfiltermightcontain/hit",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 72.73,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "bloomfiltermightcontain/miss",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 192,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "bloomfiltermightcontain/miss",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 192,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "bloomfiltermightcontain/miss",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 192,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "bloomfiltermightcontain/miss",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 7,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "bloomfiltermightcontain/miss",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 7,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "bloomfiltermightcontain/miss",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 7,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "bloomfiltermightcontain/miss",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 79.47,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "bloomfiltermightcontain/miss",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 78.9,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "bloomfiltermightcontain/miss",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 77.83,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "bloomfiltermiss",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 16739143.782551555,
+      "unit": "ops/s",
+      "error": 2535329.5334276296
+    },
+    {
+      "benchmark": "bloomfilterput",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 314945,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "bloomfilterput",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 314944,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "bloomfilterput",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 314945,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "bloomfilterput",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 7002,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "bloomfilterput",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 7002,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "bloomfilterput",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 7002,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "bloomfilterput",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 85666,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "bloomfilterput",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 85591,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "bloomfilterput",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 85003,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "bloomfilterput",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 14807.732148786019,
+      "unit": "ops/s",
+      "error": 1006.5945820337032
+    },
+    {
+      "benchmark": "bloomfilterserialization",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 4096,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "bloomfilterserialization",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 4096,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "bloomfilterserialization",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 4096,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "bloomfilterserialization",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 9,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "bloomfilterserialization",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 9,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "bloomfilterserialization",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 9,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "bloomfilterserialization",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 1015,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "bloomfilterserialization",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 1030,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "bloomfilterserialization",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 1027,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "bloomfilterserialization",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 1074234.3241857723,
+      "unit": "ops/s",
+      "error": 105008.06196114904
+    },
+    {
+      "benchmark": "consistenthash",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "consistenthash",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "consistenthash",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "consistenthash",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "consistenthash",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "consistenthash",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "consistenthash",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 18.99,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "consistenthash",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 18.92,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "consistenthash",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 18.92,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "consistenthash1024",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 44874902.88737752,
+      "unit": "ops/s",
+      "error": 2954686.5998779484
+    },
+    {
+      "benchmark": "farmhashfingerprint64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 8,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "farmhashfingerprint64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 8,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "farmhashfingerprint64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 8,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "farmhashfingerprint64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "farmhashfingerprint64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "farmhashfingerprint64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "farmhashfingerprint64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 60.56,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "farmhashfingerprint64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 60.43,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "farmhashfingerprint64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 60.73,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "farmhashfingerprint64_1024",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 18456962.7371046,
+      "unit": "ops/s",
+      "error": 549155.5693779807
+    },
+    {
+      "benchmark": "fingerprint2011",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 8,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "fingerprint2011",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 8,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "fingerprint2011",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 8,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "fingerprint2011",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "fingerprint2011",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "fingerprint2011",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "fingerprint2011",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 58.58,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "fingerprint2011",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 58.3,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "fingerprint2011",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 58.5,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "fingerprint2011_1024",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 17348705.92411885,
+      "unit": "ops/s",
+      "error": 905622.0366174919
+    },
+    {
+      "benchmark": "murmur3_128/1024",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 16,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_128/1024",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 16,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_128/1024",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 16,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_128/1024",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_128/1024",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_128/1024",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_128/1024",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 116.2,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_128/1024",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 116.2,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_128/1024",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 116,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_128/16",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 16,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_128/16",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 16,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_128/16",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 16,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_128/16",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_128/16",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_128/16",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_128/16",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 13.13,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_128/16",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 12.95,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_128/16",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 13.15,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_128/64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 16,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_128/64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 16,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_128/64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 16,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_128/64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_128/64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_128/64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_128/64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 16.55,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_128/64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 16.24,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_128/64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 16.27,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_128_1024",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 3588113.834084541,
+      "unit": "ops/s",
+      "error": 2478864.7821899345
+    },
+    {
+      "benchmark": "murmur3_128_16",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 81305446.35876042,
+      "unit": "ops/s",
+      "error": 13984528.08476338
+    },
+    {
+      "benchmark": "murmur3_128_64",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 23680715.16798841,
+      "unit": "ops/s",
+      "error": 821504.7366503163
+    },
+    {
+      "benchmark": "murmur3_128_stream1",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 557666.172551408,
+      "unit": "ops/s",
+      "error": 397991.0187405612
+    },
+    {
+      "benchmark": "murmur3_128_stream64",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 1968469.5140888803,
+      "unit": "ops/s",
+      "error": 554348.70908544
+    },
+    {
+      "benchmark": "murmur3_128_stream7",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 839346.005986946,
+      "unit": "ops/s",
+      "error": 4655647.406384859
+    },
+    {
+      "benchmark": "murmur3_128streaming/1",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 3384,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/1",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 3384,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/1",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 3384,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/1",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 11,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/1",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 11,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/1",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 11,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/1",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 4335,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/1",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 4349,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/1",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 4301,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 3328,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 3328,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 3328,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 8,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 8,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 8,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 472.7,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 482.4,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/64",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 476.9,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/7",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 3384,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/7",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 3384,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/7",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 3384,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/7",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 11,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/7",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 11,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/7",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 11,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/7",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 1038,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/7",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 1043,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_128streaming/7",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 1037,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_32",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 4,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_32",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 4,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_32",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 4,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "murmur3_32",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_32",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_32",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "murmur3_32",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 312.1,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_32",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 313.1,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_32",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 313,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "murmur3_32_1024",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 1467446.5082262184,
+      "unit": "ops/s",
+      "error": 7645489.9373797625
+    },
+    {
+      "benchmark": "siphash24",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 8,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "siphash24",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 8,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "siphash24",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 8,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "siphash24",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "siphash24",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "siphash24",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "siphash24",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 27.56,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "siphash24",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 27.52,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "siphash24",
+      "implementation": "go-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 27.7,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "siphash24_64",
+      "implementation": "guava-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 8415509.828471748,
+      "unit": "ops/s",
+      "error": 24750005.641983848
+    }
+  ]
+}

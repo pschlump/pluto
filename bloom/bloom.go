@@ -463,6 +463,30 @@ func BloomFromBytes(data []byte) (*Bloom, error) {
 	return b, nil
 }
 
+// ExpectedFPP returns the probability estimate Saturation()^HashCount().
+// A nil or zero-value filter returns 0; a fully saturated filter returns 1.
+// Complexity is O(1).
+func (b *Bloom) ExpectedFPP() float64 {
+	if b == nil || b.m == 0 {
+		return 0
+	}
+	return math.Pow(b.Saturation(), float64(b.k))
+}
+
+// Compatible reports whether other has the same bit count, probe count, and
+// therefore the same frozen hash strategy and serialized shape. Two nil or
+// zero-value filters are compatible with each other. Compatibility does not
+// imply that the filters contain the same elements.
+func (b *Bloom) Compatible(other *Bloom) bool {
+	if b == nil {
+		b = &Bloom{}
+	}
+	if other == nil {
+		other = &Bloom{}
+	}
+	return b.m == other.m && b.k == other.k
+}
+
 // String returns a one-line summary of the filter (shape, fill and
 // estimates) — the 2016 library's per-bit dump is dropped; a filter can
 // hold billions of bits.  Complexity is O(1).

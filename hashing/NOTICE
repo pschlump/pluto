@@ -1,0 +1,7 @@
+The FarmHashFingerprint64 and Fingerprint2011 implementations are behavioral
+ports of Guava code copyright The Guava Authors / Google Inc., licensed under
+Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0). The pinned
+source commit is recorded in docs/guava-to-dev-plan.md. These files are also
+distributed under Pluto's BSD 3-Clause license as permitted by Apache-2.0;
+Apache license and attribution obligations remain applicable to those portions.
+MurmurHash3 is public domain; SipHash follows the published algorithm.

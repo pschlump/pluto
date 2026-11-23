@@ -27,7 +27,10 @@ Phase 3 adds canonical-range/range-set/range-map differential traces and matched
 range/positioned-tree benchmarks, with results in `docs/benchmarks/ranges/`.
 Phase 4 adds a fake-clock loading/expiration/statistics oracle and matched
 hit/write/miss/expiration/refresh workloads, with results in
-`docs/benchmarks/cache/`.
+`docs/benchmarks/cache/`. Phase 5 adds byte-exact hash vectors, generic Bloom
+bit-array/compact-stream differentials, hash-throughput/chunking and Bloom
+operation workloads, with results in `docs/benchmarks/hashing/` and
+`docs/benchmarks/bloom_filter/`.
 
 ## Run
 

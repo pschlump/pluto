@@ -1,0 +1,62 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/hashing
+cpu: Apple M4 Max
+BenchmarkMurmur3_128/16-14           	81382371	        13.13 ns/op	1218.83 MB/s	      16 B/op	       1 allocs/op
+BenchmarkMurmur3_128/16-14           	89556415	        12.95 ns/op	1235.05 MB/s	      16 B/op	       1 allocs/op
+BenchmarkMurmur3_128/16-14           	91600137	        13.15 ns/op	1216.97 MB/s	      16 B/op	       1 allocs/op
+BenchmarkMurmur3_128/64-14           	73467324	        16.55 ns/op	3868.02 MB/s	      16 B/op	       1 allocs/op
+BenchmarkMurmur3_128/64-14           	73997563	        16.24 ns/op	3941.35 MB/s	      16 B/op	       1 allocs/op
+BenchmarkMurmur3_128/64-14           	74025523	        16.27 ns/op	3933.34 MB/s	      16 B/op	       1 allocs/op
+BenchmarkMurmur3_128/1024-14         	10334808	       116.2 ns/op	8810.74 MB/s	      16 B/op	       1 allocs/op
+BenchmarkMurmur3_128/1024-14         	10305744	       116.2 ns/op	8810.46 MB/s	      16 B/op	       1 allocs/op
+BenchmarkMurmur3_128/1024-14         	10340974	       116.0 ns/op	8825.36 MB/s	      16 B/op	       1 allocs/op
+BenchmarkMurmur3_32-14               	 3847724	       312.1 ns/op	3280.85 MB/s	       4 B/op	       1 allocs/op
+BenchmarkMurmur3_32-14               	 3844904	       313.1 ns/op	3270.83 MB/s	       4 B/op	       1 allocs/op
+BenchmarkMurmur3_32-14               	 3845044	       313.0 ns/op	3271.87 MB/s	       4 B/op	       1 allocs/op
+BenchmarkSipHash24-14                	43261561	        27.56 ns/op	       8 B/op	       1 allocs/op
+BenchmarkSipHash24-14                	43859648	        27.52 ns/op	       8 B/op	       1 allocs/op
+BenchmarkSipHash24-14                	43133402	        27.70 ns/op	       8 B/op	       1 allocs/op
+BenchmarkFarmHashFingerprint64-14    	19715169	        60.56 ns/op	16908.44 MB/s	       8 B/op	       1 allocs/op
+BenchmarkFarmHashFingerprint64-14    	19880865	        60.43 ns/op	16945.01 MB/s	       8 B/op	       1 allocs/op
+BenchmarkFarmHashFingerprint64-14    	19787503	        60.73 ns/op	16862.34 MB/s	       8 B/op	       1 allocs/op
+BenchmarkFingerprint2011-14          	20309580	        58.58 ns/op	17479.55 MB/s	       8 B/op	       1 allocs/op
+BenchmarkFingerprint2011-14          	20478033	        58.30 ns/op	17565.59 MB/s	       8 B/op	       1 allocs/op
+BenchmarkFingerprint2011-14          	20625260	        58.50 ns/op	17504.01 MB/s	       8 B/op	       1 allocs/op
+BenchmarkMurmur3_128Streaming/1-14   	  281602	      4335 ns/op	    3384 B/op	      11 allocs/op
+BenchmarkMurmur3_128Streaming/1-14   	  278011	      4349 ns/op	    3384 B/op	      11 allocs/op
+BenchmarkMurmur3_128Streaming/1-14   	  279265	      4301 ns/op	    3384 B/op	      11 allocs/op
+BenchmarkMurmur3_128Streaming/7-14   	 1000000	      1038 ns/op	    3384 B/op	      11 allocs/op
+BenchmarkMurmur3_128Streaming/7-14   	 1000000	      1043 ns/op	    3384 B/op	      11 allocs/op
+BenchmarkMurmur3_128Streaming/7-14   	 1000000	      1037 ns/op	    3384 B/op	      11 allocs/op
+BenchmarkMurmur3_128Streaming/64-14  	 2551210	       472.7 ns/op	    3328 B/op	       8 allocs/op
+BenchmarkMurmur3_128Streaming/64-14  	 2487259	       482.4 ns/op	    3328 B/op	       8 allocs/op
+BenchmarkMurmur3_128Streaming/64-14  	 2508558	       476.9 ns/op	    3328 B/op	       8 allocs/op
+BenchmarkConsistentHash-14           	61725615	        18.99 ns/op	       0 B/op	       0 allocs/op
+BenchmarkConsistentHash-14           	63420615	        18.92 ns/op	       0 B/op	       0 allocs/op
+BenchmarkConsistentHash-14           	62263944	        18.92 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/hashing	39.105s
+PASS
+ok  	github.com/pschlump/pluto/bloom	0.134s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bloom_filter
+cpu: Apple M4 Max
+BenchmarkBloomFilterPut-14              	   13968	     85666 ns/op	  314945 B/op	    7002 allocs/op
+BenchmarkBloomFilterPut-14              	   13956	     85591 ns/op	  314944 B/op	    7002 allocs/op
+BenchmarkBloomFilterPut-14              	   14109	     85003 ns/op	  314945 B/op	    7002 allocs/op
+BenchmarkBloomFilterMightContain/hit-14 	16501309	        71.92 ns/op	     192 B/op	       7 allocs/op
+BenchmarkBloomFilterMightContain/hit-14 	16530984	        72.14 ns/op	     192 B/op	       7 allocs/op
+BenchmarkBloomFilterMightContain/hit-14 	16682953	        72.73 ns/op	     192 B/op	       7 allocs/op
+BenchmarkBloomFilterMightContain/miss-14         	15402304	        79.47 ns/op	     192 B/op	       7 allocs/op
+BenchmarkBloomFilterMightContain/miss-14         	15141771	        78.90 ns/op	     192 B/op	       7 allocs/op
+BenchmarkBloomFilterMightContain/miss-14         	15400740	        77.83 ns/op	     192 B/op	       7 allocs/op
+BenchmarkBloomFilterMerge-14                     	 5841127	       207.6 ns/op	    1280 B/op	       1 allocs/op
+BenchmarkBloomFilterMerge-14                     	 5782716	       207.7 ns/op	    1280 B/op	       1 allocs/op
+BenchmarkBloomFilterMerge-14                     	 5751043	       206.5 ns/op	    1280 B/op	       1 allocs/op
+BenchmarkBloomFilterSerialization-14             	 1000000	      1015 ns/op	    4096 B/op	       9 allocs/op
+BenchmarkBloomFilterSerialization-14             	 1000000	      1030 ns/op	    4096 B/op	       9 allocs/op
+BenchmarkBloomFilterSerialization-14             	 1000000	      1027 ns/op	    4096 B/op	       9 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/bloom_filter	17.555s

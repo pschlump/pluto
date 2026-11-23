@@ -1,5 +1,10 @@
 = bloom
 
+The frozen MurmurHash2/SuperFastHash probes and versionless serialized format
+are unchanged. ExpectedFPP reports Saturation^HashCount (1 at full saturation);
+Compatible checks exact bit/probe shape before Merge. For typed funnels and
+Guava's Murmur3 strategy, use the separate bloom_filter package.
+
 A *Bloom filter* (Burton Bloom, "Space/Time Trade-offs in Hash Coding
 with Allowable Errors", CACM 1970): a fixed-shape bit array that
 approximates set membership with one-sided error. `Add` sets k probe

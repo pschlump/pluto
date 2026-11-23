@@ -1,0 +1,18 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bloom
+cpu: Apple M4 Max
+BenchmarkAdd16-14             	46851430	        24.00 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAdd16-14             	46867477	        23.94 ns/op	       0 B/op	       0 allocs/op
+BenchmarkAdd16-14             	46042496	        24.02 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMayContainHit-14     	52806634	        22.58 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMayContainHit-14     	51971394	        22.67 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMayContainHit-14     	52995340	        22.58 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMayContainMiss-14    	35581692	        33.56 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMayContainMiss-14    	35611082	        33.64 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMayContainMiss-14    	35669610	        33.84 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMerge-14             	   24874	     48715 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMerge-14             	   24696	     47075 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMerge-14             	   24814	     47289 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/bloom	20.180s
