@@ -10,14 +10,14 @@ Go ran three 1-second measurements. JMH 1.37 ran two 1-second warmups and three
 1-second measurements, one fork and one thread. Latency, throughput, allocation,
 and memory remain separate metrics.
 
-| Implementation/workload | Runtime | Result |
-|---|---|---:|
-| Pluto HashBiMap mixed stream | Go | 41.03–42.66 ns/op; 0 B/op, 0 allocs/op |
-| Go two-map mixed stream | Go | 25.27–25.71 ns/op; 0 B/op, 0 allocs/op |
-| Guava HashBiMap mixed stream | JMH | 20.239M ops/s ± 2.300M |
-| Java two-map mixed stream | JMH | 58.503M ops/s ± 8.930M |
-| Pluto 4096-entry inverse iteration | Go | 6969–7054 ns/op; 0 B/op, 0 allocs/op |
-| Guava 4096-entry inverse iteration | JMH | 28,872 ops/s ± 6,249 |
+| Implementation/workload            | Runtime | Result                                 |
+|------------------------------------|---------|---------------------------------------:|
+| Pluto HashBiMap mixed stream       | Go      | 41.03–42.66 ns/op; 0 B/op, 0 allocs/op |
+| Go two-map mixed stream            | Go      | 25.27–25.71 ns/op; 0 B/op, 0 allocs/op |
+| Guava HashBiMap mixed stream       | JMH     | 20.239M ops/s ± 2.300M                 |
+| Java two-map mixed stream          | JMH     | 58.503M ops/s ± 8.930M                 |
+| Pluto 4096-entry inverse iteration | Go      | 6969–7054 ns/op; 0 B/op, 0 allocs/op   |
+| Guava 4096-entry inverse iteration | JMH     | 28,872 ops/s ± 6,249                   |
 
 The Go retained-memory comparison used 4096 associations and GC-stable heap
 differences. Pluto HashBiMap retained about 787 KiB (192.2 bytes/association),

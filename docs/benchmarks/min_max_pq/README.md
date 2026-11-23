@@ -11,18 +11,18 @@ retains the least 256 elements. Go ran three 1-second measurements. JMH 1.37 ran
 two 1-second warmups and three 1-second measurements, one fork and one thread.
 Go latency and allocations remain separate from JMH throughput.
 
-| Implementation/workload | Runtime | Result |
-|---|---|---:|
-| Pluto min-max heap, both ends | Go | 96.93–97.05 ns/op; 2 B/op, 0 allocs/op |
-| Go lazy two-heap alternative | Go | 145.7–148.6 ns/op; 89–97 B/op, 1 alloc/op |
-| Guava MinMaxPriorityQueue, both ends | JMH | 10.532M ops/s ± 0.870M |
-| Java lazy two-heap alternative | JMH | 6.666M ops/s ± 9.103M |
-| Pluto bounded min-max heap | Go | 52.20–52.94 ns/op; 0 B/op, 0 allocs/op |
-| Guava bounded MinMaxPriorityQueue | JMH | 19.715M ops/s ± 2.937M |
-| Pluto min-max heap, one end | Go | 77.77–78.22 ns/op; 14 B/op, 0 allocs/op |
-| Pluto normal heap, one end | Go | 51.14–51.44 ns/op; 14 B/op, 0 allocs/op |
-| Guava MinMaxPriorityQueue, one end | JMH | 13.251M ops/s ± 7.252M |
-| Java PriorityQueue, one end | JMH | 21.674M ops/s ± 13.277M |
+| Implementation/workload              | Runtime | Result                                    |
+|--------------------------------------|---------|------------------------------------------:|
+| Pluto min-max heap, both ends        | Go      | 96.93–97.05 ns/op; 2 B/op, 0 allocs/op    |
+| Go lazy two-heap alternative         | Go      | 145.7–148.6 ns/op; 89–97 B/op, 1 alloc/op |
+| Guava MinMaxPriorityQueue, both ends | JMH     | 10.532M ops/s ± 0.870M                    |
+| Java lazy two-heap alternative       | JMH     | 6.666M ops/s ± 9.103M                     |
+| Pluto bounded min-max heap           | Go      | 52.20–52.94 ns/op; 0 B/op, 0 allocs/op    |
+| Guava bounded MinMaxPriorityQueue    | JMH     | 19.715M ops/s ± 2.937M                    |
+| Pluto min-max heap, one end          | Go      | 77.77–78.22 ns/op; 14 B/op, 0 allocs/op   |
+| Pluto normal heap, one end           | Go      | 51.14–51.44 ns/op; 14 B/op, 0 allocs/op   |
+| Guava MinMaxPriorityQueue, one end   | JMH     | 13.251M ops/s ± 7.252M                    |
+| Java PriorityQueue, one end          | JMH     | 21.674M ops/s ± 13.277M                   |
 
 The two-heap baseline stores identity-stamped entries in min and max heaps and
 uses lazy discard cleanup. The normal-heap measurements support the API warning:

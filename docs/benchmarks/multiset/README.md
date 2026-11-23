@@ -11,14 +11,14 @@ warmups and three 1-second measurements, one fork and one thread. Throughput,
 latency, allocations, and memory are separate measurements. No cross-runtime
 speed ratio is inferred from these numbers.
 
-| Implementation | Runtime | Result |
-|---|---|---:|
-| Pluto HashMultiset | Go | 45.40–46.82 ns/op; 0 B/op, 0 allocs/op |
-| Pluto TreeMultiset | Go | 204.3–205.7 ns/op; 4 B/op, 0 allocs/op |
-| Go map model | Go | 26.78–27.18 ns/op; 0 B/op, 0 allocs/op |
-| Guava HashMultiset | JMH | 67.886M ops/s ± 7.739M |
-| Guava TreeMultiset | JMH | 6.075M ops/s ± 1.529M |
-| Java HashMap model | JMH | 52.867M ops/s ± 8.256M |
+| Implementation     | Runtime | Result                                 |
+|--------------------|---------|---------------------------------------:|
+| Pluto HashMultiset | Go      | 45.40–46.82 ns/op; 0 B/op, 0 allocs/op |
+| Pluto TreeMultiset | Go      | 204.3–205.7 ns/op; 4 B/op, 0 allocs/op |
+| Go map model       | Go      | 26.78–27.18 ns/op; 0 B/op, 0 allocs/op |
+| Guava HashMultiset | JMH     | 67.886M ops/s ± 7.739M                 |
+| Guava TreeMultiset | JMH     | 6.075M ops/s ± 1.529M                  |
+| Java HashMap model | JMH     | 52.867M ops/s ± 8.256M                 |
 
 The additional Go workloads use 4096 keys for hit/miss Count, 1024 distinct keys
 for entry/occurrence iteration and algebra, and 4096 distinct keys for retained

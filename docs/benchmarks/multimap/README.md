@@ -11,18 +11,18 @@ warmups and three 1-second measurements, one fork and one thread. The run also
 includes Phase 0/1a fixtures; normalized per-metric workload metadata separates
 those corpora.
 
-| Implementation | Runtime | Result |
-|---|---|---:|
-| Pluto ListMultimap | Go | 1223–1236 ns/op; about 6.3 KiB/op |
-| Pluto SetMultimap | Go | 150.8–160.2 ns/op; 222 B/op, 1 alloc/op |
-| Pluto SortedSetMultimap | Go | 136.4–139.1 ns/op; 108 B/op |
-| Go `map[string][]string` | Go | 1108–1130 ns/op; 32 B/op |
-| Go `map[string]map[string]struct{}` | Go | 40.72–41.00 ns/op; 0 B/op, 0 allocs/op |
-| Guava ArrayListMultimap | JMH | 0.630M ops/s ± 1.871M |
-| Guava HashMultimap | JMH | 36.392M ops/s ± 20.070M |
-| Guava TreeMultimap | JMH | 10.395M ops/s ± 4.551M |
-| Java list-map baseline | JMH | 0.623M ops/s ± 1.787M |
-| Java set-map baseline | JMH | 38.991M ops/s ± 25.826M |
+| Implementation                      | Runtime | Result                                  |
+|-------------------------------------|---------|----------------------------------------:|
+| Pluto ListMultimap                  | Go      | 1223–1236 ns/op; about 6.3 KiB/op       |
+| Pluto SetMultimap                   | Go      | 150.8–160.2 ns/op; 222 B/op, 1 alloc/op |
+| Pluto SortedSetMultimap             | Go      | 136.4–139.1 ns/op; 108 B/op             |
+| Go `map[string][]string`            | Go      | 1108–1130 ns/op; 32 B/op                |
+| Go `map[string]map[string]struct{}` | Go      | 40.72–41.00 ns/op; 0 B/op, 0 allocs/op  |
+| Guava ArrayListMultimap             | JMH     | 0.630M ops/s ± 1.871M                   |
+| Guava HashMultimap                  | JMH     | 36.392M ops/s ± 20.070M                 |
+| Guava TreeMultimap                  | JMH     | 10.395M ops/s ± 4.551M                  |
+| Java list-map baseline              | JMH     | 0.623M ops/s ± 1.787M                   |
+| Java set-map baseline               | JMH     | 38.991M ops/s ± 25.826M                 |
 
 List-heavy streams grow duplicate collections, so PutAll's snapshot/rebuild
 cost is visible. SetPutAll also rebuilds the per-key set to preserve atomicity;

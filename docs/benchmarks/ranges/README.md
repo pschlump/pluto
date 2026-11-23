@@ -13,16 +13,16 @@ allocations remain separate metrics.
 
 ## Range collections
 
-| Implementation/workload | Runtime | Result |
-|---|---|---:|
-| Pluto RangeSet mixed stream | Go | 2244–2258 ns/op; 5241–5242 B/op, 1 alloc/op |
-| Guava TreeRangeSet mixed stream | JMH | 4.394M ops/s ± 0.321M |
-| Pluto RangeMap mixed stream | Go | 12.09–12.25 µs/op; 26497–26509 B/op, 2 allocs/op |
-| Guava TreeRangeMap mixed stream | JMH | 2.892M ops/s ± 0.308M |
-| Pluto RangeSet iteration | Go | 1877–1938 ns/op; 18432 B/op, 1 alloc/op |
-| Guava TreeRangeSet iteration | JMH | 599.122K ops/s ± 60.371K |
-| Pluto RangeMap iteration | Go | 2384–2418 ns/op; 27264 B/op, 1 alloc/op |
-| Guava TreeRangeMap iteration | JMH | 312.869K ops/s ± 11.498K |
+| Implementation/workload         | Runtime | Result                                           |
+|---------------------------------|---------|-------------------------------------------------:|
+| Pluto RangeSet mixed stream     | Go      | 2244–2258 ns/op; 5241–5242 B/op, 1 alloc/op      |
+| Guava TreeRangeSet mixed stream | JMH     | 4.394M ops/s ± 0.321M                            |
+| Pluto RangeMap mixed stream     | Go      | 12.09–12.25 µs/op; 26497–26509 B/op, 2 allocs/op |
+| Guava TreeRangeMap mixed stream | JMH     | 2.892M ops/s ± 0.308M                            |
+| Pluto RangeSet iteration        | Go      | 1877–1938 ns/op; 18432 B/op, 1 alloc/op          |
+| Guava TreeRangeSet iteration    | JMH     | 599.122K ops/s ± 60.371K                         |
+| Pluto RangeMap iteration        | Go      | 2384–2418 ns/op; 27264 B/op, 1 alloc/op          |
+| Guava TreeRangeMap iteration    | JMH     | 312.869K ops/s ± 11.498K                         |
 
 The Pluto implementations use compact sorted slices with O(r) mutation and point
 lookup; Guava uses tree indexes. These measurements describe this workload, not

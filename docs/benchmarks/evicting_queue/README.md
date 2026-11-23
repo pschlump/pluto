@@ -11,16 +11,16 @@ one fork and one thread. Iteration fixtures contain 256 integers. Go latency and
 allocations are separate from JMH throughput; no cross-runtime speed ratio is
 claimed.
 
-| Implementation/workload | Runtime | Result |
-|---|---|---:|
-| Pluto ring, mixed operations | Go | 8.450–8.518 ns/op; 0 B/op, 0 allocs/op |
-| Pluto dqueue + manual eviction | Go | 20.14–20.58 ns/op; 31 B/op, 1 alloc/op |
-| Guava EvictingQueue, mixed operations | JMH | 108.144M ops/s ± 15.056M |
-| Java ArrayDeque + manual eviction | JMH | 96.642M ops/s ± 49.887M |
-| Pluto ring iteration | Go | 152.1–153.0 ns/op; 0 B/op, 0 allocs/op |
-| Pluto dqueue iteration | Go | 349.5–355.7 ns/op; 24 B/op, 2 allocs/op |
-| Guava EvictingQueue iteration | JMH | 8.249M ops/s ± 1.085M |
-| Java ArrayDeque iteration | JMH | 8.301M ops/s ± 0.862M |
+| Implementation/workload               | Runtime | Result                                  |
+|---------------------------------------|---------|----------------------------------------:|
+| Pluto ring, mixed operations          | Go      | 8.450–8.518 ns/op; 0 B/op, 0 allocs/op  |
+| Pluto dqueue + manual eviction        | Go      | 20.14–20.58 ns/op; 31 B/op, 1 alloc/op  |
+| Guava EvictingQueue, mixed operations | JMH     | 108.144M ops/s ± 15.056M                |
+| Java ArrayDeque + manual eviction     | JMH     | 96.642M ops/s ± 49.887M                 |
+| Pluto ring iteration                  | Go      | 152.1–153.0 ns/op; 0 B/op, 0 allocs/op  |
+| Pluto dqueue iteration                | Go      | 349.5–355.7 ns/op; 24 B/op, 2 allocs/op |
+| Guava EvictingQueue iteration         | JMH     | 8.249M ops/s ± 1.085M                   |
+| Java ArrayDeque iteration             | JMH     | 8.301M ops/s ± 0.862M                   |
 
 The linked deque baseline pays for node allocation; the ring reuses fixed
 storage. Iteration measurements cover the full logical contents, not one item.
