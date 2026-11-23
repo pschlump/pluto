@@ -1,0 +1,8 @@
+= linked_hash_map
+
+A generic hash map with deterministic first-insertion iteration, expected O(1)
+lookup/update/delete, natural and custom equality/hash constructors, cloning,
+and JSON entry-array encoding.
+
+Updates retain position; deleted keys reinsert at the end. See
+`docs/packages/linked_hash_map.md` for the complete contract and twin behavior.

@@ -164,3 +164,11 @@ func readMultimapBenchmarkCorpus(b *testing.B) guava_compare.MultimapCorpus {
 	}
 	return corpus
 }
+
+func BenchmarkLinkedListMultimap(b *testing.B) {
+	benchmarkPlutoMultimap(b, NewLinkedListMultimap[string, string]())
+}
+
+func BenchmarkLinkedHashMultimap(b *testing.B) {
+	benchmarkPlutoMultimap(b, NewLinkedHashMultimap[string, string]())
+}

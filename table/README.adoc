@@ -25,6 +25,8 @@ sparse `Put`/`Delete` return only the previous value and found flag.
 
 `Row` and `Column` return fresh cell slices. `Rows` and `Columns` eagerly capture
 keys and slices and yield copies to each consumer. They are not live views.
+`RowView`, `ColumnView`, and `CellView` provide separate live write-through
+objects; their iteration methods take fresh snapshots on each call.
 Sparse rows and columns disappear when their last cell is deleted. Column queries
 scan sparse row-major storage; TreeTable cells iterate in ascending row-major
 order and ArrayTable uses constructor universe order. Plain `Cells` iterators

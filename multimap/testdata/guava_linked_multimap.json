@@ -1,0 +1,54 @@
+{
+  "version" : 1,
+  "listKeys" : [ "a", "b" ],
+  "initialListEntries" : [ {
+    "key" : "b",
+    "value" : 2
+  }, {
+    "key" : "a",
+    "value" : 1
+  }, {
+    "key" : "b",
+    "value" : 3
+  }, {
+    "key" : "a",
+    "value" : 1
+  } ],
+  "listEntries" : [ {
+    "key" : "a",
+    "value" : 1
+  }, {
+    "key" : "a",
+    "value" : 1
+  }, {
+    "key" : "b",
+    "value" : 4
+  } ],
+  "setKeys" : [ "b", "a" ],
+  "initialSetEntries" : [ {
+    "key" : "b",
+    "value" : 3
+  }, {
+    "key" : "b",
+    "value" : 1
+  }, {
+    "key" : "b",
+    "value" : 2
+  }, {
+    "key" : "a",
+    "value" : 9
+  } ],
+  "setEntries" : [ {
+    "key" : "b",
+    "value" : 3
+  }, {
+    "key" : "b",
+    "value" : 2
+  }, {
+    "key" : "a",
+    "value" : 9
+  }, {
+    "key" : "b",
+    "value" : 1
+  } ]
+}

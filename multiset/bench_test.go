@@ -297,3 +297,22 @@ func BenchmarkMultisetMemory(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkLinkedHashMultiset(b *testing.B) {
+	corpus := benchmarkCorpus(b)
+	set := NewLinkedHashMultiset[string]()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for index := 0; index < b.N; index++ {
+		operation := corpus.Operations[index%len(corpus.Operations)]
+		switch operation.Op {
+		case "add":
+			set.Add(operation.Value, operation.Count)
+		case "remove":
+			set.Remove(operation.Value, operation.Count)
+		case "setCount":
+			set.SetCount(operation.Value, operation.Count)
+		}
+		benchmarkResult = set.Count(operation.Value)
+	}
+}

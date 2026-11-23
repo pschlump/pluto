@@ -4,9 +4,9 @@ Copyright (C) Philip Schlump, 2012-2026.
 BSD 3 Clause Licensed.
 */
 
-// Package set_view provides live, lazy, read-only set algebra over ordered or
-// hash sets. Iteration deduplicates through operand Contains calls and uses no
-// auxiliary set. Views reflect later operand mutations.
+// Package set_view provides live lazy set algebra and explicit write-through
+// filtered or unfiltered views. Algebraic iteration deduplicates through operand
+// Contains calls and uses no auxiliary set. Views reflect later operand mutations.
 package set_view
 
 import "iter"

@@ -168,6 +168,20 @@ func ParseGoBenchmark(reader io.Reader) ([]Metric, error) {
 		case strings.HasPrefix(benchmark, "immutablebimap"):
 			implementation = "pluto-immutable-bimap"
 		}
+		switch benchmark {
+		case "linkedhashmultiset":
+			implementation = "pluto-linked-hash-multiset"
+		case "linkedlistmultimap":
+			implementation = "pluto-linked-list-multimap"
+		case "linkedhashmultimap":
+			implementation = "pluto-linked-hash-multimap"
+		case "linkedhashmap":
+			implementation = "pluto-linked-hash-map"
+		case "interner", "internerbuild":
+			implementation = "pluto-interner"
+		case "mapmutex":
+			implementation = "go-map-mutex"
+		}
 		switch {
 		case strings.HasPrefix(benchmark, "genericvaluegraph"):
 			implementation = "pluto-generic-value-graph"
@@ -274,6 +288,16 @@ func ParseJMHResults(reader io.Reader) ([]Metric, error) {
 		switch benchmark {
 		case "treeMultiset":
 			implementation = "guava-tree-multiset"
+		case "linkedHashMultiset":
+			implementation = "guava-linked-hash-multiset"
+		case "linkedListMultimap":
+			implementation = "guava-linked-list-multimap"
+		case "linkedHashMultimap":
+			implementation = "guava-linked-hash-multimap"
+		case "linkedHashMap":
+			implementation = "java-linked-hash-map"
+		case "strongInterner":
+			implementation = "guava-strong-interner"
 		case "mapMultiset":
 			implementation = "java-map"
 		case "arrayListMultimap":

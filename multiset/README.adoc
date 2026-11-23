@@ -1,7 +1,7 @@
 = multiset
 
-`HashMultiset[T]` and `TreeMultiset[T]` store positive occurrence counts for
-distinct values. `Len()` is the total occurrence count; `DistinctLen()` is the
+`HashMultiset[T]`, `LinkedHashMultiset[T]`, and `TreeMultiset[T]` store positive
+occurrence counts for distinct values. `Len()` is the total occurrence count; `DistinctLen()` is the
 number of stored values. Counts and sizes are `int`. This is count-aware and
 removable, unlike the add-only, insertion-ordered `bag` package.
 
@@ -13,6 +13,8 @@ hash := multiset.NewHashMultiset[string]()
 hashFunc := multiset.NewHashMultisetFunc(eq, hashFn)
 tree := multiset.NewTreeMultiset[int]()
 treeFunc := multiset.NewTreeMultisetFunc(compare)
+linked := multiset.NewLinkedHashMultiset[string]()
+linkedFunc := multiset.NewLinkedHashMultisetFunc(eq, hashFn)
 ----
 
 Natural hash construction requires `comparable`; natural tree construction
@@ -61,7 +63,10 @@ functions; Go cannot compare function values to check this precondition.
 Tree ranges are snapshots, not live write-through views. Mutating a range does
 not mutate its source. SubRange panics for reversed bounds. Hash iteration order
 and hash JSON entry order are unspecified. Tree iteration and JSON are ascending.
-All iterators propagate early termination.
+All iterators propagate early termination. Linked iteration and JSON use
+first-insertion order; updates retain position and reinsertion after complete
+removal appends. Linked single-value operations have the same expected hash
+complexity as HashMultiset.
 
 == JSON
 
@@ -72,8 +77,9 @@ error without mutation. Overflow remains a programmer-error panic.
 
 == Concurrency
 
-The plain types are not thread-safe. `multiset_ts.HashMultiset` wraps the hash
-implementation with one `sync.RWMutex`. Compound writes are atomic; iterators
+The plain types are not thread-safe. `multiset_ts.HashMultiset` and
+`LinkedHashMultiset` wrap their corresponding implementations with one
+`sync.RWMutex`. Compound writes are atomic; iterators
 are snapshots; JSON marshal and user iterator callbacks run without locks.
 Equality, containment, and algebra snapshot each operand under its own lock and
 never hold two multiset locks simultaneously. There is no sorted twin yet.

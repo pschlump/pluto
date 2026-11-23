@@ -79,3 +79,17 @@ ordered, dense, transpose, row/column, and memory benchmarks. Ordinary tests rea
 committed golden files only. Raw and summarized measurements are retained under
 `docs/benchmarks/table/`; snapshot API costs are reported separately from Guava's
 live-view row/column access.
+
+## Live write-through views
+
+`RowView(row)`, `ColumnView(column)`, and `CellView(row,column)` are explicit
+live views for HashTable, TreeTable, ArrayTable, and their `_ts` twins. Get/Put/
+Delete consult and mutate the parent. Row/column Clear deletes currently present
+cells. Dense views return `ErrOutsideUniverse` for out-of-universe writes.
+Existing Row, Column, Rows, Columns, and Cells snapshot APIs are unchanged.
+
+Each view `Cells` or `All` call takes a fresh iteration snapshot. Length and
+iteration inherit the parent row/column complexity. `_ts` views lock each parent
+operation independently; no lock is held while yielding and multi-step view
+sequences are not transactions. Tests cover both mutation directions, row/column
+cleanup, dense universe errors, ordered views, and concurrent row mutation.

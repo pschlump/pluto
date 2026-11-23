@@ -8,7 +8,9 @@ All `Cells`, `Rows`, `Columns`, `RowKeys`, and `ColumnKeys` iterators use
 snapshots. They can be consumed while the table is mutated without holding the
 lock during caller code. `Row`, `Column`, `Clone`, `Transpose`, and `Freeze`
 return independent results. Whole-table `Replace` and JSON replacement hold one
-write lock; JSON decoding and encoding happen outside the lock.
+write lock; JSON decoding and encoding happen outside the lock. Live `RowView`,
+`ColumnView`, and `CellView` operations take the same lock independently and use
+fresh snapshots for iteration.
 
 See `table/README.adoc` for sparse versus fixed-universe semantics, ordering,
 complexity, immutable snapshots, and the deliberate ArrayTable deletion

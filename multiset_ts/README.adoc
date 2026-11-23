@@ -1,7 +1,7 @@
 = multiset_ts
 
-`multiset_ts.HashMultiset[T]` is the thread-safe twin of
-`multiset.HashMultiset[T]`. It has the same counts, sizes, batch operations,
+`multiset_ts.HashMultiset[T]` and `LinkedHashMultiset[T]` are the thread-safe
+twins of the corresponding plain types. They have the same counts, sizes, batch operations,
 iteration, JSON, equality, containment, cloning, highest-count-first copy, and
 count-aware algebra. See `multiset/README.adoc` for collection semantics.
 

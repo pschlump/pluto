@@ -1,0 +1,4 @@
+= linked_hash_map_ts
+
+Thread-safe twin of `linked_hash_map`, using one RWMutex and snapshot iterators.
+Compound reads and writes are atomic with respect to the same map.

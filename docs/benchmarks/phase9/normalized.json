@@ -1,0 +1,495 @@
+{
+  "metadata": {
+    "schemaVersion": 1,
+    "recordedAt": "2026-11-23T11:46:02Z",
+    "machine": "bellacoula.local",
+    "os": "darwin",
+    "architecture": "arm64",
+    "goVersion": "go version go1.27.0 darwin/arm64",
+    "jdkVersion": "openjdk version \"11.0.28\" 2025-07-15",
+    "guavaCommit": "36e3995499d6c3b74b1207d362fa9e19915d2589",
+    "jmhSettings": "throughput; 2x1s warmup; 3x1s measurement; 1 fork; 1 thread",
+    "capacity": 4096,
+    "inputDistribution": "uniform keys; 45% add, 25% remove, 20% count, 10% setCount",
+    "seed": 1729
+  },
+  "metrics": [
+    {
+      "benchmark": "interner",
+      "implementation": "pluto-interner",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 16,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "interner",
+      "implementation": "pluto-interner",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 16,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "interner",
+      "implementation": "pluto-interner",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 16,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "interner",
+      "implementation": "pluto-interner",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "interner",
+      "implementation": "pluto-interner",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "interner",
+      "implementation": "pluto-interner",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "interner",
+      "implementation": "pluto-interner",
+      "threads": 1,
+      "metric": "latency",
+      "value": 27.83,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "interner",
+      "implementation": "pluto-interner",
+      "threads": 1,
+      "metric": "latency",
+      "value": 27.9,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "interner",
+      "implementation": "pluto-interner",
+      "threads": 1,
+      "metric": "latency",
+      "value": 27.79,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "linkedhashmap",
+      "implementation": "java-linked-hash-map",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 132527418.9557199,
+      "unit": "ops/s",
+      "error": 34457924.465264246
+    },
+    {
+      "benchmark": "linkedhashmap",
+      "implementation": "pluto-linked-hash-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "linkedhashmap",
+      "implementation": "pluto-linked-hash-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "linkedhashmap",
+      "implementation": "pluto-linked-hash-map",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 0,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "linkedhashmap",
+      "implementation": "pluto-linked-hash-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "linkedhashmap",
+      "implementation": "pluto-linked-hash-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "linkedhashmap",
+      "implementation": "pluto-linked-hash-map",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "linkedhashmap",
+      "implementation": "pluto-linked-hash-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 41.65,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "linkedhashmap",
+      "implementation": "pluto-linked-hash-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 41.6,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "linkedhashmap",
+      "implementation": "pluto-linked-hash-map",
+      "threads": 1,
+      "metric": "latency",
+      "value": 41.35,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "linkedhashmultimap",
+      "implementation": "guava-linked-hash-multimap",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 33931813.4347314,
+      "unit": "ops/s",
+      "error": 2424405.0676552695
+    },
+    {
+      "benchmark": "linkedhashmultimap",
+      "implementation": "pluto-linked-hash-multimap",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 60,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "linkedhashmultimap",
+      "implementation": "pluto-linked-hash-multimap",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 60,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "linkedhashmultimap",
+      "implementation": "pluto-linked-hash-multimap",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 60,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "linkedhashmultimap",
+      "implementation": "pluto-linked-hash-multimap",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "linkedhashmultimap",
+      "implementation": "pluto-linked-hash-multimap",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "linkedhashmultimap",
+      "implementation": "pluto-linked-hash-multimap",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "linkedhashmultimap",
+      "implementation": "pluto-linked-hash-multimap",
+      "threads": 1,
+      "metric": "latency",
+      "value": 130.2,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "linkedhashmultimap",
+      "implementation": "pluto-linked-hash-multimap",
+      "threads": 1,
+      "metric": "latency",
+      "value": 132.1,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "linkedhashmultimap",
+      "implementation": "pluto-linked-hash-multimap",
+      "threads": 1,
+      "metric": "latency",
+      "value": 130.9,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "linkedhashmultiset",
+      "implementation": "guava-linked-hash-multiset",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 64822846.5685763,
+      "unit": "ops/s",
+      "error": 31189603.598156657
+    },
+    {
+      "benchmark": "linkedhashmultiset",
+      "implementation": "pluto-linked-hash-multiset",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 4,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "linkedhashmultiset",
+      "implementation": "pluto-linked-hash-multiset",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 4,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "linkedhashmultiset",
+      "implementation": "pluto-linked-hash-multiset",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 4,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "linkedhashmultiset",
+      "implementation": "pluto-linked-hash-multiset",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "linkedhashmultiset",
+      "implementation": "pluto-linked-hash-multiset",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "linkedhashmultiset",
+      "implementation": "pluto-linked-hash-multiset",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "linkedhashmultiset",
+      "implementation": "pluto-linked-hash-multiset",
+      "threads": 1,
+      "metric": "latency",
+      "value": 63.62,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "linkedhashmultiset",
+      "implementation": "pluto-linked-hash-multiset",
+      "threads": 1,
+      "metric": "latency",
+      "value": 63.75,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "linkedhashmultiset",
+      "implementation": "pluto-linked-hash-multiset",
+      "threads": 1,
+      "metric": "latency",
+      "value": 63.94,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "linkedlistmultimap",
+      "implementation": "guava-linked-list-multimap",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 69169.39661756373,
+      "unit": "ops/s",
+      "error": 246283.77653651836
+    },
+    {
+      "benchmark": "linkedlistmultimap",
+      "implementation": "pluto-linked-list-multimap",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 2646,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "linkedlistmultimap",
+      "implementation": "pluto-linked-list-multimap",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 2646,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "linkedlistmultimap",
+      "implementation": "pluto-linked-list-multimap",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 2646,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "linkedlistmultimap",
+      "implementation": "pluto-linked-list-multimap",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "linkedlistmultimap",
+      "implementation": "pluto-linked-list-multimap",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "linkedlistmultimap",
+      "implementation": "pluto-linked-list-multimap",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 0,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "linkedlistmultimap",
+      "implementation": "pluto-linked-list-multimap",
+      "threads": 1,
+      "metric": "latency",
+      "value": 16905,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "linkedlistmultimap",
+      "implementation": "pluto-linked-list-multimap",
+      "threads": 1,
+      "metric": "latency",
+      "value": 17079,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "linkedlistmultimap",
+      "implementation": "pluto-linked-list-multimap",
+      "threads": 1,
+      "metric": "latency",
+      "value": 16996,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "mapmutex",
+      "implementation": "go-map-mutex",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 16,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "mapmutex",
+      "implementation": "go-map-mutex",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 16,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "mapmutex",
+      "implementation": "go-map-mutex",
+      "threads": 1,
+      "metric": "allocated_bytes",
+      "value": 16,
+      "unit": "B/op"
+    },
+    {
+      "benchmark": "mapmutex",
+      "implementation": "go-map-mutex",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "mapmutex",
+      "implementation": "go-map-mutex",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "mapmutex",
+      "implementation": "go-map-mutex",
+      "threads": 1,
+      "metric": "allocations",
+      "value": 1,
+      "unit": "allocs/op"
+    },
+    {
+      "benchmark": "mapmutex",
+      "implementation": "go-map-mutex",
+      "threads": 1,
+      "metric": "latency",
+      "value": 18.71,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "mapmutex",
+      "implementation": "go-map-mutex",
+      "threads": 1,
+      "metric": "latency",
+      "value": 18.7,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "mapmutex",
+      "implementation": "go-map-mutex",
+      "threads": 1,
+      "metric": "latency",
+      "value": 18.54,
+      "unit": "ns/op"
+    },
+    {
+      "benchmark": "stronginterner",
+      "implementation": "guava-strong-interner",
+      "threads": 1,
+      "metric": "throughput",
+      "value": 40341748.46603846,
+      "unit": "ops/s",
+      "error": 4192691.1803566045
+    }
+  ]
+}

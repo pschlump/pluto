@@ -1,8 +1,8 @@
 # Guava-to-Pluto data structures and algorithms development plan
 
-Status: Phases 0, 1a–1e, 2, 3, 4, 5, 6, 7, and 8 complete; Phase 9 is optional and proposed.
+Status: Phases 0, 1a–1e, 2, 3, 4, 5, 6, 7, 8, and 9 complete.
 
-Date: 2026-11-22
+Date: 2026-11-23
 
 ## 1. Purpose and reference baseline
 
@@ -160,7 +160,7 @@ I/O are outside this data-structure/algorithm plan. Go's `strings`, `bytes`,
 | Online/paired statistics, quantiles                                | None                                                                      | **Build**                                                       |
 | Checked/saturating arithmetic and rounded integer operations       | Small `g_lib` numeric surface                                             | **Build focused math utilities**                                |
 | Primitive conversion/unsigned operations                           | Native Go types, `strconv`, `encoding/binary`, `math/bits`                | No parity project required                                      |
-| Strong/weak interning                                              | None                                                                      | Optional later capability                                       |
+| Strong/weak interning                                              | Strong concurrent `intern`; no weak-lifetime semantics                   | Strong built; weak remains a separate design                    |
 
 ## 5. Phase 0 — contracts, golden oracles, and comparison harness
 
@@ -691,7 +691,7 @@ Guava `StatsAccumulator`/`PairedStatsAccumulator`/`Quantiles`, naive Go
 calculations, and sort-based quantiles; vary dataset size and number of
 quantiles requested together.
 
-## 14. Phase 9 — optional completeness work
+## 14. Phase 9 — optional completeness work (complete)
 
 Estimated effort: 3–5 days; schedule only with a use case.
 
@@ -705,6 +705,30 @@ Estimated effort: 3–5 days; schedule only with a use case.
   show a real requirement. These are functional work, not cosmetic wrappers.
 - Guava-compatible Bloom wire codec and additional graph sorted-order backends
   after interoperability or performance requirements are demonstrated.
+
+Completed 2026-11-23:
+
+- `intern` provides strong concurrent canonicalization with natural/custom
+  constructors, collision and identity tests, Guava goldens, matched throughput,
+  and separately labeled Go-heap/JOL retained-memory measurements. Weak interning
+  remains deliberately excluded.
+- `linked_hash_map` + `_ts`, `LinkedHashMultiset` + `_ts`, and linked list/hash
+  multimaps + twins preserve first-insertion semantics. Linked multimaps use
+  global and per-key association links and match Guava's global association order.
+- All multimaps and tables have explicit live write-through views; set_view adds
+  wrapped and filtered mutable views. Algebraic set views remain read-only because
+  writing through a union/intersection/difference would be ambiguous. Existing
+  snapshot APIs remain source-compatible. Twin views lock per operation and
+  iterate snapshots rather than promising multi-operation transactions.
+- The Guava Bloom compact codec and generic-graph sorted iteration were already
+  implemented and are covered by their existing differential tests; no duplicate
+  codec or graph backend was added.
+- Guava `Phase9Oracle` goldens cover interning and every linked collection.
+  `Phase9Benchmark` covers matched operations; results and memory methods are
+  recorded under `docs/benchmarks/phase9/`.
+- Final verification passed `make build test vet`, `make race`, `make lint`,
+  formatting, `go mod tidy`, and the complete `make guava-bench`, including all
+  golden comparisons, normalization, and JOL memory steps.
 
 ## 15. Cross-cutting verification and delivery rules
 
@@ -748,7 +772,7 @@ not code to vendor wholesale.
 | 6     | Generic graph family and adapters       | Phase 2 for immutable forms         | P1       | 12–18 days |
 | 7     | Iterator/ordering/collection utilities  | Existing sets/maps; immutable index | P2       | 5–8 days   |
 | 8     | Math/statistics/quantiles               | Phase 0                             | P2       | 6–10 days  |
-| 9     | Optional interning/live-view completion | Corresponding base types            | P3       | 3–5 days   |
+| 9     | Interning/linked/live-view completion (done) | Corresponding base types       | P3       | 3–5 days   |
 
 Rough total: 70–105 focused working days at Pluto's documentation, testing,
 race, and benchmarking standard. Phases 1a–1e can be parallelized after the

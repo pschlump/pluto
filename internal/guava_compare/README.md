@@ -39,7 +39,10 @@ benchmarks; results are under `docs/benchmarks/ordering/` and
 `docs/benchmarks/iter_util/`. Phase 8 adds checked-math and online/paired-stats
 and quantile goldens, with matched arithmetic, accumulator, regression, and
 multi-quantile workloads under `docs/benchmarks/math_util/` and
-`docs/benchmarks/stats/`.
+`docs/benchmarks/stats/`. Phase 9 adds strong-interning and linked map/multiset/
+multimap goldens plus matched linked-collection and interning workloads under
+`docs/benchmarks/phase9/`. Guava strong-interner retained memory is measured
+separately with JOL in `results/phase9-memory.json`.
 
 ## Run
 

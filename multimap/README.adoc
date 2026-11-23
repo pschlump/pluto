@@ -1,7 +1,8 @@
 = multimap
 
-`ListMultimap[K,V]`, `SetMultimap[K,V]`, and `SortedSetMultimap[K,V]` associate
-keys with collections of values. A key never remains mapped to an empty
+`ListMultimap[K,V]`, `SetMultimap[K,V]`, `SortedSetMultimap[K,V]`,
+`LinkedListMultimap[K,V]`, and `LinkedHashMultimap[K,V]` associate keys with
+collections of values. A key never remains mapped to an empty
 collection. `Len()` counts associations; `KeyLen()` counts distinct keys.
 
 == Variants
@@ -11,6 +12,9 @@ collection. `Len()` counts associations; `KeyLen()` counts distinct keys.
 - `SortedSetMultimap` collapses duplicates and orders each key's values with its
   comparator. Keys remain hash-ordered; this is not Guava's sorted-key
   `TreeMultimap` API.
+- `LinkedListMultimap` and `LinkedHashMultimap` preserve first-key order and
+  Guava-compatible global association insertion order. Reinserted associations
+  move to the end; per-key Get retains list/value insertion order.
 
 Natural constructors use comparable keys and values (and `cmp.Ordered` values
 for the sorted variant). `...Func` constructors accept custom key equality/hash
@@ -49,8 +53,10 @@ multiplicity, `Values` flattens values, and `KeySet` yields distinct keys.
 
 `Get` returns a copied slice and `(found bool)`. `AsMap` returns a `MapSnapshot`
 with `Get`, `Entries`, `Keys`, `Len`, and `KeyLen`; its value slices are also
-copied. Neither is a live write-through view. Do not mutate the plain multimap
-while consuming its iterators.
+copied. Neither is a live write-through view. Use `GetView` for a coupled
+single-key `ValuesView` or `AsMapView` for a live map of value views. These
+explicit views support mutation in both directions; their iterators are fresh
+snapshots. Do not mutate the plain multimap while consuming its direct iterators.
 
 == Utilities
 
@@ -61,7 +67,7 @@ while consuming its iterators.
 
 == Concurrency
 
-`multimap_ts` provides all three variants behind one `sync.RWMutex` each.
+`multimap_ts` provides all five variants behind one `sync.RWMutex` each.
 Compound mutations are atomic, iterators are snapshots, and inversion reads a
-source snapshot before taking destination locks. No sorted-key or live-view
-behavior is implied.
+source snapshot before taking destination locks. No sorted-key behavior is
+implied; live behavior is available only through the explicit view types.

@@ -70,3 +70,28 @@ putAll, and 10% containsEntry. `make guava-bench` matches Guava
 ArrayListMultimap/HashMultimap/TreeMultimap, Pluto's three variants, and
 Go/Java list-map and set-map baselines. Raw and normalized results are retained
 under `docs/benchmarks/multimap/`.
+
+## Insertion-ordered variants and live views
+
+`LinkedListMultimap` and `LinkedHashMultimap` preserve first-key insertion order.
+Their flattened `Entries`, `Keys`, and `Values` follow Guava's global association
+insertion order, not key-grouped order. `Get` retains per-key list/value order.
+Removing an association and adding it again appends it globally; replacing or
+removing a key removes its old global entries. The set variant deduplicates
+values. Each association node has global and per-key links. Set lookup/removal
+is expected O(1); list removal is O(values-per-key), and removal-all is O(v).
+Key and global iteration are O(N).
+
+`GetView(key)` returns a live `ValuesView` with Add/Put, AddAll, Remove, Replace,
+Clear, membership, length, and snapshot iteration. `AsMapView` returns a live
+`MapView` whose `Get` produces coupled value views and whose mutations delegate
+to the parent. Existing `Get` and `AsMap` snapshot APIs are unchanged. Views work
+with every plain and `_ts` variant. Each `_ts` view operation takes the parent
+lock independently; compound sequences are not transactions and no lock is held
+during iteration.
+
+`Phase9Oracle` checks initial/final global and key order against Guava
+`LinkedListMultimap` and `LinkedHashMultimap`. Seeded models cover duplicates,
+PutAll, removal, removal-all, and reinsertion. View tests verify both mutation
+directions, empty-key cleanup, unique/sorted behavior, ordering, and concurrent
+snapshot access.

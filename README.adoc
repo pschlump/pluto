@@ -47,13 +47,13 @@ with an identical public API.
 | link:queue_dll/[queue_dll]                 | Generic FIFO queue on a doubly linked list (stable O(1) memory).
 | link:bag/[bag]                             | Generic bag — add-only collection with insertion-order iteration (Sedgwick §1.3 Bag).
 | link:bag_ts/[bag_ts]                       | Thread-safe bag (RWMutex, snapshot iterators).
-| link:multiset/[multiset]                   | Generic hash/sorted multisets (positive counts, count algebra, JSON, positioned sorted ranges).
-| link:multiset_ts/[multiset_ts]             | Thread-safe hash multiset (RWMutex, atomic batches/algebra, snapshot iterators).
-| link:multimap/[multimap]                   | Generic list/set/sorted-set multimaps (snapshots, utilities, multiset integration).
-| link:multimap_ts/[multimap_ts]             | Thread-safe multimaps (RWMutex, atomic compound writes, snapshot iterators).
+| link:multiset/[multiset]                   | Generic hash/linked/sorted multisets (positive counts, insertion or sorted order, count algebra, JSON).
+| link:multiset_ts/[multiset_ts]             | Thread-safe hash and insertion-ordered multisets (RWMutex, atomic batches/algebra, snapshot iterators).
+| link:multimap/[multimap]                   | Generic list/set/sorted-set/linked multimaps (snapshots, live write-through views, utilities).
+| link:multimap_ts/[multimap_ts]             | Thread-safe multimaps and live views (RWMutex, atomic compound writes, snapshot iterators).
 | link:bimap/[bimap]                         | Generic bidirectional hash map (unique keys/values, coupled inverse, ForcePut, JSON).
 | link:bimap_ts/[bimap_ts]                   | Thread-safe bimap (shared forward/inverse RWMutex, snapshot iterators).
-| link:table/[table]                         | Generic sparse hash/ordered and dense tables (snapshots, transpose, immutable conversion, JSON).
+| link:table/[table]                         | Generic sparse hash/ordered and dense tables (snapshots, live row/column/cell views, transpose, JSON).
 | link:table_ts/[table_ts]                   | Thread-safe tables (RWMutex, atomic replacement, snapshot iterators).
 | link:evicting_queue/[evicting_queue]       | Fixed-capacity FIFO ring buffer (automatic oldest eviction, bulk fast path, JSON).
 | link:evicting_queue_ts/[evicting_queue_ts] | Thread-safe evicting queue (RWMutex, atomic bulk writes, snapshot iterators).
@@ -65,7 +65,10 @@ with an identical public API.
 | link:range_set_ts/[range_set_ts]           | Thread-safe range set (RWMutex, snapshot iterators/derived sets).
 | link:range_map/[range_map]                 | Ordered range/value map (exact put/remove splits, no equal-value coalescing).
 | link:range_map_ts/[range_map_ts]           | Thread-safe range map (RWMutex, snapshot entries/submaps).
-| link:set_view/[set_view]                   | Live lazy union/intersection/difference/symmetric-difference set views.
+| link:set_view/[set_view]                   | Live lazy set algebra and write-through wrapped/filtered set views.
+| link:intern/[intern]                       | Strong concurrent canonicalization of generic values (natural or custom equality/hash).
+| link:linked_hash_map/[linked_hash_map]     | Insertion-ordered generic hash map (expected O(1) updates/deletes, JSON entry arrays).
+| link:linked_hash_map_ts/[linked_hash_map_ts] | Thread-safe insertion-ordered map (RWMutex, snapshot iterators).
 | link:set_util/[set_util]                   | Lazy Cartesian-product and power-set iterators with early termination.
 | link:map_util/[map_util]                   | Immutable UniqueIndex and four-way map difference (custom value equality).
 | link:iter_util/[iter_util]                 | Lazy iter.Seq/Seq2 algorithms, early-stop queries, pair adapters, and pull-based peeking.
@@ -314,31 +317,60 @@ the plain twin must not be mutated while an iterator runs.
 Count-aware multisets with `Add`/`Remove`/`SetCount`, total and distinct sizes,
 entry and occurrence iteration, JSON, highest-count-first copies, and alias-safe
 `Union` (maximum), `Sum`, `Intersection` (minimum), and `Minus` (saturating).
-`HashMultiset` uses `hash_grow`; `TreeMultiset` uses a dedicated AVL tree with
-O(log n) navigation and O(log n + k) open/closed range snapshots. Counts and
-sizes are `int`; negative counts and overflow panic, and zero counts remove or
-do nothing. `multiset_ts` wraps the hash form with one RWMutex, atomic compound
-writes, and snapshot iterators.
+`HashMultiset` uses `hash_grow`; `LinkedHashMultiset` adds first-insertion order;
+`TreeMultiset` uses a dedicated AVL tree with O(log n) navigation and
+O(log n + k) open/closed range snapshots. Counts and sizes are `int`; negative
+counts and overflow panic, and zero counts remove or do nothing. `multiset_ts`
+wraps the hash and linked forms with one RWMutex, atomic compound writes, and
+snapshot iterators.
 
 * Good: duplicate-heavy collections that need counts, removal, algebra, or
 ordered navigation; unlike `bag`, no per-occurrence storage.
 * Bad: hash iteration order is unspecified; tree ranges are snapshots rather
-than live views; there is no sorted thread-safe twin yet.
+than live views; there is no sorted thread-safe twin yet. Choose the linked form
+when deterministic first-insertion order matters.
 
 === Multimap — `multimap/`, `multimap_ts/`
 
 `ListMultimap` preserves duplicate values and per-key insertion order;
 `SetMultimap` removes duplicates; `SortedSetMultimap` keeps unique values in
-comparator order. All provide put/get/remove/replace, association and distinct
-key sizes, entry/key/value iteration, snapshot `AsMap`, and key multiset
-integration. `Index`, alias-safe `InvertFrom`, and `ForMap` cover common
-conversions. No key is retained with an empty value collection. The twin wraps
-all three with one RWMutex, atomic compound mutations, and snapshot iterators.
+comparator order. Linked list/hash variants preserve first-key order and global
+association insertion order. All provide put/get/remove/replace, association and
+distinct key sizes, entry/key/value iteration, snapshot `AsMap`, and key multiset
+integration. `GetView` and `AsMapView` add explicit live write-through views.
+`Index`, alias-safe `InvertFrom`, and `ForMap` cover common conversions. No key
+is retained with an empty value collection. The twin wraps all five with one
+RWMutex, atomic compound mutations, and snapshot iterators.
 
 * Good: one-to-many associations with explicit duplicate/order choices and
 custom equality/hash/comparison without boxing elements in `any`.
-* Bad: `Get` and `AsMap` are copies, not live write-through views; sorted-set
-keys are not sorted; insertion into a sorted value slice is O(v).
+* Bad: `Get` and `AsMap` remain copies (use the explicit view methods for live
+behavior); sorted-set keys are not sorted; sorted value insertion and linked
+list value removal are O(v).
+
+=== Strong interning — `intern/`
+
+`Interner[T]` returns the first stored representative of each equality class.
+Natural construction uses `==`/`maphash`; custom functions support arbitrary
+value types. One RWMutex makes concurrent canonicalization atomic. Values remain
+strongly reachable until `Clear` or until the interner is collected; no weak
+lifetime semantics are implied.
+
+* Good: deduplicating strings, keys, or immutable values while retaining
+canonical pointer identity where applicable.
+* Bad: retained values can grow without bound until Clear; callbacks must not
+re-enter the same interner.
+
+=== Insertion-ordered map — `linked_hash_map/`, `linked_hash_map_ts/`
+
+`Map[K,V]` combines expected-O(1) hash operations with deterministic
+first-insertion iteration. Updates retain position; delete/reinsert appends.
+Entries, keys, values, cloning, equality with a value callback, and entry-array
+JSON are included. The twin snapshots iterators under one RWMutex.
+
+* Good: deterministic map iteration without a sorted comparator.
+* Bad: additional link/hash storage compared with a built-in map; plain iteration
+must not race mutation.
 
 === Bidirectional map — `bimap/`, `bimap_ts/`
 
@@ -361,15 +393,17 @@ the plain iterators must not run concurrently with mutation.
 comparator-ordered AVL indexes; `ArrayTable` stores a dense fixed-universe matrix
 with a separate presence bitmap and O(1) indexed access. All provide previous-value
 put/delete, row and column snapshots, cell iteration, transpose, clone, validated
-replacement, JSON, and read-only `Freeze` snapshots. Dense empty rows and columns
-remain in their universes; sparse ones disappear. The twins wrap all three with
-RWMutexes, atomic replacement, and snapshot iterators.
+replacement, JSON, and read-only `Freeze` snapshots. Explicit `RowView`,
+`ColumnView`, and `CellView` methods add live write-through access. Dense empty
+rows and columns remain in their universes; sparse ones disappear. The twins wrap
+all three with RWMutexes, atomic replacement, and snapshot iterators.
 
 * Good: two-key associations with a choice of sparse, ordered, or dense storage;
 custom equality/hash/comparison; stored zero values remain distinguishable from
 absence; immutable snapshots preserve source iteration order.
-* Bad: sparse column operations scan rows; rows and columns are snapshots, not
-live write-through views; ArrayTable deliberately supports deletion unlike Guava.
+* Bad: sparse column operations scan rows; ordinary rows/columns remain snapshots
+(use the explicit live views when needed); ArrayTable deliberately supports
+deletion unlike Guava.
 
 === Stack — `stack/`, `stack_ts/`
 

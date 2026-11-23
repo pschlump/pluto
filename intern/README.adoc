@@ -1,0 +1,8 @@
+= intern
+
+Strong concurrent canonicalization of generic values. `Intern` returns the first
+stored equal value, preserving pointer identity where `T` is a pointer type.
+Values remain strongly reachable until `Clear` or until the interner is collected.
+
+Natural and custom equality/hash constructors are provided. See
+`docs/packages/intern.md` for semantics, complexity, and lock discipline.

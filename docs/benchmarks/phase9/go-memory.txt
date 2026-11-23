@@ -1,0 +1,12 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/intern
+cpu: Apple M4 Max
+BenchmarkInternerBuild-14       	       3	    706764 ns/op	 1468432 B/op	   10084 allocs/op
+BenchmarkInternerBuild-14       	       3	    664347 ns/op	 1468432 B/op	   10084 allocs/op
+BenchmarkInternerBuild-14       	       3	    662167 ns/op	 1468469 B/op	   10084 allocs/op
+BenchmarkInternerRetained-14    	       3	   1105250 ns/op	        81.62 retained-B/value	 1468442 B/op	   10084 allocs/op
+BenchmarkInternerRetained-14    	       3	   1133680 ns/op	        81.62 retained-B/value	 1468437 B/op	   10084 allocs/op
+BenchmarkInternerRetained-14    	       3	   1295444 ns/op	        81.62 retained-B/value	 1468432 B/op	   10084 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/intern	0.210s

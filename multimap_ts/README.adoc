@@ -1,8 +1,10 @@
 = multimap_ts
 
-Thread-safe twins of `multimap.ListMultimap`, `SetMultimap`, and
-`SortedSetMultimap`. The collection semantics and utility behavior match the
-plain package.
+Thread-safe twins of `multimap.ListMultimap`, `SetMultimap`,
+`SortedSetMultimap`, `LinkedListMultimap`, and `LinkedHashMultimap`. The
+collection semantics and utility behavior match the plain package. Live
+`GetView`/`AsMapView` operations delegate through the same lock; each view
+operation is atomic, while multi-step sequences are not transactions.
 
 Each value contains its plain multimap and one `sync.RWMutex`. Every compound
 mutation holds the write lock, so PutAll and ReplaceValues are atomic to
