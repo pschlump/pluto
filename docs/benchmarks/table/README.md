@@ -5,28 +5,120 @@
 Rates are operations per second; higher is better. The Go column was
 measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
 1-second runs, shown slowest–fastest, plus bytes and allocations per
-operation. Raw output is `go-2026-11-27-current.txt`.
+operation. Raw output is `go-2026-11-27-current.txt`; the mixed, row,
+column and transpose rows were re-measured after the 2026-11-27 index rework
+below (raw output `go-2026-11-27-perf-after.txt`).
 The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
 2026-11-22 record below and not re-run (mean ± error).
 
 | Workload | Pluto (Go) | Guava (Java) |
 |---|---:|---:|
-| HashTable mixed (Java: HashBasedTable) | 20.94–21.80M · 0 B, 0 allocs | 31.85M ± 11.19M |
-| TreeTable mixed (Java: TreeBasedTable) | 8.90–8.98M · 25 B, 0 allocs | 11.12M ± 4.49M |
-| ArrayTable mixed | 24.15–26.02M · 0 B, 0 allocs | 55.95M ± 19.88M |
-| HashTable row | 2.35–2.43M · 3200 B, 1 alloc | 293.17M ± 28.80M |
-| HashTable column | 522.47–621.12K · 7504 B, 7 allocs | 6.08M ± 0.84M |
-| TreeTable row | 1.41–1.41M · 3344 B, 6 allocs | 39.94M ± 0.96M |
-| TreeTable column | 380.37–384.47K · 7648 B, 12 allocs | 1.29M ± 0.10M |
-| ArrayTable row | 1.11–1.12M · 7504 B, 7 allocs | 286.79M ± 23.22M |
-| ArrayTable column | 1.10–1.11M · 7504 B, 7 allocs | 293.70M ± 17.09M |
-| HashTable transpose | 3.96–4.08K · 706254 B, 781 allocs | 11.99K ± 0.84K |
-| TreeTable transpose | 1.92–1.93K · 279299 B, 4682 allocs | 4.37K ± 0.40K |
-| ArrayTable transpose | 8.84–9.08K · 90800 B, 41 allocs | 22.30K ± 0.60K |
+| HashTable mixed (Java: HashBasedTable) | 21.52–22.21M · 0 B, 0 allocs | 31.85M ± 11.19M |
+| TreeTable mixed (Java: TreeBasedTable) | 10.74–10.89M · 6 B, 0 allocs | 11.12M ± 4.49M |
+| ArrayTable mixed | 40.78–41.41M · 0 B, 0 allocs | 55.95M ± 19.88M |
+| HashTable row | 2.18–2.34M · 3200 B, 1 alloc | 293.17M ± 28.80M |
+| HashTable column | 1.40–1.49M · 3200 B, 1 alloc | 6.08M ± 0.84M |
+| TreeTable row | 1.88–2.05M · 3200 B, 1 alloc | 39.94M ± 0.96M |
+| TreeTable column | 581.73–598.44K · 3200 B, 1 alloc | 1.29M ± 0.10M |
+| ArrayTable row | 2.25–2.50M · 3200 B, 1 alloc | 286.79M ± 23.22M |
+| ArrayTable column | 2.26–2.41M · 3200 B, 1 alloc | 293.70M ± 17.09M |
+| HashTable transpose | 10.39–10.66K · 357361 B, 135 allocs | 11.99K ± 0.84K |
+| TreeTable transpose | 7.57–7.89K · 477530 B, 162 allocs | 4.37K ± 0.40K |
+| ArrayTable transpose | 99.86–109.29K · 69792 B, 3 allocs | 22.30K ± 0.60K |
 | Baseline: nested maps | 27.93–28.33M · 0 B, 0 allocs | 50.84M ± 8.13M |
 | Baseline: flat matrix + presence bitmap | 264.34–303.67M · 0 B, 0 allocs | 199.26M ± 16.45M |
 
 Guava's row and column accessors return live views, while Pluto's return fresh copies (the allocations in the Go column). The access figures therefore compare different contracts.
+
+The ArrayTable mixed row now removes with `DeleteAt(rowIndex, columnIndex)`,
+matching the JMH benchmark's index-based `set(rowIndex, columnIndex, null)`;
+earlier Go figures removed by key (two extra hash lookups per remove).
+
+## 2026-11-27: private indexes, one-allocation snapshots, bulk transposes
+
+Same machine and toolchain. Before and after were built from `31a1d71` and
+this change and run interleaved (old, new, old, new, ...), three 1-second
+runs each, both with the corrected ArrayTable harness; other agents were
+benchmarking concurrently (load average 6.6-14.0 during the runs, so treat
+small differences as noise). Raw output: `go-2026-11-27-perf-before.txt`,
+`go-2026-11-27-perf-after.txt`.
+
+| Workload | Go before | Go after | Guava (Java) |
+|---|---:|---:|---:|
+| HashTable mixed | 20.42–20.52M · 0 B, 0 allocs | 21.52–22.21M · 0 B, 0 allocs | 31.85M ± 11.19M |
+| TreeTable mixed | 8.24–8.33M · 25 B, 0 allocs | 10.74–10.89M · 6 B, 0 allocs | 11.12M ± 4.49M |
+| ArrayTable mixed | 29.01–29.61M · 0 B, 0 allocs | 40.78–41.41M · 0 B, 0 allocs | 55.95M ± 19.88M |
+| HashTable row | 1.85–2.20M · 3200 B, 1 alloc | 2.18–2.34M · 3200 B, 1 alloc | 293.17M ± 28.80M |
+| HashTable column | 449.84–530.22K · 7504 B, 7 allocs | 1.40–1.49M · 3200 B, 1 alloc | 6.08M ± 0.84M |
+| TreeTable row | 1.27–1.28M · 3344 B, 6 allocs | 1.88–2.05M · 3200 B, 1 alloc | 39.94M ± 0.96M |
+| TreeTable column | 346.26–359.84K · 7648 B, 12 allocs | 581.73–598.44K · 3200 B, 1 alloc | 1.29M ± 0.10M |
+| ArrayTable row | 904.98–972.76K · 7504 B, 7 allocs | 2.25–2.50M · 3200 B, 1 alloc | 286.79M ± 23.22M |
+| ArrayTable column | 911.58–978.47K · 7504 B, 7 allocs | 2.26–2.41M · 3200 B, 1 alloc | 293.70M ± 17.09M |
+| HashTable transpose | 3.65–3.91K · 706253 B, 781 allocs | 10.39–10.66K · 357361 B, 135 allocs | 11.99K ± 0.84K |
+| TreeTable transpose | 1.84–1.90K · 279300 B, 4682 allocs | 7.57–7.89K · 477530 B, 162 allocs | 4.37K ± 0.40K |
+| ArrayTable transpose | 8.73–9.04K · 90800 B, 41 allocs | 99.86–109.29K · 69792 B, 3 allocs | 22.30K ± 0.60K |
+
+With the old harness (key-based remove) the old ArrayTable mixed figure was
+24.15–26.02M; about 4M of the 29M-to-41M step is the harness, the rest is the
+code.
+
+Causes, from CPU and allocation profiles:
+
+- HashTable sat on `hash_grow` behind adapter closures: every lookup called a
+  wrapper closure that called the caller's function, and `Put`/`Delete` hashed
+  each key twice (a `Search` for the old value, then `Insert`/`Delete`).
+  A private linear-probing index (cached hash per slot, backward-shift
+  deletion, Fibonacci home slot, the caller's functions called directly) hashes
+  once per write. The remaining gap to nested Go maps (27-28M) is the
+  `maphash.Comparable` call chain behind `NewHashTable`'s hash function: a Go
+  map hashes a string key in about half the time.
+- Column snapshots grew their result by `append` from empty (7 allocations,
+  7504 B) and re-hashed the column key once per row. Now: the column key is
+  hashed once and probed with the cached hash in every row; the result is
+  preallocated (`min(rows, cells, 1024)` cells).
+- ArrayTable looked its universe up through the same adapter-closure hash
+  index. `NewArrayTable` now keeps its universe in built-in maps behind a
+  position closure (a Go map lookup is ~4.5 ns against ~10 ns); the universe
+  is immutable, so Clone, Transpose, Replace and JSON share it instead of
+  rebuilding two indexes. Transpose is now a direct matrix transpose (3
+  allocations). Row and Column count the present cells first and copy into an
+  exact slice.
+- TreeTable sat on `avl_tree`, which allocates a node on every `Insert` -
+  including replacements - recurses through a heap closure, walks `All()` with
+  a recursive closure (5 allocations per row snapshot), and needs a second
+  descent to report the old value. A private AVL (`table/tree_index.go`)
+  descends once with a fixed-size stack, replaces in place, and traverses
+  without closures. Transpose and Clone no longer insert cell by cell: Clone
+  copies each row structurally into one node slab, and Transpose regroups the
+  cells column-major (a merge cursor against the previous row's columns, then
+  a counting sort) and builds each transposed row as a perfectly balanced tree
+  in one slab - 162 allocations instead of 4682. It allocates more bytes than
+  before (temporary column-major arrays) but far fewer objects.
+
+Retained memory (`BenchmarkTableMemory`, 4096 cells, bytes retained after GC):
+
+| Table | Before | After |
+|---|---:|---:|
+| HashTable | 459,888 (112.3/cell) | 422,040 (103.0/cell) |
+| TreeTable | 337,744 (82.5/cell) | 335,664 (81.9/cell) |
+| ArrayTable | 84,728 (20.7/cell) | 83,112 (20.3/cell) |
+| Nested maps (baseline) | 388,736 | 388,736 |
+| Flat matrix (baseline) | 71,880 | 71,880 |
+
+Harness fixes: the Go ArrayTable mixed benchmark removed by key while JMH
+removes by index; it now calls `DeleteAt`. The row/column benchmarks still
+differ by contract (Guava's `row(k).size()` obtains a live view and reads its
+size; Pluto copies the cells), and that difference is intentional.
+
+Rejected experiments:
+
+- Struct-of-arrays slots for the hash index (hashes in their own `[]uint64`):
+  mixed HashTable within noise (40.2-41.7 ns against 41.2-42.3 ns
+  interleaved), Transpose 5-9% slower and 204 instead of 135 allocations (two
+  arrays per index). Kept array-of-structs.
+- A three-way natural comparator for `NewTreeTable` (`<` then `==` instead of
+  `cmp.Compare`'s `<` then `>`): TreeTable mixed 96.9-98.3 ns against
+  88.3-95.7 ns for `cmp.Compare`, interleaved. Kept `cmp.Compare`.
 
 ## Original record (2026-11-22)
 

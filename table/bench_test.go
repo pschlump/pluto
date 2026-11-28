@@ -99,7 +99,9 @@ func BenchmarkArrayTable(b *testing.B) {
 			_, found, _ := actual.Put(operation.Row, operation.Column, operation.Value)
 			return tableBoolResult(found)
 		case "remove":
-			_, found, _ := actual.Delete(operation.Row, operation.Column)
+			// Matches TableBenchmark.applyArray, which removes with the
+			// index-based arrayTable.set(rowIndex, columnIndex, null).
+			_, found := actual.DeleteAt(operation.RowIndex, operation.ColumnIndex)
 			return tableBoolResult(found)
 		default:
 			_, found := actual.Get(operation.Row, operation.Column)

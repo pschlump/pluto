@@ -145,7 +145,7 @@ func (t *ArrayTable[R, C, V]) Cells() iter.Seq[table.Cell[R, C, V]] {
 		return cellsIterator([]table.Cell[R, C, V](nil))
 	}
 	t.lock.RLock()
-	cells := snapshotCells(t.plain.Cells())
+	cells := snapshotCellsSized(t.plain.Cells(), t.plain.Len())
 	t.lock.RUnlock()
 	return cellsIterator(cells)
 }

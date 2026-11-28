@@ -21,6 +21,27 @@ All variants provide `Put`, `Get`, `Delete`, `Contains`, `ContainsRow`,
 ArrayTable's `Put`/`Delete` additionally return an error for out-of-universe keys;
 sparse `Put`/`Delete` return only the previous value and found flag.
 
+== Complexity
+
+r = rows, c = columns, width = cells in one row.
+
+[cols="1,1,1,1",options="header"]
+|===
+| Operation | HashTable | TreeTable | ArrayTable
+| Get / Contains / Put / Delete | expected O(1) | O(log r + log c) | expected O(1)
+| Row | O(width) | O(log r + width) | O(c)
+| Column | expected O(r) | O(r log c) | O(r)
+| Rows / Columns | O(cells) | O(cells); Columns O(cells log c) worst | O(r x c)
+| Cells | O(cells) | O(cells), ordered | O(r x c)
+| Transpose | expected O(cells) | O(cells); O(cells log c) worst | O(r x c)
+| Clone | O(cells) | O(cells) | O(r x c)
+|===
+
+`Row` and `Column` allocate their result once. TreeTable `Transpose` and
+`Clone` build balanced trees directly from sorted runs (one node slab per row)
+instead of inserting cell by cell; ArrayTable `Clone` and `Transpose` share the
+immutable universe and copy only the matrix.
+
 == Snapshots and order
 
 `Row` and `Column` return fresh cell slices. `Rows` and `Columns` eagerly capture

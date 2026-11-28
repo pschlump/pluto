@@ -15,13 +15,14 @@ snapshots. No returned slice is a live write-through view.
 
 | Operation | HashTable | TreeTable | ArrayTable |
 |---|---|---|---|
-| Get / Contains cell | expected O(1) | O(log r + log c) | O(1) |
-| Put / Delete | expected O(1) | O(log r + log c) | O(1) |
+| Get / Contains cell | expected O(1) | O(log r + log c) | expected O(1) |
+| Put / Delete | expected O(1) | O(log r + log c) | expected O(1) |
 | Row | O(width) | O(log r + width) | O(columns) |
-| Column | O(cells) | O(cells) | O(rows) |
-| Rows / Columns | O(cells) | O(cells log c) for columns | O(rows x columns) |
+| Column | expected O(rows) | O(rows log c) | O(rows) |
+| Rows / Columns | O(cells) | O(cells); Columns O(cells log c) worst | O(rows x columns) |
 | Cells | O(cells) | O(cells), ordered | O(rows x columns) |
-| Transpose | O(cells) | O(cells log cells) | O(rows x columns) |
+| Transpose | expected O(cells) | O(cells); O(cells log c) worst | O(rows x columns) |
+| Clone | O(slots) | O(cells) | O(rows x columns) |
 
 Hash lookup uses `==` and `maphash` with `NewHashTable`; `NewHashTableFunc`
 accepts matching equality/hash functions for arbitrary key types. Hash iteration
@@ -93,3 +94,76 @@ iteration inherit the parent row/column complexity. `_ts` views lock each parent
 operation independently; no lock is held while yielding and multi-step view
 sequences are not transactions. Tests cover both mutation directions, row/column
 cleanup, dense universe errors, ordered views, and concurrent row mutation.
+
+## Private indexes and performance invariants
+
+The table package does not use `hash_grow` or `avl_tree`; it owns two private
+indexes tuned for this package (see the 2026-11-27 section of
+`docs/benchmarks/table/README.md` for the measurements behind them).
+
+`hashIndex` (`table/hash_index.go`) backs HashTable, the custom-function
+ArrayTable universe and ImmutableTable positions. Linear probing over a
+power-of-two array of `{hash, key, value}` slots, maximum load 3/4, home slot
+by Fibonacci multiply of the cached hash, backward-shift deletion (no
+tombstones; the vacated slot is zeroed). Invariants editors must keep:
+
+- A slot's cached `hash` is `fixHash(callerHash(key))`; 0 means empty, so a
+  caller hash of exactly 0 is stored as 1. Every path that probes with a
+  precomputed hash (Column, ContainsColumn, Columns, Transpose) must pass the
+  fixed hash.
+- Every write hashes its key once: `findOrAllocate` then `insertAt` (which may
+  grow and relocates the target slot - always use its returned position).
+- An equal key replaces the whole entry, key included (the hash_grow `Insert`
+  semantics callers relied on).
+- `insertUnique` skips equality and is only for keys known to be absent
+  (Transpose destination rows: source rows are distinct).
+- Transpose reuses cached hashes: the destination row is found by the source
+  slot's column hash, the source row is inserted under the outer slot's row
+  hash. Its first pass tallies widths in `count` and then `reserve`s each
+  destination row, so no destination row grows. Clone copies slot arrays
+  verbatim.
+- The slot array never shrinks; `clear` releases it.
+
+`treeIndex` (`table/tree_index.go`) backs TreeTable: an AVL tree with key and
+value in the node. `put`/`delete` descend once, record link addresses in a
+fixed `[maxTreeHeight]` stack array and rebalance bottom-up; a replacement
+updates the node in place (key and value) and allocates nothing. Traversals
+use method recursion or an explicit stack - never a recursive closure, which
+heap-allocates. Unlinked nodes are zeroed. `checkTreeIndex` in
+`perf_model_test.go` validates order, cached heights, balance and count.
+
+Bulk paths:
+
+- `buildTreeIndex` builds a perfectly balanced tree from strictly ascending
+  entries into one node slab; `clone` copies a tree's shape into one slab. A
+  node later deleted from a slab stays allocated until the whole slab is
+  unreachable; slabs are per row (and one for the row index), so the extra
+  retention is bounded by one row's size at build time.
+- `columnGroups` regroups a TreeTable column-major for Transpose and Columns:
+  pass one assigns buckets by a merge cursor against the previous row's sorted
+  (column, bucket) list, falling back to a temporary column index only for
+  columns the previous row lacked; pass two counting-sorts. Walking rows in
+  ascending order is what makes every column run row-sorted - keep it.
+  `TestTransposeWork` pins the comparison budget (a cursor that stops skipping
+  or matching still produces correct output, so only the count catches it).
+
+ArrayTable: `NewArrayTable` keeps its universe in built-in maps behind
+`rowIndex`/`colIndex` position closures (about twice as fast as maphash
+through `hashIndex`); `NewArrayTableFunc` closes over a `hashIndex`. The
+universe (key slices, lookups, key functions) is immutable after construction
+and is shared by Clone, Transpose (axes swapped), Replace and UnmarshalJSON,
+also across `table_ts` twins - never write to `rowKeys`/`colKeys` (RowKeys and
+ColumnKeys copy). `rowIndex == nil` is the zero-value marker. Transpose is a
+direct matrix transpose.
+
+Snapshot copies allocate once: Row sizes its slice exactly (row count, or a
+present-cell count for ArrayTable), Column preallocates
+`columnCapacityHint(rows, cells)` = `min(rows, cells, 1024)` cells (so a sparse
+column in a huge table does not reserve O(rows) memory) or counts exactly for
+ArrayTable. `TestSnapshotAllocations` pins one allocation per Row/Column and
+zero for Get and replacing Put. `table_ts` presizes its `Cells` snapshot with
+`Len` under the read lock.
+
+Rejected (measured, do not retry without new evidence): struct-of-arrays hash
+slots (no mixed gain, slower Transpose, more allocations); a `<`-then-`==`
+natural comparator instead of `cmp.Compare` (slower for string keys).

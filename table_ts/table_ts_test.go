@@ -156,3 +156,57 @@ func TestConcurrentArrayAndTreeWriters(t *testing.T) {
 		t.Fatal("concurrent writes lost", tree.Len(), array.Len())
 	}
 }
+
+// TestDerivedTablesIndependentUnderConcurrency covers the bulk-built results
+// of the plain package through the twin: a dense Transpose/Clone shares the
+// source's immutable universe, and sparse Transpose/Clone results are built
+// from cached hashes or node slabs. Each derived table is written by its own
+// goroutine while the source keeps changing; run under -race.
+func TestDerivedTablesIndependentUnderConcurrency(t *testing.T) {
+	keys := []int{0, 1, 2, 3, 4, 5, 6, 7}
+	array := NewArrayTable[int, int, int](keys, keys)
+	hash := NewHashTable[int, int, int]()
+	tree := NewTreeTable[int, int, int]()
+	for _, row := range keys {
+		for _, column := range keys {
+			_, _, _ = array.Put(row, column, row*10+column)
+			hash.Put(row, column, row*10+column)
+			tree.Put(row, column, row*10+column)
+		}
+	}
+	arrayTranspose, arrayClone := array.Transpose(), array.Clone()
+	hashTranspose, hashClone := hash.Transpose(), hash.Clone()
+	treeTranspose, treeClone := tree.Transpose(), tree.Clone()
+	var wait sync.WaitGroup
+	run := func(work func(step int)) {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			for step := 0; step < 400; step++ {
+				work(step)
+			}
+		}()
+	}
+	run(func(step int) { _, _, _ = array.Put(step%8, (step/8)%8, -1) })
+	run(func(step int) { _, _, _ = arrayTranspose.Put(step%8, (step/8)%8, -2); _ = arrayTranspose.Row(step % 8) })
+	run(func(step int) { _, _, _ = arrayClone.Delete(step%8, (step/8)%8); _ = arrayClone.Column(step % 8) })
+	run(func(step int) { hash.Put(step%8, (step/8)%8, -1) })
+	run(func(step int) { hashTranspose.Delete(step%8, (step/8)%8); _ = hashTranspose.Column(step % 8) })
+	run(func(step int) { hashClone.Put(step%8+8, step%8, -3); _ = hashClone.Row(step % 8) })
+	run(func(step int) { tree.Delete(step%8, (step/8)%8) })
+	run(func(step int) { treeTranspose.Put(step%8, (step/8)%8, -2); _ = treeTranspose.Row(step % 8) })
+	run(func(step int) { treeClone.Delete(step%8, (step/8)%8); _ = treeClone.Column(step % 8) })
+	wait.Wait()
+	if value, _ := arrayTranspose.Get(3, 5); value != -2 {
+		t.Fatalf("array transpose (3,5) = %d", value)
+	}
+	if value, _ := array.Get(3, 5); value != -1 {
+		t.Fatalf("array source (3,5) = %d", value)
+	}
+	if arrayClone.Len() != 0 || hashTranspose.Len() != 0 || treeClone.Len() != 0 {
+		t.Fatal("derived deletes lost", arrayClone.Len(), hashTranspose.Len(), treeClone.Len())
+	}
+	if hash.Len() != 64 || tree.Len() != 0 || treeTranspose.Len() != 64 || hashClone.Len() != 72 {
+		t.Fatal("derived tables not independent", hash.Len(), tree.Len(), treeTranspose.Len(), hashClone.Len())
+	}
+}

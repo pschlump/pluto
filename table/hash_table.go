@@ -9,61 +9,7 @@ package table
 import (
 	"fmt"
 	"iter"
-
-	"github.com/pschlump/pluto/hash_grow"
 )
-
-type hashEntry[K any, V any] struct {
-	key   K
-	value V
-}
-
-type hashIndex[K any, V any] struct {
-	entries *hash_grow.HashTab[hashEntry[K, V]]
-}
-
-func newHashIndex[K any, V any](equal func(K, K) bool, hash func(K) uint64) *hashIndex[K, V] {
-	return &hashIndex[K, V]{
-		entries: hash_grow.NewHashTabFunc(
-			func(a, b hashEntry[K, V]) bool { return equal(a.key, b.key) },
-			func(entry hashEntry[K, V]) uint64 { return hash(entry.key) },
-			16, 0,
-		),
-	}
-}
-
-func (index *hashIndex[K, V]) get(key K) (V, bool) {
-	entry, found := index.entries.Search(hashEntry[K, V]{key: key})
-	return entry.value, found
-}
-
-func (index *hashIndex[K, V]) put(key K, value V) (V, bool) {
-	old, found := index.get(key)
-	index.entries.Insert(hashEntry[K, V]{key: key, value: value})
-	return old, found
-}
-
-func (index *hashIndex[K, V]) delete(key K) (V, bool) {
-	old, found := index.get(key)
-	if found {
-		index.entries.Delete(hashEntry[K, V]{key: key})
-	}
-	return old, found
-}
-
-func (index *hashIndex[K, V]) len() int { return index.entries.Len() }
-
-func (index *hashIndex[K, V]) clear() { index.entries.Truncate() }
-
-func (index *hashIndex[K, V]) all() iter.Seq2[K, V] {
-	return func(yield func(K, V) bool) {
-		for entry := range index.entries.Values() {
-			if !yield(entry.key, entry.value) {
-				return
-			}
-		}
-	}
-}
 
 // HashTable is a sparse row-major hash table. Its zero value is empty for reads;
 // use a constructor before mutation.
@@ -101,13 +47,20 @@ func (t *HashTable[R, C, V]) writeContract(caller string) {
 	}
 }
 
-// Put inserts or replaces a cell and returns its previous value.
+// Put inserts or replaces a cell and returns its previous value. The row key
+// is hashed once whether or not its row already exists.
+// Complexity is expected amortized O(1).
 func (t *HashTable[R, C, V]) Put(row R, column C, value V) (V, bool) {
 	t.writeContract("Put")
-	columns, found := t.rows.get(row)
-	if !found {
+	rows := t.rows
+	rowHash := fixHash(rows.hash(row))
+	position, found := rows.findOrAllocate(rowHash, row)
+	var columns *hashIndex[C, V]
+	if found {
+		columns = rows.slots[position].value
+	} else {
 		columns = newHashIndex[C, V](t.colEqual, t.colHash)
-		t.rows.put(row, columns)
+		rows.insertAt(position, rowHash, row, columns)
 	}
 	old, replaced := columns.put(column, value)
 	if !replaced {
@@ -136,16 +89,17 @@ func (t *HashTable[R, C, V]) Delete(row R, column C) (V, bool) {
 		var zero V
 		return zero, false
 	}
-	columns, found := t.rows.get(row)
+	position, found := t.rows.lookup(row)
 	if !found {
 		var zero V
 		return zero, false
 	}
+	columns := t.rows.slots[position].value
 	old, deleted := columns.delete(column)
 	if deleted {
 		t.cellCount--
-		if columns.len() == 0 {
-			t.rows.delete(row)
+		if columns.count == 0 {
+			t.rows.removeAt(position)
 		}
 	}
 	return old, deleted
@@ -170,9 +124,13 @@ func (t *HashTable[R, C, V]) ContainsColumn(column C) bool {
 	if t == nil || t.rows == nil {
 		return false
 	}
-	for _, columns := range t.rows.all() {
-		if _, found := columns.get(column); found {
-			return true
+	columnHash := fixHash(t.colHash(column))
+	for position := range t.rows.slots {
+		slot := &t.rows.slots[position]
+		if slot.hash != 0 {
+			if _, found := slot.value.find(columnHash, column); found {
+				return true
+			}
 		}
 	}
 	return false
@@ -202,9 +160,14 @@ func (t *HashTable[R, C, V]) Cells() iter.Seq[Cell[R, C, V]] {
 		if t == nil || t.rows == nil {
 			return
 		}
-		for row, columns := range t.rows.all() {
-			for column, value := range columns.all() {
-				if !yield(Cell[R, C, V]{Row: row, Column: column, Value: value}) {
+		for rowPosition := range t.rows.slots {
+			rowSlot := &t.rows.slots[rowPosition]
+			if rowSlot.hash == 0 {
+				continue
+			}
+			for position := range rowSlot.value.slots {
+				slot := &rowSlot.value.slots[position]
+				if slot.hash != 0 && !yield(Cell[R, C, V]{Row: rowSlot.key, Column: slot.key, Value: slot.value}) {
 					return
 				}
 			}
@@ -212,15 +175,22 @@ func (t *HashTable[R, C, V]) Cells() iter.Seq[Cell[R, C, V]] {
 	}
 }
 
+// hashRowCells copies one row into an exactly sized slice (one allocation).
 func hashRowCells[R any, C any, V any](row R, columns *hashIndex[C, V]) []Cell[R, C, V] {
-	cells := make([]Cell[R, C, V], 0, columns.len())
-	for column, value := range columns.all() {
-		cells = append(cells, Cell[R, C, V]{Row: row, Column: column, Value: value})
+	cells := make([]Cell[R, C, V], columns.count)
+	next := 0
+	for position := range columns.slots {
+		slot := &columns.slots[position]
+		if slot.hash != 0 {
+			cells[next] = Cell[R, C, V]{Row: row, Column: slot.key, Value: slot.value}
+			next++
+		}
 	}
 	return cells
 }
 
-// Row returns a fresh snapshot in unspecified column order.
+// Row returns a fresh snapshot in unspecified column order, allocated once at
+// its exact length. Complexity is expected O(width).
 func (t *HashTable[R, C, V]) Row(row R) []Cell[R, C, V] {
 	if t == nil || t.rows == nil {
 		return nil
@@ -232,15 +202,25 @@ func (t *HashTable[R, C, V]) Row(row R) []Cell[R, C, V] {
 	return hashRowCells(row, columns)
 }
 
-// Column returns a fresh snapshot in unspecified row order.
+// Column returns a fresh snapshot in unspecified row order. The column key is
+// hashed once and probed in every row. Complexity is expected O(rows).
 func (t *HashTable[R, C, V]) Column(column C) []Cell[R, C, V] {
 	if t == nil || t.rows == nil {
 		return nil
 	}
-	cells := []Cell[R, C, V]{}
-	for row, columns := range t.rows.all() {
-		if value, found := columns.get(column); found {
-			cells = append(cells, Cell[R, C, V]{Row: row, Column: column, Value: value})
+	cells := make([]Cell[R, C, V], 0, columnCapacityHint(t.rows.count, t.cellCount))
+	if t.rows.count == 0 {
+		return cells
+	}
+	columnHash := fixHash(t.colHash(column))
+	for rowPosition := range t.rows.slots {
+		rowSlot := &t.rows.slots[rowPosition]
+		if rowSlot.hash == 0 {
+			continue
+		}
+		if position, found := rowSlot.value.find(columnHash, column); found {
+			slot := &rowSlot.value.slots[position]
+			cells = append(cells, Cell[R, C, V]{Row: rowSlot.key, Column: slot.key, Value: slot.value})
 		}
 	}
 	return cells
@@ -271,9 +251,26 @@ func (t *HashTable[R, C, V]) Rows() iter.Seq2[R, []Cell[R, C, V]] {
 func (t *HashTable[R, C, V]) Columns() iter.Seq2[C, []Cell[R, C, V]] {
 	groups := newHashIndex[C, []Cell[R, C, V]](t.colEqualOrNil(), t.colHashOrNil())
 	if t != nil && t.rows != nil {
-		for cell := range t.Cells() {
-			cells, _ := groups.get(cell.Column)
-			groups.put(cell.Column, append(cells, cell))
+		// Column hashes are cached in every row's slots, so grouping
+		// re-hashes nothing.
+		for rowPosition := range t.rows.slots {
+			rowSlot := &t.rows.slots[rowPosition]
+			if rowSlot.hash == 0 {
+				continue
+			}
+			for position := range rowSlot.value.slots {
+				slot := &rowSlot.value.slots[position]
+				if slot.hash == 0 {
+					continue
+				}
+				cell := Cell[R, C, V]{Row: rowSlot.key, Column: slot.key, Value: slot.value}
+				group, found := groups.findOrAllocate(slot.hash, slot.key)
+				if found {
+					groups.slots[group].value = append(groups.slots[group].value, cell)
+				} else {
+					groups.insertAt(group, slot.hash, slot.key, []Cell[R, C, V]{cell})
+				}
+			}
 		}
 	}
 	type group struct {
@@ -335,10 +332,59 @@ func (t *HashTable[R, C, V]) Transpose() *HashTable[C, R, V] {
 		return &HashTable[C, R, V]{}
 	}
 	result := NewHashTableFunc[C, R, V](t.colEqual, t.colHash, t.rowEqual, t.rowHash)
-	for cell := range t.Cells() {
-		result.Put(cell.Column, cell.Row, cell.Value)
-	}
+	transposeHashRows(t.rows, result.rows)
+	result.cellCount = t.cellCount
 	return result
+}
+
+// transposeHashRows fills the empty destination index with the transpose of
+// source. Both hash functions' results are cached in the source slots (a column
+// hash in every row index, a row hash in the outer index), so no key is hashed:
+// the destination row is located by its cached column hash, and the source row
+// is appended to it with insertUnique because source rows are distinct.
+//
+// A first pass counts each destination row's width so every destination row
+// index is allocated once at its final size.
+func transposeHashRows[R any, C any, V any](source *hashIndex[R, *hashIndex[C, V]], destination *hashIndex[C, *hashIndex[R, V]]) {
+	for rowPosition := range source.slots {
+		rowSlot := &source.slots[rowPosition]
+		if rowSlot.hash == 0 {
+			continue
+		}
+		for position := range rowSlot.value.slots {
+			slot := &rowSlot.value.slots[position]
+			if slot.hash == 0 {
+				continue
+			}
+			target, found := destination.findOrAllocate(slot.hash, slot.key)
+			if !found {
+				target = destination.insertAt(target, slot.hash, slot.key, newHashIndex[R, V](source.equal, source.hash))
+			}
+			destination.slots[target].value.count++ // width tally; reset below
+		}
+	}
+	for position := range destination.slots {
+		slot := &destination.slots[position]
+		if slot.hash != 0 {
+			width := slot.value.count
+			slot.value.count = 0
+			slot.value.reserve(width)
+		}
+	}
+	for rowPosition := range source.slots {
+		rowSlot := &source.slots[rowPosition]
+		if rowSlot.hash == 0 {
+			continue
+		}
+		for position := range rowSlot.value.slots {
+			slot := &rowSlot.value.slots[position]
+			if slot.hash == 0 {
+				continue
+			}
+			target, _ := destination.find(slot.hash, slot.key)
+			destination.slots[target].value.insertUnique(rowSlot.hash, rowSlot.key, slot.value)
+		}
+	}
 }
 
 // Clone returns an independent sparse table with the same key functions.
@@ -349,9 +395,17 @@ func (t *HashTable[R, C, V]) Clone() *HashTable[R, C, V] {
 	if t.rows == nil {
 		return &HashTable[R, C, V]{}
 	}
-	result := NewHashTableFunc[R, C, V](t.rowEqual, t.rowHash, t.colEqual, t.colHash)
-	for cell := range t.Cells() {
-		result.Put(cell.Row, cell.Column, cell.Value)
+	// Copy both slot levels verbatim: same layout, no re-hashing.
+	result := &HashTable[R, C, V]{
+		rows:     t.rows.clone(),
+		rowEqual: t.rowEqual, rowHash: t.rowHash, colEqual: t.colEqual, colHash: t.colHash,
+		cellCount: t.cellCount,
+	}
+	for position := range result.rows.slots {
+		slot := &result.rows.slots[position]
+		if slot.hash != 0 {
+			slot.value = slot.value.clone()
+		}
 	}
 	return result
 }

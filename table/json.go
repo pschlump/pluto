@@ -77,10 +77,10 @@ func (t *ArrayTable[R, C, V]) UnmarshalJSON(data []byte) error {
 	if len(cells) > 0 {
 		t.writeContract("UnmarshalJSON")
 	}
-	if t == nil || t.rows == nil {
+	if t == nil || t.rowIndex == nil {
 		return nil
 	}
-	next := NewArrayTableFunc[R, C, V](t.rowKeys, t.colKeys, t.rowEqual, t.rowHash, t.colEqual, t.colHash)
+	next := t.sameUniverse()
 	for _, cell := range cells {
 		if _, _, err := next.Put(cell.Row, cell.Column, cell.Value); err != nil {
 			return err

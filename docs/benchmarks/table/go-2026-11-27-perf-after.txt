@@ -1,0 +1,72 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/table
+cpu: Apple M4 Max
+BenchmarkHashTable-14              	27068534	        46.46 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeTable-14              	12888436	        91.81 ns/op	       6 B/op	       0 allocs/op
+BenchmarkNestedMap-14              	32861780	        35.62 ns/op	       0 B/op	       0 allocs/op
+BenchmarkArrayTable-14             	50498850	        24.15 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFlatMatrix-14             	344028394	         3.441 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashTableRow-14           	 2825329	       426.9 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkHashTableColumn-14        	 1776385	       669.2 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkTreeTableRow-14           	 2456124	       488.3 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkTreeTableColumn-14        	  718347	      1671 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkArrayTableRow-14          	 2897824	       410.7 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkArrayTableColumn-14       	 2892702	       423.3 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkHashTableTranspose-14     	   12609	     93828 ns/op	  357361 B/op	     135 allocs/op
+BenchmarkTreeTableTranspose-14     	    9306	    127089 ns/op	  477530 B/op	     162 allocs/op
+BenchmarkArrayTableTranspose-14    	  130542	      9199 ns/op	   69792 B/op	       3 allocs/op
+BenchmarkTableMemory/hash-14       	    1314	    925224 ns/op	    422040 retained-bytes	       103.0 retained-bytes/cell	  785697 B/op	    8592 allocs/op
+BenchmarkTableMemory/tree-14       	    1190	   1005646 ns/op	    335664 retained-bytes	        81.95 retained-bytes/cell	  367419 B/op	   12425 allocs/op
+BenchmarkTableMemory/array-14      	    2985	    395893 ns/op	     83112 retained-bytes	        20.29 retained-bytes/cell	   85430 B/op	     154 allocs/op
+BenchmarkTableMemory/nested-14     	    1794	    679031 ns/op	    388736 retained-bytes	        94.91 retained-bytes/cell	  674573 B/op	    4878 allocs/op
+BenchmarkTableMemory/flat-14       	    3577	    340463 ns/op	     71880 retained-bytes	        17.55 retained-bytes/cell	   71890 B/op	       7 allocs/op
+PASS
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/table
+cpu: Apple M4 Max
+BenchmarkHashTable-14              	25496020	        45.86 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeTable-14              	12659006	        93.03 ns/op	       6 B/op	       0 allocs/op
+BenchmarkNestedMap-14              	32524364	        36.97 ns/op	       0 B/op	       0 allocs/op
+BenchmarkArrayTable-14             	47492776	        24.52 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFlatMatrix-14             	339273844	         3.528 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashTableRow-14           	 2640342	       458.6 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkHashTableColumn-14        	 1703674	       711.9 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkTreeTableRow-14           	 2185324	       533.1 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkTreeTableColumn-14        	  715758	      1719 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkArrayTableRow-14          	 2694469	       443.7 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkArrayTableColumn-14       	 2692489	       442.0 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkHashTableTranspose-14     	   12340	     96263 ns/op	  357361 B/op	     135 allocs/op
+BenchmarkTreeTableTranspose-14     	    9289	    132015 ns/op	  477530 B/op	     162 allocs/op
+BenchmarkArrayTableTranspose-14    	  127669	     10014 ns/op	   69792 B/op	       3 allocs/op
+BenchmarkTableMemory/hash-14       	    1186	    954406 ns/op	    422040 retained-bytes	       103.0 retained-bytes/cell	  785698 B/op	    8592 allocs/op
+BenchmarkTableMemory/tree-14       	    1141	   1046445 ns/op	    335664 retained-bytes	        81.95 retained-bytes/cell	  367421 B/op	   12425 allocs/op
+BenchmarkTableMemory/array-14      	    2530	    429707 ns/op	     83112 retained-bytes	        20.29 retained-bytes/cell	   85431 B/op	     154 allocs/op
+BenchmarkTableMemory/nested-14     	    1650	    724490 ns/op	    388736 retained-bytes	        94.91 retained-bytes/cell	  674575 B/op	    4878 allocs/op
+BenchmarkTableMemory/flat-14       	    3262	    372827 ns/op	     71880 retained-bytes	        17.55 retained-bytes/cell	   71894 B/op	       7 allocs/op
+PASS
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/table
+cpu: Apple M4 Max
+BenchmarkHashTable-14              	25928636	        45.03 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeTable-14              	12751108	        93.11 ns/op	       6 B/op	       0 allocs/op
+BenchmarkNestedMap-14              	32781025	        36.57 ns/op	       0 B/op	       0 allocs/op
+BenchmarkArrayTable-14             	48542378	        24.46 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFlatMatrix-14             	320060206	         3.651 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashTableRow-14           	 2750574	       434.4 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkHashTableColumn-14        	 1735177	       684.7 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkTreeTableRow-14           	 2333460	       518.0 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkTreeTableColumn-14        	  722644	      1675 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkArrayTableRow-14          	 2973350	       400.4 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkArrayTableColumn-14       	 2930250	       414.6 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkHashTableTranspose-14     	   12846	     93801 ns/op	  357361 B/op	     135 allocs/op
+BenchmarkTreeTableTranspose-14     	    9186	    126780 ns/op	  477530 B/op	     162 allocs/op
+BenchmarkArrayTableTranspose-14    	  127501	      9150 ns/op	   69792 B/op	       3 allocs/op
+BenchmarkTableMemory/hash-14       	    1279	    954371 ns/op	    422040 retained-bytes	       103.0 retained-bytes/cell	  785701 B/op	    8592 allocs/op
+BenchmarkTableMemory/tree-14       	    1182	   1013573 ns/op	    335664 retained-bytes	        81.95 retained-bytes/cell	  367418 B/op	   12425 allocs/op
+BenchmarkTableMemory/array-14      	    2982	    407390 ns/op	     83112 retained-bytes	        20.29 retained-bytes/cell	   85433 B/op	     154 allocs/op
+BenchmarkTableMemory/nested-14     	    1749	    690195 ns/op	    388736 retained-bytes	        94.91 retained-bytes/cell	  674573 B/op	    4878 allocs/op
+BenchmarkTableMemory/flat-14       	    3409	    357991 ns/op	     71880 retained-bytes	        17.55 retained-bytes/cell	   71892 B/op	       7 allocs/op
+PASS

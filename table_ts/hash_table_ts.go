@@ -120,7 +120,14 @@ func (t *HashTable[R, C, V]) Replace(cells []table.Cell[R, C, V]) {
 }
 
 func snapshotCells[R any, C any, V any](sequence iter.Seq[table.Cell[R, C, V]]) []table.Cell[R, C, V] {
-	cells := []table.Cell[R, C, V]{}
+	return snapshotCellsSized(sequence, 0)
+}
+
+// snapshotCellsSized collects sequence into a slice presized for count cells
+// (the table's Len under the held lock), so a Cells snapshot is one
+// allocation instead of an append-growth chain.
+func snapshotCellsSized[R any, C any, V any](sequence iter.Seq[table.Cell[R, C, V]], count int) []table.Cell[R, C, V] {
+	cells := make([]table.Cell[R, C, V], 0, count)
 	for cell := range sequence {
 		cells = append(cells, cell)
 	}
@@ -142,7 +149,7 @@ func (t *HashTable[R, C, V]) Cells() iter.Seq[table.Cell[R, C, V]] {
 		return cellsIterator([]table.Cell[R, C, V](nil))
 	}
 	t.lock.RLock()
-	cells := snapshotCells(t.plain.Cells())
+	cells := snapshotCellsSized(t.plain.Cells(), t.plain.Len())
 	t.lock.RUnlock()
 	return cellsIterator(cells)
 }

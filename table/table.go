@@ -32,6 +32,17 @@ func naturalFunctions[T comparable]() (func(T, T) bool, func(T) uint64) {
 	}
 }
 
+// columnCapacityHint sizes a column snapshot before its row scan: a column has
+// at most one cell per row and at most cellCount cells. Up to
+// maxColumnPrealloc cells are reserved up front (one allocation for typical
+// tables); beyond that, append growth takes over so a sparse column in a table
+// with very many rows does not reserve an O(rows) buffer it will not fill.
+func columnCapacityHint(rows, cellCount int) int {
+	return min(rows, cellCount, maxColumnPrealloc)
+}
+
+const maxColumnPrealloc = 1024
+
 func copyCells[R any, C any, V any](cells []Cell[R, C, V]) []Cell[R, C, V] {
 	if cells == nil {
 		return nil

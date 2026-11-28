@@ -93,7 +93,7 @@ func (t *TreeTable[R, C, V]) Freeze() *ImmutableTable[R, C, V] {
 
 // Freeze returns an immutable copy retaining complete dense universes.
 func (t *ArrayTable[R, C, V]) Freeze() *ImmutableTable[R, C, V] {
-	if t == nil || t.rows == nil {
+	if t == nil || t.rowIndex == nil {
 		return nil
 	}
 	return freeze[R, C, V](t, t.rowEqual, t.rowHash, t.colEqual, t.colHash)
