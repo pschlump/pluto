@@ -1139,7 +1139,8 @@ pointers. `Walk` is `func(pos int, data T) bool` with *false-to-stop*
 (the tree convention) and no depth/userData; `All`/`Values`/`Dump`
 round out iteration. `Truncate` clears both slices. `Upsert`,
 `GetOrInsert` and `Remove` fold Search+Insert / Search+Delete into one
-hash and one probe walk.
+hash and one probe walk; `UpsertFunc` does the same for a
+read-modify-write (a callback computes the stored value from the old one).
 
 * Good: O(1) average that holds up as data grows; no per-element
 pointer chasing; the hash table for unknown sizes.

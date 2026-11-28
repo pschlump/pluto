@@ -55,6 +55,7 @@ on pkg.go.dev.
 | `Upsert`                        | O(1)       | O(n)       | one hash + one probe: insert or replace, returns the replaced element
 | `GetOrInsert`                   | O(1)       | O(n)       | one hash + one probe: returns the stored element, inserts only on a miss
 | `Remove`                        | O(1)       | O(n)       | one hash + one probe: delete and return the stored element
+| `UpsertFunc`                    | O(1)       | O(n)       | one hash + one probe read-modify-write: fn(existing, found) computes the stored value
 | `Contains`                      | O(1)       | O(n)       | the found flag of Search
 | `IsEmpty`, `Len`, `Length`      | O(1)       | O(1)       |
 | `Truncate`                      | O(n)       | O(n)       | clears all buckets for GC
@@ -119,7 +120,7 @@ func main() {
 == Single-probe compound operations
 
 `Search` followed by `Insert` (or by `Delete`) hashes the element twice and
-walks its probe chain twice.  Three methods do the combined step with one
+walks its probe chain twice.  Four methods do the combined step with one
 hash and one probe walk (plus any growth, exactly as `Insert` grows):
 
 * `Upsert(item T) (old T, replaced bool)` — insert, or replace the stored
@@ -130,9 +131,23 @@ hash and one probe walk (plus any growth, exactly as `Insert` grows):
   `found == false`.
 * `Remove(find T) (removed T, found bool)` — delete and return the stored
   equal element (same backward-shift repair as `Delete`).
+* `UpsertFunc(item T, fn func(existing T, found bool) T) T` — the
+  read-modify-write (a counter bump, an append, a merge — anything whose
+  new value depends on the old one, which `Upsert` cannot express because
+  it needs the new value up front).  One hash and one probe on `item`; `fn`
+  is called once with the stored equal element (`found == true`) or with
+  `item` (`found == false`); its result is stored in that slot (replacing,
+  or inserting with `Insert`'s growth rule) and returned.  Values only:
+  `fn` gets a copy and returns a value — no pointer into the table.
+  Contract, documented and not checked: `fn`'s result must be equal to
+  `item` and hash identically (it is filed under `item`'s hash; checking
+  would cost the second hash this method exists to avoid) — change only
+  satellite fields; `fn` must not call back into the same table.  A
+  panicking `fn` leaves the table unchanged (it runs before anything is
+  written: no half-inserted slot, no length change, no growth).
 
-`Upsert`/`GetOrInsert` carry `Insert`'s panic contract (nil or zero-value
-table); `Remove` tolerates both like `Delete`.
+`Upsert`/`GetOrInsert`/`UpsertFunc` carry `Insert`'s panic contract (nil or
+zero-value table), and `UpsertFunc` also panics on a nil `fn`; `Remove` tolerates both like `Delete`.
 
 == Iteration
 
@@ -212,7 +227,7 @@ the read side, exactly like the core operations.
 
 == Panics
 
-The package panics in exactly four situations — all programmer errors with
+The package panics in exactly five situations — all programmer errors with
 no sane fallback, each message naming the fix:
 
 [options="header"]
@@ -221,8 +236,9 @@ no sane fallback, each message naming the fix:
 
 | `NewHashTabFunc(nil eq, ...)` / `NewHashTabFunc(eq, nil hash, ...)` | nil function, caught at construction time
 | `NewHashTab`/`NewHashTabFunc` with n < 5 | a smaller table has no headroom
-| `Insert`, `Upsert` or `GetOrInsert` on a nil `*HashTab` | a nil table cannot store an element
-| `Insert`, `Upsert` or `GetOrInsert` on a zero-value table | no equality/hash functions; the message names the constructors
+| `Insert`, `Upsert`, `GetOrInsert` or `UpsertFunc` on a nil `*HashTab` | a nil table cannot store an element
+| `Insert`, `Upsert`, `GetOrInsert` or `UpsertFunc` on a zero-value table | no equality/hash functions; the message names the constructors
+| `UpsertFunc` with a nil `fn` | nothing to compute the stored value with
 |===
 
 The batch inserters `InsertSlice`/`InsertIter` raise the same insert

@@ -29,6 +29,7 @@ BSD 3 Clause Licensed.
 //	Upsert — insert or replace, returning the replaced element; one hash, one probe.	O(1) average, O(n) worst
 //	GetOrInsert — return the stored equal element, inserting only on a miss.	O(1) average, O(n) worst
 //	Remove — delete and return the stored equal element; one hash, one probe.	O(1) average, O(n) worst
+//	UpsertFunc — read-modify-write: fn(existing, found) computes the stored value; one hash, one probe.	O(1) average, O(n) worst
 //	Contains — the found flag of Search, spelled as a membership predicate.	O(1) average, O(n) worst
 //	IsEmpty — Returns true if the table is empty.								O(1)
 //	Len / Length — Returns number of elements in the table.  0 length is empty.	O(1)
@@ -55,13 +56,14 @@ BSD 3 Clause Licensed.
 // read: searches report not-found, Delete and Remove report not-found, and
 // the iterators visit nothing.
 //
-// The package panics in exactly four situations, all programmer errors that
+// The package panics in exactly five situations, all programmer errors that
 // cannot be handled where they occur — each message names the fix:
 //
 //	NewHashTabFunc with a nil equality or hash function — caught at construction.
 //	NewHashTab/NewHashTabFunc with n < 5 — a smaller table has no headroom.
-//	Insert, Upsert or GetOrInsert on a nil table — a nil table cannot store an element.
-//	Insert, Upsert or GetOrInsert on a zero-value table — no equality/hash functions; the message names the constructors.
+//	Insert, Upsert, GetOrInsert or UpsertFunc on a nil table — a nil table cannot store an element.
+//	Insert, Upsert, GetOrInsert or UpsertFunc on a zero-value table — no equality/hash functions; the message names the constructors.
+//	UpsertFunc with a nil update function — there is nothing to compute the stored value with.
 
 // The batch inserters InsertSlice and InsertIter raise the same insert
 // contract as Insert — a nil table or a zero-value table panics when, and

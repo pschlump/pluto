@@ -9,13 +9,13 @@ package hash_grow
 import "fmt"
 
 // This file holds the single-probe compound operations: Upsert,
-// GetOrInsert and Remove.  Each replaces a Search followed by an Insert or
+// GetOrInsert, Remove and UpsertFunc.  Each replaces a Search followed by an Insert or
 // a Delete — two hash computations and two probe walks — with one hash and
 // one probe walk.  The hash-0 remap, the growth rule and the stored-hash
 // prefilter are exactly Insert's and Delete's.
 
 // writeContract applies the store panic contract for the single-probe
-// writers (Upsert, GetOrInsert).  `method` names the public method.
+// writers (Upsert, GetOrInsert, UpsertFunc).  `method` names the public method.
 func (tt *HashTab[T]) writeContract(method string) {
 	if tt == nil {
 		panic(fmt.Sprintf("hash_grow: %s called on a nil table (a nil table cannot store an element; create the table with NewHashTab or NewHashTabFunc)", method))
@@ -135,4 +135,57 @@ func (tt *HashTab[T]) Remove(find T) (removed T, found bool) {
 		h = tt.nextIndex(h)
 	}
 	return removed, false // full cycle: not present
+}
+
+// UpsertFunc is the single-probe read-modify-write: it hashes item once,
+// walks its probe chain once, and calls fn with the stored element equal
+// to item (found == true) or, when none is stored, with item itself
+// (found == false).  fn's result is stored in that slot — replacing the
+// stored element, or inserting with Insert's growth rule — and returned.
+// It replaces a Search followed by an Insert whose new value depends on
+// the old one (a counter bump, an append, a merge), which Upsert cannot
+// express because Upsert needs the new value before it sees the old one.
+// Elements stay by value: fn receives a copy and returns a value; no
+// pointer into the table's storage is ever handed out.
+//
+// Contract (the caller's responsibility, not checked):
+//
+//   - fn's result must be equal to item under the table's equality
+//     function and must hash identically.  The result is stored under the
+//     hash computed from item, so a result with a different key would be
+//     filed in the wrong probe chain and become unreachable (or shadow
+//     another element).  Re-verifying would cost a second hash call and
+//     an equality call — exactly the work this method exists to avoid —
+//     and the table could not repair a violation anyway, so it is a
+//     programmer contract, like the eq/hash agreement of NewHashTabFunc.
+//     Changing only satellite fields (fields eq and hash ignore) is the
+//     intended use.
+//   - fn must not call any method of the same table.  It runs between the
+//     probe and the store, so a mutation from inside fn would invalidate
+//     the probed slot (and in the thread-safe twin, where fn runs under
+//     the write lock, any locked call would deadlock).
+//   - If fn panics, the table is unchanged: fn runs before anything is
+//     written, so there is no half-inserted slot, the length is unchanged
+//     and no growth has happened.  The panic propagates to the caller.
+//
+// UpsertFunc panics on a nil table or a zero-value table (no
+// equality/hash functions), like Insert, and on a nil fn; each message
+// names the method and the fix.
+// Complexity is O(1) average, O(n) worst case, plus fn; growth is
+// amortized O(1).
+func (tt *HashTab[T]) UpsertFunc(item T, fn func(existing T, found bool) T) T {
+	tt.writeContract("UpsertFunc")
+	if fn == nil {
+		panic("hash_grow: UpsertFunc called with a nil update function (pass a func(existing T, found bool) T)")
+	}
+	rh := tt.hashOf(item)
+	slot, found := tt.probe(rh, item)
+	if found {
+		v := fn(tt.buckets[slot], true) // nothing written yet: a panic here leaves the table unchanged
+		tt.buckets[slot] = v            // the stored hash stays rh: v must hash like item (contract)
+		return v
+	}
+	v := fn(item, false) // before placeNew: a panic cannot leave a half-inserted slot or a growth
+	tt.placeNew(slot, rh, v)
+	return v
 }

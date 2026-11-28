@@ -150,17 +150,27 @@ func (l *Lfu[K]) Touch(key K) uint8 {
 	if l.tab == nil {
 		panic("lfu: Touch on a zero-value Lfu — no configuration; create the table with NewLfu or NewLfuWithClock")
 	}
-	now := l.minutesNow()
-	counter := InitVal
-	if e, ok := l.tab.Search(lfuEntry[K]{key: key}); ok {
-		counter = e.counter
-		if l.decayTime > 0 {
-			counter = decayed(counter, elapsedMinutes(now, e.lastMin)/l.decayTime)
+	// Exactly one clock read and one random draw per Touch, in this order —
+	// the same draws the former Search+Insert form made.
+	return l.touchAt(key, l.minutesNow(), rand.Float64())
+}
+
+// touchAt is Touch's body with the minute and the random draw supplied:
+// one hash and one probe through hash_grow's UpsertFunc (the new counter
+// depends on the old one, so Upsert cannot fold the Search+Insert pair).
+// The differential test drives it with a seeded r sequence.
+func (l *Lfu[K]) touchAt(key K, now uint16, r float64) uint8 {
+	e := l.tab.UpsertFunc(lfuEntry[K]{key: key}, func(old lfuEntry[K], found bool) lfuEntry[K] {
+		counter := InitVal
+		if found {
+			counter = old.counter
+			if l.decayTime > 0 {
+				counter = decayed(counter, elapsedMinutes(now, old.lastMin)/l.decayTime)
+			}
 		}
-	}
-	counter = incrWithR(counter, l.logFactor, rand.Float64())
-	l.tab.Insert(lfuEntry[K]{key: key, counter: counter, lastMin: now})
-	return counter
+		return lfuEntry[K]{key: key, counter: incrWithR(counter, l.logFactor, r), lastMin: now}
+	})
+	return e.counter
 }
 
 // Add inserts key with a fresh counter at InitVal and the current

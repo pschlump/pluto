@@ -129,6 +129,9 @@ value × period counts past the uint8 range), and the hot/cold
 separation gate (deterministic at factor 0, ~10σ statistical at factor
 10) — plus a 4000-step randomized model test (seed 42) cross-checking
 every operation against an independent oracle at logFactor 0, where
-Touch is deterministic. Benchmarks: Touch ≈ 41 ns/op zero-alloc (the
-per-command LFU bookkeeping), Counter ≈ 31 ns, the standalone
+Touch is deterministic; `touch_differential_test.go` proves the
+single-probe Touch (one hash + one probe through hash_grow's
+`UpsertFunc`) bit-identical to the former Search+Insert form under the
+same seeded draws. Benchmarks: Touch ≈ 41 ns/op zero-alloc (the
+per-command LFU bookkeeping; ≈ 44 ns before the single-probe change), Counter ≈ 34 ns, the standalone
 `MorrisCounter.Incr` ≈ 4 ns.
