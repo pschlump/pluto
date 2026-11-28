@@ -8,6 +8,7 @@ package evicting_queue
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"reflect"
 	"slices"
@@ -168,4 +169,80 @@ func TestQueueNegativeCapacityPanics(t *testing.T) {
 		}
 	}()
 	NewQueue[int](-1)
+}
+
+// TestQueueWrappedSegments drives every capacity 1..6, every head rotation and
+// every length through the two-segment paths (All with early stop at each
+// position, Slice, Clone, Equal across different rotations).
+func TestQueueWrappedSegments(t *testing.T) {
+	for capacity := 1; capacity <= 6; capacity++ {
+		for rotation := 0; rotation < capacity; rotation++ {
+			for length := 0; length <= capacity; length++ {
+				queue := NewQueue[int](capacity)
+				for index := 0; index < rotation; index++ { // advance head
+					queue.Push(-1)
+					queue.Pop()
+				}
+				model := []int{}
+				for value := range length {
+					queue.Push(value)
+					model = append(model, value)
+				}
+				name := fmt.Sprintf("cap%d/rot%d/len%d", capacity, rotation, length)
+				if got := queue.Slice(); !slices.Equal(got, model) {
+					t.Fatalf("%s Slice %v want %v", name, got, model)
+				}
+				for stop := 0; stop <= length; stop++ {
+					seen := []int{}
+					for value := range queue.All() {
+						if len(seen) == stop {
+							break
+						}
+						seen = append(seen, value)
+					}
+					if !slices.Equal(seen, model[:stop]) {
+						t.Fatalf("%s stop %d saw %v", name, stop, seen)
+					}
+				}
+				clone := queue.Clone()
+				if got := clone.Slice(); !slices.Equal(got, model) || clone.Capacity() != capacity {
+					t.Fatalf("%s Clone %v cap %d", name, got, clone.Capacity())
+				}
+				clone.Push(99) // independence
+				if got := queue.Slice(); !slices.Equal(got, model) {
+					t.Fatalf("%s Clone shares storage: %v", name, got)
+				}
+				unrotated := NewQueue[int](capacity + 1)
+				unrotated.PushAll(model)
+				if !queue.Equal(unrotated) || !unrotated.Equal(queue) {
+					t.Fatalf("%s Equal false across rotations", name)
+				}
+				if length > 0 {
+					different := NewQueue[int](capacity)
+					different.PushAll(model)
+					different.Pop()
+					different.Push(model[len(model)-1] + 1)
+					if queue.Equal(different) {
+						t.Fatalf("%s Equal true for different contents", name)
+					}
+				}
+			}
+		}
+	}
+}
+
+// TestQueuePushAllEvictsInPlace covers the short-input PushAll path when it
+// wraps and evicts.
+func TestQueuePushAllEvictsInPlace(t *testing.T) {
+	queue := NewQueue[int](4)
+	queue.PushAll([]int{1, 2, 3})
+	queue.PushAll([]int{4, 5, 6})
+	if got := queue.Slice(); !slices.Equal(got, []int{3, 4, 5, 6}) {
+		t.Fatal(got)
+	}
+	queue.Pop()
+	queue.PushAll([]int{7, 8})
+	if got := queue.Slice(); !slices.Equal(got, []int{5, 6, 7, 8}) {
+		t.Fatal(got)
+	}
 }

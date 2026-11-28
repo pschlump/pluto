@@ -1,0 +1,18 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/evicting_queue
+cpu: Apple M4 Max
+BenchmarkEvictingQueue-14             	306676147	         3.765 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvictingQueue-14             	327878370	         3.943 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvictingQueue-14             	313532451	         3.542 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDQueueEviction-14            	63220836	        18.53 ns/op	      31 B/op	       1 allocs/op
+BenchmarkDQueueEviction-14            	64722010	        18.51 ns/op	      31 B/op	       1 allocs/op
+BenchmarkDQueueEviction-14            	64600786	        18.33 ns/op	      31 B/op	       1 allocs/op
+BenchmarkEvictingQueueIteration-14    	17818970	        67.86 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvictingQueueIteration-14    	17701594	        67.41 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvictingQueueIteration-14    	17725486	        67.56 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDQueueIteration-14           	 3520634	       339.4 ns/op	      40 B/op	       2 allocs/op
+BenchmarkDQueueIteration-14           	 3547605	       339.1 ns/op	      40 B/op	       2 allocs/op
+BenchmarkDQueueIteration-14           	 3555502	       340.1 ns/op	      40 B/op	       2 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/evicting_queue	17.041s

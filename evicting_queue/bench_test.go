@@ -80,9 +80,14 @@ func BenchmarkEvictingQueueIteration(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
+		// Sum into a local and publish once per pass, as the Java benchmark
+		// does (local int, returned). Accumulating into the package variable
+		// adds a store and reload to every element.
+		result := 0
 		for value := range queue.All() {
-			queueBenchmarkResult += value
+			result += value
 		}
+		queueBenchmarkResult = result
 	}
 }
 
@@ -94,9 +99,11 @@ func BenchmarkDQueueIteration(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
+		result := 0
 		for _, value := range queue.All() {
-			queueBenchmarkResult += value
+			result += value
 		}
+		queueBenchmarkResult = result
 	}
 }
 

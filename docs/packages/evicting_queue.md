@@ -28,6 +28,26 @@ sequence equality, ignores capacity, and uses `==`; dynamic element values must
 be comparable. Nil and zero-value queues support empty reads, but constructors
 are required before nonempty writes.
 
+## Implementation notes
+
+**Never use `%` on the ring index.** It compiles to an integer division,
+which was the largest cost in every operation and half of an iteration
+(docs/benchmarks/evicting_queue/README.md). Indices stay in
+`[0, capacity)` and advance by at most one capacity, so `wrap` (one
+compare-and-subtract) is enough. `segments` returns the contents as
+`data[head:head+n]` plus the wrapped prefix; `All`, `Slice` and `Clone` loop
+or `copy` over those runs. A full `Push` overwrites the head slot with the
+new value, which also releases the evicted reference, and then advances head.
+`TestQueueWrappedSegments` checks every capacity 1–6 × rotation × length,
+with early stop at every position and `Equal` across different rotations.
+Changing `wrap`'s `>=` to `>` makes the model test panic.
+
+`Equal` compares elements through `any(x) != any(y)`. That boxes each element
+into an interface, which the project's design contract avoids, and it panics
+on non-comparable dynamic types. It is kept for API compatibility. A
+`comparable`- or func-based equality would be the contract-conforming
+replacement.
+
 ## JSON and thread safety
 
 JSON is an array in logical order. Unmarshal decodes the entire array before

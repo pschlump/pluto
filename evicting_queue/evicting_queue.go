@@ -66,16 +66,38 @@ func (q *Queue[T]) Push(value T) {
 	if capacity == 0 {
 		return
 	}
-	position := (q.head + q.length) % capacity
 	if q.length == capacity {
-		position = q.head
-		var zero T
-		q.data[position] = zero
-		q.head = (q.head + 1) % capacity
-	} else {
-		q.length++
+		// Full: the new value overwrites the oldest slot, which becomes the tail.
+		// The overwrite itself releases the evicted value.
+		q.data[q.head] = value
+		q.head = q.wrap(q.head + 1)
+		return
 	}
-	q.data[position] = value
+	q.data[q.wrap(q.head+q.length)] = value
+	q.length++
+}
+
+// wrap reduces an index in [0, 2*capacity) into the ring. A compare-and-subtract
+// replaces the integer division that % compiles to, which dominated iteration
+// and the hot push/pop paths.
+func (q *Queue[T]) wrap(index int) int {
+	if index >= len(q.data) {
+		index -= len(q.data)
+	}
+	return index
+}
+
+// segments returns the logical contents as at most two contiguous runs of the
+// backing array, oldest first: data[head:head+n] and the wrapped prefix.
+func (q *Queue[T]) segments() (first, second []T) {
+	if q == nil || q.length == 0 {
+		return nil, nil
+	}
+	end := q.head + q.length
+	if end <= len(q.data) {
+		return q.data[q.head:end], nil
+	}
+	return q.data[q.head:], q.data[:end-len(q.data)]
 }
 
 // PushAll appends values in order. Inputs at least as large as the capacity use
@@ -100,7 +122,13 @@ func (q *Queue[T]) PushAll(values []T) {
 		return
 	}
 	for _, value := range values {
-		q.Push(value)
+		if q.length == capacity {
+			q.data[q.head] = value
+			q.head = q.wrap(q.head + 1)
+			continue
+		}
+		q.data[q.wrap(q.head+q.length)] = value
+		q.length++
 	}
 }
 
@@ -113,7 +141,7 @@ func (q *Queue[T]) Pop() (T, bool) {
 	value := q.data[q.head]
 	var zero T
 	q.data[q.head] = zero
-	q.head = (q.head + 1) % len(q.data)
+	q.head = q.wrap(q.head + 1)
 	q.length--
 	if q.length == 0 {
 		q.head = 0
@@ -148,21 +176,23 @@ func (q *Queue[T]) Slice() []T {
 	if q == nil {
 		return nil
 	}
+	first, second := q.segments()
 	values := make([]T, q.length)
-	for index := range values {
-		values[index] = q.data[(q.head+index)%len(q.data)]
-	}
+	copy(values[copy(values, first):], second)
 	return values
 }
 
 // All iterates from oldest to newest. Do not mutate the queue while iterating.
 func (q *Queue[T]) All() iter.Seq[T] {
 	return func(yield func(T) bool) {
-		if q == nil {
-			return
+		first, second := q.segments()
+		for _, value := range first {
+			if !yield(value) {
+				return
+			}
 		}
-		for index := 0; index < q.length; index++ {
-			if !yield(q.data[(q.head+index)%len(q.data)]) {
+		for _, value := range second {
+			if !yield(value) {
 				return
 			}
 		}
@@ -175,7 +205,8 @@ func (q *Queue[T]) Clone() *Queue[T] {
 		return nil
 	}
 	clone := &Queue[T]{data: make([]T, len(q.data)), length: q.length}
-	copy(clone.data, q.Slice())
+	first, second := q.segments()
+	copy(clone.data[copy(clone.data, first):], second)
 	return clone
 }
 
@@ -185,11 +216,14 @@ func (q *Queue[T]) Equal(other *Queue[T]) bool {
 	if q.Len() != other.Len() {
 		return false
 	}
-	left, right := q.Slice(), other.Slice()
-	for index := range left {
-		if any(left[index]) != any(right[index]) {
+	if q.Len() == 0 {
+		return true
+	}
+	for index, position, otherPosition := 0, q.head, other.head; index < q.length; index++ {
+		if any(q.data[position]) != any(other.data[otherPosition]) {
 			return false
 		}
+		position, otherPosition = q.wrap(position+1), other.wrap(otherPosition+1)
 	}
 	return true
 }

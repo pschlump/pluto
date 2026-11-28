@@ -34,3 +34,31 @@ Raw files:
 - `normalized.json`: environment, workload, and per-implementation metrics.
 
 Reproduce with `make guava-bench`. Ordinary tests never invoke Java or Maven.
+
+## 2026-11-27: division-free ring
+
+Every element access computed `(head+index) % capacity`, and `%` compiles
+to an integer division. That division was the largest cost in `Push`, `Pop`,
+`Slice` and especially `All`. Java's `ArrayDeque` iterator advances with a
+compare-and-reset. The ring now wraps with one compare-and-subtract (`wrap`).
+`All`, `Slice` and `Clone` treat the contents as at most two contiguous runs
+of the backing array (`segments`), so iteration is two plain slice loops: no
+division, no bounds checks, and the whole iterator inlines into the caller's
+loop. `Clone` also no longer builds an intermediate `Slice`, and `Equal` no
+longer allocates two snapshots.
+
+The iteration benchmark was also corrected to match the Java harness. Java
+sums into a local `int` and returns it, while the Go benchmark added each
+element into a package-level variable, which put a store and reload on every
+element. The corrected harness alone accounts for 149 → 136 ns; the code
+change accounts for 136 → 67 ns. Same machine, corpus and Go version; raw
+output is `go-modfree.txt`. Guava figures repeat the JMH run above.
+
+| Workload                         | Before                | After                 | Guava (JMH)        |
+|----------------------------------|----------------------:|----------------------:|-------------------:|
+| Ring, mixed operations           | 117.398–118.343M ops/s | 253.6–282.3M ops/s   | 108.144M ± 15.056M |
+| Ring iteration (256 elements)    | 6.536–6.575M          | 14.736–14.835M        | 8.249M ± 1.085M    |
+
+Both rows have 0 B/op and 0 allocs/op. Iteration is now about 1.8× Guava's
+rate, partly because Java iterates boxed `Integer`s and must unbox each one.
+The dqueue baselines are unchanged by this work.
