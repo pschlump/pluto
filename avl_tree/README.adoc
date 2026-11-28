@@ -43,7 +43,7 @@ on pkg.go.dev.
 | `Truncate`                                                       | Remove all elements                               | O(1)
 | `Reverse`                                                        | Mirror the tree (mainly useful for testing)       | O(n)
 | `WalkInOrder` / `WalkPreOrder` / `WalkPostOrder`                 | Apply a function to every node                    | O(n)
-| `Copy` / `Union` / `Minus` / `Intersect` / `SymmetricDifference` | Whole-tree set operations                         | O(n log₂ n)
+| `Copy` / `Union` / `Minus` / `Intersect` / `SymmetricDifference` | Whole-tree set operations                         | O(n+m) — linear merge + balanced build
 | `Contains`                                                       | Membership predicate (the found flag of `Search`) | O(log₂ n)
 | `ContainsSlice` / `ContainsAny`                                  | Membership batches: all / at least one            | O(k·log₂ n)
 | `InsertSlice` / `InsertIter`                                     | Batch insert (slice / range-over-func)            | O(k·log₂ n)
@@ -110,7 +110,19 @@ if e, found := byID.Search(Employee{ID: 3}); found {
 `Copy`, `Union`, `Minus`, `Intersect` and `SymmetricDifference` rebuild the
 destination from snapshots of their operands, so an operand may safely
 alias the destination.  The result is ordered by the destination's
-comparison function; a zero-value destination adopts the first operand's:
+comparison function; a zero-value destination adopts the first operand's.
+On equal elements `Union` keeps the second operand's and `Intersect` the
+first operand's.
+
+The operands' in-order snapshots are merged in one linear pass and the
+result is built directly as a perfectly balanced tree (height
+⌈log₂(n+1)⌉) with all of its nodes in one allocation — O(n+m), no
+rotations.  An operand that is not ascending under the destination's
+comparison function (a destination with a different comparator, or a
+`Reverse()`d operand) falls back to the element-by-element insert, with
+identical results.  Memory tradeoff: a node later deleted from such a
+result stays allocated (zeroed, holding no element) until every node of
+that block is gone or the tree is truncated or rebuilt.
 
 [source,go]
 ----

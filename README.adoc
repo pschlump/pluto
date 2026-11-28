@@ -549,9 +549,11 @@ subtree height, so `Depth` is O(1) (and `Height(e)` reads a node's
 cached height in O(1)). The richest tree: three walk orders with
 early-stop callbacks, `All`/`Backward`, `Index`, `Reverse`, `Front`,
 `Dump`, and the whole-tree set operations — `Copy`, `Union`, `Minus`,
-`Intersect`. The set operations snapshot their operands before
-rebuilding the destination (a source may alias the destination), and a
-zero-value destination adopts an operand's comparison function.
+`Intersect`, `SymmetricDifference`. The set operations snapshot their
+operands before rebuilding the destination (a source may alias the
+destination), merge the sorted snapshots in linear time and build the
+result as a perfectly balanced tree — O(n+m) — and a zero-value
+destination adopts an operand's comparison function.
 `Insert` returns bool (added vs duplicate-replaced); `Upsert`/`Remove`
 are the one-descent forms that also return the replaced / removed
 element. Replaces and full or early-stopped `All`/`Backward` ranges

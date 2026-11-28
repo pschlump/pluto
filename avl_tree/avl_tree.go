@@ -77,7 +77,9 @@ BSD 3 Clause Licensed.
 // rebuild the destination from snapshots of their operands, so an operand
 // may safely alias the destination.  The result is ordered by the
 // destination's comparison function; a zero-value destination adopts yy's
-// (or zz's).
+// (or zz's).  The sorted snapshots are merged in one linear pass and the
+// result is built directly as a perfectly balanced tree, so each set
+// operation is O(n+m).
 //
 // AvlTree is not safe for concurrent use.
 package avl_tree
@@ -578,6 +580,10 @@ func (tt *AvlTree[T]) remove(find T) (removed T, found bool) {
 			path[slot+1] = &m.right
 		}
 	}
+	// Zero the unlinked node: it may live in a set operation's slab (see
+	// setop.go), which stays allocated while any of its nodes is in use,
+	// and must not keep the element (or its subtrees) alive.
+	*target = AvlTreeElement[T]{}
 	tt.retrace(path[:n])
 	return removed, true
 }
@@ -915,19 +921,61 @@ func (tt *AvlTree[T]) adoptCmp(yy, zz *AvlTree[T]) bool {
 }
 
 // Copy replaces the contents of tt with a copy of yy.  The result is
-// ordered by tt's comparison function; a zero-value tt adopts yy's.
-// Complexity is O(n log₂ n).
+// ordered by tt's comparison function; a zero-value tt adopts yy's.  When
+// yy is ascending under that function (always, unless tt has a different
+// comparator or yy was Reverse()d) the copy is built directly as a
+// perfectly balanced tree from yy's in-order sequence (see setop.go).
+// Complexity is O(n) (O(n log₂ n) when yy is not ascending under tt's
+// comparison function).
 func (tt *AvlTree[T]) Copy(yy *AvlTree[T]) {
 	if tt == nil {
 		return
 	}
-	data := yy.toSlice() // snapshot first: yy may alias tt
+	// Snapshot first (yy may alias tt) — straight into the result's slab,
+	// so the snapshot IS the new tree's storage once linked.
+	slab := yy.nodeSnapshot()
 	tt.root, tt.length = nil, 0
 	if !tt.adoptCmp(yy, nil) {
 		return
 	}
-	for _, d := range data {
-		tt.insert(d)
+	for i := 1; i < len(slab); i++ {
+		if tt.cmp(slab[i-1].data, slab[i].data) >= 0 {
+			// Not ascending under tt's ordering: insert one by one.
+			for j := range slab {
+				tt.insert(slab[j].data)
+			}
+			return
+		}
+	}
+	tt.length = len(slab)
+	tt.root = linkBalanced(slab)
+}
+
+// nodeSnapshot returns a fresh slab of Len unlinked nodes whose data
+// fields hold the elements in in-order sequence (nil for a nil or empty
+// tree).  The walk uses a fixed-size stack.
+// Complexity is O(n).
+func (tt *AvlTree[T]) nodeSnapshot() []AvlTreeElement[T] {
+	if tt == nil || tt.root == nil {
+		return nil
+	}
+	slab := make([]AvlTreeElement[T], tt.length)
+	var stk [maxAvlHeight]*AvlTreeElement[T]
+	sp, k := 0, 0
+	n := tt.root
+	for {
+		for ; n != nil; n = n.left {
+			stk[sp] = n
+			sp++
+		}
+		if sp == 0 {
+			return slab[:k]
+		}
+		sp--
+		n = stk[sp]
+		slab[k].data = n.data
+		k++
+		n = n.right
 	}
 }
 
@@ -935,7 +983,11 @@ func (tt *AvlTree[T]) Copy(yy *AvlTree[T]) {
 // the one from zz is kept.  Operands are snapshotted first, so either may
 // alias tt.  The result is ordered by tt's comparison function; a
 // zero-value tt adopts yy's (then zz's).
-// Complexity is O(n log₂ n).
+//
+// The two in-order snapshots are merged in one linear pass and the result
+// is built directly as a perfectly balanced tree (see setop.go).
+// Complexity is O(n+m) (O((n+m) log₂(n+m)) when an operand is not
+// ascending under tt's comparison function).
 func (tt *AvlTree[T]) Union(yy, zz *AvlTree[T]) {
 	if tt == nil {
 		return
@@ -945,18 +997,17 @@ func (tt *AvlTree[T]) Union(yy, zz *AvlTree[T]) {
 	if !tt.adoptCmp(yy, zz) {
 		return
 	}
-	for _, d := range a {
-		tt.insert(d)
-	}
-	for _, d := range b {
-		tt.insert(d)
-	}
+	tt.setOpBuild(a, b, opUnion)
 }
 
 // Minus is a set minus, tt = yy - zz.  Operands are snapshotted first, so
 // either may alias tt.  The result is ordered by tt's comparison function;
 // a zero-value tt adopts yy's (then zz's).
-// Complexity is O(n log₂ n).
+//
+// The two in-order snapshots are merged in one linear pass and the result
+// is built directly as a perfectly balanced tree (see setop.go).
+// Complexity is O(n+m) (O((n+m) log₂(n+m)) when an operand is not
+// ascending under tt's comparison function).
 func (tt *AvlTree[T]) Minus(yy, zz *AvlTree[T]) {
 	if tt == nil {
 		return
@@ -966,22 +1017,18 @@ func (tt *AvlTree[T]) Minus(yy, zz *AvlTree[T]) {
 	if !tt.adoptCmp(yy, zz) {
 		return
 	}
-	var zzTree AvlTree[T]
-	zzTree.cmp = tt.cmp
-	for _, d := range b {
-		zzTree.insert(d)
-	}
-	for _, d := range a {
-		if _, found := zzTree.Search(d); !found {
-			tt.insert(d)
-		}
-	}
+	tt.setOpBuild(a, b, opMinus)
 }
 
-// Intersect is a set intersection, tt = yy intersect zz.  Operands are
-// snapshotted first, so either may alias tt.  The result is ordered by
-// tt's comparison function; a zero-value tt adopts yy's (then zz's).
-// Complexity is O(n log₂ n).
+// Intersect is a set intersection, tt = yy intersect zz.  If an item is in
+// both yy and zz the one from yy is kept.  Operands are snapshotted first,
+// so either may alias tt.  The result is ordered by tt's comparison
+// function; a zero-value tt adopts yy's (then zz's).
+//
+// The two in-order snapshots are merged in one linear pass and the result
+// is built directly as a perfectly balanced tree (see setop.go).
+// Complexity is O(n+m) (O((n+m) log₂(n+m)) when an operand is not
+// ascending under tt's comparison function).
 func (tt *AvlTree[T]) Intersect(yy, zz *AvlTree[T]) {
 	if tt == nil {
 		return
@@ -991,16 +1038,7 @@ func (tt *AvlTree[T]) Intersect(yy, zz *AvlTree[T]) {
 	if !tt.adoptCmp(yy, zz) {
 		return
 	}
-	var zzTree AvlTree[T]
-	zzTree.cmp = tt.cmp
-	for _, d := range b {
-		zzTree.insert(d)
-	}
-	for _, d := range a {
-		if _, found := zzTree.Search(d); found {
-			tt.insert(d)
-		}
-	}
+	tt.setOpBuild(a, b, opIntersect)
 }
 
 // SymmetricDifference is a set symmetric difference, tt = yy △ zz = the
@@ -1009,9 +1047,11 @@ func (tt *AvlTree[T]) Intersect(yy, zz *AvlTree[T]) {
 // function; a zero-value tt adopts yy's (then zz's).
 //
 // Both snapshots are already sorted, so a merge walk picks out the
-// elements in exactly one operand with O(n+m) comparisons; together with
-// Union, Minus and Intersect this completes the set algebra.
-// Complexity is O(n log₂ n).
+// elements in exactly one operand with O(n+m) comparisons and the result
+// is built directly as a perfectly balanced tree (see setop.go); together
+// with Union, Minus and Intersect this completes the set algebra.
+// Complexity is O(n+m) (O((n+m) log₂(n+m)) when an operand is not
+// ascending under tt's comparison function).
 func (tt *AvlTree[T]) SymmetricDifference(yy, zz *AvlTree[T]) {
 	if tt == nil {
 		return
@@ -1021,25 +1061,5 @@ func (tt *AvlTree[T]) SymmetricDifference(yy, zz *AvlTree[T]) {
 	if !tt.adoptCmp(yy, zz) {
 		return
 	}
-	i, j := 0, 0
-	for i < len(a) && j < len(b) {
-		switch c := tt.cmp(a[i], b[j]); {
-		case c < 0:
-			tt.insert(a[i])
-			i++
-		case c > 0:
-			tt.insert(b[j])
-			j++
-		default:
-			// In both operands: not in the symmetric difference.
-			i++
-			j++
-		}
-	}
-	for ; i < len(a); i++ {
-		tt.insert(a[i])
-	}
-	for ; j < len(b); j++ {
-		tt.insert(b[j])
-	}
+	tt.setOpBuild(a, b, opSymDiff)
 }

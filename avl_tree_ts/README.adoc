@@ -44,7 +44,7 @@ Same as `avl_tree`:
 | Depth / IsEmpty / Len / Length / Truncate              | O(1)
 | Walk* / WalkFunc / Dump                                | O(n)
 | All / Backward (full iteration)                        | O(n) — plus an O(n) snapshot
-| Copy / Union / Minus / Intersect / SymmetricDifference | O(n log₂ n)
+| Copy / Union / Minus / Intersect / SymmetricDifference | O(n+m) — linear merge + balanced build (write lock held for the merge and build only)
 | Contains                                               | O(log₂ n) worst case
 | ContainsSlice / ContainsAny                            | O(k·log₂ n) — atomic
 | InsertSlice / InsertIter                               | O(k·log₂ n) — atomic
@@ -98,7 +98,16 @@ read lock before taking the destination's write lock.  No two locks are
 ever held at once, so an operand may safely alias the destination or the
 other operand, and concurrent set operations cannot deadlock against
 each other.  The result is ordered by the destination's comparison
-function; a zero-value destination adopts an operand's.
+function; a zero-value destination adopts an operand's.  Under the write
+lock the two snapshots are merged in one linear pass and the result is
+built directly as a perfectly balanced tree with all of its nodes in one
+allocation — O(n+m), no rotations (an operand not ascending under the
+destination's comparison function falls back to element-by-element
+insert, with identical results).  On equal elements `Union` keeps the
+second operand's and `Intersect` the first operand's.  Memory tradeoff:
+a node later deleted from such a result stays allocated (zeroed, holding
+no element) until every node of that block is gone or the tree is
+truncated or rebuilt.
 
 * *Compute-after-snapshot methods* (`Slice`, `String`, `StringFunc`,
 `Equal`, `DeleteFunc`'s match pass) snapshot under the read lock and run

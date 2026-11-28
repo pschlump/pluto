@@ -33,7 +33,9 @@ BSD 3 Clause Licensed.
 //	SymmetricDifference) snapshot their operands under each operand's own
 //	read lock before taking the destination's write lock, so no two locks
 //	are ever held at once and an operand may safely alias the destination
-//	or the other operand.
+//	or the other operand.  Under the write lock the sorted snapshots are
+//	merged in one linear pass and the result is built directly as a
+//	perfectly balanced tree, so each set operation is O(n+m).
 //	The capability batches (InsertSlice, InsertIter, DeleteSlice) hold
 //	the write lock once for the whole batch — a batch is atomic.  The
 //	compute-after-snapshot methods (Slice, String, StringFunc, Equal,
@@ -661,6 +663,10 @@ func (tt *AvlTree[T]) nlRemove(find T) (removed T, found bool) {
 			path[slot+1] = &m.right
 		}
 	}
+	// Zero the unlinked node: it may live in a set operation's slab (see
+	// setop.go), which stays allocated while any of its nodes is in use,
+	// and must not keep the element (or its subtrees) alive.
+	*target = AvlTreeElement[T]{}
 	tt.retrace(path[:n])
 	return removed, true
 }
@@ -1104,13 +1110,19 @@ func (tt *AvlTree[T]) adoptCmp(yCmp, zCmp func(a, b T) int) {
 // Copy replaces the contents of tt with a copy of yy.  The source is
 // snapshotted under its own read lock before tt's write lock is taken, so
 // yy may alias tt.  The result is ordered by tt's comparison function; a
-// zero-value tt adopts yy's.
-// Complexity is O(n log₂ n).
+// zero-value tt adopts yy's.  When the snapshot is ascending under that
+// function (always, unless tt has a different comparator or yy was
+// Reverse()d) the copy is built directly as a perfectly balanced tree
+// (see setop.go).
+// Complexity is O(n) (O(n log₂ n) when yy is not ascending under tt's
+// comparison function).
 func (tt *AvlTree[T]) Copy(yy *AvlTree[T]) {
 	if tt == nil {
 		return
 	}
-	data, yCmp := yy.snapshot()
+	// The snapshot goes straight into the result's slab, so it IS the new
+	// tree's storage once linked.
+	slab, yCmp := yy.nodeSnapshot()
 	tt.lock.Lock()
 	defer tt.lock.Unlock()
 	tt.nlTruncate()
@@ -1118,8 +1130,51 @@ func (tt *AvlTree[T]) Copy(yy *AvlTree[T]) {
 	if tt.cmp == nil {
 		return // no ordering available: yy cannot have had any data
 	}
-	for _, d := range data {
-		tt.nlInsert(d)
+	for i := 1; i < len(slab); i++ {
+		if tt.cmp(slab[i-1].data, slab[i].data) >= 0 {
+			// Not ascending under tt's ordering: insert one by one.
+			for j := range slab {
+				tt.nlInsert(slab[j].data)
+			}
+			return
+		}
+	}
+	tt.length = len(slab)
+	tt.root = linkBalanced(slab)
+}
+
+// nodeSnapshot returns, read under the read lock, a fresh slab of Len
+// unlinked nodes whose data fields hold the elements in in-order sequence
+// (nil for a nil or empty tree) together with the tree's comparison
+// function — snapshot's node-slab form, used by Copy.  The caller must
+// NOT hold any lock.
+// Complexity is O(n).
+func (tt *AvlTree[T]) nodeSnapshot() (slab []AvlTreeElement[T], cmp func(a, b T) int) {
+	if tt == nil {
+		return nil, nil
+	}
+	tt.lock.RLock()
+	defer tt.lock.RUnlock()
+	if tt.root == nil {
+		return nil, tt.cmp
+	}
+	slab = make([]AvlTreeElement[T], tt.length)
+	var stk [maxAvlHeight]*AvlTreeElement[T]
+	sp, k := 0, 0
+	n := tt.root
+	for {
+		for ; n != nil; n = n.left {
+			stk[sp] = n
+			sp++
+		}
+		if sp == 0 {
+			return slab[:k], tt.cmp
+		}
+		sp--
+		n = stk[sp]
+		slab[k].data = n.data
+		k++
+		n = n.right
 	}
 }
 
@@ -1128,7 +1183,11 @@ func (tt *AvlTree[T]) Copy(yy *AvlTree[T]) {
 // read locks before tt's write lock is taken, so yy and zz may alias tt or
 // each other.  The result is ordered by tt's comparison function; a
 // zero-value tt adopts yy's (then zz's).
-// Complexity is O(n log₂ n).
+//
+// The two snapshots are merged in one linear pass and the result is built
+// directly as a perfectly balanced tree (see setop.go).
+// Complexity is O(n+m) (O((n+m) log₂(n+m)) when an operand is not
+// ascending under tt's comparison function).
 func (tt *AvlTree[T]) Union(yy, zz *AvlTree[T]) {
 	if tt == nil {
 		return
@@ -1142,19 +1201,18 @@ func (tt *AvlTree[T]) Union(yy, zz *AvlTree[T]) {
 	if tt.cmp == nil {
 		return // no source had a comparison function, so no source had data
 	}
-	for _, d := range a {
-		tt.nlInsert(d)
-	}
-	for _, d := range b {
-		tt.nlInsert(d)
-	}
+	tt.setOpBuild(a, b, opUnion)
 }
 
 // Minus is a set minus, tt = yy - zz.  The sources are snapshotted under
 // their own read locks before tt's write lock is taken, so yy and zz may
 // alias tt or each other.  The result is ordered by tt's comparison
 // function; a zero-value tt adopts yy's (then zz's).
-// Complexity is O(n log₂ n).
+//
+// The two snapshots are merged in one linear pass and the result is built
+// directly as a perfectly balanced tree (see setop.go).
+// Complexity is O(n+m) (O((n+m) log₂(n+m)) when an operand is not
+// ascending under tt's comparison function).
 func (tt *AvlTree[T]) Minus(yy, zz *AvlTree[T]) {
 	if tt == nil {
 		return
@@ -1168,23 +1226,19 @@ func (tt *AvlTree[T]) Minus(yy, zz *AvlTree[T]) {
 	if tt.cmp == nil {
 		return
 	}
-	var zzTree AvlTree[T]
-	zzTree.cmp = tt.cmp
-	for _, d := range b {
-		zzTree.nlInsert(d)
-	}
-	for _, d := range a {
-		if _, found := zzTree.nlSearch(d); !found {
-			tt.nlInsert(d)
-		}
-	}
+	tt.setOpBuild(a, b, opMinus)
 }
 
-// Intersect is a set intersection, tt = yy intersect zz.  The sources are
-// snapshotted under their own read locks before tt's write lock is taken,
-// so yy and zz may alias tt or each other.  The result is ordered by tt's
-// comparison function; a zero-value tt adopts yy's (then zz's).
-// Complexity is O(n log₂ n).
+// Intersect is a set intersection, tt = yy intersect zz.  If an item is in
+// both yy and zz the one from yy is kept.  The sources are snapshotted
+// under their own read locks before tt's write lock is taken, so yy and zz
+// may alias tt or each other.  The result is ordered by tt's comparison
+// function; a zero-value tt adopts yy's (then zz's).
+//
+// The two snapshots are merged in one linear pass and the result is built
+// directly as a perfectly balanced tree (see setop.go).
+// Complexity is O(n+m) (O((n+m) log₂(n+m)) when an operand is not
+// ascending under tt's comparison function).
 func (tt *AvlTree[T]) Intersect(yy, zz *AvlTree[T]) {
 	if tt == nil {
 		return
@@ -1198,16 +1252,7 @@ func (tt *AvlTree[T]) Intersect(yy, zz *AvlTree[T]) {
 	if tt.cmp == nil {
 		return
 	}
-	var zzTree AvlTree[T]
-	zzTree.cmp = tt.cmp
-	for _, d := range b {
-		zzTree.nlInsert(d)
-	}
-	for _, d := range a {
-		if _, found := zzTree.nlSearch(d); found {
-			tt.nlInsert(d)
-		}
-	}
+	tt.setOpBuild(a, b, opIntersect)
 }
 
 // SymmetricDifference is a set symmetric difference, tt = (yy union zz)
@@ -1216,7 +1261,12 @@ func (tt *AvlTree[T]) Intersect(yy, zz *AvlTree[T]) {
 // before tt's write lock is taken, so yy and zz may alias tt or each
 // other.  The result is ordered by tt's comparison function; a zero-value
 // tt adopts yy's (then zz's).
-// Complexity is O(n log₂ n).
+//
+// Both snapshots are in-order (sorted), so a merge walk emits the
+// elements present in exactly one operand without any searching, and the
+// result is built directly as a perfectly balanced tree (see setop.go).
+// Complexity is O(n+m) (O((n+m) log₂(n+m)) when an operand is not
+// ascending under tt's comparison function).
 func (tt *AvlTree[T]) SymmetricDifference(yy, zz *AvlTree[T]) {
 	if tt == nil {
 		return
@@ -1230,26 +1280,5 @@ func (tt *AvlTree[T]) SymmetricDifference(yy, zz *AvlTree[T]) {
 	if tt.cmp == nil {
 		return // no source had a comparison function, so no source had data
 	}
-	// Both snapshots are in-order (sorted), so a merge walk emits the
-	// elements present in exactly one operand without any searching.
-	i, j := 0, 0
-	for i < len(a) && j < len(b) {
-		switch c := tt.cmp(a[i], b[j]); {
-		case c < 0:
-			tt.nlInsert(a[i])
-			i++
-		case c > 0:
-			tt.nlInsert(b[j])
-			j++
-		default:
-			i++
-			j++ // in both operands: excluded from the symmetric difference
-		}
-	}
-	for ; i < len(a); i++ {
-		tt.nlInsert(a[i])
-	}
-	for ; j < len(b); j++ {
-		tt.nlInsert(b[j])
-	}
+	tt.setOpBuild(a, b, opSymDiff)
 }
