@@ -1134,7 +1134,9 @@ buckets are marked by a zero raw hash in
 `originalHash` (a hash of exactly 0 is remapped to 1) — no nil
 pointers. `Walk` is `func(pos int, data T) bool` with *false-to-stop*
 (the tree convention) and no depth/userData; `All`/`Values`/`Dump`
-round out iteration. `Truncate` clears both slices.
+round out iteration. `Truncate` clears both slices. `Upsert`,
+`GetOrInsert` and `Remove` fold Search+Insert / Search+Delete into one
+hash and one probe walk.
 
 * Good: O(1) average that holds up as data grows; no per-element
 pointer chasing; the hash table for unknown sizes.

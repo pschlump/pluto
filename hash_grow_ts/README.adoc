@@ -40,6 +40,9 @@ on pkg.go.dev.
 | `Insert`                       | O(1)       | O(n)       | amortized; growth doubles the table
 | `Search`                       | O(1)       | O(n)       | linear probe from the home bucket
 | `Delete`                       | O(1)       | O(n)       | backward-shift keeps probe chains intact
+| `Upsert`                       | O(1)       | O(n)       | one hash + one probe: insert or replace, returns the replaced element; write lock held across probe and store
+| `GetOrInsert`                  | O(1)       | O(n)       | one hash + one probe: returns the stored element, inserts only on a miss; write lock held across probe and store
+| `Remove`                       | O(1)       | O(n)       | one hash + one probe: delete and return the stored element; write lock held across probe and store
 | `Contains`                     | O(1)       | O(n)       | the found flag of Search
 | `IsEmpty`, `Len`, `Length`     | O(1)       | O(1)       |
 | `Truncate`                     | O(n)       | O(n)       | clears all buckets for GC
@@ -83,7 +86,8 @@ ht.Delete("alpha")
 
 `Search` followed by `Delete` is two lock acquisitions — another goroutine
 can mutate the table between them.  `Lock` plus the `Nl*` methods
-(`NlIsEmpty`, `NlLen`, `NlSearch`, `NlInsert`, `NlDelete`) run the same
+(`NlIsEmpty`, `NlLen`, `NlSearch`, `NlInsert`, `NlDelete`, `NlUpsert`,
+`NlGetOrInsert`, `NlRemove`) run the same
 steps atomically under one lock hold:
 
 [source,go]
@@ -99,6 +103,26 @@ ht.Unlock()
 Calling a locking public method while holding `Lock` deadlocks, so inside
 the critical section use only the `Nl` methods.  `Lock`/`Unlock` on a nil
 table are no-ops.
+
+== Single-probe compound operations
+
+`Search` followed by `Insert` (or by `Delete`) hashes the element twice and
+walks its probe chain twice.  Three methods do the combined step with one
+hash and one probe walk (plus any growth, exactly as `Insert` grows):
+
+* `Upsert(item T) (old T, replaced bool)` — insert, or replace the stored
+  equal element and return it.  `replaced` is the negation of `Insert`'s
+  result; `old` is the zero value when nothing was replaced.
+* `GetOrInsert(item T) (existing T, found bool)` — return the stored equal
+  element (never replacing it); on a miss insert `item` and return it with
+  `found == false`.
+* `Remove(find T) (removed T, found bool)` — delete and return the stored
+  equal element (same backward-shift repair as `Delete`).
+
+`Upsert`/`GetOrInsert` carry `Insert`'s panic contract (nil or zero-value
+table); `Remove` tolerates both like `Delete`.
+Each takes the write lock once; `NlUpsert`/`NlGetOrInsert`/`NlRemove` are
+the no-lock forms for use inside `Lock`/`Unlock`.
 
 == Iteration
 
@@ -194,8 +218,8 @@ message naming the fix:
 
 | `NewHashTabFunc(nil eq, ...)` / `NewHashTabFunc(eq, nil hash, ...)` | nil function, caught at construction time
 | `NewHashTab`/`NewHashTabFunc` with n < 5 | a smaller table has no headroom
-| `Insert`/`NlInsert` on a nil table | a nil table cannot store an element (`NlInsert` on a zero-value table)
-| `Insert` on a zero-value table | no equality/hash functions; the message names the constructors
+| `Insert`/`Upsert`/`GetOrInsert` on a nil table | a nil table cannot store an element
+| `Insert`/`Upsert`/`GetOrInsert` (and their `Nl*` forms) on a zero-value table | no equality/hash functions; the message names the constructors
 |===
 
 The batch inserters `InsertSlice`/`InsertIter` raise the same insert
@@ -204,8 +228,8 @@ would actually store an element; an empty batch is tolerated everywhere.
 
 Everything else tolerates a nil table and the zero value as an empty table:
 searches report not-found, `Delete` returns false, and the iterators visit
-nothing.  (`NlInsert` on a zero-value table panics because it *is* the
-Insert body.)
+nothing.  (`NlInsert`/`NlUpsert`/`NlGetOrInsert` on a zero-value table
+panic because they *are* the method bodies.)
 
 == Performance comparison
 

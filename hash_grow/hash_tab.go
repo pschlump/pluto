@@ -26,6 +26,9 @@ BSD 3 Clause Licensed.
 //	Insert — add a new element to the table, replacing any existing equal element.	O(1) average, O(n) worst
 //	Delete — delete the element equal to `find`, if present.					O(1) average, O(n) worst
 //	Search — return the stored element equal to `find`.						O(1) average, O(n) worst
+//	Upsert — insert or replace, returning the replaced element; one hash, one probe.	O(1) average, O(n) worst
+//	GetOrInsert — return the stored equal element, inserting only on a miss.	O(1) average, O(n) worst
+//	Remove — delete and return the stored equal element; one hash, one probe.	O(1) average, O(n) worst
 //	Contains — the found flag of Search, spelled as a membership predicate.	O(1) average, O(n) worst
 //	IsEmpty — Returns true if the table is empty.								O(1)
 //	Len / Length — Returns number of elements in the table.  0 length is empty.	O(1)
@@ -49,16 +52,16 @@ BSD 3 Clause Licensed.
 // wedge a probe.
 //
 // A nil *HashTab and the zero value both behave as an empty table for every
-// read: searches report not-found, Delete returns false, and the iterators
-// visit nothing.
+// read: searches report not-found, Delete and Remove report not-found, and
+// the iterators visit nothing.
 //
 // The package panics in exactly four situations, all programmer errors that
 // cannot be handled where they occur — each message names the fix:
 //
 //	NewHashTabFunc with a nil equality or hash function — caught at construction.
 //	NewHashTab/NewHashTabFunc with n < 5 — a smaller table has no headroom.
-//	Insert on a nil table — a nil table cannot store an element.
-//	Insert on a zero-value table — no equality/hash functions; the message names the constructors.
+//	Insert, Upsert or GetOrInsert on a nil table — a nil table cannot store an element.
+//	Insert, Upsert or GetOrInsert on a zero-value table — no equality/hash functions; the message names the constructors.
 
 // The batch inserters InsertSlice and InsertIter raise the same insert
 // contract as Insert — a nil table or a zero-value table panics when, and
@@ -344,41 +347,47 @@ func (tt *HashTab[T]) Delete(find T) (found bool) {
 			return false
 		}
 		if tt.originalHash[h] == rh && tt.eq(tt.buckets[h], find) {
-			tt.originalHash[h] = 0 // found: clear the slot (the T zero value remains, hidden by the empty marker)
-			var zero T
-			tt.buckets[h] = zero // release the reference for GC
-			tt.length--          // one less element
-			found = true
-
-			// Backward-shift deletion: fill the gap at h with any following
-			// element whose probe sequence passes through the gap.  This keeps
-			// probe chains contiguous so Search can stop at the first truly
-			// empty (originalHash == 0) slot.
-			//
-			// Before:    A1 A2 b A3 b b c A4 __
-			// Delete '2nd' A
-			// Before:    A1 __ b A3 b b c A4 __
-			// Move Up:   A1 A3 b A4 b b c __ __
-			gap := h
-			for hf := h; ; {
-				hf = tt.nextIndex(hf)
-				if tt.originalHash[hf] == 0 {
-					break // the scan reaches an empty slot (or the gap itself after a full wrap)
-				}
-				home := tt.home(tt.originalHash[hf])
-				if !inProbeRange(gap, hf, home) {
-					tt.buckets[gap] = tt.buckets[hf]
-					tt.originalHash[gap] = tt.originalHash[hf]
-					tt.buckets[hf] = zero
-					tt.originalHash[hf] = 0
-					gap = hf
-				}
-			}
-			return
+			tt.deleteAt(h)
+			return true
 		}
 		h = tt.nextIndex(h)
 	}
 	return false // full cycle: not present
+}
+
+// deleteAt removes the element in occupied slot h and repairs the probe
+// chain with a backward-shift deletion.  It is the shared tail of Delete
+// and Remove (the caller has already located h).
+func (tt *HashTab[T]) deleteAt(h int) {
+	tt.originalHash[h] = 0 // clear the slot (the T zero value remains, hidden by the empty marker)
+	var zero T
+	tt.buckets[h] = zero // release the reference for GC
+	tt.length--          // one less element
+
+	// Backward-shift deletion: fill the gap at h with any following
+	// element whose probe sequence passes through the gap.  This keeps
+	// probe chains contiguous so Search can stop at the first truly
+	// empty (originalHash == 0) slot.
+	//
+	// Before:    A1 A2 b A3 b b c A4 __
+	// Delete '2nd' A
+	// Before:    A1 __ b A3 b b c A4 __
+	// Move Up:   A1 A3 b A4 b b c __ __
+	gap := h
+	for hf := h; ; {
+		hf = tt.nextIndex(hf)
+		if tt.originalHash[hf] == 0 {
+			break // the scan reaches an empty slot (or the gap itself after a full wrap)
+		}
+		home := tt.home(tt.originalHash[hf])
+		if !inProbeRange(gap, hf, home) {
+			tt.buckets[gap] = tt.buckets[hf]
+			tt.originalHash[gap] = tt.originalHash[hf]
+			tt.buckets[hf] = zero
+			tt.originalHash[hf] = 0
+			gap = hf
+		}
+	}
 }
 
 // inProbeRange reports whether `home` is in the cyclic half-open interval
