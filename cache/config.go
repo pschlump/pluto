@@ -12,9 +12,8 @@ import (
 	"context"
 	"hash/maphash"
 	"sync"
+	"sync/atomic"
 	"time"
-
-	"github.com/pschlump/pluto/hash_grow"
 )
 
 // Loader computes a value for a missing key.
@@ -58,37 +57,47 @@ type Stats struct {
 	Evictions     uint64
 }
 
+// Entry states, published atomically for lock-free readers.
+const (
+	entryLoading uint32 = iota // in-flight load placeholder: invisible to reads
+	entryLive                  // linked and readable
+	entryDead                  // removed or replaced: readers must retry under the lock
+)
+
 // cacheEntry is one stored value. Linked entries sit on their shard's
 // access-order list (prev/next: LRU order, and expire-after-access order) and,
 // when expire-after-write is configured, on the write-order list
 // (wprev/wnext). Unlinked entries are in-flight load placeholders.
+//
+// Lock-free readers may touch only key, hash, state, value, writeTime and
+// accessTime. key and hash never change. value, weight and writeTime are
+// written before state becomes entryLive and never change afterwards (refresh
+// publishes a new entry instead), so the atomic state load orders them.
+// accessTime is atomic. Everything else is guarded by the shard lock.
+// Timestamps are nanoseconds since the cache's epoch.
 type cacheEntry[K any, V any] struct {
 	key          K
 	value        V
 	hash         uint64
 	weight       int64
-	writeTime    time.Time
-	accessTime   time.Time
+	writeTime    int64
+	accessTime   atomic.Int64
+	state        atomic.Uint32
 	prev, next   *cacheEntry[K, V]
 	wprev, wnext *cacheEntry[K, V]
 	linked       bool
 	call         *loadCall[V]
 }
 
-// cacheSlot is the by-value hash-table element. It carries the precomputed key
-// hash, so a lookup probe lives on the stack and the key is hashed once.
-type cacheSlot[K any, V any] struct {
-	key   K
-	hash  uint64
-	entry *cacheEntry[K, V]
-}
-
 // cacheShard is one independently locked segment: its own table, LRU and
-// write-order lists, size/weight budget, and statistics.
+// write-order lists, read buffer, size/weight budget, and statistics. Reads
+// go through the lock-free table and record accesses in reads; everything
+// else holds lock.
 type cacheShard[K any, V any] struct {
 	lock          sync.Mutex
 	c             *Cache[K, V]
-	tab           *hash_grow.HashTab[cacheSlot[K, V]]
+	table         atomic.Pointer[readTable[K, V]]
+	used, live    int               // occupied (live+tombstone) and live table slots
 	head, tail    *cacheEntry[K, V] // access order; head is least recent
 	whead, wtail  *cacheEntry[K, V] // write order; used only with expire-after-write
 	length        int
@@ -96,7 +105,9 @@ type cacheShard[K any, V any] struct {
 	maximumSize   int
 	maximumWeight int64
 	stats         Stats
-	_             [64]byte // keeps neighbouring shards' locks off this cache line
+	hits          atomic.Uint64 // lock-free hits when reads are unordered
+	_             [56]byte
+	reads         readBuffer[K, V]
 }
 
 // Option configures a cache before publication.
@@ -209,7 +220,9 @@ type Cache[K any, V any] struct {
 	refreshWrite     time.Duration
 	expiring         bool // expireWrite > 0 || expireAccess > 0
 	timed            bool // expiring || refreshWrite > 0: entries need timestamps
+	ordered          bool // reads must update LRU order: size/weight bound or expire-after-access
 	clock            func() time.Time
+	epoch            time.Time // timestamps are int64 nanoseconds since epoch
 	loader           Loader[K, V]
 	bulkLoader       BulkLoader[K, V]
 	executor         func(func())
@@ -242,6 +255,8 @@ func NewFunc[K any, V any](equal func(K, K) bool, hash func(K) uint64, options .
 	}
 	result.expiring = result.expireWrite > 0 || result.expireAccess > 0
 	result.timed = result.expiring || result.refreshWrite > 0
+	result.ordered = result.maximumSize >= 0 || result.maximumWeight >= 0 || result.expireAccess > 0
+	result.epoch = result.clock()
 	result.buildShards()
 	return result
 }
@@ -261,7 +276,6 @@ func (c *Cache[K, V]) buildShards() {
 		bits++
 	}
 	c.shift = 64 - bits
-	equal := c.equal
 	c.shards = make([]*cacheShard[K, V], count)
 	for index := range c.shards {
 		shard := &cacheShard[K, V]{c: c, maximumSize: -1, maximumWeight: -1}
@@ -277,10 +291,7 @@ func (c *Cache[K, V]) buildShards() {
 				shard.maximumWeight++
 			}
 		}
-		shard.tab = hash_grow.NewHashTabFunc(
-			func(a, b cacheSlot[K, V]) bool { return a.hash == b.hash && equal(a.key, b.key) },
-			func(slot cacheSlot[K, V]) uint64 { return slot.hash }, 16, 0,
-		)
+		shard.table.Store(newReadTable[K, V](minTableSize))
 		c.shards[index] = shard
 	}
 }

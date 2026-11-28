@@ -42,14 +42,67 @@ smallest power of two ≥ n. Bounded caches use Guava's rule: doubling stops onc
 order, eviction, and operation-driven expiration are **per shard**, and an
 entry heavier than its shard's weight share is evicted immediately even when
 the global total has room (as in Guava). The shard index is the top bits of
-`hash*0x9E3779B97F4A7C15`, so weak caller hashes still spread. The table
-compares the stored hash before calling the equality function.
+`hash*0x9E3779B97F4A7C15`, so weak caller hashes still spread.
 
-Single-key operations lock one shard. `Len`, `Snapshot`, `Stats`,
+Single-key writes lock one shard; hits lock nothing (next section). `Len`, `Snapshot`, `Stats`,
 `ClearStats`, `InvalidateKeys`, and `InvalidateAll` lock every shard in index
 order (the only multi-lock path), so they stay atomic. `CleanUp` visits shards
 one at a time. Bulk-load stats have no key and live in shard 0. Expired entries
 in shards nobody writes to stay resident until touched, `CleanUp`, or `Len`.
+
+## Lock-free reads
+
+`GetIfPresent`, `Peek`, and `Get` hits take no lock. Each shard has its own
+open-addressing table (`table.go`) with atomic slots `{hash, entry}`. Readers
+probe it with atomic loads. Writers mutate it under the shard lock. Growth and
+tombstone purges publish a whole new array, and the old one is never written
+again. Hash 0 means an empty slot and 1 a tombstone (`fixHash` moves key hashes
+to ≥ 2). Insert stores the entry and then the hash; delete stores the tombstone
+and then a nil entry. Occupancy stays at most half, so every probe ends.
+
+**The table is only a hint; the entry's atomic `state` is the truth.** A reader
+returns an entry only when `state == entryLive`. Every other outcome (not
+found, loading placeholder, dead, expired-looking, refresh due) retries under
+the shard lock, which is exact. A reader on a stale table can therefore never
+return an invalidated entry. **Entries are immutable once live.** Key, hash,
+value, weight, and writeTime are written before `link` stores `entryLive` (the
+release). A refresh does not mutate the value. It publishes a replacement
+entry in the same slot (`replaceLocked`) and marks the old one dead.
+`accessTime` is atomic. Timestamps are int64 nanoseconds since the cache's
+`epoch`.
+
+A hit's LRU touch is buffered in the shard's `readBuffer` (`buffer.go`). This
+is a 64-slot multi-producer ring: a producer claims a ticket by CAS, fills the
+slot with plain writes, and publishes with an atomic `seq` store. There are no
+atomic pointer stores, which cost an out-of-line write-barrier call; profiling
+showed that at ~10% of a hit. A reader that leaves ≥ 32 events pending drains
+under `TryLock`. Every locked operation drains first (`cleanLocked`,
+`presentLocked`, `executeLoad`, `Stats`). **The buffer is lossless, unlike
+`tiny_lfu_ts`:** a full ring makes the reader take the lock, drain, and apply
+its own event, so hit stats, LRU order, and `Len` stay exact. A claimed but
+unpublished slot (a preempted producer) stops the drain at that point. The
+full-ring fallback then applies its event directly instead of spinning. Each
+drained event is one hit plus one touch.
+
+When nothing reads access order (no size or weight bound and no
+expire-after-access, `ordered == false`), reads skip the buffer and only
+increment a padded per-shard atomic hit counter. Caffeine disables its read
+buffer in the same case.
+
+Access times captured outside the lock can trail the access-list tail by
+nanoseconds (an event published just after a concurrent drain). `clampAccess`
+raises them to the tail's time, which keeps the access list sorted for the
+expiry drain and extends such an entry's life by at most that window. The
+lock-free expiry check sees only applied access times, so a buffered access
+can make a live entry look expired. The locked retry drains first and gets it
+right (`TestBufferedAccessExtendsExpiry`).
+
+Mutation-tested guards, each of which fails when its rule is removed: the state
+check (`TestInFlightPlaceholderInvisibleToLockFreeReads`,
+`TestStaleTableDeadEntryNotReturned`), the drain-before-recheck rule (expiry
+tests), and losslessness (`TestFullReadBufferIsLossless`).
+`TestLockFreeReadersDuringGrowthAndChurn` races readers against growth,
+tombstone churn, and replacement.
 
 ## Expiration, eviction, and notifications
 
@@ -66,10 +119,10 @@ ran even with expiration off, made writes ~50× slower than Guava (see
 docs/benchmarks/cache/README.md). The access list (the LRU list) is ordered by
 access time. The write list (`wprev`/`wnext`, maintained only with
 expire-after-write) is ordered by write time. That ordering holds only because
-**every timestamp is taken under the shard lock**. That is why `executeLoad`
-reads `finished` after locking. A refresh completion is a write, so
-`rewriteInline` moves the entry to the tail of both lists (Guava's
-`recordWrite`). Moving only the timestamps would break the drain. With
+**write times are taken under the shard lock and access times are clamped**
+(`clampAccess`, previous section). That is why `executeLoad` reads `finished`
+after locking. A refresh completion is a write, so `replaceLocked` links the
+replacement entry at the tail of both lists (Guava's `recordWrite`). With
 expiration off the clock is never read on hits or writes (`stamp`), and access
 times are recorded only with expire-after-access. Write operations, including
 `Invalidate`, run the shard's expiry drain first, so invalidating an

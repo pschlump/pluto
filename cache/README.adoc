@@ -26,7 +26,7 @@ weight eviction. Cache is inherently thread-safe and has no `_ts` twin.
 [cols="2,3"]
 |===
 | Operation | Cost
-| GetIfPresent / Peek / Get hit | O(1) average, one shard lock, no allocation
+| GetIfPresent / Peek / Get hit | O(1) average, no lock, no allocation
 | Put / PutIfAbsent / Replace / Invalidate / DeleteValue | O(1) average plus O(expired + evicted) in the key's shard
 | Len / Stats / ClearStats | O(shards + expired), all shards locked
 | Snapshot / All / InvalidateAll | O(n + shards), all shards locked
@@ -46,6 +46,13 @@ cache bounded below 20 has one shard and exact LRU). Size/weight limits, LRU
 order, and expiration cleanup are per shard. The global limits always hold.
 `Len`, `Snapshot`, `Stats`, `InvalidateKeys`, and `InvalidateAll` are atomic
 across shards.
+
+Hits take no lock. They probe a lock-free per-shard table and record the LRU
+touch in a per-shard read buffer. The buffer is replayed under the shard lock
+before any write and when it is half full. It is lossless (a full buffer makes
+the reader take the lock), so hit statistics and LRU order stay exact. Misses,
+expired entries, and in-flight loads take the shard lock. Without a size or
+weight bound or expire-after-access, hits only increment a counter.
 
 == Panics
 

@@ -8,28 +8,27 @@ package cache
 import (
 	"iter"
 	"math"
-	"time"
 )
 
 // fibonacciMultiplier spreads key hashes before the shard index is taken from
 // the top bits, so weak caller hashes (small integers) still spread.
 const fibonacciMultiplier = 0x9E3779B97F4A7C15
 
-func (c *Cache[K, V]) now() time.Time { return c.clock() }
+// nanos reads the clock as nanoseconds since the cache epoch.
+func (c *Cache[K, V]) nanos() int64 { return int64(c.clock().Sub(c.epoch)) }
 
 // stamp reads the clock only when entries carry timestamps (expiration or
-// refresh is configured); otherwise timestamps are never read and the zero
-// time is returned.
-func (c *Cache[K, V]) stamp() time.Time {
+// refresh is configured); otherwise timestamps are never read and 0 is returned.
+func (c *Cache[K, V]) stamp() int64 {
 	if c.timed {
-		return c.clock()
+		return c.nanos()
 	}
-	return time.Time{}
+	return 0
 }
 
-// locate hashes key once and returns its shard and hash.
+// locate hashes key once and returns its shard and (slot-safe) hash.
 func (c *Cache[K, V]) locate(key K) (*cacheShard[K, V], uint64) {
-	h := c.hash(key)
+	h := fixHash(c.hash(key))
 	return c.shards[(h*fibonacciMultiplier)>>c.shift], h
 }
 
@@ -47,26 +46,39 @@ func (c *Cache[K, V]) unlockAll() {
 	}
 }
 
-func (c *Cache[K, V]) expired(entry *cacheEntry[K, V], now time.Time) bool {
-	if !entry.linked {
-		return false
-	}
-	if c.expireWrite > 0 && now.Sub(entry.writeTime) >= c.expireWrite {
+// expiredAt applies the expiration rule to a live entry's timestamps. It is
+// safe without the lock.
+func (c *Cache[K, V]) expiredAt(entry *cacheEntry[K, V], now int64) bool {
+	if c.expireWrite > 0 && now-entry.writeTime >= int64(c.expireWrite) {
 		return true
 	}
-	return c.expireAccess > 0 && now.Sub(entry.accessTime) >= c.expireAccess
+	return c.expireAccess > 0 && now-entry.accessTime.Load() >= int64(c.expireAccess)
 }
 
-func (s *cacheShard[K, V]) lookup(key K, h uint64) (*cacheEntry[K, V], bool) {
-	slot, found := s.tab.Search(cacheSlot[K, V]{key: key, hash: h})
-	return slot.entry, found
+func (c *Cache[K, V]) expired(entry *cacheEntry[K, V], now int64) bool {
+	return entry.linked && c.expiredAt(entry, now)
+}
+
+// clampAccess keeps the access list sorted by access time. An access time
+// captured outside the lock can trail the tail's by a few nanoseconds (a read
+// event published after a concurrent drain), and is raised to it.
+func (s *cacheShard[K, V]) clampAccess(entry *cacheEntry[K, V], at int64) int64 {
+	if s.tail != nil && s.tail != entry {
+		if t := s.tail.accessTime.Load(); t > at {
+			return t
+		}
+	}
+	return at
 }
 
 // link appends entry to the tail of the access list (and the write list when
-// expire-after-write is configured).
+// expire-after-write is configured) and publishes it to readers.
 func (s *cacheShard[K, V]) link(entry *cacheEntry[K, V]) {
 	if entry.weight > 0 && s.totalWeight > math.MaxInt64-entry.weight {
 		panic("cache: total weight overflow")
+	}
+	if s.c.expireAccess > 0 {
+		entry.accessTime.Store(s.clampAccess(entry, entry.accessTime.Load()))
 	}
 	entry.linked = true
 	entry.prev = s.tail
@@ -81,6 +93,7 @@ func (s *cacheShard[K, V]) link(entry *cacheEntry[K, V]) {
 	}
 	s.length++
 	s.totalWeight += entry.weight
+	entry.state.Store(entryLive) // release: value/weight/writeTime are visible to readers
 }
 
 func (s *cacheShard[K, V]) linkWrite(entry *cacheEntry[K, V]) {
@@ -134,14 +147,14 @@ func (s *cacheShard[K, V]) unlink(entry *cacheEntry[K, V]) {
 	s.totalWeight -= entry.weight
 }
 
-// touchInline keeps length/weight unchanged while moving an entry to the tail
-// of the access list. The access time is recorded only when something reads it.
-func (s *cacheShard[K, V]) touchInline(entry *cacheEntry[K, V], now time.Time) {
+// touchInline applies one access: the entry moves to the tail of the access
+// list, and its access time advances when something reads it.
+func (s *cacheShard[K, V]) touchInline(entry *cacheEntry[K, V], at int64) {
 	if !entry.linked {
 		return
 	}
 	if s.c.expireAccess > 0 {
-		entry.accessTime = now
+		entry.accessTime.Store(s.clampAccess(entry, at))
 	}
 	if s.tail == entry {
 		return
@@ -152,25 +165,23 @@ func (s *cacheShard[K, V]) touchInline(entry *cacheEntry[K, V], now time.Time) {
 	s.tail = entry
 }
 
-// rewriteInline records an in-place write (refresh completion): both
-// timestamps advance and the entry moves to the tail of both lists.
-func (s *cacheShard[K, V]) rewriteInline(entry *cacheEntry[K, V], now time.Time) {
-	entry.writeTime = now
-	s.touchInline(entry, now)
-	entry.accessTime = now
-	if s.c.expireWrite > 0 && s.wtail != entry {
-		s.unlinkWrite(entry)
-		s.linkWrite(entry)
-	}
+// replaceLocked publishes replacement (same key, new value, timestamps already
+// set) in place of the live entry old, as a write: the new entry goes to the
+// tail of both lists. Entries are immutable once readable, so a refresh swaps
+// entries rather than mutating the value under concurrent readers.
+func (s *cacheShard[K, V]) replaceLocked(old, replacement *cacheEntry[K, V]) {
+	s.swapLocked(old, replacement)
+	s.unlink(old)
+	old.state.Store(entryDead)
+	s.link(replacement)
 }
 
 func (s *cacheShard[K, V]) removeLocked(entry *cacheEntry[K, V], cause RemovalCause, events []Notification[K, V]) []Notification[K, V] {
-	current, found := s.lookup(entry.key, entry.hash)
-	if !found || current != entry {
+	if !s.deleteLocked(entry) {
 		return events
 	}
-	s.tab.Delete(cacheSlot[K, V]{key: entry.key, hash: entry.hash})
 	s.unlink(entry)
+	entry.state.Store(entryDead)
 	if cause == Size || cause == Expired {
 		s.stats.Evictions++
 	}
@@ -180,14 +191,52 @@ func (s *cacheShard[K, V]) removeLocked(entry *cacheEntry[K, V], cause RemovalCa
 	return events
 }
 
+// drainReadsLocked applies buffered lock-free reads: each event is one hit and
+// one LRU/access-time touch.
+func (s *cacheShard[K, V]) drainReadsLocked() {
+	s.reads.drain(s.applyRead)
+}
+
+func (s *cacheShard[K, V]) applyRead(entry *cacheEntry[K, V], at int64) {
+	s.stats.Hits++
+	s.touchInline(entry, at)
+}
+
+// recordRead buffers a lock-free hit. Past the drain threshold the reader
+// drains if the lock is free. When the ring is full it takes the lock, so no
+// event is ever lost.
+//
+// When access order is never read (no size/weight bound and no
+// expire-after-access), there is nothing to replay, so the hit is just
+// counted. Caffeine disables its read buffer in the same case.
+func (s *cacheShard[K, V]) recordRead(entry *cacheEntry[K, V], at int64) {
+	if !s.c.ordered {
+		s.hits.Add(1)
+		return
+	}
+	accepted, pending := s.reads.offer(entry, at)
+	if !accepted {
+		s.lock.Lock()
+		s.drainReadsLocked()
+		s.applyRead(entry, at)
+		s.lock.Unlock()
+		return
+	}
+	if pending >= readDrainThreshold && s.lock.TryLock() {
+		s.drainReadsLocked()
+		s.lock.Unlock()
+	}
+}
+
 // cleanExpiredLocked drains expired entries from the fronts of the time-ordered
-// lists: O(expired), not O(n). Every timestamp is taken under the shard lock,
-// so (for a monotonic clock) each list is ordered by its timestamp and the
-// first live entry ends the drain.
-func (s *cacheShard[K, V]) cleanExpiredLocked(now time.Time, events []Notification[K, V]) []Notification[K, V] {
+// lists: O(expired), not O(n). Write times are taken under the shard lock, and
+// access times are clamped to the tail's (clampAccess), so each list is sorted
+// by its timestamp (for a monotonic clock) and the first live entry ends the
+// drain.
+func (s *cacheShard[K, V]) cleanExpiredLocked(now int64, events []Notification[K, V]) []Notification[K, V] {
 	c := s.c
 	if c.expireWrite > 0 {
-		for entry := s.whead; entry != nil && now.Sub(entry.writeTime) >= c.expireWrite; entry = s.whead {
+		for entry := s.whead; entry != nil && now-entry.writeTime >= int64(c.expireWrite); entry = s.whead {
 			events = s.removeLocked(entry, Expired, events)
 			if s.whead == entry {
 				panic("cache: internal error: linked entry missing from its table")
@@ -195,7 +244,7 @@ func (s *cacheShard[K, V]) cleanExpiredLocked(now time.Time, events []Notificati
 		}
 	}
 	if c.expireAccess > 0 {
-		for entry := s.head; entry != nil && now.Sub(entry.accessTime) >= c.expireAccess; entry = s.head {
+		for entry := s.head; entry != nil && now-entry.accessTime.Load() >= int64(c.expireAccess); entry = s.head {
 			events = s.removeLocked(entry, Expired, events)
 			if s.head == entry {
 				panic("cache: internal error: linked entry missing from its table")
@@ -205,12 +254,15 @@ func (s *cacheShard[K, V]) cleanExpiredLocked(now time.Time, events []Notificati
 	return events
 }
 
-// cleanLocked is the operation-driven expiration hook: free when nothing expires.
+// cleanLocked is the start of every locked operation. It applies buffered
+// reads first, so LRU order, access times and hit counts are current. Then it
+// runs operation-driven expiration, which costs nothing when nothing expires.
 func (s *cacheShard[K, V]) cleanLocked(events []Notification[K, V]) []Notification[K, V] {
+	s.drainReadsLocked()
 	if !s.c.expiring {
 		return events
 	}
-	return s.cleanExpiredLocked(s.c.clock(), events)
+	return s.cleanExpiredLocked(s.c.nanos(), events)
 }
 
 func (s *cacheShard[K, V]) evictLocked(events []Notification[K, V]) []Notification[K, V] {
@@ -244,12 +296,13 @@ func (c *Cache[K, V]) weight(key K, value V) int64 {
 	return weight
 }
 
-func (s *cacheShard[K, V]) setLocked(key K, h uint64, value V, weight int64, now time.Time, events []Notification[K, V]) []Notification[K, V] {
-	if old, found := s.lookup(key, h); found {
+func (s *cacheShard[K, V]) setLocked(key K, h uint64, value V, weight int64, now int64, events []Notification[K, V]) []Notification[K, V] {
+	if old := s.find(key, h); old != nil {
 		events = s.removeLocked(old, Replaced, events)
 	}
-	entry := &cacheEntry[K, V]{key: key, value: value, hash: h, weight: weight, writeTime: now, accessTime: now}
-	s.tab.Insert(cacheSlot[K, V]{key: key, hash: h, entry: entry})
+	entry := &cacheEntry[K, V]{key: key, value: value, hash: h, weight: weight, writeTime: now}
+	entry.accessTime.Store(now)
+	s.insertLocked(entry)
 	s.link(entry)
 	return s.evictLocked(events)
 }
@@ -275,8 +328,7 @@ func (c *Cache[K, V]) PutIfAbsent(key K, value V) bool {
 	s.lock.Lock()
 	now := c.stamp()
 	events := s.cleanLocked(nil)
-	_, found := s.lookup(key, h)
-	stored := !found
+	stored := s.find(key, h) == nil
 	if stored {
 		events = s.setLocked(key, h, value, weight, now, events)
 	}
@@ -293,7 +345,7 @@ func (c *Cache[K, V]) Replace(key K, value V) bool {
 	s.lock.Lock()
 	now := c.stamp()
 	events := s.cleanLocked(nil)
-	_, found := s.lookup(key, h)
+	found := s.find(key, h) != nil
 	if found {
 		events = s.setLocked(key, h, value, weight, now, events)
 	}
@@ -312,7 +364,7 @@ func (c *Cache[K, V]) DeleteValue(key K, value V, equal func(V, V) bool) bool {
 	s.lock.Lock()
 	events := s.cleanLocked(nil)
 	found := false
-	if entry, ok := s.lookup(key, h); ok && equal(entry.value, value) {
+	if entry := s.find(key, h); entry != nil && equal(entry.value, value) {
 		found = true
 		events = s.removeLocked(entry, Explicit, events)
 	}
@@ -328,7 +380,7 @@ func (c *Cache[K, V]) Invalidate(key K) {
 	s, h := c.locate(key)
 	s.lock.Lock()
 	events := s.cleanLocked(nil)
-	if entry, found := s.lookup(key, h); found {
+	if entry := s.find(key, h); entry != nil {
 		events = s.removeLocked(entry, Explicit, events)
 	}
 	s.lock.Unlock()
@@ -346,7 +398,7 @@ func (c *Cache[K, V]) InvalidateKeys(keys []K) {
 	}
 	for _, key := range keys {
 		s, h := c.locate(key)
-		if entry, found := s.lookup(key, h); found {
+		if entry := s.find(key, h); entry != nil {
 			events = s.removeLocked(entry, Explicit, events)
 		}
 	}
@@ -361,11 +413,7 @@ func (c *Cache[K, V]) InvalidateAll() {
 	var events []Notification[K, V]
 	for _, shard := range c.shards {
 		events = shard.cleanLocked(events)
-		entries := make([]*cacheEntry[K, V], 0, shard.tab.Len())
-		for slot := range shard.tab.Values() {
-			entries = append(entries, slot.entry)
-		}
-		for _, entry := range entries {
+		for _, entry := range shard.entriesLocked() {
 			events = shard.removeLocked(entry, Explicit, events)
 		}
 	}
@@ -373,8 +421,8 @@ func (c *Cache[K, V]) InvalidateAll() {
 	c.notify(events)
 }
 
-// CleanUp performs operation-driven expiration and size/weight eviction in
-// every shard, one shard at a time.
+// CleanUp applies buffered reads, then performs operation-driven expiration and
+// size/weight eviction in every shard, one shard at a time.
 // Complexity is O(shards + expired + evicted).
 func (c *Cache[K, V]) CleanUp() {
 	var events []Notification[K, V]
@@ -404,44 +452,63 @@ func (c *Cache[K, V]) Len() int {
 func (c *Cache[K, V]) IsEmpty() bool { return c.Len() == 0 }
 
 // GetIfPresent returns a visible value and records an access and hit/miss stats.
+// A hit takes no lock: it probes the shard's lock-free table and buffers the
+// access. Misses and expired entries take the shard lock.
 // Complexity is O(1) average.
 func (c *Cache[K, V]) GetIfPresent(key K) (V, bool) {
-	return c.present(key, true, true)
+	s, h := c.locate(key)
+	if entry := s.find(key, h); entry != nil && entry.state.Load() == entryLive {
+		var now int64
+		if c.expiring {
+			now = c.nanos()
+		}
+		if !c.expiredAt(entry, now) {
+			value := entry.value
+			s.recordRead(entry, now)
+			return value, true
+		}
+	}
+	return c.presentLocked(s, key, h, true)
 }
 
 // Peek returns a visible value without changing LRU/access time or stats.
+// A hit takes no lock.
 // Complexity is O(1) average.
-func (c *Cache[K, V]) Peek(key K) (V, bool) { return c.present(key, false, false) }
-
-func (c *Cache[K, V]) present(key K, access, record bool) (V, bool) {
+func (c *Cache[K, V]) Peek(key K) (V, bool) {
 	s, h := c.locate(key)
-	s.lock.Lock()
-	var events []Notification[K, V]
-	var now time.Time
-	entry, found := s.lookup(key, h)
-	if found && !entry.linked {
-		found = false
-	}
-	if found && c.expiring {
-		now = c.clock()
-		if c.expired(entry, now) {
-			events = s.removeLocked(entry, Expired, events)
-			found = false
+	if entry := s.find(key, h); entry != nil && entry.state.Load() == entryLive {
+		if !c.expiring || !c.expiredAt(entry, c.nanos()) {
+			return entry.value, true
 		}
 	}
-	if record {
-		if found {
-			s.stats.Hits++
-		} else {
-			s.stats.Misses++
+	return c.presentLocked(s, key, h, false)
+}
+
+// presentLocked is the exact slow path for GetIfPresent (record) and Peek. It
+// applies buffered reads first, because an access time that looked expired
+// to the lock-free check may be newer in the buffer.
+func (c *Cache[K, V]) presentLocked(s *cacheShard[K, V], key K, h uint64, record bool) (V, bool) {
+	s.lock.Lock()
+	s.drainReadsLocked()
+	var events []Notification[K, V]
+	var now int64
+	entry := s.find(key, h)
+	found := entry != nil && entry.linked
+	if found && c.expiring {
+		now = c.nanos()
+		if c.expiredAt(entry, now) {
+			events = s.removeLocked(entry, Expired, events)
+			found = false
 		}
 	}
 	var value V
 	if found {
 		value = entry.value
-		if access {
-			s.touchInline(entry, now)
+		if record {
+			s.applyRead(entry, now)
 		}
+	} else if record {
+		s.stats.Misses++
 	}
 	s.lock.Unlock()
 	c.notify(events)
@@ -457,9 +524,9 @@ func (c *Cache[K, V]) Snapshot() []Entry[K, V] {
 	entries := []Entry[K, V]{}
 	for _, shard := range c.shards {
 		events = shard.cleanLocked(events)
-		for slot := range shard.tab.Values() {
-			if slot.entry.linked {
-				entries = append(entries, Entry[K, V]{Key: slot.key, Value: slot.entry.value})
+		for _, entry := range shard.entriesLocked() {
+			if entry.linked {
+				entries = append(entries, Entry[K, V]{Key: entry.key, Value: entry.value})
 			}
 		}
 	}
@@ -478,14 +545,16 @@ func (c *Cache[K, V]) All() iter.Seq[Entry[K, V]] {
 	}
 }
 
-// Stats returns an atomic snapshot of the counters summed across shards.
+// Stats returns an atomic snapshot of the counters summed across shards,
+// including every buffered hit.
 // Complexity is O(shards).
 func (c *Cache[K, V]) Stats() Stats {
 	c.lockAll()
 	defer c.unlockAll()
 	var total Stats
 	for _, shard := range c.shards {
-		total.Hits += shard.stats.Hits
+		shard.drainReadsLocked()
+		total.Hits += shard.stats.Hits + shard.hits.Load()
 		total.Misses += shard.stats.Misses
 		total.Loads += shard.stats.Loads
 		total.LoadSuccesses += shard.stats.LoadSuccesses
@@ -502,6 +571,8 @@ func (c *Cache[K, V]) ClearStats() {
 	c.lockAll()
 	defer c.unlockAll()
 	for _, shard := range c.shards {
+		shard.drainReadsLocked()
 		shard.stats = Stats{}
+		shard.hits.Store(0)
 	}
 }

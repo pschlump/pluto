@@ -207,3 +207,47 @@ func readCacheCorpus(b *testing.B) guava_compare.CacheCorpus {
 	}
 	return corpus
 }
+
+// The bounded variants exercise the buffered read path: with a size bound,
+// every lock-free hit is recorded in the shard's read buffer and replayed into
+// LRU order. The unbounded benchmarks above only count hits. The bound holds
+// every key, so all reads hit.
+func benchmarkCacheBounded(b *testing.B) *Cache[string, string] {
+	b.Helper()
+	corpus := readCacheCorpus(b)
+	value := New[string, string](WithMaximumSize[string, string](1 << 20))
+	for _, operation := range corpus.Operations {
+		value.Put(operation.Key, operation.Value)
+	}
+	return value
+}
+
+func BenchmarkCacheHitZipfBounded(b *testing.B) {
+	keys := readCacheCorpus(b).ZipfKeys
+	value := benchmarkCacheBounded(b)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for index := 0; index < b.N; index++ {
+		if _, found := value.GetIfPresent(keys[index%len(keys)]); found {
+			cacheBenchmarkResult++
+		}
+	}
+}
+
+func BenchmarkCacheConcurrentHitBounded8(b *testing.B) {
+	corpus := readCacheCorpus(b)
+	value := benchmarkCacheBounded(b)
+	previous := runtime.GOMAXPROCS(8)
+	defer runtime.GOMAXPROCS(previous)
+	b.ReportAllocs()
+	b.ResetTimer()
+	b.RunParallel(func(pointer *testing.PB) {
+		index := 0
+		for pointer.Next() {
+			if _, found := value.GetIfPresent(corpus.Operations[index%len(corpus.Operations)].Key); found {
+				cacheBenchmarkAtomic.Add(1)
+			}
+			index++
+		}
+	})
+}

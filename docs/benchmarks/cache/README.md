@@ -93,3 +93,40 @@ a lock and records accesses in a buffer that is drained later. That buffered
 design (as in `tiny_lfu_ts`) is the remaining step if hit latency matters more
 than exact per-shard LRU order. The coalesced-miss gap is the cost of a
 channel, a `loadCall` and a `context.WithValue` per load.
+
+## 2026-11-27: lock-free reads with a buffered LRU
+
+Hits no longer take a lock. Each shard has a lock-free open-addressing table,
+and an entry's atomic state decides visibility. A hit's LRU touch goes into a
+lossless per-shard ring that is replayed under the lock. When nothing reads
+access order (no bound, no expire-after-access), a hit only increments a
+counter. Same machine and corpus; raw output is `go-lockfree.txt`. Two new
+bounded-hit benchmarks exercise the buffered path, and their "sharded"
+column was measured by running the new benchmark file against commit
+`6666ec0`.
+
+| Workload                    | Sharded (mutex)  | Lock-free reads   | Guava (JMH)      |
+|-----------------------------|-----------------:|------------------:|-----------------:|
+| Mixed hit/update            | 18.643–18.879M   | 28.019–28.153M    | 47.891M ± 4.205M |
+| Evicting write              | 11.744–11.933M   | 13.419–13.583M    | 12.929M ± 5.926M |
+| Forced miss + load          | 3.578–3.583M     | 3.953–3.989M      | 7.227M ± 1.379M  |
+| Expiration + reload         | 5.467–5.501M     | 5.241–5.330M      | 8.407M ± 0.838M  |
+| Refresh workload            | 5.115–5.198M     | 3.824–3.891M      | 6.951M ± 1.678M  |
+| Zipf hits                   | 32.300–35.537M   | 52.029–59.916M    | 70.257M ± 5.643M |
+| Scan hits                   | 32.216–32.404M   | 49.677–50.378M    | 61.870M ± 5.673M |
+| Phase-change hits           | 38.358–39.494M   | 59.916–62.035M    | 77.722M ± 4.159M |
+| Hits, 8 threads             | 15.995–16.305M   | 18.539–18.744M    | 18.069M ± 0.905M |
+| Hits, 16 threads            | 13.282–13.387M   | 14.213–14.288M    | 14.357M ± 0.207M |
+| Coalesced miss, 8 threads   | 1.668–1.682M     | 1.553–1.581M      | 6.624M ± 0.830M  |
+| Zipf hits, bounded          | 31.4–34.8M       | 40.371–43.802M    | —                |
+| Hits, 8 threads, bounded    | 16.0–16.3M       | 18.255–18.406M    | —                |
+
+Concurrent hits now match or beat Guava. Single-threaded hits are within about
+20% of Guava. Most of what remains is key hashing: Java caches
+`String.hashCode` in the string, while Go recomputes `maphash` on every lookup.
+The probe also follows a pointer to compare the key, as Guava's does. The
+refresh workload is slower by design, because a completed refresh now
+allocates a replacement entry (entries are immutable once readable, which is
+what makes lock-free reads safe). In this benchmark every `Get` triggers a
+refresh, so it pays that cost on every operation. The coalesced-miss
+difference is within run-to-run noise for that contended benchmark.

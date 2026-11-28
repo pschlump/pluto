@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"iter"
+	"time"
 )
 
 var ErrBulkLoad = errors.New("cache: bulk loader returned missing, duplicate, or extra keys")
@@ -60,14 +61,14 @@ func (c *LoadingCache[K, V]) GetAll(ctx context.Context, keys []K) ([]Entry[K, V
 	// Bulk-load statistics have no single key, so they are kept in shard 0;
 	// Stats sums every shard.
 	statsShard := c.cache.shards[0]
-	started := c.cache.now()
+	started := c.cache.nanos()
 	statsShard.lock.Lock()
 	statsShard.stats.Loads++
 	statsShard.lock.Unlock()
 	entries, err := c.invokeBulk(ctx, missing)
-	finished := c.cache.now()
+	finished := c.cache.nanos()
 	statsShard.lock.Lock()
-	statsShard.stats.TotalLoadTime += finished.Sub(started)
+	statsShard.stats.TotalLoadTime += time.Duration(finished - started)
 	if err != nil {
 		statsShard.stats.LoadFailures++
 	} else {

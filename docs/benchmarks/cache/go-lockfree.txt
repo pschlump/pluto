@@ -1,0 +1,57 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/cache
+cpu: Apple M4 Max
+BenchmarkCacheHit-14                	31339195	        35.52 ns/op	      26 B/op	       0 allocs/op
+BenchmarkCacheHit-14                	32720727	        35.69 ns/op	      26 B/op	       0 allocs/op
+BenchmarkCacheHit-14                	33380505	        35.52 ns/op	      26 B/op	       0 allocs/op
+BenchmarkCacheEvictingWrite-14      	16265230	        73.62 ns/op	     159 B/op	       1 allocs/op
+BenchmarkCacheEvictingWrite-14      	16057923	        74.52 ns/op	     158 B/op	       1 allocs/op
+BenchmarkCacheEvictingWrite-14      	15926674	        74.41 ns/op	     159 B/op	       1 allocs/op
+BenchmarkCacheMissLoading-14        	 4792285	       253.0 ns/op	     360 B/op	       6 allocs/op
+BenchmarkCacheMissLoading-14        	 4731991	       250.7 ns/op	     360 B/op	       6 allocs/op
+BenchmarkCacheMissLoading-14        	 4749151	       250.8 ns/op	     360 B/op	       6 allocs/op
+BenchmarkCacheExpiration-14         	 6382618	       187.6 ns/op	     386 B/op	       6 allocs/op
+BenchmarkCacheExpiration-14         	 6316179	       190.8 ns/op	     386 B/op	       6 allocs/op
+BenchmarkCacheExpiration-14         	 6290581	       190.6 ns/op	     386 B/op	       6 allocs/op
+BenchmarkCacheRefresh-14            	 4668730	       257.0 ns/op	     471 B/op	       7 allocs/op
+BenchmarkCacheRefresh-14            	 4641420	       261.5 ns/op	     471 B/op	       7 allocs/op
+BenchmarkCacheRefresh-14            	 4676725	       259.4 ns/op	     471 B/op	       7 allocs/op
+BenchmarkCacheLRUHit-14             	35340284	        33.77 ns/op	       6 B/op	       0 allocs/op
+BenchmarkCacheLRUHit-14             	35131033	        33.46 ns/op	       6 B/op	       0 allocs/op
+BenchmarkCacheLRUHit-14             	35181932	        33.46 ns/op	       6 B/op	       0 allocs/op
+BenchmarkCacheTinyLFUHit-14         	18259976	        65.92 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheTinyLFUHit-14         	18200546	        66.27 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheTinyLFUHit-14         	18078528	        64.97 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitZipf-14            	61272553	        19.22 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitZipf-14            	69134546	        17.48 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitZipf-14            	67018198	        16.69 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitScan-14            	60214387	        20.13 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitScan-14            	61200031	        19.93 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitScan-14            	61562666	        19.85 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitPhase-14           	73817575	        16.49 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitPhase-14           	73692532	        16.12 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitPhase-14           	70672072	        16.69 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheConcurrentHit8-14     	22375135	        53.94 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheConcurrentHit8-14     	22094174	        53.35 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheConcurrentHit8-14     	22627899	        53.86 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheConcurrentHit16-14    	16981321	        70.36 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheConcurrentHit16-14    	17182570	        70.22 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheConcurrentHit16-14    	16982503	        69.99 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheCoalescedMiss8-14     	 1902175	       636.2 ns/op	         0.02668 hit-rate	   1634744 loads	     303 B/op	       5 allocs/op
+BenchmarkCacheCoalescedMiss8-14     	 1906236	       632.7 ns/op	         0.02658 hit-rate	   1636530 loads	     303 B/op	       5 allocs/op
+BenchmarkCacheCoalescedMiss8-14     	 1909666	       643.8 ns/op	         0.02568 hit-rate	   1646578 loads	     304 B/op	       5 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/cache	53.084s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/cache
+cpu: Apple M4 Max
+BenchmarkCacheHitZipfBounded-14           	50516566	        23.18 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitZipfBounded-14           	52345266	        24.77 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitZipfBounded-14           	50394758	        22.83 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheConcurrentHitBounded8-14    	22129672	        54.78 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheConcurrentHitBounded8-14    	22113463	        54.70 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheConcurrentHitBounded8-14    	22003443	        54.33 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/cache	7.947s
