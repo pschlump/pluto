@@ -3,25 +3,25 @@
 ## Current results
 
 Rates are operations per second; higher is better. The Go column was
-measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0, after the
-storage rewrite: three 1-second runs, shown slowest–fastest, plus bytes and
-allocations per operation. Raw output is the `B` side of
-`go-2026-11-27-storage-interleaved.txt` (the machine was shared with other
-benchmarking agents; see the 2026-11-27 section).
+measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
+1-second runs on a quiet machine after the 2026-11-27 rewrites, shown
+slowest–fastest, plus bytes and allocations per operation. Raw output is
+`go-2026-11-27-current.txt`; the dated sections below give the causes and
+before/after comparisons.
 The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
 2026-11-22 record below and not re-run (mean ± error).
 
 | Workload | Pluto (Go) | Guava (Java) |
 |---|---:|---:|
-| Sparse graph construction | 901.8–964.4 · 2367347 B, 135 allocs | 609.8 ± 48.2 |
-| Dense graph construction | 142.5–155.2 · 16824653 B, 7884 allocs | 103.9 ± 26.3 |
-| Edge lookup | 27.05–28.78M · 0 B, 0 allocs | 26.09M ± 3.32M |
-| Copy + edge removal | 6.77–7.35K · 1074120 B, 29 allocs | 433.2 ± 40.3 |
-| Adjacency snapshot + iteration | 23.84–25.87M · 33 B, 0 allocs | 6.37M ± 1.48M |
-| BFS from first edge source | 1.16–1.33K · 1277311 B, 16086 allocs | 1.08K ± 0.21K |
-| ValueGraph construction | 668.2–768.3 · 3456108 B, 186 allocs | 582.8 ± 146.1 |
-| ValueGraph lookup | 22.03–24.88M · 0 B, 0 allocs | 29.36M ± 1.16M |
-| Network construction | 418.8–481.9 · 7635177 B, 332 allocs | 348.3 ± 57.5 |
+| Sparse graph construction | 956.7–965.1 · 2367317 B, 135 allocs | 609.8 ± 48.2 |
+| Dense graph construction | 157.9–158.6 · 16824663 B, 7884 allocs | 103.9 ± 26.3 |
+| Edge lookup | 28.28–30.10M · 0 B, 0 allocs | 26.09M ± 3.32M |
+| Copy + edge removal | 7.62–7.63K · 1074120 B, 29 allocs | 433.2 ± 40.3 |
+| Adjacency snapshot + iteration | 25.91–26.10M · 33 B, 0 allocs | 6.37M ± 1.48M |
+| BFS from first edge source | 1.33–1.34K · 1277310 B, 16086 allocs | 1.08K ± 0.21K |
+| ValueGraph construction | 774.3–774.7 · 3456107 B, 186 allocs | 582.8 ± 146.1 |
+| ValueGraph lookup | 24.35–24.68M · 0 B, 0 allocs | 29.36M ± 1.16M |
+| Network construction | 484.9–486.4 · 7635164 B, 332 allocs | 348.3 ± 57.5 |
 
 ## 2026-11-27: Flat adjacency storage, per-node index, native node map
 

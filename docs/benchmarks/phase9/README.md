@@ -4,21 +4,21 @@
 
 Rates are operations per second; higher is better. The Go column was
 measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
-1-second runs, shown slowest–fastest, plus bytes and allocations per
-operation. Raw output is `go-2026-11-27-current.txt`. The intern, baseline,
-linked-map and linked-multiset rows were re-measured after the 2026-11-27
-rewrites; see the 2026-11-27 sections below and in `../multiset/README.md`.
+1-second runs on a quiet machine after the 2026-11-27 rewrites, shown
+slowest–fastest, plus bytes and allocations per operation. Raw output is
+`go-2026-11-27-current.txt`; the dated sections below give the causes and
+before/after comparisons.
 The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
 2026-11-22 record below and not re-run (mean ± error).
 
 | Workload | Pluto (Go) | Guava (Java) |
 |---|---:|---:|
-| Strong intern, hit/miss | 46.27–49.14M · 16 B, 1 alloc | 40.34M ± 4.19M |
-| Baseline: map + RWMutex interner | 45.33–54.79M · 16 B, 1 alloc | — |
-| Linked map put/get (Java: LinkedHashMap) | 42.52–44.94M · 0 B, 0 allocs | 132.53M ± 34.46M |
-| Linked multiset operation | 27.22–29.90M · 0 B, 0 allocs | 64.82M ± 31.19M |
-| Linked list multimap operation | 139.72–140.83K · 2646 B, 0 allocs | 69.17K ± 246.28K |
-| Linked hash multimap operation | 13.52–13.81M · 34 B, 0 allocs | 33.93M ± 2.42M |
+| Strong intern, hit/miss | 49.70–50.08M · 16 B, 1 alloc | 40.34M ± 4.19M |
+| Baseline: map + RWMutex interner | 55.25–55.56M · 16 B, 1 alloc | — |
+| Linked map put/get (Java: LinkedHashMap) | 45.52–45.83M · 0 B, 0 allocs | 132.53M ± 34.46M |
+| Linked multiset operation | 30.18–31.79M · 0 B, 0 allocs | 64.82M ± 31.19M |
+| Linked list multimap operation | 142.31–143.20K · 2646 B, 0 allocs | 69.17K ± 246.28K |
+| Linked hash multimap operation | 16.44–17.02M · 34 B, 0 allocs | 33.93M ± 2.42M |
 
 ## Original record (2026-11-22)
 

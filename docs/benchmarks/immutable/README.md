@@ -4,37 +4,36 @@
 
 Rates are operations per second; higher is better. The Go column was
 measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
-1-second runs, shown slowest–fastest, plus bytes and allocations per
-operation. Raw output is `go-2026-11-27-current.txt`; the List full
-iteration and hash-family rows (Set, Map, Multiset, Multimap, BiMap) were
-re-measured after the hash-index rewrite (see the 2026-11-27 section below;
-raw output `go-2026-11-27-hash-index.txt`).
+1-second runs on a quiet machine after the 2026-11-27 rewrites, shown
+slowest–fastest, plus bytes and allocations per operation. Raw output is
+`go-2026-11-27-current.txt`; the dated sections below give the causes and
+before/after comparisons.
 The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
 2026-11-22 record below and not re-run (mean ± error).
 
 | Workload | Pluto (Go) | Guava (Java) |
 |---|---:|---:|
-| List build | 506.59–516.26K · 32792 B, 2 allocs | 1.39M ± 0.06M |
-| List copy-of | 571.43–573.39M · 0 B, 0 allocs | 452.74M ± 282.14M |
-| List `At` | 1.91–1.93G · 0 B, 0 allocs | 484.09M |
-| List full iteration | 938.97–969.93K · 0 B, 0 allocs | 725K ± 19K |
-| Set build | 15.22–15.63K · 180776 B, 26 allocs | 34.15K ± 13.80K |
-| Set contains | 185.67–191.72M · 0 B, 0 allocs | 307.83M ± 25.43M |
-| Map build | 13.43–16.23K · 316913 B, 24 allocs | 20.03K ± 1.87K |
-| Map get | 115.14–118.06M · 0 B, 0 allocs | 168.65M ± 8.27M |
-| Sorted set build | 3.20–3.33K · 32816 B, 3 allocs | 4.15K ± 0.22K |
-| Sorted set contains | 25.38–26.14M · 0 B, 0 allocs | 35.48M ± 3.77M |
-| Sorted set subrange | 22.52–22.99M · 32 B, 1 alloc | 20.15M ± 1.97M |
-| Sorted map build | 28.24–28.29K · 98352 B, 3 allocs | 18.12K ± 0.57K |
-| Sorted map get | 15.65–15.91M · 0 B, 0 allocs | 19.97M ± 3.66M |
-| Multiset build | 10.28–12.45K · 325417 B, 40 allocs | 9.91K ± 1.88K |
-| Multiset count | 158.50–163.99M · 0 B, 0 allocs | 234.25M ± 16.02M |
-| Multimap build | 22.18–26.12K · 77648 B, 33 allocs | 31.55K ± 4.81K |
-| Multimap get | 12.54–16.61M · 512 B, 1 alloc | 277.37M ± 17.80M |
-| Multimap count of one key's values (`ValueCount`) | VALUECOUNT_PENDING | 277.37M ± 17.80M |
-| Multimap values of one key (`ValuesOf`, no copy) † | 40.6–41.4M · 0 B, 0 allocs | — |
-| BiMap build | 7.06–8.66K · 464962 B, 48 allocs | 12.26K ± 1.04K |
-| BiMap get | 121.65–123.76M · 0 B, 0 allocs | 174.61M ± 8.27M |
+| List build | 458.51–482.86K · 32792 B, 2 allocs | 1.39M ± 0.06M |
+| List copy-of | 579.04–582.75M · 0 B, 0 allocs | 452.74M ± 282.14M |
+| List `At` | 1.90–1.92G · 0 B, 0 allocs | 484.09M |
+| List full iteration | 972.76–980.39K · 0 B, 0 allocs | 725K ± 19K |
+| Set build | 15.46–15.61K · 180776 B, 26 allocs | 34.15K ± 13.80K |
+| Set contains | 189.79–193.09M · 0 B, 0 allocs | 307.83M ± 25.43M |
+| Map build | 16.00–16.14K · 316912 B, 24 allocs | 20.03K ± 1.87K |
+| Map get | 122.59–123.81M · 0 B, 0 allocs | 168.65M ± 8.27M |
+| Sorted set build | 3.29–3.38K · 32816 B, 3 allocs | 4.15K ± 0.22K |
+| Sorted set contains | 22.96–24.45M · 0 B, 0 allocs | 35.48M ± 3.77M |
+| Sorted set subrange | 22.60–22.86M · 32 B, 1 alloc | 20.15M ± 1.97M |
+| Sorted map build | 27.86–28.20K · 98352 B, 3 allocs | 18.12K ± 0.57K |
+| Sorted map get | 16.28–16.56M · 0 B, 0 allocs | 19.97M ± 3.66M |
+| Multiset build | 12.36–12.41K · 325417 B, 40 allocs | 9.91K ± 1.88K |
+| Multiset count | 160.75–165.43M · 0 B, 0 allocs | 234.25M ± 16.02M |
+| Multimap build | 26.05–26.18K · 77648 B, 33 allocs | 31.55K ± 4.81K |
+| Multimap get | 15.85–16.29M · 512 B, 1 alloc | 277.37M ± 17.80M |
+| Multimap count of one key's values (`ValueCount`) | 152.18–166.56M · 0 B, 0 allocs | 277.37M ± 17.80M |
+| Multimap values of one key (`ValuesOf`, no copy) † | 43.01–43.71M · 0 B, 0 allocs | — |
+| BiMap build | 8.70–8.73K · 464962 B, 48 allocs | 12.26K ± 1.04K |
+| BiMap get | 126.34–129.28M · 0 B, 0 allocs | 174.61M ± 8.27M |
 
 Retained memory per family (Go bytes per input vs Guava JOL bytes per input) is in the original record below.
 

@@ -2,168 +2,168 @@ goos: darwin
 goarch: arm64
 pkg: github.com/pschlump/pluto/multiset
 cpu: Apple M4 Max
-BenchmarkHashMultiset-14          	26684727	        39.46 ns/op	       0 B/op	       0 allocs/op
-BenchmarkHashMultiset-14          	30329038	        39.34 ns/op	       0 B/op	       0 allocs/op
-BenchmarkHashMultiset-14          	30050083	        39.29 ns/op	       0 B/op	       0 allocs/op
-BenchmarkTreeMultiset-14          	 5932981	       202.9 ns/op	       4 B/op	       0 allocs/op
-BenchmarkTreeMultiset-14          	 5886324	       202.4 ns/op	       4 B/op	       0 allocs/op
-BenchmarkTreeMultiset-14          	 5919645	       203.2 ns/op	       4 B/op	       0 allocs/op
-BenchmarkMapMultiset-14           	43537479	        26.38 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMapMultiset-14           	45638872	        26.39 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMapMultiset-14           	45357759	        26.25 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetCount/hit/hash-14         	185176171	         6.485 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetCount/hit/hash-14         	184871026	         6.502 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetCount/hit/hash-14         	185148672	         6.477 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetCount/hit/tree-14         	59939562	        20.44 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetCount/hit/tree-14         	57379092	        20.53 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetCount/hit/tree-14         	59280606	        20.50 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetCount/hit/map-14          	357978895	         3.353 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetCount/hit/map-14          	358371559	         3.350 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetCount/hit/map-14          	358515164	         3.357 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetCount/miss/hash-14        	227528516	         5.280 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetCount/miss/hash-14        	225711042	         5.312 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetCount/miss/hash-14        	223308801	         5.259 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetCount/miss/tree-14        	63412656	        20.50 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetCount/miss/tree-14        	63505782	        21.90 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetCount/miss/tree-14        	53813265	        22.24 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetCount/miss/map-14         	343407944	         3.498 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetCount/miss/map-14         	343491374	         3.485 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetCount/miss/map-14         	343838350	         3.494 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetIteration/duplicate-1/entries/hash-14         	  492379	      2389 ns/op	      24 B/op	       2 allocs/op
-BenchmarkMultisetIteration/duplicate-1/entries/hash-14         	  500518	      2353 ns/op	      24 B/op	       2 allocs/op
-BenchmarkMultisetIteration/duplicate-1/entries/hash-14         	  512510	      2340 ns/op	      24 B/op	       2 allocs/op
-BenchmarkMultisetIteration/duplicate-1/entries/tree-14         	  483790	      2478 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetIteration/duplicate-1/entries/tree-14         	  484622	      2480 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetIteration/duplicate-1/entries/tree-14         	  486144	      2479 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetIteration/duplicate-1/occurrences/hash-14     	  320342	      3745 ns/op	      88 B/op	       4 allocs/op
-BenchmarkMultisetIteration/duplicate-1/occurrences/hash-14     	  322712	      3724 ns/op	      88 B/op	       4 allocs/op
-BenchmarkMultisetIteration/duplicate-1/occurrences/hash-14     	  322248	      3743 ns/op	      88 B/op	       4 allocs/op
-BenchmarkMultisetIteration/duplicate-1/occurrences/tree-14     	  303043	      3951 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetIteration/duplicate-1/occurrences/tree-14     	  305228	      3933 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetIteration/duplicate-1/occurrences/tree-14     	  305565	      3933 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetIteration/duplicate-4/entries/hash-14         	  503125	      2378 ns/op	      24 B/op	       2 allocs/op
-BenchmarkMultisetIteration/duplicate-4/entries/hash-14         	  503193	      2376 ns/op	      24 B/op	       2 allocs/op
-BenchmarkMultisetIteration/duplicate-4/entries/hash-14         	  499153	      2373 ns/op	      24 B/op	       2 allocs/op
-BenchmarkMultisetIteration/duplicate-4/entries/tree-14         	  479840	      2475 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetIteration/duplicate-4/entries/tree-14         	  486794	      2474 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetIteration/duplicate-4/entries/tree-14         	  484401	      2476 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetIteration/duplicate-4/occurrences/hash-14     	  133629	      8566 ns/op	      88 B/op	       4 allocs/op
-BenchmarkMultisetIteration/duplicate-4/occurrences/hash-14     	  140844	      8471 ns/op	      88 B/op	       4 allocs/op
-BenchmarkMultisetIteration/duplicate-4/occurrences/hash-14     	  140572	      8462 ns/op	      88 B/op	       4 allocs/op
-BenchmarkMultisetIteration/duplicate-4/occurrences/tree-14     	  152666	      7848 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetIteration/duplicate-4/occurrences/tree-14     	  152851	      7846 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetIteration/duplicate-4/occurrences/tree-14     	  154761	      7953 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetIteration/duplicate-16/entries/hash-14        	  512238	      2340 ns/op	      24 B/op	       2 allocs/op
-BenchmarkMultisetIteration/duplicate-16/entries/hash-14        	  509379	      2336 ns/op	      24 B/op	       2 allocs/op
-BenchmarkMultisetIteration/duplicate-16/entries/hash-14        	  518001	      2314 ns/op	      24 B/op	       2 allocs/op
-BenchmarkMultisetIteration/duplicate-16/entries/tree-14        	  469686	      2482 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetIteration/duplicate-16/entries/tree-14        	  483760	      2477 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetIteration/duplicate-16/entries/tree-14        	  481004	      2484 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetIteration/duplicate-16/occurrences/hash-14    	   47442	     25323 ns/op	      88 B/op	       4 allocs/op
-BenchmarkMultisetIteration/duplicate-16/occurrences/hash-14    	   47332	     25346 ns/op	      88 B/op	       4 allocs/op
-BenchmarkMultisetIteration/duplicate-16/occurrences/hash-14    	   47412	     25264 ns/op	      88 B/op	       4 allocs/op
-BenchmarkMultisetIteration/duplicate-16/occurrences/tree-14    	   55974	     21464 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetIteration/duplicate-16/occurrences/tree-14    	   55956	     21515 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetIteration/duplicate-16/occurrences/tree-14    	   55611	     21500 ns/op	       0 B/op	       0 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/sum/hash-14               	   30774	     38889 ns/op	  122672 B/op	      22 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/sum/hash-14               	   31090	     39002 ns/op	  122672 B/op	      22 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/sum/hash-14               	   31075	     38670 ns/op	  122672 B/op	      22 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/sum/tree-14               	   10000	    105173 ns/op	   65536 B/op	    1025 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/sum/tree-14               	   10000	    105066 ns/op	   65536 B/op	    1025 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/sum/tree-14               	   10000	    104491 ns/op	   65536 B/op	    1025 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/intersection/hash-14      	   42208	     28474 ns/op	   65328 B/op	      19 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/intersection/hash-14      	   41740	     28559 ns/op	   65328 B/op	      19 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/intersection/hash-14      	   42798	     28190 ns/op	   65328 B/op	      19 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/intersection/tree-14      	   19714	     61178 ns/op	   40960 B/op	     513 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/intersection/tree-14      	   19662	     60703 ns/op	   40960 B/op	     513 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/intersection/tree-14      	   19832	     60727 ns/op	   40960 B/op	     513 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/union/hash-14             	   28563	     41994 ns/op	  122672 B/op	      22 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/union/hash-14             	   28566	     42291 ns/op	  122672 B/op	      22 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/union/hash-14             	   28356	     42332 ns/op	  122672 B/op	      22 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/union/tree-14             	   12370	     95905 ns/op	   65536 B/op	    1025 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/union/tree-14             	   12380	     96952 ns/op	   65536 B/op	    1025 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/union/tree-14             	   12391	     97017 ns/op	   65536 B/op	    1025 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/minus/hash-14             	   41371	     28904 ns/op	   65328 B/op	      19 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/minus/hash-14             	   40983	     29010 ns/op	   65328 B/op	      19 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/minus/hash-14             	   41734	     28882 ns/op	   65328 B/op	      19 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/minus/tree-14             	   21850	     55030 ns/op	   40960 B/op	     513 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/minus/tree-14             	   21788	     56273 ns/op	   40960 B/op	     513 allocs/op
-BenchmarkMultisetAlgebra/duplicate-1/minus/tree-14             	   21520	     55137 ns/op	   40960 B/op	     513 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/sum/hash-14               	   31148	     38393 ns/op	  122672 B/op	      22 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/sum/hash-14               	   31174	     38583 ns/op	  122672 B/op	      22 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/sum/hash-14               	   31501	     38081 ns/op	  122672 B/op	      22 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/sum/tree-14               	   10000	    104670 ns/op	   65536 B/op	    1025 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/sum/tree-14               	   10000	    104178 ns/op	   65536 B/op	    1025 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/sum/tree-14               	   10000	    104341 ns/op	   65536 B/op	    1025 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/intersection/hash-14      	   43371	     27657 ns/op	   65328 B/op	      19 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/intersection/hash-14      	   43305	     27766 ns/op	   65328 B/op	      19 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/intersection/hash-14      	   43064	     27966 ns/op	   65328 B/op	      19 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/intersection/tree-14      	   19700	     61027 ns/op	   40960 B/op	     513 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/intersection/tree-14      	   19786	     60570 ns/op	   40960 B/op	     513 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/intersection/tree-14      	   19767	     60979 ns/op	   40960 B/op	     513 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/union/hash-14             	   28081	     41713 ns/op	  122672 B/op	      22 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/union/hash-14             	   28825	     41533 ns/op	  122672 B/op	      22 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/union/hash-14             	   28837	     41884 ns/op	  122672 B/op	      22 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/union/tree-14             	   12096	     97795 ns/op	   65536 B/op	    1025 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/union/tree-14             	   12408	     96676 ns/op	   65536 B/op	    1025 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/union/tree-14             	   12432	     96539 ns/op	   65536 B/op	    1025 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/minus/hash-14             	   41895	     28503 ns/op	   65328 B/op	      19 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/minus/hash-14             	   41926	     28552 ns/op	   65328 B/op	      19 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/minus/hash-14             	   41622	     28744 ns/op	   65328 B/op	      19 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/minus/tree-14             	   21735	     55067 ns/op	   40960 B/op	     513 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/minus/tree-14             	   21723	     55155 ns/op	   40960 B/op	     513 allocs/op
-BenchmarkMultisetAlgebra/duplicate-4/minus/tree-14             	   21716	     55194 ns/op	   40960 B/op	     513 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/sum/hash-14              	   31374	     38281 ns/op	  122672 B/op	      22 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/sum/hash-14              	   31570	     38379 ns/op	  122672 B/op	      22 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/sum/hash-14              	   31092	     38852 ns/op	  122672 B/op	      22 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/sum/tree-14              	   10000	    105253 ns/op	   65536 B/op	    1025 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/sum/tree-14              	   10000	    104838 ns/op	   65536 B/op	    1025 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/sum/tree-14              	   10000	    105291 ns/op	   65536 B/op	    1025 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/intersection/hash-14     	   42736	     28008 ns/op	   65328 B/op	      19 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/intersection/hash-14     	   42842	     28249 ns/op	   65328 B/op	      19 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/intersection/hash-14     	   42169	     28473 ns/op	   65328 B/op	      19 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/intersection/tree-14     	   19531	     61589 ns/op	   40960 B/op	     513 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/intersection/tree-14     	   19549	     61672 ns/op	   40960 B/op	     513 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/intersection/tree-14     	   19591	     61067 ns/op	   40960 B/op	     513 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/union/hash-14            	   28498	     41792 ns/op	  122672 B/op	      22 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/union/hash-14            	   28718	     42033 ns/op	  122672 B/op	      22 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/union/hash-14            	   28442	     42085 ns/op	  122672 B/op	      22 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/union/tree-14            	   12258	     96986 ns/op	   65536 B/op	    1025 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/union/tree-14            	   12411	     96589 ns/op	   65536 B/op	    1025 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/union/tree-14            	   12274	     97354 ns/op	   65536 B/op	    1025 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/minus/hash-14            	   41908	     28555 ns/op	   65328 B/op	      19 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/minus/hash-14            	   42176	     28490 ns/op	   65328 B/op	      19 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/minus/hash-14            	   42180	     28386 ns/op	   65328 B/op	      19 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/minus/tree-14            	   21250	     55219 ns/op	   40960 B/op	     513 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/minus/tree-14            	   21679	     55496 ns/op	   40960 B/op	     513 allocs/op
-BenchmarkMultisetAlgebra/duplicate-16/minus/tree-14            	   21610	     55458 ns/op	   40960 B/op	     513 allocs/op
-BenchmarkMultisetMemory/duplicate-1/hash-14                    	    2790	    435294 ns/op	    196824 retained-bytes	        48.05 retained-bytes/occurrence	  393054 B/op	      26 allocs/op
-BenchmarkMultisetMemory/duplicate-1/hash-14                    	    2784	    431945 ns/op	    196824 retained-bytes	        48.05 retained-bytes/occurrence	  393054 B/op	      26 allocs/op
-BenchmarkMultisetMemory/duplicate-1/hash-14                    	    2768	    431645 ns/op	    196824 retained-bytes	        48.05 retained-bytes/occurrence	  393054 B/op	      26 allocs/op
-BenchmarkMultisetMemory/duplicate-1/tree-14                    	    1813	    647581 ns/op	    196624 retained-bytes	        48.00 retained-bytes/occurrence	  196635 B/op	    4097 allocs/op
-BenchmarkMultisetMemory/duplicate-1/tree-14                    	    1834	    652843 ns/op	    196624 retained-bytes	        48.00 retained-bytes/occurrence	  196638 B/op	    4097 allocs/op
-BenchmarkMultisetMemory/duplicate-1/tree-14                    	    1827	    648595 ns/op	    196624 retained-bytes	        48.00 retained-bytes/occurrence	  196636 B/op	    4097 allocs/op
-BenchmarkMultisetMemory/duplicate-1/map-14                     	    2823	    424972 ns/op	    147888 retained-bytes	        36.11 retained-bytes/occurrence	  295933 B/op	      46 allocs/op
-BenchmarkMultisetMemory/duplicate-1/map-14                     	    2805	    427324 ns/op	    147776 retained-bytes	        36.08 retained-bytes/occurrence	  295933 B/op	      46 allocs/op
-BenchmarkMultisetMemory/duplicate-1/map-14                     	    2809	    425808 ns/op	    147776 retained-bytes	        36.08 retained-bytes/occurrence	  295933 B/op	      46 allocs/op
-BenchmarkMultisetMemory/duplicate-4/hash-14                    	    2832	    426580 ns/op	    196824 retained-bytes	        12.01 retained-bytes/occurrence	  393053 B/op	      26 allocs/op
-BenchmarkMultisetMemory/duplicate-4/hash-14                    	    2774	    427145 ns/op	    196824 retained-bytes	        12.01 retained-bytes/occurrence	  393052 B/op	      26 allocs/op
-BenchmarkMultisetMemory/duplicate-4/hash-14                    	    2821	    429263 ns/op	    196824 retained-bytes	        12.01 retained-bytes/occurrence	  393053 B/op	      26 allocs/op
-BenchmarkMultisetMemory/duplicate-4/tree-14                    	    1797	    647739 ns/op	    196624 retained-bytes	        12.00 retained-bytes/occurrence	  196636 B/op	    4097 allocs/op
-BenchmarkMultisetMemory/duplicate-4/tree-14                    	    1838	    660153 ns/op	    196624 retained-bytes	        12.00 retained-bytes/occurrence	  196638 B/op	    4097 allocs/op
-BenchmarkMultisetMemory/duplicate-4/tree-14                    	    1827	    652510 ns/op	    196624 retained-bytes	        12.00 retained-bytes/occurrence	  196634 B/op	    4097 allocs/op
-BenchmarkMultisetMemory/duplicate-4/map-14                     	    2768	    431688 ns/op	    147776 retained-bytes	         9.020 retained-bytes/occurrence	  295933 B/op	      46 allocs/op
-BenchmarkMultisetMemory/duplicate-4/map-14                     	    2792	    432392 ns/op	    147776 retained-bytes	         9.020 retained-bytes/occurrence	  295935 B/op	      46 allocs/op
-BenchmarkMultisetMemory/duplicate-4/map-14                     	    2804	    431513 ns/op	    147776 retained-bytes	         9.020 retained-bytes/occurrence	  295935 B/op	      46 allocs/op
-BenchmarkMultisetMemory/duplicate-16/hash-14                   	    2828	    427030 ns/op	    196824 retained-bytes	         3.003 retained-bytes/occurrence	  393052 B/op	      26 allocs/op
-BenchmarkMultisetMemory/duplicate-16/hash-14                   	    2802	    432442 ns/op	    196824 retained-bytes	         3.003 retained-bytes/occurrence	  393053 B/op	      26 allocs/op
-BenchmarkMultisetMemory/duplicate-16/hash-14                   	    2774	    435603 ns/op	    196824 retained-bytes	         3.003 retained-bytes/occurrence	  393055 B/op	      26 allocs/op
-BenchmarkMultisetMemory/duplicate-16/tree-14                   	    1821	    659242 ns/op	    196624 retained-bytes	         3.000 retained-bytes/occurrence	  196635 B/op	    4097 allocs/op
-BenchmarkMultisetMemory/duplicate-16/tree-14                   	    1774	    650833 ns/op	    196624 retained-bytes	         3.000 retained-bytes/occurrence	  196635 B/op	    4097 allocs/op
-BenchmarkMultisetMemory/duplicate-16/tree-14                   	    1874	    636835 ns/op	    196624 retained-bytes	         3.000 retained-bytes/occurrence	  196637 B/op	    4097 allocs/op
-BenchmarkMultisetMemory/duplicate-16/map-14                    	    2791	    426452 ns/op	    147776 retained-bytes	         2.255 retained-bytes/occurrence	  295933 B/op	      46 allocs/op
-BenchmarkMultisetMemory/duplicate-16/map-14                    	    2812	    426588 ns/op	    147776 retained-bytes	         2.255 retained-bytes/occurrence	  295934 B/op	      46 allocs/op
-BenchmarkMultisetMemory/duplicate-16/map-14                    	    2781	    427469 ns/op	    147776 retained-bytes	         2.255 retained-bytes/occurrence	  295933 B/op	      46 allocs/op
-BenchmarkLinkedHashMultiset-14                                 	19407020	        61.52 ns/op	       4 B/op	       0 allocs/op
-BenchmarkLinkedHashMultiset-14                                 	19580727	        61.99 ns/op	       4 B/op	       0 allocs/op
-BenchmarkLinkedHashMultiset-14                                 	19188153	        61.91 ns/op	       4 B/op	       0 allocs/op
+BenchmarkHashMultiset-14          	36217030	        32.55 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashMultiset-14          	36471807	        32.09 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashMultiset-14          	36306379	        32.05 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeMultiset-14          	 6981946	       171.7 ns/op	       4 B/op	       0 allocs/op
+BenchmarkTreeMultiset-14          	 6829262	       171.3 ns/op	       4 B/op	       0 allocs/op
+BenchmarkTreeMultiset-14          	 7000999	       171.1 ns/op	       4 B/op	       0 allocs/op
+BenchmarkMapMultiset-14           	43880565	        27.08 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapMultiset-14           	44219796	        26.37 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapMultiset-14           	44915923	        26.50 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetCount/hit/hash-14         	215659290	         5.476 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetCount/hit/hash-14         	218492209	         5.486 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetCount/hit/hash-14         	218647586	         5.485 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetCount/hit/tree-14         	58453065	        20.40 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetCount/hit/tree-14         	58690706	        20.40 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetCount/hit/tree-14         	59424202	        20.39 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetCount/hit/map-14          	355673806	         3.376 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetCount/hit/map-14          	355904560	         3.370 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetCount/hit/map-14          	357086176	         3.373 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetCount/miss/hash-14        	222597115	         5.407 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetCount/miss/hash-14        	224561752	         5.380 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetCount/miss/hash-14        	221334458	         5.544 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetCount/miss/tree-14        	53476033	        19.70 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetCount/miss/tree-14        	53791758	        20.12 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetCount/miss/tree-14        	54151623	        20.79 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetCount/miss/map-14         	343815938	         3.485 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetCount/miss/map-14         	344616162	         3.492 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetCount/miss/map-14         	343752987	         3.492 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetIteration/duplicate-1/entries/hash-14         	  607033	      1985 ns/op	      24 B/op	       2 allocs/op
+BenchmarkMultisetIteration/duplicate-1/entries/hash-14         	  598294	      1991 ns/op	      24 B/op	       2 allocs/op
+BenchmarkMultisetIteration/duplicate-1/entries/hash-14         	  609354	      1962 ns/op	      24 B/op	       2 allocs/op
+BenchmarkMultisetIteration/duplicate-1/entries/tree-14         	  487075	      2456 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetIteration/duplicate-1/entries/tree-14         	  487495	      2458 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetIteration/duplicate-1/entries/tree-14         	  488937	      2450 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetIteration/duplicate-1/occurrences/hash-14     	  355314	      3371 ns/op	      88 B/op	       4 allocs/op
+BenchmarkMultisetIteration/duplicate-1/occurrences/hash-14     	  355384	      3369 ns/op	      88 B/op	       4 allocs/op
+BenchmarkMultisetIteration/duplicate-1/occurrences/hash-14     	  356859	      3371 ns/op	      88 B/op	       4 allocs/op
+BenchmarkMultisetIteration/duplicate-1/occurrences/tree-14     	  304068	      3946 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetIteration/duplicate-1/occurrences/tree-14     	  306267	      3930 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetIteration/duplicate-1/occurrences/tree-14     	  305728	      3931 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetIteration/duplicate-4/entries/hash-14         	  620198	      1920 ns/op	      24 B/op	       2 allocs/op
+BenchmarkMultisetIteration/duplicate-4/entries/hash-14         	  618646	      1921 ns/op	      24 B/op	       2 allocs/op
+BenchmarkMultisetIteration/duplicate-4/entries/hash-14         	  621362	      1922 ns/op	      24 B/op	       2 allocs/op
+BenchmarkMultisetIteration/duplicate-4/entries/tree-14         	  493044	      2456 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetIteration/duplicate-4/entries/tree-14         	  486315	      2457 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetIteration/duplicate-4/entries/tree-14         	  488467	      2470 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetIteration/duplicate-4/occurrences/hash-14     	  155270	      7786 ns/op	      88 B/op	       4 allocs/op
+BenchmarkMultisetIteration/duplicate-4/occurrences/hash-14     	  155311	      7752 ns/op	      88 B/op	       4 allocs/op
+BenchmarkMultisetIteration/duplicate-4/occurrences/hash-14     	  154420	      7748 ns/op	      88 B/op	       4 allocs/op
+BenchmarkMultisetIteration/duplicate-4/occurrences/tree-14     	  153524	      7798 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetIteration/duplicate-4/occurrences/tree-14     	  154581	      7754 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetIteration/duplicate-4/occurrences/tree-14     	  154309	      7791 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetIteration/duplicate-16/entries/hash-14        	  605869	      1986 ns/op	      24 B/op	       2 allocs/op
+BenchmarkMultisetIteration/duplicate-16/entries/hash-14        	  605846	      1983 ns/op	      24 B/op	       2 allocs/op
+BenchmarkMultisetIteration/duplicate-16/entries/hash-14        	  605984	      1969 ns/op	      24 B/op	       2 allocs/op
+BenchmarkMultisetIteration/duplicate-16/entries/tree-14        	  487140	      2457 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetIteration/duplicate-16/entries/tree-14        	  486212	      2456 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetIteration/duplicate-16/entries/tree-14        	  487407	      2458 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetIteration/duplicate-16/occurrences/hash-14    	   47226	     25321 ns/op	      88 B/op	       4 allocs/op
+BenchmarkMultisetIteration/duplicate-16/occurrences/hash-14    	   47449	     25371 ns/op	      88 B/op	       4 allocs/op
+BenchmarkMultisetIteration/duplicate-16/occurrences/hash-14    	   47212	     25543 ns/op	      88 B/op	       4 allocs/op
+BenchmarkMultisetIteration/duplicate-16/occurrences/tree-14    	   55866	     21526 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetIteration/duplicate-16/occurrences/tree-14    	   55920	     21439 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetIteration/duplicate-16/occurrences/tree-14    	   55992	     21446 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/sum/hash-14               	   16879	     70748 ns/op	  122752 B/op	      12 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/sum/hash-14               	   16852	     71346 ns/op	  122752 B/op	      12 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/sum/hash-14               	   16932	     70685 ns/op	  122752 B/op	      12 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/sum/tree-14               	   13546	     87641 ns/op	   65536 B/op	    1025 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/sum/tree-14               	   13665	     88054 ns/op	   65536 B/op	    1025 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/sum/tree-14               	   13652	     87399 ns/op	   65536 B/op	    1025 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/intersection/hash-14      	   35785	     33316 ns/op	   65408 B/op	      10 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/intersection/hash-14      	   36102	     33187 ns/op	   65408 B/op	      10 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/intersection/hash-14      	   36078	     33447 ns/op	   65408 B/op	      10 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/intersection/tree-14      	   19285	     61721 ns/op	   40960 B/op	     513 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/intersection/tree-14      	   19388	     61660 ns/op	   40960 B/op	     513 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/intersection/tree-14      	   19490	     61588 ns/op	   40960 B/op	     513 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/union/hash-14             	   16245	     73757 ns/op	  122752 B/op	      12 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/union/hash-14             	   16290	     73737 ns/op	  122752 B/op	      12 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/union/hash-14             	   16286	     74444 ns/op	  122752 B/op	      12 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/union/tree-14             	   12111	     98024 ns/op	   65536 B/op	    1025 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/union/tree-14             	   12104	     98654 ns/op	   65536 B/op	    1025 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/union/tree-14             	   12154	     98472 ns/op	   65536 B/op	    1025 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/minus/hash-14             	   39999	     29719 ns/op	   65408 B/op	      10 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/minus/hash-14             	   40297	     29980 ns/op	   65408 B/op	      10 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/minus/hash-14             	   40339	     29861 ns/op	   65408 B/op	      10 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/minus/tree-14             	   21423	     55965 ns/op	   40960 B/op	     513 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/minus/tree-14             	   21504	     56023 ns/op	   40960 B/op	     513 allocs/op
+BenchmarkMultisetAlgebra/duplicate-1/minus/tree-14             	   21399	     56100 ns/op	   40960 B/op	     513 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/sum/hash-14               	   18433	     64887 ns/op	  122752 B/op	      12 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/sum/hash-14               	   18507	     65542 ns/op	  122752 B/op	      12 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/sum/hash-14               	   18399	     65391 ns/op	  122752 B/op	      12 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/sum/tree-14               	   13641	     87837 ns/op	   65536 B/op	    1025 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/sum/tree-14               	   13695	     87746 ns/op	   65536 B/op	    1025 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/sum/tree-14               	   13650	     87836 ns/op	   65536 B/op	    1025 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/intersection/hash-14      	   38436	     31040 ns/op	   65408 B/op	      10 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/intersection/hash-14      	   38640	     30981 ns/op	   65408 B/op	      10 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/intersection/hash-14      	   38643	     30925 ns/op	   65408 B/op	      10 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/intersection/tree-14      	   19491	     61606 ns/op	   40960 B/op	     513 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/intersection/tree-14      	   19564	     61369 ns/op	   40960 B/op	     513 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/intersection/tree-14      	   19551	     61575 ns/op	   40960 B/op	     513 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/union/hash-14             	   17654	     68384 ns/op	  122752 B/op	      12 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/union/hash-14             	   17635	     67977 ns/op	  122752 B/op	      12 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/union/hash-14             	   17672	     68180 ns/op	  122752 B/op	      12 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/union/tree-14             	   12055	     98553 ns/op	   65536 B/op	    1025 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/union/tree-14             	   12192	     97660 ns/op	   65536 B/op	    1025 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/union/tree-14             	   12102	     99398 ns/op	   65536 B/op	    1025 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/minus/hash-14             	   40789	     29234 ns/op	   65408 B/op	      10 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/minus/hash-14             	   41060	     29263 ns/op	   65408 B/op	      10 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/minus/hash-14             	   41137	     29462 ns/op	   65408 B/op	      10 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/minus/tree-14             	   21319	     55887 ns/op	   40960 B/op	     513 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/minus/tree-14             	   21438	     56181 ns/op	   40960 B/op	     513 allocs/op
+BenchmarkMultisetAlgebra/duplicate-4/minus/tree-14             	   21466	     56370 ns/op	   40960 B/op	     513 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/sum/hash-14              	   19244	     62376 ns/op	  122752 B/op	      12 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/sum/hash-14              	   19172	     62346 ns/op	  122752 B/op	      12 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/sum/hash-14              	   19222	     62554 ns/op	  122752 B/op	      12 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/sum/tree-14              	   13639	     87823 ns/op	   65536 B/op	    1025 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/sum/tree-14              	   13648	     88011 ns/op	   65536 B/op	    1025 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/sum/tree-14              	   13489	     87215 ns/op	   65536 B/op	    1025 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/intersection/hash-14     	   40066	     29783 ns/op	   65408 B/op	      10 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/intersection/hash-14     	   40202	     29799 ns/op	   65408 B/op	      10 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/intersection/hash-14     	   40412	     29811 ns/op	   65408 B/op	      10 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/intersection/tree-14     	   19404	     61637 ns/op	   40960 B/op	     513 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/intersection/tree-14     	   19549	     61422 ns/op	   40960 B/op	     513 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/intersection/tree-14     	   19381	     61522 ns/op	   40960 B/op	     513 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/union/hash-14            	   18343	     65455 ns/op	  122752 B/op	      12 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/union/hash-14            	   18258	     65575 ns/op	  122752 B/op	      12 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/union/hash-14            	   18288	     65582 ns/op	  122752 B/op	      12 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/union/tree-14            	   10000	    100441 ns/op	   65536 B/op	    1025 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/union/tree-14            	   12118	     99519 ns/op	   65536 B/op	    1025 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/union/tree-14            	   12152	     98084 ns/op	   65536 B/op	    1025 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/minus/hash-14            	   40411	     29431 ns/op	   65408 B/op	      10 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/minus/hash-14            	   40986	     29373 ns/op	   65408 B/op	      10 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/minus/hash-14            	   40776	     29407 ns/op	   65408 B/op	      10 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/minus/tree-14            	   21415	     55826 ns/op	   40960 B/op	     513 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/minus/tree-14            	   21334	     56275 ns/op	   40960 B/op	     513 allocs/op
+BenchmarkMultisetAlgebra/duplicate-16/minus/tree-14            	   21405	     56027 ns/op	   40960 B/op	     513 allocs/op
+BenchmarkMultisetMemory/duplicate-1/hash-14                    	    2842	    429920 ns/op	    196744 retained-bytes	        48.03 retained-bytes/occurrence	  393170 B/op	      15 allocs/op
+BenchmarkMultisetMemory/duplicate-1/hash-14                    	    2754	    424092 ns/op	    196744 retained-bytes	        48.03 retained-bytes/occurrence	  393168 B/op	      15 allocs/op
+BenchmarkMultisetMemory/duplicate-1/hash-14                    	    2829	    422419 ns/op	    196744 retained-bytes	        48.03 retained-bytes/occurrence	  393169 B/op	      15 allocs/op
+BenchmarkMultisetMemory/duplicate-1/tree-14                    	    1779	    654505 ns/op	    196624 retained-bytes	        48.00 retained-bytes/occurrence	  196637 B/op	    4097 allocs/op
+BenchmarkMultisetMemory/duplicate-1/tree-14                    	    1827	    656303 ns/op	    196624 retained-bytes	        48.00 retained-bytes/occurrence	  196637 B/op	    4097 allocs/op
+BenchmarkMultisetMemory/duplicate-1/tree-14                    	    1837	    657306 ns/op	    196624 retained-bytes	        48.00 retained-bytes/occurrence	  196638 B/op	    4097 allocs/op
+BenchmarkMultisetMemory/duplicate-1/map-14                     	    2779	    434487 ns/op	    147776 retained-bytes	        36.08 retained-bytes/occurrence	  295938 B/op	      46 allocs/op
+BenchmarkMultisetMemory/duplicate-1/map-14                     	    2779	    431959 ns/op	    147888 retained-bytes	        36.11 retained-bytes/occurrence	  295935 B/op	      46 allocs/op
+BenchmarkMultisetMemory/duplicate-1/map-14                     	    2750	    435539 ns/op	    147776 retained-bytes	        36.08 retained-bytes/occurrence	  295938 B/op	      46 allocs/op
+BenchmarkMultisetMemory/duplicate-4/hash-14                    	    2863	    421945 ns/op	    196744 retained-bytes	        12.01 retained-bytes/occurrence	  393168 B/op	      15 allocs/op
+BenchmarkMultisetMemory/duplicate-4/hash-14                    	    2841	    422949 ns/op	    196744 retained-bytes	        12.01 retained-bytes/occurrence	  393167 B/op	      15 allocs/op
+BenchmarkMultisetMemory/duplicate-4/hash-14                    	    2848	    423220 ns/op	    196744 retained-bytes	        12.01 retained-bytes/occurrence	  393169 B/op	      15 allocs/op
+BenchmarkMultisetMemory/duplicate-4/tree-14                    	    1782	    655754 ns/op	    196624 retained-bytes	        12.00 retained-bytes/occurrence	  196636 B/op	    4097 allocs/op
+BenchmarkMultisetMemory/duplicate-4/tree-14                    	    1818	    653062 ns/op	    196624 retained-bytes	        12.00 retained-bytes/occurrence	  196636 B/op	    4097 allocs/op
+BenchmarkMultisetMemory/duplicate-4/tree-14                    	    1840	    663887 ns/op	    196624 retained-bytes	        12.00 retained-bytes/occurrence	  196637 B/op	    4097 allocs/op
+BenchmarkMultisetMemory/duplicate-4/map-14                     	    2790	    429000 ns/op	    147776 retained-bytes	         9.020 retained-bytes/occurrence	  295935 B/op	      46 allocs/op
+BenchmarkMultisetMemory/duplicate-4/map-14                     	    2778	    430612 ns/op	    147776 retained-bytes	         9.020 retained-bytes/occurrence	  295936 B/op	      46 allocs/op
+BenchmarkMultisetMemory/duplicate-4/map-14                     	    2812	    428587 ns/op	    147776 retained-bytes	         9.020 retained-bytes/occurrence	  295936 B/op	      46 allocs/op
+BenchmarkMultisetMemory/duplicate-16/hash-14                   	    2852	    422248 ns/op	    196744 retained-bytes	         3.002 retained-bytes/occurrence	  393167 B/op	      15 allocs/op
+BenchmarkMultisetMemory/duplicate-16/hash-14                   	    2839	    422066 ns/op	    196744 retained-bytes	         3.002 retained-bytes/occurrence	  393167 B/op	      15 allocs/op
+BenchmarkMultisetMemory/duplicate-16/hash-14                   	    2838	    421443 ns/op	    196856 retained-bytes	         3.004 retained-bytes/occurrence	  393167 B/op	      15 allocs/op
+BenchmarkMultisetMemory/duplicate-16/tree-14                   	    1764	    654876 ns/op	    196624 retained-bytes	         3.000 retained-bytes/occurrence	  196636 B/op	    4097 allocs/op
+BenchmarkMultisetMemory/duplicate-16/tree-14                   	    1804	    672757 ns/op	    196624 retained-bytes	         3.000 retained-bytes/occurrence	  196638 B/op	    4097 allocs/op
+BenchmarkMultisetMemory/duplicate-16/tree-14                   	    1813	    663494 ns/op	    196624 retained-bytes	         3.000 retained-bytes/occurrence	  196637 B/op	    4097 allocs/op
+BenchmarkMultisetMemory/duplicate-16/map-14                    	    2794	    427817 ns/op	    147776 retained-bytes	         2.255 retained-bytes/occurrence	  295936 B/op	      46 allocs/op
+BenchmarkMultisetMemory/duplicate-16/map-14                    	    2799	    428596 ns/op	    147776 retained-bytes	         2.255 retained-bytes/occurrence	  295937 B/op	      46 allocs/op
+BenchmarkMultisetMemory/duplicate-16/map-14                    	    2806	    432842 ns/op	    147776 retained-bytes	         2.255 retained-bytes/occurrence	  295937 B/op	      46 allocs/op
+BenchmarkLinkedHashMultiset-14                                 	34853282	        33.14 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedHashMultiset-14                                 	35473659	        31.46 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedHashMultiset-14                                 	36010443	        32.29 ns/op	       0 B/op	       0 allocs/op

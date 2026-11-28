@@ -4,19 +4,18 @@
 
 Rates are operations per second; higher is better. The Go column was
 measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
-1-second runs, shown slowest–fastest, plus bytes and allocations per
-operation. Raw output is `go-2026-11-27-current.txt`; the HashMultiset and
-TreeMultiset rows were re-measured after the 2026-11-27 table rewrite
-(`go-2026-11-27-perf.txt`, taken under concurrent load, so they are
-conservative — see the section below).
+1-second runs on a quiet machine after the 2026-11-27 rewrites, shown
+slowest–fastest, plus bytes and allocations per operation. Raw output is
+`go-2026-11-27-current.txt`; the dated sections below give the causes and
+before/after comparisons.
 The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
 2026-11-22 record below and not re-run (mean ± error).
 
 | Workload | Pluto (Go) | Guava (Java) |
 |---|---:|---:|
-| HashMultiset | 28.41–28.76M · 0 B, 0 allocs | 67.89M ± 7.74M |
-| TreeMultiset | 5.42–5.51M · 4 B, 0 allocs | 6.08M ± 1.53M |
-| Baseline: plain map of counts (Java: HashMap) | 37.89–38.10M · 0 B, 0 allocs | 52.87M ± 8.26M |
+| HashMultiset | 30.72–31.20M · 0 B, 0 allocs | 67.89M ± 7.74M |
+| TreeMultiset | 5.82–5.84M · 4 B, 0 allocs | 6.08M ± 1.53M |
+| Baseline: plain map of counts (Java: HashMap) | 36.93–37.92M · 0 B, 0 allocs | 52.87M ± 8.26M |
 
 ## 2026-11-27: one-probe count tables
 

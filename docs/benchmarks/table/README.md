@@ -4,29 +4,29 @@
 
 Rates are operations per second; higher is better. The Go column was
 measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
-1-second runs, shown slowest–fastest, plus bytes and allocations per
-operation. Raw output is `go-2026-11-27-current.txt`; the mixed, row,
-column and transpose rows were re-measured after the 2026-11-27 index rework
-below (raw output `go-2026-11-27-perf-after.txt`).
+1-second runs on a quiet machine after the 2026-11-27 rewrites, shown
+slowest–fastest, plus bytes and allocations per operation. Raw output is
+`go-2026-11-27-current.txt`; the dated sections below give the causes and
+before/after comparisons.
 The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
 2026-11-22 record below and not re-run (mean ± error).
 
 | Workload | Pluto (Go) | Guava (Java) |
 |---|---:|---:|
-| HashTable mixed (Java: HashBasedTable) | 21.52–22.21M · 0 B, 0 allocs | 31.85M ± 11.19M |
-| TreeTable mixed (Java: TreeBasedTable) | 10.74–10.89M · 6 B, 0 allocs | 11.12M ± 4.49M |
-| ArrayTable mixed | 40.78–41.41M · 0 B, 0 allocs | 55.95M ± 19.88M |
-| HashTable row | 2.18–2.34M · 3200 B, 1 alloc | 293.17M ± 28.80M |
-| HashTable column | 1.40–1.49M · 3200 B, 1 alloc | 6.08M ± 0.84M |
-| TreeTable row | 1.88–2.05M · 3200 B, 1 alloc | 39.94M ± 0.96M |
-| TreeTable column | 581.73–598.44K · 3200 B, 1 alloc | 1.29M ± 0.10M |
-| ArrayTable row | 2.25–2.50M · 3200 B, 1 alloc | 286.79M ± 23.22M |
-| ArrayTable column | 2.26–2.41M · 3200 B, 1 alloc | 293.70M ± 17.09M |
-| HashTable transpose | 10.39–10.66K · 357361 B, 135 allocs | 11.99K ± 0.84K |
-| TreeTable transpose | 7.57–7.89K · 477530 B, 162 allocs | 4.37K ± 0.40K |
-| ArrayTable transpose | 99.86–109.29K · 69792 B, 3 allocs | 22.30K ± 0.60K |
-| Baseline: nested maps | 27.93–28.33M · 0 B, 0 allocs | 50.84M ± 8.13M |
-| Baseline: flat matrix + presence bitmap | 264.34–303.67M · 0 B, 0 allocs | 199.26M ± 16.45M |
+| HashTable mixed (Java: HashBasedTable) | 22.33–23.92M · 0 B, 0 allocs | 31.85M ± 11.19M |
+| TreeTable mixed (Java: TreeBasedTable) | 11.27–11.36M · 6 B, 0 allocs | 11.12M ± 4.49M |
+| ArrayTable mixed | 41.74–42.54M · 0 B, 0 allocs | 55.95M ± 19.88M |
+| HashTable row | 2.35–2.36M · 3200 B, 1 alloc | 293.17M ± 28.80M |
+| HashTable column | 1.35–1.48M · 3200 B, 1 alloc | 6.08M ± 0.84M |
+| TreeTable row | 2.06–2.10M · 3200 B, 1 alloc | 39.94M ± 0.96M |
+| TreeTable column | 613.50–621.50K · 3200 B, 1 alloc | 1.29M ± 0.10M |
+| ArrayTable row | 2.51–2.53M · 3200 B, 1 alloc | 286.79M ± 23.22M |
+| ArrayTable column | 2.44–2.48M · 3200 B, 1 alloc | 293.70M ± 17.09M |
+| HashTable transpose | 11.32–11.51K · 357361 B, 135 allocs | 11.99K ± 0.84K |
+| TreeTable transpose | 8.06–8.14K · 477529 B, 162 allocs | 4.37K ± 0.40K |
+| ArrayTable transpose | 111.16–112.07K · 69792 B, 3 allocs | 22.30K ± 0.60K |
+| Baseline: nested maps | 27.99–28.35M · 0 B, 0 allocs | 50.84M ± 8.13M |
+| Baseline: flat matrix + presence bitmap | 297.80–301.66M · 0 B, 0 allocs | 199.26M ± 16.45M |
 
 Guava's row and column accessors return live views, while Pluto's return fresh copies (the allocations in the Go column). The access figures therefore compare different contracts.
 

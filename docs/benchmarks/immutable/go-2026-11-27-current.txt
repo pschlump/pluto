@@ -2,84 +2,90 @@ goos: darwin
 goarch: arm64
 pkg: github.com/pschlump/pluto/immutable
 cpu: Apple M4 Max
-BenchmarkImmutableListBuild-14            	  618918	      1937 ns/op	   32792 B/op	       2 allocs/op
-BenchmarkImmutableListBuild-14            	  608104	      1937 ns/op	   32792 B/op	       2 allocs/op
-BenchmarkImmutableListBuild-14            	  576565	      1974 ns/op	   32792 B/op	       2 allocs/op
-BenchmarkImmutableListCopyOf-14           	674669779	         1.750 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableListCopyOf-14           	688257230	         1.744 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableListCopyOf-14           	688935385	         1.744 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableListAt-14               	1000000000	         0.5179 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableListAt-14               	1000000000	         0.5172 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableListAt-14               	1000000000	         0.5224 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableListIteration-14        	  252535	      4736 ns/op	      24 B/op	       2 allocs/op
-BenchmarkImmutableListIteration-14        	  252908	      4759 ns/op	      24 B/op	       2 allocs/op
-BenchmarkImmutableListIteration-14        	  255124	      4747 ns/op	      24 B/op	       2 allocs/op
-BenchmarkImmutableSetBuild-14             	    7074	    163367 ns/op	  480361 B/op	      42 allocs/op
-BenchmarkImmutableSetBuild-14             	    7392	    162126 ns/op	  480361 B/op	      42 allocs/op
-BenchmarkImmutableSetBuild-14             	    7453	    162338 ns/op	  480361 B/op	      42 allocs/op
-BenchmarkImmutableSetContains-14          	129288482	         9.284 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableSetContains-14          	132959691	         9.172 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableSetContains-14          	128197366	         9.294 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableMapBuild-14             	    6514	    183490 ns/op	  627170 B/op	      28 allocs/op
-BenchmarkImmutableMapBuild-14             	    6597	    182529 ns/op	  627170 B/op	      28 allocs/op
-BenchmarkImmutableMapBuild-14             	    6685	    182794 ns/op	  627170 B/op	      28 allocs/op
-BenchmarkImmutableMapGet-14               	77354685	        14.74 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableMapGet-14               	78308959	        14.91 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableMapGet-14               	77591221	        14.73 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableSortedSetBuild-14       	    3667	    312017 ns/op	   32816 B/op	       3 allocs/op
-BenchmarkImmutableSortedSetBuild-14       	    3884	    305030 ns/op	   32816 B/op	       3 allocs/op
-BenchmarkImmutableSortedSetBuild-14       	    4041	    299991 ns/op	   32816 B/op	       3 allocs/op
-BenchmarkImmutableSortedSetContains-14    	29722526	        39.20 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableSortedSetContains-14    	27338120	        38.26 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableSortedSetContains-14    	27784288	        39.40 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableSortedSetSubRange-14    	24792235	        44.40 ns/op	      32 B/op	       1 allocs/op
-BenchmarkImmutableSortedSetSubRange-14    	27865636	        43.51 ns/op	      32 B/op	       1 allocs/op
-BenchmarkImmutableSortedSetSubRange-14    	27669320	        43.49 ns/op	      32 B/op	       1 allocs/op
-BenchmarkImmutableSortedMapBuild-14       	   33958	     35345 ns/op	   98352 B/op	       3 allocs/op
-BenchmarkImmutableSortedMapBuild-14       	   33951	     35357 ns/op	   98352 B/op	       3 allocs/op
-BenchmarkImmutableSortedMapBuild-14       	   33985	     35414 ns/op	   98352 B/op	       3 allocs/op
-BenchmarkImmutableSortedMapGet-14         	17934069	        63.88 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableSortedMapGet-14         	18792355	        62.92 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableSortedMapGet-14         	18955411	        62.87 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableMultisetBuild-14        	    6936	    170467 ns/op	  570480 B/op	      42 allocs/op
-BenchmarkImmutableMultisetBuild-14        	    7106	    170220 ns/op	  570480 B/op	      42 allocs/op
-BenchmarkImmutableMultisetBuild-14        	    6984	    170034 ns/op	  570480 B/op	      42 allocs/op
-BenchmarkImmutableMultisetCount-14        	124319678	         9.911 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableMultisetCount-14        	123240000	         9.973 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableMultisetCount-14        	123961483	         9.827 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableMultimapBuild-14        	   18524	     64754 ns/op	   79112 B/op	     478 allocs/op
-BenchmarkImmutableMultimapBuild-14        	   18535	     63875 ns/op	   79112 B/op	     478 allocs/op
-BenchmarkImmutableMultimapBuild-14        	   18895	     63483 ns/op	   79112 B/op	     478 allocs/op
-BenchmarkImmutableMultimapGet-14          	18267446	        64.76 ns/op	     512 B/op	       1 allocs/op
-BenchmarkImmutableMultimapGet-14          	18176493	        65.57 ns/op	     512 B/op	       1 allocs/op
-BenchmarkImmutableMultimapGet-14          	17942661	        64.84 ns/op	     512 B/op	       1 allocs/op
-BenchmarkImmutableBiMapBuild-14           	    3397	    372898 ns/op	 1118563 B/op	      56 allocs/op
-BenchmarkImmutableBiMapBuild-14           	    3210	    371444 ns/op	 1118560 B/op	      56 allocs/op
-BenchmarkImmutableBiMapBuild-14           	    3022	    390927 ns/op	 1118560 B/op	      56 allocs/op
-BenchmarkImmutableBiMapGet-14             	76636916	        14.73 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableBiMapGet-14             	76499509	        15.02 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableBiMapGet-14             	77209310	        14.95 ns/op	       0 B/op	       0 allocs/op
-BenchmarkImmutableMemory/list-14          	    2782	    428831 ns/op	     32768 retained-bytes	         8.000 retained-bytes/input	   32769 B/op	       1 allocs/op
-BenchmarkImmutableMemory/list-14          	    2800	    430752 ns/op	     32768 retained-bytes	         8.000 retained-bytes/input	   32769 B/op	       1 allocs/op
-BenchmarkImmutableMemory/list-14          	    2826	    431523 ns/op	     32768 retained-bytes	         8.000 retained-bytes/input	   32770 B/op	       1 allocs/op
-BenchmarkImmutableMemory/set-14           	    2044	    584433 ns/op	    224128 retained-bytes	        54.72 retained-bytes/input	  480369 B/op	      42 allocs/op
-BenchmarkImmutableMemory/set-14           	    2046	    584091 ns/op	    224128 retained-bytes	        54.72 retained-bytes/input	  480369 B/op	      42 allocs/op
-BenchmarkImmutableMemory/set-14           	    2052	    585808 ns/op	    224128 retained-bytes	        54.72 retained-bytes/input	  480369 B/op	      42 allocs/op
-BenchmarkImmutableMemory/map-14           	    1916	    624000 ns/op	    360672 retained-bytes	        88.05 retained-bytes/input	  627168 B/op	      28 allocs/op
-BenchmarkImmutableMemory/map-14           	    1918	    624782 ns/op	    360672 retained-bytes	        88.05 retained-bytes/input	  627168 B/op	      28 allocs/op
-BenchmarkImmutableMemory/map-14           	    1904	    627671 ns/op	    360672 retained-bytes	        88.05 retained-bytes/input	  627168 B/op	      28 allocs/op
-BenchmarkImmutableMemory/sortedSet-14     	    1549	    759266 ns/op	     32816 retained-bytes	         8.012 retained-bytes/input	   32817 B/op	       3 allocs/op
-BenchmarkImmutableMemory/sortedSet-14     	    1594	    753309 ns/op	     32816 retained-bytes	         8.012 retained-bytes/input	   32820 B/op	       3 allocs/op
-BenchmarkImmutableMemory/sortedSet-14     	    1599	    751939 ns/op	     32816 retained-bytes	         8.012 retained-bytes/input	   32821 B/op	       3 allocs/op
-BenchmarkImmutableMemory/sortedMap-14     	    2576	    460234 ns/op	     98352 retained-bytes	        24.01 retained-bytes/input	   98353 B/op	       3 allocs/op
-BenchmarkImmutableMemory/sortedMap-14     	    2619	    461030 ns/op	     98352 retained-bytes	        24.01 retained-bytes/input	   98353 B/op	       3 allocs/op
-BenchmarkImmutableMemory/sortedMap-14     	    2587	    462482 ns/op	     98352 retained-bytes	        24.01 retained-bytes/input	   98353 B/op	       3 allocs/op
-BenchmarkImmutableMemory/multiset-14      	    2043	    588023 ns/op	    254208 retained-bytes	        62.06 retained-bytes/input	  570481 B/op	      42 allocs/op
-BenchmarkImmutableMemory/multiset-14      	    2030	    591105 ns/op	    254208 retained-bytes	        62.06 retained-bytes/input	  570482 B/op	      42 allocs/op
-BenchmarkImmutableMemory/multiset-14      	    2011	    589784 ns/op	    254208 retained-bytes	        62.06 retained-bytes/input	  570482 B/op	      42 allocs/op
-BenchmarkImmutableMemory/multimap-14      	    2414	    503618 ns/op	     40256 retained-bytes	         9.828 retained-bytes/input	   79114 B/op	     478 allocs/op
-BenchmarkImmutableMemory/multimap-14      	    2376	    505574 ns/op	     40256 retained-bytes	         9.828 retained-bytes/input	   79113 B/op	     478 allocs/op
-BenchmarkImmutableMemory/multimap-14      	    2394	    503226 ns/op	     40256 retained-bytes	         9.828 retained-bytes/input	   79113 B/op	     478 allocs/op
-BenchmarkImmutableMemory/bimap-14         	    1486	    804841 ns/op	    655840 retained-bytes	       160.1 retained-bytes/input	 1118561 B/op	      56 allocs/op
-BenchmarkImmutableMemory/bimap-14         	    1504	    814317 ns/op	    655840 retained-bytes	       160.1 retained-bytes/input	 1118563 B/op	      56 allocs/op
-BenchmarkImmutableMemory/bimap-14         	    1492	    803252 ns/op	    655840 retained-bytes	       160.1 retained-bytes/input	 1118561 B/op	      56 allocs/op
+BenchmarkImmutableListBuild-14             	  505412	      2071 ns/op	   32792 B/op	       2 allocs/op
+BenchmarkImmutableListBuild-14             	  564628	      2161 ns/op	   32792 B/op	       2 allocs/op
+BenchmarkImmutableListBuild-14             	  572881	      2181 ns/op	   32792 B/op	       2 allocs/op
+BenchmarkImmutableListCopyOf-14            	690985518	         1.727 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListCopyOf-14            	693316669	         1.717 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListCopyOf-14            	702891446	         1.716 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListAt-14                	1000000000	         0.5252 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListAt-14                	1000000000	         0.5220 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListAt-14                	1000000000	         0.5207 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListIteration-14         	 1000000	      1028 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListIteration-14         	 1000000	      1021 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListIteration-14         	 1000000	      1020 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSetBuild-14              	   18715	     64048 ns/op	  180776 B/op	      26 allocs/op
+BenchmarkImmutableSetBuild-14              	   18655	     64423 ns/op	  180776 B/op	      26 allocs/op
+BenchmarkImmutableSetBuild-14              	   18573	     64675 ns/op	  180776 B/op	      26 allocs/op
+BenchmarkImmutableSetContains-14           	227260657	         5.179 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSetContains-14           	227752783	         5.269 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSetContains-14           	229265793	         5.210 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMapBuild-14              	   19292	     62057 ns/op	  316912 B/op	      24 allocs/op
+BenchmarkImmutableMapBuild-14              	   19200	     62491 ns/op	  316912 B/op	      24 allocs/op
+BenchmarkImmutableMapBuild-14              	   19338	     61959 ns/op	  316912 B/op	      24 allocs/op
+BenchmarkImmutableMapGet-14                	149154140	         8.077 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMapGet-14                	149494800	         8.157 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMapGet-14                	147433436	         8.149 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSortedSetBuild-14        	    3649	    303718 ns/op	   32816 B/op	       3 allocs/op
+BenchmarkImmutableSortedSetBuild-14        	    4111	    295807 ns/op	   32816 B/op	       3 allocs/op
+BenchmarkImmutableSortedSetBuild-14        	    4149	    296418 ns/op	   32816 B/op	       3 allocs/op
+BenchmarkImmutableSortedSetContains-14     	23444539	        43.56 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSortedSetContains-14     	26730100	        40.99 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSortedSetContains-14     	28047184	        40.90 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSortedSetSubRange-14     	27098638	        43.75 ns/op	      32 B/op	       1 allocs/op
+BenchmarkImmutableSortedSetSubRange-14     	25882312	        43.92 ns/op	      32 B/op	       1 allocs/op
+BenchmarkImmutableSortedSetSubRange-14     	27574796	        44.25 ns/op	      32 B/op	       1 allocs/op
+BenchmarkImmutableSortedMapBuild-14        	   33444	     35849 ns/op	   98352 B/op	       3 allocs/op
+BenchmarkImmutableSortedMapBuild-14        	   33978	     35464 ns/op	   98352 B/op	       3 allocs/op
+BenchmarkImmutableSortedMapBuild-14        	   33076	     35897 ns/op	   98352 B/op	       3 allocs/op
+BenchmarkImmutableSortedMapGet-14          	19257321	        61.26 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSortedMapGet-14          	19714508	        61.41 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSortedMapGet-14          	20059509	        60.39 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultisetBuild-14         	   14862	     80640 ns/op	  325417 B/op	      40 allocs/op
+BenchmarkImmutableMultisetBuild-14         	   14965	     80903 ns/op	  325417 B/op	      40 allocs/op
+BenchmarkImmutableMultisetBuild-14         	   14910	     80565 ns/op	  325417 B/op	      40 allocs/op
+BenchmarkImmutableMultisetCount-14         	197374872	         6.200 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultisetCount-14         	193639663	         6.045 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultisetCount-14         	190212044	         6.221 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultimapBuild-14         	   31060	     38353 ns/op	   77648 B/op	      33 allocs/op
+BenchmarkImmutableMultimapBuild-14         	   31482	     38193 ns/op	   77648 B/op	      33 allocs/op
+BenchmarkImmutableMultimapBuild-14         	   31485	     38382 ns/op	   77648 B/op	      33 allocs/op
+BenchmarkImmutableMultimapGet-14           	18970681	        63.10 ns/op	     512 B/op	       1 allocs/op
+BenchmarkImmutableMultimapGet-14           	18590707	        62.67 ns/op	     512 B/op	       1 allocs/op
+BenchmarkImmutableMultimapGet-14           	19638997	        61.38 ns/op	     512 B/op	       1 allocs/op
+BenchmarkImmutableMultimapValuesOf-14      	51672816	        22.88 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultimapValuesOf-14      	50875930	        23.25 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultimapValuesOf-14      	51335341	        23.15 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultimapValueCount-14    	188472276	         6.005 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultimapValueCount-14    	199091107	         6.004 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultimapValueCount-14    	190707612	         6.571 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableBiMapBuild-14            	   10000	    114726 ns/op	  464962 B/op	      48 allocs/op
+BenchmarkImmutableBiMapBuild-14            	   10000	    114549 ns/op	  464962 B/op	      48 allocs/op
+BenchmarkImmutableBiMapBuild-14            	   10000	    114917 ns/op	  464962 B/op	      48 allocs/op
+BenchmarkImmutableBiMapGet-14              	155165139	         7.735 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableBiMapGet-14              	154932843	         7.915 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableBiMapGet-14              	154972686	         7.737 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMemory/list-14           	    3013	    392619 ns/op	     32768 retained-bytes	         8.000 retained-bytes/input	   32769 B/op	       1 allocs/op
+BenchmarkImmutableMemory/list-14           	    3057	    392488 ns/op	     32768 retained-bytes	         8.000 retained-bytes/input	   32769 B/op	       1 allocs/op
+BenchmarkImmutableMemory/list-14           	    3045	    392262 ns/op	     32768 retained-bytes	         8.000 retained-bytes/input	   32768 B/op	       1 allocs/op
+BenchmarkImmutableMemory/set-14            	    2673	    449494 ns/op	    180752 retained-bytes	        44.13 retained-bytes/input	  180777 B/op	      26 allocs/op
+BenchmarkImmutableMemory/set-14            	    2671	    448909 ns/op	    180752 retained-bytes	        44.13 retained-bytes/input	  180776 B/op	      26 allocs/op
+BenchmarkImmutableMemory/set-14            	    2680	    444206 ns/op	    180752 retained-bytes	        44.13 retained-bytes/input	  180778 B/op	      26 allocs/op
+BenchmarkImmutableMemory/map-14            	    2565	    477248 ns/op	    316912 retained-bytes	        77.37 retained-bytes/input	  316913 B/op	      24 allocs/op
+BenchmarkImmutableMemory/map-14            	    2563	    468812 ns/op	    316912 retained-bytes	        77.37 retained-bytes/input	  316912 B/op	      24 allocs/op
+BenchmarkImmutableMemory/map-14            	    2577	    467468 ns/op	    316912 retained-bytes	        77.37 retained-bytes/input	  316912 B/op	      24 allocs/op
+BenchmarkImmutableMemory/sortedSet-14      	    1620	    705210 ns/op	     32816 retained-bytes	         8.012 retained-bytes/input	   32817 B/op	       3 allocs/op
+BenchmarkImmutableMemory/sortedSet-14      	    1711	    699408 ns/op	     32816 retained-bytes	         8.012 retained-bytes/input	   32816 B/op	       3 allocs/op
+BenchmarkImmutableMemory/sortedSet-14      	    1716	    707084 ns/op	     32816 retained-bytes	         8.012 retained-bytes/input	   32816 B/op	       3 allocs/op
+BenchmarkImmutableMemory/sortedMap-14      	    2701	    445909 ns/op	     98352 retained-bytes	        24.01 retained-bytes/input	   98352 B/op	       3 allocs/op
+BenchmarkImmutableMemory/sortedMap-14      	    2715	    443304 ns/op	     98352 retained-bytes	        24.01 retained-bytes/input	   98354 B/op	       3 allocs/op
+BenchmarkImmutableMemory/sortedMap-14      	    2742	    449056 ns/op	     98352 retained-bytes	        24.01 retained-bytes/input	   98353 B/op	       3 allocs/op
+BenchmarkImmutableMemory/multiset-14       	    2442	    468654 ns/op	    205368 retained-bytes	        50.14 retained-bytes/input	  325417 B/op	      40 allocs/op
+BenchmarkImmutableMemory/multiset-14       	    2620	    462699 ns/op	    205368 retained-bytes	        50.14 retained-bytes/input	  325419 B/op	      40 allocs/op
+BenchmarkImmutableMemory/multiset-14       	    2581	    465676 ns/op	    205368 retained-bytes	        50.14 retained-bytes/input	  325416 B/op	      40 allocs/op
+BenchmarkImmutableMemory/multimap-14       	    2784	    429011 ns/op	     39504 retained-bytes	         9.645 retained-bytes/input	   77651 B/op	      33 allocs/op
+BenchmarkImmutableMemory/multimap-14       	    2776	    431631 ns/op	     39504 retained-bytes	         9.645 retained-bytes/input	   77648 B/op	      33 allocs/op
+BenchmarkImmutableMemory/multimap-14       	    2802	    431160 ns/op	     39504 retained-bytes	         9.645 retained-bytes/input	   77648 B/op	      33 allocs/op
+BenchmarkImmutableMemory/bimap-14          	    2355	    513280 ns/op	    464960 retained-bytes	       113.5 retained-bytes/input	  464960 B/op	      48 allocs/op
+BenchmarkImmutableMemory/bimap-14          	    2347	    514074 ns/op	    464960 retained-bytes	       113.5 retained-bytes/input	  464960 B/op	      48 allocs/op
+BenchmarkImmutableMemory/bimap-14          	    2342	    523984 ns/op	    464960 retained-bytes	       113.5 retained-bytes/input	  464960 B/op	      48 allocs/op

@@ -2,24 +2,24 @@ goos: darwin
 goarch: arm64
 pkg: github.com/pschlump/pluto/multimap
 cpu: Apple M4 Max
-BenchmarkListMultimap-14          	 1000000	      1128 ns/op	    6474 B/op	       0 allocs/op
-BenchmarkListMultimap-14          	 1000000	      1124 ns/op	    6473 B/op	       0 allocs/op
-BenchmarkListMultimap-14          	 1000000	      1118 ns/op	    6473 B/op	       0 allocs/op
-BenchmarkSetMultimap-14           	 8968388	       131.0 ns/op	     222 B/op	       1 allocs/op
-BenchmarkSetMultimap-14           	 9018840	       130.6 ns/op	     222 B/op	       1 allocs/op
-BenchmarkSetMultimap-14           	 8884341	       132.2 ns/op	     222 B/op	       1 allocs/op
-BenchmarkSortedSetMultimap-14     	 9860166	       121.6 ns/op	     108 B/op	       0 allocs/op
-BenchmarkSortedSetMultimap-14     	 9827878	       122.2 ns/op	     108 B/op	       0 allocs/op
-BenchmarkSortedSetMultimap-14     	 9725953	       121.9 ns/op	     108 B/op	       0 allocs/op
-BenchmarkListMap-14               	 4477171	      1102 ns/op	      33 B/op	       0 allocs/op
-BenchmarkListMap-14               	 4474324	      1102 ns/op	      33 B/op	       0 allocs/op
-BenchmarkListMap-14               	 4478088	      1102 ns/op	      33 B/op	       0 allocs/op
-BenchmarkSetMap-14                	29790504	        39.95 ns/op	       0 B/op	       0 allocs/op
-BenchmarkSetMap-14                	29616069	        40.19 ns/op	       0 B/op	       0 allocs/op
-BenchmarkSetMap-14                	29922637	        39.94 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLinkedListMultimap-14    	 1000000	      7101 ns/op	    2646 B/op	       0 allocs/op
-BenchmarkLinkedListMultimap-14    	 1000000	      7157 ns/op	    2646 B/op	       0 allocs/op
-BenchmarkLinkedListMultimap-14    	 1000000	      7109 ns/op	    2646 B/op	       0 allocs/op
-BenchmarkLinkedHashMultimap-14    	 9600146	       124.3 ns/op	      60 B/op	       0 allocs/op
-BenchmarkLinkedHashMultimap-14    	 9644259	       124.5 ns/op	      60 B/op	       0 allocs/op
-BenchmarkLinkedHashMultimap-14    	 9699487	       123.6 ns/op	      60 B/op	       0 allocs/op
+BenchmarkListMultimap-14          	 1771921	      1092 ns/op	    4690 B/op	       0 allocs/op
+BenchmarkListMultimap-14          	 1789236	      1094 ns/op	    4733 B/op	       0 allocs/op
+BenchmarkListMultimap-14          	 1818556	      1116 ns/op	    4809 B/op	       0 allocs/op
+BenchmarkSetMultimap-14           	21617596	        50.82 ns/op	      26 B/op	       0 allocs/op
+BenchmarkSetMultimap-14           	21736603	        52.90 ns/op	      26 B/op	       0 allocs/op
+BenchmarkSetMultimap-14           	21686092	        54.45 ns/op	      26 B/op	       0 allocs/op
+BenchmarkSortedSetMultimap-14     	16963587	        68.10 ns/op	      31 B/op	       0 allocs/op
+BenchmarkSortedSetMultimap-14     	17038868	        68.30 ns/op	      31 B/op	       0 allocs/op
+BenchmarkSortedSetMultimap-14     	17101984	        68.23 ns/op	      31 B/op	       0 allocs/op
+BenchmarkListMap-14               	 4483004	      1103 ns/op	      33 B/op	       0 allocs/op
+BenchmarkListMap-14               	 4483198	      1105 ns/op	      33 B/op	       0 allocs/op
+BenchmarkListMap-14               	 4480798	      1105 ns/op	      33 B/op	       0 allocs/op
+BenchmarkSetMap-14                	29648540	        39.90 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSetMap-14                	30139741	        39.85 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSetMap-14                	29763872	        39.82 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedListMultimap-14    	 1000000	      7011 ns/op	    2646 B/op	       0 allocs/op
+BenchmarkLinkedListMultimap-14    	 1000000	      6983 ns/op	    2646 B/op	       0 allocs/op
+BenchmarkLinkedListMultimap-14    	 1000000	      7027 ns/op	    2646 B/op	       0 allocs/op
+BenchmarkLinkedHashMultimap-14    	18905204	        58.75 ns/op	      34 B/op	       0 allocs/op
+BenchmarkLinkedHashMultimap-14    	18308835	        60.82 ns/op	      34 B/op	       0 allocs/op
+BenchmarkLinkedHashMultimap-14    	19547767	        59.41 ns/op	      34 B/op	       0 allocs/op
