@@ -44,7 +44,17 @@ and the first of equal batch values.
 
 ## Snapshot contract
 
-Get clones values. AsMap builds a `MapSnapshot`, not a Go map: this supports
+Get clones values. `ValueCount` and `ValuesOf` (2026-11-27) are the
+non-copying per-key readers on all three variants: `ValueCount` is
+`ops.length` of the stored collection (`core.ValueCount`), and `ValuesOf`
+ranges the stored collection directly. List and sorted range the `[]V`; set
+walks the value table's slots in slot order, which must stay identical to
+`table.keys` (what Get returns). `TestPerKeyReadersMatchGet` pins both
+against Get after every random mutation, and reversing the set walk makes it
+fail. Keep the lookup inside the returned closure so `ValuesOf` inlines and
+stays allocation-free (`TestPerKeyReadersAllocationFree`). The twins'
+`ValuesOf` returns a snapshot taken under the read lock (twin discipline).
+AsMap builds a `MapSnapshot`, not a Go map: this supports
 non-comparable custom key types and avoids falsely promising write-through
 behavior. MapSnapshot.Get and Entries clone value slices as well. EntriesSlice
 is the snapshot boundary used by the twin. Plain iterators should not be used

@@ -12,7 +12,9 @@ readers. Reads use the read lock. Nil receivers behave as empty for reads and
 non-storing removals; storing methods require a non-nil constructed value.
 
 `Entries`, `Keys`, `Values`, and `KeySet` snapshot under the lock and iterate
-after releasing it. `Get`, `RemoveAll`, `ReplaceValues`, `AsMap`, and
+after releasing it. `ValueCount` reads under the read lock without copying;
+`ValuesOf` snapshots the key's values under the read lock, so it copies once
+but stays safe while other goroutines write. `Get`, `RemoveAll`, `ReplaceValues`, `AsMap`, and
 `KeyMultiset` return independent data. Iteration and callbacks may safely call
 back into the same multimap.
 

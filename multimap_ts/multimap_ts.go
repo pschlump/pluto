@@ -82,6 +82,29 @@ func (m *ListMultimap[K, V]) ReplaceValues(key K, values []V) []V {
 	defer m.lock.Unlock()
 	return m.inner.ReplaceValues(key, values)
 }
+
+// ValueCount returns how many values key has, under the read lock, without
+// copying them. An absent key, a nil multimap, and the zero value report 0.
+// Complexity is expected O(1).
+func (m *ListMultimap[K, V]) ValueCount(key K) int {
+	if m == nil {
+		return 0
+	}
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	return m.inner.ValueCount(key)
+}
+
+// ValuesOf iterates a snapshot of key's values, in the plain type's order,
+// taken under the read lock when ValuesOf is called. The snapshot keeps the
+// iteration safe while other goroutines write, so unlike the plain type's
+// ValuesOf it copies the values once.
+// Complexity is expected O(1) lookup plus O(values for key).
+func (m *ListMultimap[K, V]) ValuesOf(key K) iter.Seq[V] {
+	values, _ := m.Get(key)
+	return slices.Values(values)
+}
+
 func (m *ListMultimap[K, V]) ContainsKey(key K) bool {
 	if m == nil {
 		return false

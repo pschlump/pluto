@@ -83,6 +83,15 @@ func (c *core[K, V, C]) Get(key K) ([]V, bool) {
 	return c.ops.values(*collection), true
 }
 
+// ValueCount returns len of key's collection without copying it.
+func (c *core[K, V, C]) ValueCount(key K) int {
+	collection := c.collection(key)
+	if collection == nil {
+		return 0
+	}
+	return c.ops.length(*collection)
+}
+
 func (c *core[K, V, C]) Put(key K, value V) bool {
 	c.writeContract("Put")
 	index, h, found := c.tab.find(key)

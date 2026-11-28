@@ -29,6 +29,8 @@ custom construction.
 |Put |amortized O(1) |O(1) expected |O(v) with O(log v) lookup
 |PutAll |amortized O(k) |O(k) expected |O(v + k log k)
 |Get |O(v) |O(v) |O(v)
+|ValueCount |O(1) expected |O(1) expected |O(1) expected
+|ValuesOf |O(v) to iterate |O(v) to iterate |O(v) to iterate
 |Remove / ContainsEntry |O(v) |O(1) expected |O(v) / O(log v)
 |RemoveAll |O(v) |O(v) |O(v)
 |ReplaceValues |O(v+k) |O(v+k) expected |O((v+k) log(v+k))
@@ -57,7 +59,10 @@ whole batch succeeds.
 multiplicity, `Values` flattens values, and `KeySet` yields distinct keys.
 `KeyMultiset` integrates with `multiset.HashMultiset` to retain those counts.
 
-`Get` returns a copied slice and `(found bool)`. `AsMap` returns a `MapSnapshot`
+`Get` returns a copied slice and `(found bool)`. For callers that only read a
+key's values, `ValueCount(key)` counts them and `ValuesOf(key)` iterates them
+in `Get`'s order, both without copying or allocating. Do not modify the
+multimap while ranging over `ValuesOf`. `AsMap` returns a `MapSnapshot`
 with `Get`, `Entries`, `Keys`, `Len`, and `KeyLen`; its value slices are also
 copied. Neither is a live write-through view. Use `GetView` for a coupled
 single-key `ValuesView` or `AsMapView` for a live map of value views. These

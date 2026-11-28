@@ -112,6 +112,45 @@ func (m *SetMultimap[K, V]) RemoveAll(key K) []V          { return m.core.Remove
 func (m *SetMultimap[K, V]) ReplaceValues(key K, values []V) []V {
 	return m.core.ReplaceValues(key, values)
 }
+
+// ValueCount returns how many values key has without copying them: the
+// allocation-free replacement for len(Get(key)), and the same work as Guava's
+// get(key).size(). Values are distinct. An absent key, a nil multimap,
+// and the zero value report 0.
+// Complexity is expected O(1).
+func (m *SetMultimap[K, V]) ValueCount(key K) int {
+	if m == nil {
+		return 0
+	}
+	return m.core.ValueCount(key)
+}
+
+// ValuesOf iterates key's values in the same order as Get without copying them: the
+// allocation-free alternative to Get for callers that only read the values.
+// Get must copy because it returns a slice the caller owns. Do not modify the
+// multimap while iterating. The lookup runs when iteration starts, inside the
+// returned function, which keeps ValuesOf small enough to inline into a range
+// loop. An absent key, a nil multimap, and the zero value yield nothing.
+// Complexity is expected O(1) lookup plus O(values for key) to iterate.
+func (m *SetMultimap[K, V]) ValuesOf(key K) iter.Seq[V] {
+	return func(yield func(V) bool) {
+		if m == nil {
+			return
+		}
+		collection := m.core.collection(key)
+		if collection == nil || *collection == nil {
+			return
+		}
+		// Slot order, exactly as Get's values op (table.keys) produces it.
+		slots := (*collection).slots
+		for i := range slots {
+			if slots[i].hash != 0 && !yield(slots[i].key) {
+				return
+			}
+		}
+	}
+}
+
 func (m *SetMultimap[K, V]) ContainsKey(key K) bool { return m.core.ContainsKey(key) }
 func (m *SetMultimap[K, V]) ContainsEntry(key K, value V) bool {
 	return m.core.ContainsEntry(key, value)
