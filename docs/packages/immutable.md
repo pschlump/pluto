@@ -78,6 +78,8 @@ Set, Map, Multiset, Multimap and BiMap index their keys with the private
   enough to inline into a range loop, which is what makes it allocation-free.
   With the lookup outside the closure it costs 3 allocations (88 B) and is
   slower than `Get`. `TestMultimapValuesOfAllocationFree` pins this.
+  `ValueCount` is the O(1) companion (`len` of the group); both are pinned
+  against `Get` for every key by `TestMultimapValuesOfMatchesGet`.
 - **The BiMap inverse shares `keys`/`values`, swapped.** Never write either
   slice after construction. `EntriesSlice` builds a fresh slice.
 - **Slice iterators use a single closure literal** (`var values []T; if m != nil

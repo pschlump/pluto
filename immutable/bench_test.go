@@ -199,6 +199,17 @@ func BenchmarkImmutableMultimapValuesOf(b *testing.B) {
 	}
 }
 
+// BenchmarkImmutableMultimapValueCount is the Get benchmark's work (count a
+// key's values) through ValueCount: the same work as Guava's get(key).size().
+func BenchmarkImmutableMultimapValueCount(b *testing.B) {
+	corpus := readImmutableCorpus(b)
+	value := NewMultimap(immutableMultimapEntries(corpus))
+	b.ReportAllocs()
+	for index := 0; index < b.N; index++ {
+		immutableBenchmarkInt = value.ValueCount(corpus.Keys[index%64])
+	}
+}
+
 func BenchmarkImmutableBiMapBuild(b *testing.B) {
 	entries := immutableBiMapEntries(readImmutableCorpus(b))
 	b.ReportAllocs()

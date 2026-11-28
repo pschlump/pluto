@@ -169,6 +169,16 @@ func (m *Multimap[K, V]) ValuesOf(key K) iter.Seq[V] {
 	}
 }
 
+// ValueCount returns how many values key has, counting duplicates, without
+// copying them; an absent key, a nil multimap, and the zero value report 0.
+// It is the allocation-free replacement for len(Get(key)), and the same work
+// as Guava's get(key).size().
+// Complexity is expected O(1).
+func (m *Multimap[K, V]) ValueCount(key K) int {
+	values, _ := m.group(key)
+	return len(values)
+}
+
 func (m *Multimap[K, V]) ContainsKey(key K) bool {
 	_, found := m.group(key)
 	return found

@@ -17,7 +17,7 @@ import (
 // TestMultimapValuesOfMatchesGet checks ValuesOf against Get for every key of
 // random multimaps (duplicate keys and values, natural and Func indexes), plus
 // absent keys.
-func TestMultimapValuesOfMatchesGet(t *testing.T) {
+func TestMultimapValuesOfMatchesGet(t *testing.T) { // also checks ValueCount
 	random := rand.New(rand.NewSource(42))
 	intEqual := func(a, b int) bool { return a == b }
 	weakHash := func(value int) uint64 { return uint64(value % 8) }
@@ -35,6 +35,9 @@ func TestMultimapValuesOfMatchesGet(t *testing.T) {
 				got := slices.Collect(value.ValuesOf(key))
 				if !slices.Equal(got, want) {
 					t.Fatalf("%s size %d key %d: ValuesOf %v, Get %v", name, size, key, got, want)
+				}
+				if count := value.ValueCount(key); count != len(want) {
+					t.Fatalf("%s size %d key %d: ValueCount %d, len(Get) %d", name, size, key, count, len(want))
 				}
 			}
 		}
@@ -58,10 +61,16 @@ func TestMultimapValuesOfEarlyStopAndEmpty(t *testing.T) {
 	if seen != 2 {
 		t.Fatalf("early stop saw %d values", seen)
 	}
+	if got := value.ValueCount("a"); got != 3 {
+		t.Fatalf("ValueCount(a) = %d, want 3 (duplicates count)", got)
+	}
 	var nilMultimap *Multimap[string, int]
 	for _, empty := range []*Multimap[string, int]{nilMultimap, {}, value} {
 		for range empty.ValuesOf("missing") {
 			t.Fatal("absent key, nil or zero-value multimap yielded a value")
+		}
+		if got := empty.ValueCount("missing"); got != 0 {
+			t.Fatalf("ValueCount of an absent key, nil or zero-value multimap = %d", got)
 		}
 	}
 }
@@ -85,5 +94,8 @@ func TestMultimapValuesOfAllocationFree(t *testing.T) {
 	}
 	if sum == 0 {
 		t.Fatal("ValuesOf yielded nothing")
+	}
+	if allocations := testing.AllocsPerRun(1000, func() { sum += value.ValueCount(2) }); allocations != 0 {
+		t.Fatalf("ValueCount allocated %v times per call", allocations)
 	}
 }

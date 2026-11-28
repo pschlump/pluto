@@ -16,8 +16,8 @@ There is no `_ts` twin.
 - `Multiset`: occurrence counts, distinct entries/elements, and full iteration;
   hash and ordered-tree snapshots.
 - `Multimap`: list-multimap semantics, duplicate values, key multiplicity,
-  copied Get/AsMap values, and `ValuesOf(key)`, an allocation-free iterator
-  over one key's values for callers that only read them.
+  copied Get/AsMap values, plus two allocation-free readers: `ValuesOf(key)`
+  iterates one key's values, and `ValueCount(key)` counts them in O(1).
 - `BiMap`: unique keys and values with a coupled immutable Inverse.
 - `Table`: aliases the existing `table.ImmutableTable`; Freeze functions accept
   all three mutable table variants.
