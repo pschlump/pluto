@@ -41,3 +41,49 @@ Reproduce matched measurements with `make guava-bench` and memory with:
 go test ./bimap -run '^$' -bench 'BenchmarkBiMapMemory$' \
   -benchmem -benchtime=100ms -count=1
 ```
+
+## 2026-11-27: hash_grow probe fixes
+
+Pluto's bimap already beat Guava on both workloads. The gap that mattered was
+the two-plain-maps baseline. A profile showed two costs in `hash_grow`, which
+backs both directions:
+
+1. **Equality on every probed slot.** `Search`, `Delete` and insert stored
+   each slot's hash but never compared it, so they called the equality
+   closure (two indirect calls plus a string compare) on every occupied slot
+   along the chain. They now check the stored hash first. This is safe
+   because equal elements must hash equal.
+2. **An integer division per probe** (`rh % size`). Table sizes are powers of
+   two whenever the constructor's `n` is (all in-repo callers), and growth
+   only doubles, so the home bucket is now a mask, with `%` kept for other
+   sizes.
+
+bimap's own code is unchanged. Same machine and corpus; raw output is
+`go-hashgrow.txt`. The "before" column was re-measured on the same machine
+state from the prior commit.
+
+| Workload                          | Before                 | After                  | Guava (JMH)       |
+|-----------------------------------|-----------------------:|-----------------------:|------------------:|
+| HashBiMap mixed stream            | 24.7–25.4M ops/s       | 29.95–31.29M ops/s     | 20.239M ± 2.300M  |
+| Two Go maps (baseline)            | 40.5–41.7M             | 40.5–41.7M (unchanged) | Java: 58.503M     |
+| 4096-entry inverse iteration      | 142–146K               | 145.7–147.3K           | 28,872 ± 6,249    |
+
+Memory is unchanged (about 192 bytes/association). Mixed operations are about
+1.5× Guava's rate and about 75% of the raw two-map baseline.
+
+Two experiments were measured and **rejected**:
+
+- **Hash each argument once per operation** (store both hashes in the table
+  element and pass them in probes). Once `hash_grow` stopped calling equality
+  on mismatched slots, this gained nothing (33.5–34.3 ns vs 32.5–33.7 ns for
+  the unchanged code). It grew the element from 32 to 40–48 bytes, which made
+  inverse iteration about 50% slower (6.9 → 10.5 µs) and raised memory to
+  about 224 bytes/association.
+- **Hash stored inline in `hash_grow` slots** (one array of `{hash, item}`
+  instead of two parallel arrays). bimap gained about 3%, but `hash_set`'s
+  mixed workload lost about 4%, because wider slots make long probe runs
+  touch more cache lines.
+
+The remaining gap to Go's built-in map is `hash_grow`'s design. It uses
+linear probing at load ≤ 0.5 with separate hash and element arrays, while Go's
+Swiss-table map keeps control bytes next to each slot group.

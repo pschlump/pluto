@@ -1164,3 +1164,37 @@ func TestJSONConcurrent(t *testing.T) {
 	readers.Wait()
 	checkInvariants(t, ht)
 }
+
+// TestSharedHomeDistinctHashes uses the identity hash in a power-of-two table
+// (the masked home path). Keys 3, 19, 35, ... share home bucket 3 with distinct
+// raw hashes, so every probe along the chain is rejected by the stored-hash
+// check before equality is consulted.
+func TestSharedHomeDistinctHashes(t *testing.T) {
+	var eqCalls int
+	ht := NewHashTabFunc(func(a, b int) bool { eqCalls++; return a == b },
+		func(v int) uint64 { return uint64(v) }, 16, 0.9)
+	keys := []int{3, 19, 35, 51}
+	for _, key := range keys {
+		ht.Insert(key)
+	}
+	eqCalls = 0
+	for _, key := range keys {
+		if got, found := ht.Search(key); !found || got != key {
+			t.Fatalf("Search(%d) = %d, %v", key, got, found)
+		}
+	}
+	if eqCalls != len(keys) {
+		t.Fatalf("%d equality calls for %d hits: stored-hash check not applied", eqCalls, len(keys))
+	}
+	if _, found := ht.Search(67); found { // same home, absent
+		t.Fatal("found absent key 67")
+	}
+	if !ht.Delete(19) || ht.Delete(19) {
+		t.Fatal("Delete(19) twice")
+	}
+	for _, key := range []int{3, 35, 51} {
+		if _, found := ht.Search(key); !found {
+			t.Fatalf("lost %d after deleting 19", key)
+		}
+	}
+}

@@ -1,0 +1,15 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bimap
+cpu: Apple M4 Max
+BenchmarkHashBiMap-14                	33730604	        33.32 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashBiMap-14                	36562234	        33.39 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashBiMap-14                	35029336	        31.96 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapBiMap-14                 	47392116	        24.18 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapBiMap-14                 	48018486	        24.71 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapBiMap-14                 	48363045	        24.00 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBiMapInverseIteration-14    	  177830	      6854 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBiMapInverseIteration-14    	  165382	      6790 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBiMapInverseIteration-14    	  173950	      6864 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/bimap	11.110s

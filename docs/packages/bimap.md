@@ -51,3 +51,5 @@ A separate 4096-entry inverse-iteration benchmark and Go GC-stable retained
 memory benchmark cover view traversal and two-index overhead. Raw and normalized
 results live under `docs/benchmarks/bimap/`; Go memory numbers are not directly
 comparable with Java heap measurements.
+
+**Performance note.** Both directions are `hash_grow` tables, so bimap speed is `hash_grow` speed. The 2026-11-27 gains (24.7 → 31M ops/s) came entirely from `hash_grow`'s probe fixes. A "hash once per operation" rewrite (both hashes stored in a larger table element) was measured and **rejected**: no gain once the stored-hash check landed, inverse iteration about 50% slower, and about 17% more memory. See docs/benchmarks/bimap/README.md before trying it again.

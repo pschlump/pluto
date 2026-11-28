@@ -181,6 +181,17 @@ func (tt *HashTab[T]) Truncate() {
 }
 
 // nextIndex returns the next position in the table, wrapping at the end.
+// home returns the home bucket of raw hash rh. Sizes start at the
+// constructor's n and only double, so they are powers of two whenever n is
+// (every in-repo caller). A mask then replaces the integer division that %
+// compiles to, which is a measurable share of every probe. Other sizes keep %.
+func (tt *HashTab[T]) home(rh uint64) int {
+	if tt.size&(tt.size-1) == 0 {
+		return int(rh & uint64(tt.size-1))
+	}
+	return int(rh % uint64(tt.size))
+}
+
 func (tt *HashTab[T]) nextIndex(xx int) (rv int) {
 	rv = xx + 1
 	if rv >= tt.size {
@@ -240,7 +251,7 @@ func (tt *HashTab[T]) Insert(item T) bool {
 // "not placed" can only be reached on a table whose growth was deferred by a
 // saturation of 1.0 or more until it became completely full.
 func (tt *HashTab[T]) insertNewItem(rh uint64, item T) (placed, added bool) {
-	hh := int(rh % uint64(tt.size))
+	hh := tt.home(rh)
 	for probes := 0; probes < tt.size; probes++ {
 		if tt.originalHash[hh] == 0 { // empty slot
 			tt.buckets[hh] = item
@@ -248,7 +259,7 @@ func (tt *HashTab[T]) insertNewItem(rh uint64, item T) (placed, added bool) {
 			tt.length++
 			return true, true
 		}
-		if tt.eq(tt.buckets[hh], item) { // equal key present: replace it
+		if tt.originalHash[hh] == rh && tt.eq(tt.buckets[hh], item) { // equal key present: replace it (hash check first: equal elements hash equal)
 			tt.buckets[hh] = item
 			tt.originalHash[hh] = rh
 			return true, false
@@ -302,12 +313,13 @@ func (tt *HashTab[T]) Search(find T) (rv T, found bool) {
 	if tt == nil || tt.nlIsEmpty() || tt.eq == nil {
 		return // nil table, zero value or empty table: not found
 	}
-	h := int(tt.hashOf(find) % uint64(tt.size))
+	rh := tt.hashOf(find)
+	h := tt.home(rh)
 	for probes := 0; probes < tt.size; probes++ {
 		if tt.originalHash[h] == 0 {
 			return // an empty slot ends the probe chain: not found
 		}
-		if tt.eq(tt.buckets[h], find) {
+		if tt.originalHash[h] == rh && tt.eq(tt.buckets[h], find) {
 			return tt.buckets[h], true
 		}
 		h = tt.nextIndex(h)
@@ -325,13 +337,13 @@ func (tt *HashTab[T]) Delete(find T) (found bool) {
 		return false
 	}
 	rh := tt.hashOf(find)
-	h := int(rh % uint64(tt.size))
+	h := tt.home(rh)
 
 	for probes := 0; probes < tt.size; probes++ {
 		if tt.originalHash[h] == 0 {
 			return false
 		}
-		if tt.eq(tt.buckets[h], find) {
+		if tt.originalHash[h] == rh && tt.eq(tt.buckets[h], find) {
 			tt.originalHash[h] = 0 // found: clear the slot (the T zero value remains, hidden by the empty marker)
 			var zero T
 			tt.buckets[h] = zero // release the reference for GC
@@ -353,7 +365,7 @@ func (tt *HashTab[T]) Delete(find T) (found bool) {
 				if tt.originalHash[hf] == 0 {
 					break // the scan reaches an empty slot (or the gap itself after a full wrap)
 				}
-				home := int(tt.originalHash[hf] % uint64(tt.size))
+				home := tt.home(tt.originalHash[hf])
 				if !inProbeRange(gap, hf, home) {
 					tt.buckets[gap] = tt.buckets[hf]
 					tt.originalHash[gap] = tt.originalHash[hf]
