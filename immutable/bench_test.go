@@ -184,6 +184,21 @@ func BenchmarkImmutableMultimapGet(b *testing.B) {
 	}
 }
 
+// BenchmarkImmutableMultimapValuesOf does the Get benchmark's work (count a
+// key's values) through the non-copying ValuesOf accessor.
+func BenchmarkImmutableMultimapValuesOf(b *testing.B) {
+	corpus := readImmutableCorpus(b)
+	value := NewMultimap(immutableMultimapEntries(corpus))
+	b.ReportAllocs()
+	for index := 0; index < b.N; index++ {
+		count := 0
+		for range value.ValuesOf(corpus.Keys[index%64]) {
+			count++
+		}
+		immutableBenchmarkInt = count
+	}
+}
+
 func BenchmarkImmutableBiMapBuild(b *testing.B) {
 	entries := immutableBiMapEntries(readImmutableCorpus(b))
 	b.ReportAllocs()

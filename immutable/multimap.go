@@ -145,6 +145,30 @@ func (m *Multimap[K, V]) Get(key K) ([]V, bool) {
 	return append([]V{}, values...), true
 }
 
+// ValuesOf iterates key's values in input order, including duplicates, without
+// copying them. It is the allocation-free alternative to Get for callers that
+// only read the values: Get must copy because it hands the caller a slice it
+// owns, while ValuesOf yields values one at a time from the shared group, so
+// the multimap stays immutable. An absent key, a nil multimap, and the zero
+// value yield nothing.
+//
+// The lookup runs inside the returned function, each time iteration starts.
+// That keeps ValuesOf a one-line wrapper the compiler can inline into a range
+// loop, which is what makes it allocation-free. With the lookup outside the
+// closure, ValuesOf is too large to inline and costs 3 allocations per call.
+// The multimap is immutable, so when the lookup happens is not observable.
+// Complexity is expected O(1) lookup plus O(values for key) to iterate.
+func (m *Multimap[K, V]) ValuesOf(key K) iter.Seq[V] {
+	return func(yield func(V) bool) {
+		values, _ := m.group(key)
+		for _, value := range values {
+			if !yield(value) {
+				return
+			}
+		}
+	}
+}
+
 func (m *Multimap[K, V]) ContainsKey(key K) bool {
 	_, found := m.group(key)
 	return found

@@ -31,10 +31,13 @@ The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
 | Multiset count | 158.50–163.99M · 0 B, 0 allocs | 234.25M ± 16.02M |
 | Multimap build | 22.18–26.12K · 77648 B, 33 allocs | 31.55K ± 4.81K |
 | Multimap get | 12.54–16.61M · 512 B, 1 alloc | 277.37M ± 17.80M |
+| Multimap values of one key (`ValuesOf`, no copy) † | 40.6–41.4M · 0 B, 0 allocs | — |
 | BiMap build | 7.06–8.66K · 464962 B, 48 allocs | 12.26K ± 1.04K |
 | BiMap get | 121.65–123.76M · 0 B, 0 allocs | 174.61M ± 8.27M |
 
 Retained memory per family (Go bytes per input vs Guava JOL bytes per input) is in the original record below.
+
+† `ValuesOf` (added 2026-11-27) counts a key's values by iterating them, without the copy `Get` must make. Guava's benchmark calls `get(key).size()`, which is O(1) on a live view, so the two don't do equal work and there is no Java figure for this row.
 
 ## Original record (2026-11-22)
 
