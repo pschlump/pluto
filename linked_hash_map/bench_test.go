@@ -36,14 +36,15 @@ func BenchmarkMapIteration(b *testing.B) {
 	for index := range 10000 {
 		m.Put(index, index)
 	}
+	b.ReportAllocs()
 	b.ResetTimer()
+	sum := 0
 	for range b.N {
-		sum := 0
 		for _, value := range m.All() {
 			sum += value
 		}
-		_ = sum
 	}
+	linkedMapBenchmarkResult = sum
 }
 
 var linkedMapBenchmarkValues = func() []string {
@@ -58,17 +59,18 @@ func BenchmarkLinkedHashMap(b *testing.B) {
 	m := New[string, int]()
 	b.ReportAllocs()
 	b.ResetTimer()
+	// JMH consumes each returned value through its Blackhole; Go accumulates
+	// into a local and publishes once, instead of storing to a package global on
+	// every operation.
+	sum := 0
 	for index := 0; index < b.N; index++ {
 		slot := index % len(linkedMapBenchmarkValues)
 		value := linkedMapBenchmarkValues[slot]
 		m.Put(value, slot)
-		linkedMapBenchmarkResult = m.mustGet(value)
+		got, _ := m.Get(value)
+		sum += got
 	}
+	linkedMapBenchmarkResult = sum
 }
 
 var linkedMapBenchmarkResult int
-
-func (m *Map[K, V]) mustGet(key K) V {
-	value, _ := m.Get(key)
-	return value
-}

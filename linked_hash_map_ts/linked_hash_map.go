@@ -194,13 +194,21 @@ func (m *Map[K, V]) MarshalJSON() ([]byte, error) {
 	return json.Marshal(entries)
 }
 
+// UnmarshalJSON atomically replaces the map with decoded entries, keeping the
+// constructor functions and index kind (a New map stays on its built-in-map
+// index). The whole decode runs under the write lock.
 func (m *Map[K, V]) UnmarshalJSON(data []byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.m != nil && m.m.Hash() != nil {
+		return m.m.UnmarshalJSON(data)
+	}
+	// Nil or zero-value inner map: an empty array into a nil inner map is a
+	// no-op; anything else panics in NewFunc (no functions to retain).
 	var entries []Entry[K, V]
 	if err := json.Unmarshal(data, &entries); err != nil {
 		return err
 	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	if m.m == nil && len(entries) == 0 {
 		return nil
 	}

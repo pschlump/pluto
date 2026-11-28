@@ -27,10 +27,10 @@ func (m *Map[K, V]) UnmarshalJSON(data []byte) error {
 	if len(entries) != 0 {
 		m.writeContract("UnmarshalJSON")
 	}
-	if m == nil || m.buckets == nil {
+	if m == nil || m.hash == nil {
 		return nil
 	}
-	next := NewFunc[K, V](m.equal, m.hash)
+	next := m.empty()
 	for _, entry := range entries {
 		next.Put(entry.Key, entry.Value)
 	}

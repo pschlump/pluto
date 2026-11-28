@@ -1,0 +1,100 @@
+== round 1 old load { 3.61 4.43 4.27 }
+BenchmarkMapPutGet-14           	34638698	        33.20 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapPutGet-14           	35036793	        33.48 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapPutGet-14           	34932166	        33.39 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBuiltinMapPutGet-14    	100000000	        12.11 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBuiltinMapPutGet-14    	100000000	        12.56 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBuiltinMapPutGet-14    	95903773	        12.54 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapIteration-14        	   49249	     26886 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapIteration-14        	   43540	     28672 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapIteration-14        	   47778	     26056 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedHashMap-14       	26291956	        45.26 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedHashMap-14       	26614866	        45.32 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedHashMap-14       	26368120	        45.34 ns/op	       0 B/op	       0 allocs/op
+BenchmarkInterner-14            	40647595	        29.67 ns/op	      16 B/op	       1 allocs/op
+BenchmarkInterner-14            	40592308	        29.69 ns/op	      16 B/op	       1 allocs/op
+BenchmarkInterner-14            	40477180	        29.57 ns/op	      16 B/op	       1 allocs/op
+BenchmarkMapMutex-14            	60416242	        19.67 ns/op	      16 B/op	       1 allocs/op
+BenchmarkMapMutex-14            	60407371	        20.72 ns/op	      16 B/op	       1 allocs/op
+BenchmarkMapMutex-14            	63840966	        19.01 ns/op	      16 B/op	       1 allocs/op
+BenchmarkInternerBuild-14       	    1861	    658936 ns/op	 1468439 B/op	   10084 allocs/op
+BenchmarkInternerBuild-14       	    1887	    638427 ns/op	 1468439 B/op	   10084 allocs/op
+BenchmarkInternerBuild-14       	    1891	    653887 ns/op	 1468440 B/op	   10084 allocs/op
+BenchmarkInternerRetained-14    	    1126	   1069682 ns/op	        81.62 retained-B/value	 1468433 B/op	   10084 allocs/op
+BenchmarkInternerRetained-14    	    1030	   1438748 ns/op	        81.62 retained-B/value	 1468453 B/op	   10084 allocs/op
+BenchmarkInternerRetained-14    	     915	   1164492 ns/op	        81.62 retained-B/value	 1468436 B/op	   10084 allocs/op
+== round 1 new load { 4.71 4.63 4.34 }
+BenchmarkMapPutGet-14           	55727769	        21.53 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapPutGet-14           	55134916	        21.73 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapPutGet-14           	54878569	        21.89 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBuiltinMapPutGet-14    	96850017	        12.49 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBuiltinMapPutGet-14    	89993245	        12.48 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBuiltinMapPutGet-14    	97352553	        12.29 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapIteration-14        	   60297	     20217 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapIteration-14        	   43693	     24385 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapIteration-14        	   46921	     23093 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedHashMap-14       	50437208	        22.70 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedHashMap-14       	51946459	        22.70 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedHashMap-14       	51938587	        22.91 ns/op	       0 B/op	       0 allocs/op
+BenchmarkInterner-14            	54674478	        21.61 ns/op	      16 B/op	       1 allocs/op
+BenchmarkInterner-14            	54340545	        21.01 ns/op	      16 B/op	       1 allocs/op
+BenchmarkInterner-14            	58550745	        20.35 ns/op	      16 B/op	       1 allocs/op
+BenchmarkMapMutex-14            	64753296	        18.61 ns/op	      16 B/op	       1 allocs/op
+BenchmarkMapMutex-14            	62715722	        22.06 ns/op	      16 B/op	       1 allocs/op
+BenchmarkMapMutex-14            	63339578	        18.25 ns/op	      16 B/op	       1 allocs/op
+BenchmarkInternerBuild-14       	    1866	    643776 ns/op	 1308562 B/op	      88 allocs/op
+BenchmarkInternerBuild-14       	    1876	    670107 ns/op	 1308567 B/op	      88 allocs/op
+BenchmarkInternerBuild-14       	    1797	    661714 ns/op	 1308563 B/op	      88 allocs/op
+BenchmarkInternerRetained-14    	    1048	   1002382 ns/op	        65.63 retained-B/value	 1308561 B/op	      88 allocs/op
+BenchmarkInternerRetained-14    	    1195	   1001651 ns/op	        65.63 retained-B/value	 1308561 B/op	      88 allocs/op
+BenchmarkInternerRetained-14    	    1201	   1013557 ns/op	        65.63 retained-B/value	 1308561 B/op	      88 allocs/op
+== round 2 old load { 7.12 5.20 4.56 }
+BenchmarkMapPutGet-14           	30464713	        37.06 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapPutGet-14           	31359840	        34.20 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapPutGet-14           	35359550	        33.68 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBuiltinMapPutGet-14    	100000000	        12.37 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBuiltinMapPutGet-14    	99369277	        12.20 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBuiltinMapPutGet-14    	100000000	        12.26 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapIteration-14        	   44865	     24383 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapIteration-14        	   51668	     22650 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapIteration-14        	   57790	     25108 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedHashMap-14       	27803950	        42.97 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedHashMap-14       	27768430	        43.45 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedHashMap-14       	26862237	        43.14 ns/op	       0 B/op	       0 allocs/op
+BenchmarkInterner-14            	41850549	        29.64 ns/op	      16 B/op	       1 allocs/op
+BenchmarkInterner-14            	40318797	        28.80 ns/op	      16 B/op	       1 allocs/op
+BenchmarkInterner-14            	42612626	        28.67 ns/op	      16 B/op	       1 allocs/op
+BenchmarkMapMutex-14            	64162404	        19.64 ns/op	      16 B/op	       1 allocs/op
+BenchmarkMapMutex-14            	59879366	        19.25 ns/op	      16 B/op	       1 allocs/op
+BenchmarkMapMutex-14            	61782422	        18.50 ns/op	      16 B/op	       1 allocs/op
+BenchmarkInternerBuild-14       	    1868	    661610 ns/op	 1468442 B/op	   10084 allocs/op
+BenchmarkInternerBuild-14       	    1864	    709760 ns/op	 1468442 B/op	   10084 allocs/op
+BenchmarkInternerBuild-14       	    1654	    648280 ns/op	 1468442 B/op	   10084 allocs/op
+BenchmarkInternerRetained-14    	    1093	   1113306 ns/op	        81.62 retained-B/value	 1468434 B/op	   10084 allocs/op
+BenchmarkInternerRetained-14    	    1065	   1127398 ns/op	        81.62 retained-B/value	 1468433 B/op	   10084 allocs/op
+BenchmarkInternerRetained-14    	    1051	   1109672 ns/op	        81.62 retained-B/value	 1468433 B/op	   10084 allocs/op
+== round 2 new load { 6.16 5.16 4.57 }
+BenchmarkMapPutGet-14           	57424741	        21.51 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapPutGet-14           	53009386	        21.52 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapPutGet-14           	55682516	        21.27 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBuiltinMapPutGet-14    	100000000	        12.12 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBuiltinMapPutGet-14    	100000000	        11.99 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBuiltinMapPutGet-14    	100000000	        12.00 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapIteration-14        	   72446	     17535 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapIteration-14        	   64520	     22272 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapIteration-14        	   84351	     20430 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedHashMap-14       	53273547	        22.25 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedHashMap-14       	53805728	        22.52 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedHashMap-14       	51708350	        23.52 ns/op	       0 B/op	       0 allocs/op
+BenchmarkInterner-14            	53437141	        21.60 ns/op	      16 B/op	       1 allocs/op
+BenchmarkInterner-14            	55254553	        20.65 ns/op	      16 B/op	       1 allocs/op
+BenchmarkInterner-14            	57529352	        21.32 ns/op	      16 B/op	       1 allocs/op
+BenchmarkMapMutex-14            	61816770	        20.17 ns/op	      16 B/op	       1 allocs/op
+BenchmarkMapMutex-14            	61697977	        19.22 ns/op	      16 B/op	       1 allocs/op
+BenchmarkMapMutex-14            	62774366	        19.27 ns/op	      16 B/op	       1 allocs/op
+BenchmarkInternerBuild-14       	    1803	    672600 ns/op	 1308563 B/op	      88 allocs/op
+BenchmarkInternerBuild-14       	    1676	    691643 ns/op	 1308563 B/op	      88 allocs/op
+BenchmarkInternerBuild-14       	    1809	    675180 ns/op	 1308562 B/op	      88 allocs/op
+BenchmarkInternerRetained-14    	    1094	   1112033 ns/op	        65.63 retained-B/value	 1308563 B/op	      88 allocs/op
+BenchmarkInternerRetained-14    	     981	   1080908 ns/op	        65.63 retained-B/value	 1308563 B/op	      88 allocs/op
+BenchmarkInternerRetained-14    	    1172	   1024225 ns/op	        65.63 retained-B/value	 1308562 B/op	      88 allocs/op
