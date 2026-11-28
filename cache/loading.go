@@ -57,20 +57,23 @@ func (c *LoadingCache[K, V]) GetAll(ctx context.Context, keys []K) ([]Entry[K, V
 	if len(missing) == 0 {
 		return result, nil
 	}
+	// Bulk-load statistics have no single key, so they are kept in shard 0;
+	// Stats sums every shard.
+	statsShard := c.cache.shards[0]
 	started := c.cache.now()
-	c.cache.lock.Lock()
-	c.cache.stats.Loads++
-	c.cache.lock.Unlock()
+	statsShard.lock.Lock()
+	statsShard.stats.Loads++
+	statsShard.lock.Unlock()
 	entries, err := c.invokeBulk(ctx, missing)
 	finished := c.cache.now()
-	c.cache.lock.Lock()
-	c.cache.stats.TotalLoadTime += finished.Sub(started)
+	statsShard.lock.Lock()
+	statsShard.stats.TotalLoadTime += finished.Sub(started)
 	if err != nil {
-		c.cache.stats.LoadFailures++
+		statsShard.stats.LoadFailures++
 	} else {
-		c.cache.stats.LoadSuccesses++
+		statsShard.stats.LoadSuccesses++
 	}
-	c.cache.lock.Unlock()
+	statsShard.lock.Unlock()
 	loaded := make([]bool, len(missing))
 	for _, entry := range entries {
 		found := false

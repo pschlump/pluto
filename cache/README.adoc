@@ -13,13 +13,45 @@ weight eviction. Cache is inherently thread-safe and has no `_ts` twin.
 - Expire after write/access and refresh after write use an injectable clock.
   Refresh returns the old value while replacement runs; failure retains it.
   Direct writes/invalidate prevent late load completion from overwriting them.
-- Maximum size/weight use static write-time weights and LRU eviction. Maximum
-  zero discards completed writes.
+- Maximum size/weight use static write-time weights and per-shard LRU
+  eviction. Maximum zero discards completed writes.
 - Optional bulk loading preserves input order and retains partial successes.
 - Removal listeners report explicit, replaced, expired, size, and loader-error
   causes outside locks, synchronously by default or with a listener executor.
 - Stats include hits, misses, loads, successes/failures, load time, and evictions.
   Expiration and size eviction both count as evictions, matching Guava.
+
+== Complexity
+
+[cols="2,3"]
+|===
+| Operation | Cost
+| GetIfPresent / Peek / Get hit | O(1) average, one shard lock, no allocation
+| Put / PutIfAbsent / Replace / Invalidate / DeleteValue | O(1) average plus O(expired + evicted) in the key's shard
+| Len / Stats / ClearStats | O(shards + expired), all shards locked
+| Snapshot / All / InvalidateAll | O(n + shards), all shards locked
+| InvalidateKeys | O(k + shards + expired), all shards locked
+| CleanUp | O(shards + expired + evicted), one shard at a time
+|===
+
+Expiration drains expired entries from time-ordered queues, so its cost is
+proportional to the number expired, never the cache size.
+
+== Concurrency
+
+The cache is split into independently locked shards. `WithConcurrencyLevel(n)`
+defaults to 16 and is rounded up to a power of two. Bounded caches get fewer
+shards (Guava's rule: doubling stops once shards×20 exceeds the bound, so a
+cache bounded below 20 has one shard and exact LRU). Size/weight limits, LRU
+order, and expiration cleanup are per shard. The global limits always hold.
+`Len`, `Snapshot`, `Stats`, `InvalidateKeys`, and `InvalidateAll` are atomic
+across shards.
+
+== Panics
+
+Nil key functions, loader, weigher, clock, executor, or value equality;
+negative size, weight, duration, or entry weight; total weight overflow; and a
+concurrency level below 1.
 
 Operation-driven cleanup is the baseline; no goroutine runs per cache by default.
 Refresh uses short-lived executor tasks. Weak/soft references and existing cache

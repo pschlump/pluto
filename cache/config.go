@@ -58,15 +58,45 @@ type Stats struct {
 	Evictions     uint64
 }
 
+// cacheEntry is one stored value. Linked entries sit on their shard's
+// access-order list (prev/next: LRU order, and expire-after-access order) and,
+// when expire-after-write is configured, on the write-order list
+// (wprev/wnext). Unlinked entries are in-flight load placeholders.
 type cacheEntry[K any, V any] struct {
-	key        K
-	value      V
-	weight     int64
-	writeTime  time.Time
-	accessTime time.Time
-	prev, next *cacheEntry[K, V]
-	linked     bool
-	call       *loadCall[V]
+	key          K
+	value        V
+	hash         uint64
+	weight       int64
+	writeTime    time.Time
+	accessTime   time.Time
+	prev, next   *cacheEntry[K, V]
+	wprev, wnext *cacheEntry[K, V]
+	linked       bool
+	call         *loadCall[V]
+}
+
+// cacheSlot is the by-value hash-table element. It carries the precomputed key
+// hash, so a lookup probe lives on the stack and the key is hashed once.
+type cacheSlot[K any, V any] struct {
+	key   K
+	hash  uint64
+	entry *cacheEntry[K, V]
+}
+
+// cacheShard is one independently locked segment: its own table, LRU and
+// write-order lists, size/weight budget, and statistics.
+type cacheShard[K any, V any] struct {
+	lock          sync.Mutex
+	c             *Cache[K, V]
+	tab           *hash_grow.HashTab[cacheSlot[K, V]]
+	head, tail    *cacheEntry[K, V] // access order; head is least recent
+	whead, wtail  *cacheEntry[K, V] // write order; used only with expire-after-write
+	length        int
+	totalWeight   int64
+	maximumSize   int
+	maximumWeight int64
+	stats         Stats
+	_             [64]byte // keeps neighbouring shards' locks off this cache line
 }
 
 // Option configures a cache before publication.
@@ -120,6 +150,22 @@ func WithRefreshAfterWrite[K any, V any](duration time.Duration) Option[K, V] {
 		c.refreshWrite = duration
 	}
 }
+
+// WithConcurrencyLevel sets the target number of independently locked shards
+// (default 16). The shard count is the smallest power of two at least level,
+// reduced for small bounded caches so every shard keeps a useful budget (the
+// Guava rule: doubling stops once shards*20 exceeds the bound). Size and weight
+// limits, LRU order, and expiration cleanup are per shard. Level 1 gives a
+// single exact global LRU.
+func WithConcurrencyLevel[K any, V any](level int) Option[K, V] {
+	return func(c *Cache[K, V]) {
+		if level < 1 {
+			panic("cache: concurrency level must be at least 1")
+		}
+		c.concurrency = level
+	}
+}
+
 func WithClock[K any, V any](clock func() time.Time) Option[K, V] {
 	return func(c *Cache[K, V]) {
 		if clock == nil {
@@ -150,27 +196,29 @@ func WithBulkLoader[K any, V any](loader BulkLoader[K, V]) Option[K, V] {
 // NewFunc. Callback loaders, listeners, weighers, and hash/equality functions
 // must not mutate configuration after construction.
 type Cache[K any, V any] struct {
-	lock             sync.Mutex
-	tab              *hash_grow.HashTab[*cacheEntry[K, V]]
+	shards           []*cacheShard[K, V]
+	shift            uint // 64 - log2(len(shards)); 64 for a single shard
 	equal            func(K, K) bool
 	hash             func(K) uint64
 	weigher          func(K, V) int64
+	concurrency      int
 	maximumSize      int
 	maximumWeight    int64
 	expireWrite      time.Duration
 	expireAccess     time.Duration
 	refreshWrite     time.Duration
+	expiring         bool // expireWrite > 0 || expireAccess > 0
+	timed            bool // expiring || refreshWrite > 0: entries need timestamps
 	clock            func() time.Time
 	loader           Loader[K, V]
 	bulkLoader       BulkLoader[K, V]
 	executor         func(func())
 	listener         func(Notification[K, V])
 	listenerExecutor func(func())
-	head, tail       *cacheEntry[K, V]
-	length           int
-	totalWeight      int64
-	stats            Stats
 }
+
+// defaultConcurrency is the default target shard count.
+const defaultConcurrency = 16
 
 func New[K comparable, V any](options ...Option[K, V]) *Cache[K, V] {
 	seed := maphash.MakeSeed()
@@ -183,19 +231,58 @@ func NewFunc[K any, V any](equal func(K, K) bool, hash func(K) uint64, options .
 	}
 	result := &Cache[K, V]{
 		equal: equal, hash: hash, maximumSize: -1, maximumWeight: -1,
-		weigher: func(K, V) int64 { return 1 }, clock: time.Now,
+		concurrency: defaultConcurrency,
+		weigher:     func(K, V) int64 { return 1 }, clock: time.Now,
 		executor: func(operation func()) { go operation() },
 	}
-	result.tab = hash_grow.NewHashTabFunc(
-		func(a, b *cacheEntry[K, V]) bool { return equal(a.key, b.key) },
-		func(entry *cacheEntry[K, V]) uint64 { return hash(entry.key) }, 16, 0,
-	)
 	for _, option := range options {
 		if option != nil {
 			option(result)
 		}
 	}
+	result.expiring = result.expireWrite > 0 || result.expireAccess > 0
+	result.timed = result.expiring || result.refreshWrite > 0
+	result.buildShards()
 	return result
+}
+
+// buildShards sizes and allocates the shards once options are applied.
+func (c *Cache[K, V]) buildShards() {
+	bound := int64(-1)
+	if c.maximumSize >= 0 {
+		bound = int64(c.maximumSize)
+	}
+	if c.maximumWeight >= 0 && (bound < 0 || c.maximumWeight < bound) {
+		bound = c.maximumWeight
+	}
+	count, bits := 1, uint(0)
+	for count < c.concurrency && count < 1<<16 && (bound < 0 || int64(count)*20 <= bound) {
+		count <<= 1
+		bits++
+	}
+	c.shift = 64 - bits
+	equal := c.equal
+	c.shards = make([]*cacheShard[K, V], count)
+	for index := range c.shards {
+		shard := &cacheShard[K, V]{c: c, maximumSize: -1, maximumWeight: -1}
+		if c.maximumSize >= 0 {
+			shard.maximumSize = c.maximumSize / count
+			if index < c.maximumSize%count {
+				shard.maximumSize++
+			}
+		}
+		if c.maximumWeight >= 0 {
+			shard.maximumWeight = c.maximumWeight / int64(count)
+			if int64(index) < c.maximumWeight%int64(count) {
+				shard.maximumWeight++
+			}
+		}
+		shard.tab = hash_grow.NewHashTabFunc(
+			func(a, b cacheSlot[K, V]) bool { return a.hash == b.hash && equal(a.key, b.key) },
+			func(slot cacheSlot[K, V]) uint64 { return slot.hash }, 16, 0,
+		)
+		c.shards[index] = shard
+	}
 }
 
 // NewLoading creates a cache with a default loader.

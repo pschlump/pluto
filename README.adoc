@@ -75,7 +75,7 @@ with an identical public API.
 | link:ordering/[ordering]                   | Composable typed ordering, stable sorted copies, and bounded-heap least/greatest top-k.
 | link:math_util/[math_util]                 | Checked/saturating integer arithmetic and conversions, explicit rounding, number theory, and uint64 primality.
 | link:stats/[stats]                         | Mergeable online and paired statistics, least-squares transformations, and exact Type-7 quantiles.
-| link:cache/[cache]                         | Concurrent loading/expiring/refreshing cache (single-flight, LRU size/weight, listeners, stats).
+| link:cache/[cache]                         | Concurrent loading/expiring/refreshing cache (sharded locks, single-flight, LRU size/weight, O(expired) queue expiration, listeners, stats).
 | link:hashing/[hashing]                     | Immutable endian-explicit hashes, typed funnels, Guava-compatible Murmur3/SipHash/FarmHash/Fingerprint2011, checksums, and jump hashing.
 | link:stack/[stack]                         | Generic slice-backed LIFO stack.
 | link:stack_ts/[stack_ts]                   | Thread-safe slice-backed LIFO stack (RWMutex, snapshot iterators).

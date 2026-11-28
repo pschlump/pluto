@@ -53,31 +53,32 @@ func (c *Cache[K, V]) GetWith(ctx context.Context, key K, loader Loader[K, V]) (
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	c.lock.Lock()
-	now := c.now()
-	events := c.cleanExpiredLocked(now, nil)
-	entry, found := c.tab.Search(&cacheEntry[K, V]{key: key})
+	s, h := c.locate(key)
+	s.lock.Lock()
+	now := c.stamp()
+	events := s.cleanLocked(nil)
+	entry, found := s.lookup(key, h)
 	if found && c.expired(entry, now) {
-		events = c.removeLocked(entry, Expired, events)
+		events = s.removeLocked(entry, Expired, events)
 		found = false
 	}
 	if found && entry.call != nil {
 		call := entry.call
 		if parent, ok := ctx.Value(loadContextKey{}).(*loadCall[V]); ok && parent == call {
-			c.lock.Unlock()
+			s.lock.Unlock()
 			c.notify(events)
 			return *new(V), ErrRecursiveLoad
 		}
 		if call.refresh {
-			c.stats.Hits++
-			c.touchInline(entry, now)
+			s.stats.Hits++
+			s.touchInline(entry, now)
 			value := entry.value
-			c.lock.Unlock()
+			s.lock.Unlock()
 			c.notify(events)
 			return value, nil
 		}
-		c.stats.Misses++
-		c.lock.Unlock()
+		s.stats.Misses++
+		s.lock.Unlock()
 		c.notify(events)
 		select {
 		case <-call.ready:
@@ -87,88 +88,92 @@ func (c *Cache[K, V]) GetWith(ctx context.Context, key K, loader Loader[K, V]) (
 		}
 	}
 	if found {
-		c.stats.Hits++
-		c.touchInline(entry, now)
+		s.stats.Hits++
+		s.touchInline(entry, now)
 		value := entry.value
 		var call *loadCall[V]
 		if c.refreshWrite > 0 && now.Sub(entry.writeTime) >= c.refreshWrite {
 			call = &loadCall[V]{ready: make(chan struct{}), refresh: true}
 			entry.call = call
-			c.stats.Loads++
+			s.stats.Loads++
 		}
-		c.lock.Unlock()
+		s.lock.Unlock()
 		c.notify(events)
 		if call != nil {
-			c.executor(func() { _, _ = c.executeLoad(context.WithoutCancel(ctx), entry, call, key, loader, c.now()) })
+			c.executor(func() { _, _ = c.executeLoad(context.WithoutCancel(ctx), s, entry, call, key, loader, c.now()) })
 		}
 		return value, nil
 	}
 
 	call := &loadCall[V]{ready: make(chan struct{})}
-	entry = &cacheEntry[K, V]{key: key, call: call}
-	c.tab.Insert(entry)
-	c.stats.Misses++
-	c.stats.Loads++
-	c.lock.Unlock()
+	entry = &cacheEntry[K, V]{key: key, hash: h, call: call}
+	s.tab.Insert(cacheSlot[K, V]{key: key, hash: h, entry: entry})
+	s.stats.Misses++
+	s.stats.Loads++
+	s.lock.Unlock()
 	c.notify(events)
-	return c.executeLoad(ctx, entry, call, key, loader, now)
+	if !c.timed {
+		now = c.now()
+	}
+	return c.executeLoad(ctx, s, entry, call, key, loader, now)
 }
 
-func (c *Cache[K, V]) executeLoad(ctx context.Context, entry *cacheEntry[K, V], call *loadCall[V], key K, loader Loader[K, V], started time.Time) (V, error) {
+func (c *Cache[K, V]) executeLoad(ctx context.Context, s *cacheShard[K, V], entry *cacheEntry[K, V], call *loadCall[V], key K, loader Loader[K, V], started time.Time) (V, error) {
 	call.value, call.err = invokeLoader(context.WithValue(ctx, loadContextKey{}, call), loader, key)
-	finished := c.now()
 	weight := int64(0)
 	if call.err == nil {
 		weight = c.weight(key, call.value)
 	}
-	c.lock.Lock()
-	events := []Notification[K, V]{}
-	c.stats.TotalLoadTime += finished.Sub(started)
+	s.lock.Lock()
+	// The completion time is read under the shard lock so the shard's
+	// time-ordered lists stay sorted for the front-of-queue expiry drain.
+	finished := c.now()
+	var events []Notification[K, V]
+	s.stats.TotalLoadTime += finished.Sub(started)
 	if call.err != nil {
-		c.stats.LoadFailures++
+		s.stats.LoadFailures++
 	} else {
-		c.stats.LoadSuccesses++
+		s.stats.LoadSuccesses++
 	}
-	current, present := c.tab.Search(&cacheEntry[K, V]{key: key})
+	current, present := s.lookup(key, entry.hash)
 	if present && current == entry {
 		if call.refresh {
 			entry.call = nil
 			if call.err == nil {
 				old := entry.value
-				if weight > 0 && c.totalWeight-entry.weight > math.MaxInt64-weight {
-					c.lock.Unlock()
+				if weight > 0 && s.totalWeight-entry.weight > math.MaxInt64-weight {
+					s.lock.Unlock()
 					close(call.ready)
 					panic("cache: total weight overflow")
 				}
 				entry.value = call.value
-				c.totalWeight += weight - entry.weight
+				s.totalWeight += weight - entry.weight
 				entry.weight = weight
-				entry.writeTime = finished
-				entry.accessTime = finished
+				s.rewriteInline(entry, finished)
 				if c.listener != nil {
 					events = append(events, Notification[K, V]{Key: key, Value: old, Cause: Replaced})
 				}
-				events = c.evictLocked(events)
+				events = s.evictLocked(events)
 			}
 		} else {
 			entry.call = nil
 			if call.err != nil {
-				events = c.removeLocked(entry, LoaderError, events)
+				events = s.removeLocked(entry, LoaderError, events)
 			} else {
 				entry.value = call.value
 				entry.weight = weight
 				entry.writeTime, entry.accessTime = finished, finished
-				if entry.weight > 0 && c.totalWeight > math.MaxInt64-entry.weight {
-					c.lock.Unlock()
+				if entry.weight > 0 && s.totalWeight > math.MaxInt64-entry.weight {
+					s.lock.Unlock()
 					close(call.ready)
 					panic("cache: total weight overflow")
 				}
-				c.link(entry)
-				events = c.evictLocked(events)
+				s.link(entry)
+				events = s.evictLocked(events)
 			}
 		}
 	}
-	c.lock.Unlock()
+	s.lock.Unlock()
 	close(call.ready)
 	c.notify(events)
 	return call.value, call.err
