@@ -1,0 +1,19 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bimap
+cpu: Apple M4 Max
+BenchmarkHashBiMap-14                	30538461	        33.39 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashBiMap-14                	33780256	        33.48 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashBiMap-14                	33781248	        32.59 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapBiMap-14                 	47814002	        24.20 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapBiMap-14                 	48737396	        24.47 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapBiMap-14                 	48335852	        24.52 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBiMapInverseIteration-14    	  172315	      6855 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBiMapInverseIteration-14    	  173014	      6900 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBiMapInverseIteration-14    	  164895	      6852 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBiMapMemory/bimap-14        	    1087	   1105778 ns/op	    787160 retained-bytes	       192.2 retained-bytes/association	 1480912 B/op	   15931 allocs/op
+BenchmarkBiMapMemory/bimap-14        	    1095	   1090154 ns/op	    787160 retained-bytes	       192.2 retained-bytes/association	 1480907 B/op	   15931 allocs/op
+BenchmarkBiMapMemory/bimap-14        	    1092	   1100869 ns/op	    787160 retained-bytes	       192.2 retained-bytes/association	 1480908 B/op	   15931 allocs/op
+BenchmarkBiMapMemory/maps-14         	    1110	   1074094 ns/op	    789080 retained-bytes	       192.6 retained-bytes/association	 1467771 B/op	   15987 allocs/op
+BenchmarkBiMapMemory/maps-14         	    1107	   1076629 ns/op	    789080 retained-bytes	       192.6 retained-bytes/association	 1467773 B/op	   15987 allocs/op
+BenchmarkBiMapMemory/maps-14         	    1110	   1079387 ns/op	    789080 retained-bytes	       192.6 retained-bytes/association	 1467771 B/op	   15987 allocs/op

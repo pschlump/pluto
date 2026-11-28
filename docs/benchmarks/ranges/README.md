@@ -1,4 +1,24 @@
-# Phase 3 range and ordered-navigation benchmark record
+# ranges benchmarks: Pluto (Go) vs Guava (Java)
+
+## Current results
+
+Rates are operations per second; higher is better. The Go column was
+measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
+1-second runs, shown slowest–fastest, plus bytes and allocations per
+operation. Raw output is `go-2026-11-27-current.txt`.
+The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
+2026-11-22 record below and not re-run (mean ± error).
+
+| Workload | Pluto (Go) | Guava (Java) |
+|---|---:|---:|
+| RangeSet mixed stream (Java: TreeRangeSet) | 7.80–7.81M · 11 B, 0 allocs | 4.39M ± 0.32M |
+| RangeMap mixed stream (Java: TreeRangeMap) | 3.90–3.90M · 11 B, 0 allocs | 2.89M ± 0.31M |
+| RangeSet iteration | 539.37–543.48K · 18432 B, 1 alloc | 599.1K ± 60.4K |
+| RangeMap iteration | 416.67–419.29K · 27264 B, 1 alloc | 312.9K ± 11.5K |
+| Sorted-set subrange iteration (Java: TreeSet.subSet) | 6.28–6.31M · 280 B, 5 allocs | 18.21M ± 2.24M |
+| Baseline: filtered full scan | 351.12–353.48K · 24 B, 2 allocs | — |
+
+## Original record (2026-11-22)
 
 Recorded 2026-11-22 on an Apple M4 Max, darwin/arm64, Go 1.27.0, and
 OpenJDK 11.0.28. Guava source commit:

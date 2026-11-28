@@ -1,0 +1,28 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/iter_util
+cpu: Apple M4 Max
+BenchmarkIterConcat-14               	   24662	     47426 ns/op	     152 B/op	       6 allocs/op
+BenchmarkIterConcat-14               	   25341	     47501 ns/op	     152 B/op	       6 allocs/op
+BenchmarkIterConcat-14               	   25339	     47464 ns/op	     152 B/op	       6 allocs/op
+BenchmarkIterFilter-14               	  161008	      7207 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIterFilter-14               	  164494	      7259 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIterFilter-14               	  166606	      7249 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIterPartition-14            	  100478	     11915 ns/op	   79872 B/op	     312 allocs/op
+BenchmarkIterPartition-14            	  100486	     11910 ns/op	   79872 B/op	     312 allocs/op
+BenchmarkIterPartition-14            	   99924	     11957 ns/op	   79872 B/op	     312 allocs/op
+BenchmarkIterPeeking-14              	    2719	    434076 ns/op	     256 B/op	       7 allocs/op
+BenchmarkIterPeeking-14              	    2779	    434754 ns/op	     256 B/op	       7 allocs/op
+BenchmarkIterPeeking-14              	    2751	    434847 ns/op	     256 B/op	       7 allocs/op
+BenchmarkIterConcatBaseline-14       	   56010	     21446 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIterConcatBaseline-14       	   55825	     21359 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIterConcatBaseline-14       	   55981	     21421 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIterFilterBaseline-14       	  161766	      7410 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIterFilterBaseline-14       	  159386	      7483 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIterFilterBaseline-14       	  158660	      7415 ns/op	       0 B/op	       0 allocs/op
+BenchmarkIterPartitionBaseline-14    	  146247	      8257 ns/op	   80000 B/op	     313 allocs/op
+BenchmarkIterPartitionBaseline-14    	  145174	      8307 ns/op	   80000 B/op	     313 allocs/op
+BenchmarkIterPartitionBaseline-14    	  142243	      8301 ns/op	   80000 B/op	     313 allocs/op
+BenchmarkIterPeekingBaseline-14      	    3289	    361119 ns/op	     256 B/op	       7 allocs/op
+BenchmarkIterPeekingBaseline-14      	    3301	    360035 ns/op	     256 B/op	       7 allocs/op
+BenchmarkIterPeekingBaseline-14      	    3346	    361253 ns/op	     256 B/op	       7 allocs/op

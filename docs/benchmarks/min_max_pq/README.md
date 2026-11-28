@@ -1,4 +1,23 @@
-# Phase 1e min-max priority-queue benchmark record
+# min_max_pq benchmarks: Pluto (Go) vs Guava (Java)
+
+## Current results
+
+Rates are operations per second; higher is better. The Go column was
+measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
+1-second runs, shown slowest–fastest, plus bytes and allocations per
+operation. Raw output is `go-2026-11-27-current.txt`.
+The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
+2026-11-22 record below and not re-run (mean ± error).
+
+| Workload | Pluto (Go) | Guava (Java) |
+|---|---:|---:|
+| Min-max heap, both ends | 10.56–10.60M · 2 B, 0 allocs | 10.53M ± 0.87M |
+| Bounded min-max heap | 19.46–19.58M · 0 B, 0 allocs | 19.72M ± 2.94M |
+| Min-max heap, one end | 13.37–13.39M · 13 B, 0 allocs | 13.25M ± 7.25M |
+| Baseline: normal heap, one end (Java: PriorityQueue) | 20.06–20.10M · 14 B, 0 allocs | 21.67M ± 13.28M |
+| Baseline: lazy two-heap, both ends | 7.44–7.47M · 89 B, 1 alloc | 6.67M ± 9.10M |
+
+## Original record (2026-11-22)
 
 Recorded 2026-11-22 on an Apple M4 Max, darwin/arm64, Go 1.27.0, and
 OpenJDK 11.0.28. Guava source commit:

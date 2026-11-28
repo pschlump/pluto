@@ -1,0 +1,37 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/hashing
+cpu: Apple M4 Max
+BenchmarkMurmur3_128/16-14           	96469293	        12.43 ns/op	1287.71 MB/s	      16 B/op	       1 allocs/op
+BenchmarkMurmur3_128/16-14           	97931538	        12.50 ns/op	1280.08 MB/s	      16 B/op	       1 allocs/op
+BenchmarkMurmur3_128/16-14           	97878619	        12.59 ns/op	1270.89 MB/s	      16 B/op	       1 allocs/op
+BenchmarkMurmur3_128/64-14           	74923320	        15.66 ns/op	4086.54 MB/s	      16 B/op	       1 allocs/op
+BenchmarkMurmur3_128/64-14           	78609054	        15.55 ns/op	4114.72 MB/s	      16 B/op	       1 allocs/op
+BenchmarkMurmur3_128/64-14           	76238275	        15.54 ns/op	4117.74 MB/s	      16 B/op	       1 allocs/op
+BenchmarkMurmur3_128/1024-14         	10536428	       113.9 ns/op	8991.19 MB/s	      16 B/op	       1 allocs/op
+BenchmarkMurmur3_128/1024-14         	10549651	       113.9 ns/op	8989.91 MB/s	      16 B/op	       1 allocs/op
+BenchmarkMurmur3_128/1024-14         	10557838	       113.8 ns/op	9001.88 MB/s	      16 B/op	       1 allocs/op
+BenchmarkMurmur3_32-14               	 3855014	       309.5 ns/op	3308.37 MB/s	       4 B/op	       1 allocs/op
+BenchmarkMurmur3_32-14               	 3877372	       309.9 ns/op	3304.33 MB/s	       4 B/op	       1 allocs/op
+BenchmarkMurmur3_32-14               	 3875395	       310.5 ns/op	3297.53 MB/s	       4 B/op	       1 allocs/op
+BenchmarkSipHash24-14                	44170965	        26.98 ns/op	       8 B/op	       1 allocs/op
+BenchmarkSipHash24-14                	44463862	        26.99 ns/op	       8 B/op	       1 allocs/op
+BenchmarkSipHash24-14                	44533236	        26.99 ns/op	       8 B/op	       1 allocs/op
+BenchmarkFarmHashFingerprint64-14    	20133664	        59.29 ns/op	17272.25 MB/s	       8 B/op	       1 allocs/op
+BenchmarkFarmHashFingerprint64-14    	20192600	        59.33 ns/op	17260.72 MB/s	       8 B/op	       1 allocs/op
+BenchmarkFarmHashFingerprint64-14    	20370472	        59.12 ns/op	17320.10 MB/s	       8 B/op	       1 allocs/op
+BenchmarkFingerprint2011-14          	21053108	        57.04 ns/op	17951.69 MB/s	       8 B/op	       1 allocs/op
+BenchmarkFingerprint2011-14          	21089089	        57.14 ns/op	17920.56 MB/s	       8 B/op	       1 allocs/op
+BenchmarkFingerprint2011-14          	21076357	        57.07 ns/op	17942.42 MB/s	       8 B/op	       1 allocs/op
+BenchmarkMurmur3_128Streaming/1-14   	  289322	      4178 ns/op	    3384 B/op	      11 allocs/op
+BenchmarkMurmur3_128Streaming/1-14   	  287413	      4196 ns/op	    3384 B/op	      11 allocs/op
+BenchmarkMurmur3_128Streaming/1-14   	  284494	      4218 ns/op	    3384 B/op	      11 allocs/op
+BenchmarkMurmur3_128Streaming/7-14   	 1211966	       990.3 ns/op	    3384 B/op	      11 allocs/op
+BenchmarkMurmur3_128Streaming/7-14   	 1207658	       993.8 ns/op	    3384 B/op	      11 allocs/op
+BenchmarkMurmur3_128Streaming/7-14   	 1208476	       992.8 ns/op	    3384 B/op	      11 allocs/op
+BenchmarkMurmur3_128Streaming/64-14  	 2698827	       450.3 ns/op	    3328 B/op	       8 allocs/op
+BenchmarkMurmur3_128Streaming/64-14  	 2654402	       452.2 ns/op	    3328 B/op	       8 allocs/op
+BenchmarkMurmur3_128Streaming/64-14  	 2663605	       452.9 ns/op	    3328 B/op	       8 allocs/op
+BenchmarkConsistentHash-14           	63872679	        18.79 ns/op	       0 B/op	       0 allocs/op
+BenchmarkConsistentHash-14           	64280547	        18.79 ns/op	       0 B/op	       0 allocs/op
+BenchmarkConsistentHash-14           	63903856	        18.77 ns/op	       0 B/op	       0 allocs/op

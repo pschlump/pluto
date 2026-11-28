@@ -1,4 +1,22 @@
-# Phase 1e evicting-queue benchmark record
+# evicting_queue benchmarks: Pluto (Go) vs Guava (Java)
+
+## Current results
+
+Rates are operations per second; higher is better. The Go column was
+measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
+1-second runs, shown slowest–fastest, plus bytes and allocations per
+operation. Raw output is `go-2026-11-27-current.txt`.
+The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
+2026-11-22 record below and not re-run (mean ± error).
+
+| Workload | Pluto (Go) | Guava (Java) |
+|---|---:|---:|
+| Ring, mixed operations | 277.39–295.16M · 0 B, 0 allocs | 108.14M ± 15.06M |
+| Ring iteration, 256 elements | 13.77–13.81M · 0 B, 0 allocs | 8.25M ± 1.09M |
+| Baseline: deque + manual eviction (Java: ArrayDeque) | 52.27–52.47M · 31 B, 1 alloc | 96.64M ± 49.89M |
+| Baseline: deque iteration (Java: ArrayDeque) | 2.94–2.95M · 40 B, 2 allocs | 8.30M ± 0.86M |
+
+## Original record (2026-11-22)
 
 Recorded 2026-11-22 on an Apple M4 Max, darwin/arm64, Go 1.27.0, and
 OpenJDK 11.0.28. Guava source commit:

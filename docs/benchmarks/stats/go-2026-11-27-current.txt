@@ -1,0 +1,31 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/stats
+cpu: Apple M4 Max
+BenchmarkStatsAccumulator-14        	   30890	     37590 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatsAccumulator-14        	   31940	     37603 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatsAccumulator-14        	   31923	     37580 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatsPaired-14             	   16894	     71518 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatsPaired-14             	   16888	     70654 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatsPaired-14             	   16886	     70976 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatsQuantiles-14          	   30322	     39255 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantiles-14          	   30678	     38898 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantiles-14          	   30696	     39030 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/sorted-14         	   53336	     22644 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/sorted-14         	   53365	     22671 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/sorted-14         	   53156	     22593 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/reverse-14        	   52117	     23024 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/reverse-14        	   51877	     23054 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/reverse-14        	   52291	     22944 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/organPipe-14      	   47354	     25345 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/organPipe-14      	   47454	     25428 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/organPipe-14      	   47238	     25476 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/fewDistinct-14    	   47382	     25118 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/fewDistinct-14    	   47568	     25162 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/fewDistinct-14    	   47772	     25099 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/allEqual-14       	   50203	     23678 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/allEqual-14       	   50516	     23748 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/allEqual-14       	   50386	     23892 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesSort-14                  	   10086	    115303 ns/op	   82016 B/op	       2 allocs/op
+BenchmarkStatsQuantilesSort-14                  	   10000	    113238 ns/op	   82016 B/op	       2 allocs/op
+BenchmarkStatsQuantilesSort-14                  	   10000	    112905 ns/op	   82016 B/op	       2 allocs/op

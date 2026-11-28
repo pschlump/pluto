@@ -1,0 +1,49 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/cache
+cpu: Apple M4 Max
+BenchmarkCacheHit-14                      	30368406	        36.52 ns/op	      26 B/op	       0 allocs/op
+BenchmarkCacheHit-14                      	33392814	        36.33 ns/op	      26 B/op	       0 allocs/op
+BenchmarkCacheHit-14                      	32578890	        36.25 ns/op	      26 B/op	       0 allocs/op
+BenchmarkCacheEvictingWrite-14            	15752389	        75.46 ns/op	     158 B/op	       1 allocs/op
+BenchmarkCacheEvictingWrite-14            	15811430	        75.64 ns/op	     158 B/op	       1 allocs/op
+BenchmarkCacheEvictingWrite-14            	15678980	        75.97 ns/op	     158 B/op	       1 allocs/op
+BenchmarkCacheMissLoading-14              	 4717065	       255.4 ns/op	     360 B/op	       6 allocs/op
+BenchmarkCacheMissLoading-14              	 4721514	       257.8 ns/op	     360 B/op	       6 allocs/op
+BenchmarkCacheMissLoading-14              	 4689823	       257.9 ns/op	     360 B/op	       6 allocs/op
+BenchmarkCacheExpiration-14               	 6354332	       189.1 ns/op	     386 B/op	       6 allocs/op
+BenchmarkCacheExpiration-14               	 6256970	       190.6 ns/op	     386 B/op	       6 allocs/op
+BenchmarkCacheExpiration-14               	 6321289	       189.9 ns/op	     386 B/op	       6 allocs/op
+BenchmarkCacheRefresh-14                  	 4620600	       259.0 ns/op	     472 B/op	       7 allocs/op
+BenchmarkCacheRefresh-14                  	 4612692	       264.1 ns/op	     471 B/op	       7 allocs/op
+BenchmarkCacheRefresh-14                  	 4642648	       264.8 ns/op	     472 B/op	       7 allocs/op
+BenchmarkCacheLRUHit-14                   	35127262	        33.79 ns/op	       6 B/op	       0 allocs/op
+BenchmarkCacheLRUHit-14                   	35441703	        33.50 ns/op	       6 B/op	       0 allocs/op
+BenchmarkCacheLRUHit-14                   	35851395	        33.54 ns/op	       6 B/op	       0 allocs/op
+BenchmarkCacheTinyLFUHit-14               	18206265	        65.90 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheTinyLFUHit-14               	18148728	        65.80 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheTinyLFUHit-14               	18345619	        65.20 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitZipf-14                  	73556079	        18.01 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitZipf-14                  	68834312	        16.99 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitZipf-14                  	68899848	        16.89 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitScan-14                  	61303335	        19.25 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitScan-14                  	63363408	        19.68 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitScan-14                  	60531924	        19.30 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitPhase-14                 	74722707	        16.46 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitPhase-14                 	71864174	        15.98 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitPhase-14                 	77133007	        17.00 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheConcurrentHit8-14           	23809189	        54.70 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheConcurrentHit8-14           	22332488	        54.93 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheConcurrentHit8-14           	21758790	        54.84 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheConcurrentHit16-14          	16953522	        70.32 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheConcurrentHit16-14          	16975336	        70.22 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheConcurrentHit16-14          	17596768	        70.49 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheCoalescedMiss8-14           	 1922919	       624.5 ns/op	         0.02665 hit-rate	   1647384 loads	     302 B/op	       5 allocs/op
+BenchmarkCacheCoalescedMiss8-14           	 1890792	       617.5 ns/op	         0.02711 hit-rate	   1610496 loads	     300 B/op	       5 allocs/op
+BenchmarkCacheCoalescedMiss8-14           	 1949954	       614.1 ns/op	         0.02715 hit-rate	   1662351 loads	     301 B/op	       5 allocs/op
+BenchmarkCacheHitZipfBounded-14           	52086628	        22.44 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitZipfBounded-14           	53354378	        23.23 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheHitZipfBounded-14           	45341120	        23.55 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheConcurrentHitBounded8-14    	22151834	        54.33 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheConcurrentHitBounded8-14    	21978139	        54.54 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCacheConcurrentHitBounded8-14    	21885895	        54.50 ns/op	       0 B/op	       0 allocs/op

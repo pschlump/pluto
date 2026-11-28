@@ -1,4 +1,33 @@
-# Phase 4 cache benchmark record
+# cache benchmarks: Pluto (Go) vs Guava (Java)
+
+## Current results
+
+Rates are operations per second; higher is better. The Go column was
+measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
+1-second runs, shown slowest–fastest, plus bytes and allocations per
+operation. Raw output is `go-2026-11-27-current.txt`.
+The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
+2026-11-22 record below and not re-run (mean ± error).
+
+| Workload | Pluto (Go) | Guava (Java) |
+|---|---:|---:|
+| Mixed hit/update | 27.38–27.59M · 26 B, 0 allocs | 47.89M ± 4.21M |
+| Evicting write | 13.16–13.25M · 158 B, 1 alloc | 12.93M ± 5.93M |
+| Forced miss + load | 3.88–3.92M · 360 B, 6 allocs | 7.23M ± 1.38M |
+| Expiration + reload | 5.25–5.29M · 386 B, 6 allocs | 8.41M ± 0.84M |
+| Refresh workload | 3.78–3.86M · 472 B, 7 allocs | 6.95M ± 1.68M |
+| Zipf hits | 55.52–59.21M · 0 B, 0 allocs | 70.26M ± 5.64M |
+| Scan hits | 50.81–51.95M · 0 B, 0 allocs | 61.87M ± 5.67M |
+| Phase-change hits | 58.82–62.58M · 0 B, 0 allocs | 77.72M ± 4.16M |
+| Hits, 8 threads | 18.20–18.28M · 0 B, 0 allocs | 18.07M ± 0.91M |
+| Hits, 16 threads | 14.19–14.24M · 0 B, 0 allocs | 14.36M ± 0.21M |
+| Coalesced miss, 8 threads | 1.60–1.63M · 301 B, 5 allocs | 6.62M ± 0.83M |
+| Zipf hits, bounded cache | 42.46–44.56M · 0 B, 0 allocs | — |
+| Hits, 8 threads, bounded cache | 18.34–18.41M · 0 B, 0 allocs | — |
+| Pluto `lru_ts`, mixed hit/update | 29.59–29.85M · 6 B, 0 allocs | — |
+| Pluto `tiny_lfu_ts`, mixed hit/update | 15.17–15.34M · 0 B, 0 allocs | — |
+
+## Original record (2026-11-22)
 
 Recorded 2026-11-22 on an Apple M4 Max, darwin/arm64, Go 1.27.0, and
 OpenJDK 11.0.28. Guava source commit:

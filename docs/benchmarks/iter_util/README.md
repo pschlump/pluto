@@ -1,4 +1,22 @@
-# Phase 7 iterator benchmark record
+# iter_util benchmarks: Pluto (Go) vs Direct Go loop
+
+## Current results
+
+Rates are operations per second; higher is better. The Go column was
+measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
+1-second runs, shown slowest–fastest, plus bytes and allocations per
+operation. Raw output is `go-2026-11-27-current.txt`.
+
+| Workload | Pluto (Go) | Direct Go loop |
+|---|---:|---:|
+| Concat two 10,000-value sequences | 21.05–21.09K · 152 B, 6 allocs | 46.63–46.82K · 0 B, 0 allocs |
+| Filter divisible by three | 137.76–138.75K · 0 B, 0 allocs | 133.64–134.95K · 0 B, 0 allocs |
+| Partition into 32-value slices | 83.63–83.96K · 79872 B, 312 allocs | 120.38–121.11K · 80000 B, 313 allocs |
+| Pull with idempotent Peek | 2.30–2.30K · 256 B, 7 allocs | 2.77–2.78K · 256 B, 7 allocs |
+
+iter_util has no Java benchmark. Its comparison column is the same work written as a direct Go loop.
+
+## Original record (2026-11-22)
 
 Recorded 2026-11-22 on Apple M4 Max, darwin/arm64, Go 1.27.0. Three 1-second
 measurements used the same 10,000 deterministic integers. Corpus construction

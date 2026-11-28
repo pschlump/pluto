@@ -1,4 +1,27 @@
-# Phase 6 generic graph benchmark record
+# generic_graph benchmarks: Pluto (Go) vs Guava (Java)
+
+## Current results
+
+Rates are operations per second; higher is better. The Go column was
+measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
+1-second runs, shown slowest–fastest, plus bytes and allocations per
+operation. Raw output is `go-2026-11-27-current.txt`.
+The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
+2026-11-22 record below and not re-run (mean ± error).
+
+| Workload | Pluto (Go) | Guava (Java) |
+|---|---:|---:|
+| Sparse graph construction | 201.1–202.2 · 7879597 B, 41962 allocs | 609.8 ± 48.2 |
+| Dense graph construction | 17.2–17.2 · 97673327 B, 29850 allocs | 103.9 ± 26.3 |
+| Edge lookup | 15.42–15.57M · 0 B, 0 allocs | 26.09M ± 3.32M |
+| Copy + edge removal | 500.5–503.7 · 4304158 B, 24655 allocs | 433.2 ± 40.3 |
+| Adjacency snapshot + iteration | 6.30–6.40M · 238 B, 8 allocs | 6.37M ± 1.48M |
+| BFS from first edge source | 1.13–1.14K · 1713126 B, 17556 allocs | 1.08K ± 0.21K |
+| ValueGraph construction | 157.3–160.2 · 9626623 B, 42109 allocs | 582.8 ± 146.1 |
+| ValueGraph lookup | 23.69–23.69M · 0 B, 0 allocs | 29.36M ± 1.16M |
+| Network construction | 290.0–292.0 · 9203488 B, 25156 allocs | 348.3 ± 57.5 |
+
+## Original record (2026-11-22)
 
 Recorded 2026-11-22 on Apple M4 Max, darwin/arm64, Go 1.27.0, OpenJDK 11.0.28,
 Guava commit `36e3995499d6c3b74b1207d362fa9e19915d2589`. The shared corpus has

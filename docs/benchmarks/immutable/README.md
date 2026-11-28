@@ -1,4 +1,39 @@
-# Phase 2 immutable-collection benchmark record
+# immutable benchmarks: Pluto (Go) vs Guava (Java)
+
+## Current results
+
+Rates are operations per second; higher is better. The Go column was
+measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
+1-second runs, shown slowest–fastest, plus bytes and allocations per
+operation. Raw output is `go-2026-11-27-current.txt`.
+The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
+2026-11-22 record below and not re-run (mean ± error).
+
+| Workload | Pluto (Go) | Guava (Java) |
+|---|---:|---:|
+| List build | 506.59–516.26K · 32792 B, 2 allocs | 1.39M ± 0.06M |
+| List copy-of | 571.43–573.39M · 0 B, 0 allocs | 452.74M ± 282.14M |
+| List `At` | 1.91–1.93G · 0 B, 0 allocs | 484.09M |
+| List full iteration | 210.13–211.15K · 24 B, 2 allocs | 725K ± 19K |
+| Set build | 6.12–6.17K · 480361 B, 42 allocs | 34.15K ± 13.80K |
+| Set contains | 107.60–109.03M · 0 B, 0 allocs | 307.83M ± 25.43M |
+| Map build | 5.45–5.48K · 627170 B, 28 allocs | 20.03K ± 1.87K |
+| Map get | 67.07–67.89M · 0 B, 0 allocs | 168.65M ± 8.27M |
+| Sorted set build | 3.20–3.33K · 32816 B, 3 allocs | 4.15K ± 0.22K |
+| Sorted set contains | 25.38–26.14M · 0 B, 0 allocs | 35.48M ± 3.77M |
+| Sorted set subrange | 22.52–22.99M · 32 B, 1 alloc | 20.15M ± 1.97M |
+| Sorted map build | 28.24–28.29K · 98352 B, 3 allocs | 18.12K ± 0.57K |
+| Sorted map get | 15.65–15.91M · 0 B, 0 allocs | 19.97M ± 3.66M |
+| Multiset build | 5.87–5.88K · 570480 B, 42 allocs | 9.91K ± 1.88K |
+| Multiset count | 100.27–101.76M · 0 B, 0 allocs | 234.25M ± 16.02M |
+| Multimap build | 15.44–15.75K · 79112 B, 478 allocs | 31.55K ± 4.81K |
+| Multimap get | 15.25–15.44M · 512 B, 1 alloc | 277.37M ± 17.80M |
+| BiMap build | 2.56–2.69K · 1118560 B, 56 allocs | 12.26K ± 1.04K |
+| BiMap get | 66.58–67.89M · 0 B, 0 allocs | 174.61M ± 8.27M |
+
+Retained memory per family (Go bytes per input vs Guava JOL bytes per input) is in the original record below.
+
+## Original record (2026-11-22)
 
 Recorded 2026-11-22 on an Apple M4 Max, darwin/arm64, Go 1.27.0, and
 OpenJDK 11.0.28. Guava source commit:

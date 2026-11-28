@@ -1,4 +1,29 @@
-# Phase 5 hashing benchmark record
+# hashing benchmarks: Pluto (Go) vs Guava (Java)
+
+## Current results
+
+Rates are operations per second; higher is better. The Go column was
+measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
+1-second runs, shown slowest–fastest, plus bytes and allocations per
+operation. Raw output is `go-2026-11-27-current.txt`.
+The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
+2026-11-22 record below and not re-run (mean ± error).
+
+| Workload | Pluto (Go) | Guava (Java) |
+|---|---:|---:|
+| Murmur3-128, 16 B | 79.43–80.45M · 16 B, 1 alloc | 81.31M ± 13.99M |
+| Murmur3-128, 64 B | 63.86–64.35M · 16 B, 1 alloc | 23.68M ± 0.82M |
+| Murmur3-128, 1024 B | 8.78–8.79M · 16 B, 1 alloc | 3.59M ± 2.48M |
+| Murmur3-32, 1024 B | 3.22–3.23M · 4 B, 1 alloc | 1.47M (high variance) |
+| SipHash-2-4, 64 B | 37.05–37.06M · 8 B, 1 alloc | 8.42M (high variance) |
+| FarmHashFingerprint64, 1024 B | 16.85–16.91M · 8 B, 1 alloc | 18.46M ± 0.55M |
+| Fingerprint2011, 1024 B | 17.50–17.53M · 8 B, 1 alloc | 17.35M ± 0.91M |
+| Murmur3-128 stream, 1024 B in 1 B chunks | 237.08–239.35K · 3384 B, 11 allocs | 0.56M ± 0.40M |
+| Murmur3-128 stream, 1024 B in 7 B chunks | 1.01–1.01M · 3384 B, 11 allocs | 0.84M (high variance) |
+| Murmur3-128 stream, 1024 B in 64 B chunks | 2.21–2.22M · 3328 B, 8 allocs | 1.97M ± 0.55M |
+| Jump consistent hash, 1024 buckets | 53.22–53.28M · 0 B, 0 allocs | 44.88M ± 2.96M |
+
+## Original record (2026-11-22)
 
 Recorded 2026-11-22 on Apple M4 Max, darwin/arm64, Go 1.27.0, OpenJDK 11.0.28,
 Guava commit `36e3995499d6c3b74b1207d362fa9e19915d2589`. Inputs are deterministic

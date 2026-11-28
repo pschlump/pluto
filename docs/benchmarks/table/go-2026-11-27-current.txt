@@ -1,0 +1,61 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/table
+cpu: Apple M4 Max
+BenchmarkHashTable-14              	22979976	        47.75 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashTable-14              	26270420	        46.29 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashTable-14              	25466419	        45.88 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeTable-14              	10446439	       111.3 ns/op	      25 B/op	       0 allocs/op
+BenchmarkTreeTable-14              	10651851	       112.4 ns/op	      25 B/op	       0 allocs/op
+BenchmarkTreeTable-14              	10574355	       111.8 ns/op	      25 B/op	       0 allocs/op
+BenchmarkNestedMap-14              	33446174	        35.81 ns/op	       0 B/op	       0 allocs/op
+BenchmarkNestedMap-14              	34095025	        35.30 ns/op	       0 B/op	       0 allocs/op
+BenchmarkNestedMap-14              	33509179	        35.58 ns/op	       0 B/op	       0 allocs/op
+BenchmarkArrayTable-14             	30380674	        41.41 ns/op	       0 B/op	       0 allocs/op
+BenchmarkArrayTable-14             	30373274	        38.73 ns/op	       0 B/op	       0 allocs/op
+BenchmarkArrayTable-14             	30546852	        38.43 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFlatMatrix-14             	345758632	         3.341 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFlatMatrix-14             	385276497	         3.293 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFlatMatrix-14             	312477993	         3.783 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashTableRow-14           	 2986268	       411.4 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkHashTableRow-14           	 2883604	       419.1 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkHashTableRow-14           	 2882906	       425.1 ns/op	    3200 B/op	       1 allocs/op
+BenchmarkHashTableColumn-14        	  696679	      1914 ns/op	    7504 B/op	       7 allocs/op
+BenchmarkHashTableColumn-14        	  630630	      1685 ns/op	    7504 B/op	       7 allocs/op
+BenchmarkHashTableColumn-14        	  729608	      1610 ns/op	    7504 B/op	       7 allocs/op
+BenchmarkTreeTableRow-14           	 1683459	       709.8 ns/op	    3344 B/op	       6 allocs/op
+BenchmarkTreeTableRow-14           	 1692938	       708.3 ns/op	    3344 B/op	       6 allocs/op
+BenchmarkTreeTableRow-14           	 1688509	       710.5 ns/op	    3344 B/op	       6 allocs/op
+BenchmarkTreeTableColumn-14        	  460648	      2601 ns/op	    7648 B/op	      12 allocs/op
+BenchmarkTreeTableColumn-14        	  459300	      2629 ns/op	    7648 B/op	      12 allocs/op
+BenchmarkTreeTableColumn-14        	  453163	      2610 ns/op	    7648 B/op	      12 allocs/op
+BenchmarkArrayTableRow-14          	 1347134	       895.4 ns/op	    7504 B/op	       7 allocs/op
+BenchmarkArrayTableRow-14          	 1344440	       897.0 ns/op	    7504 B/op	       7 allocs/op
+BenchmarkArrayTableRow-14          	 1335756	       890.8 ns/op	    7504 B/op	       7 allocs/op
+BenchmarkArrayTableColumn-14       	 1335079	       907.0 ns/op	    7504 B/op	       7 allocs/op
+BenchmarkArrayTableColumn-14       	 1320981	       899.2 ns/op	    7504 B/op	       7 allocs/op
+BenchmarkArrayTableColumn-14       	 1321879	       907.5 ns/op	    7504 B/op	       7 allocs/op
+BenchmarkHashTableTranspose-14     	    4780	    251823 ns/op	  706255 B/op	     781 allocs/op
+BenchmarkHashTableTranspose-14     	    4731	    245103 ns/op	  706254 B/op	     781 allocs/op
+BenchmarkHashTableTranspose-14     	    4825	    252273 ns/op	  706255 B/op	     781 allocs/op
+BenchmarkTreeTableTranspose-14     	    2307	    520022 ns/op	  279299 B/op	    4682 allocs/op
+BenchmarkTreeTableTranspose-14     	    2292	    519100 ns/op	  279299 B/op	    4682 allocs/op
+BenchmarkTreeTableTranspose-14     	    2299	    519816 ns/op	  279298 B/op	    4682 allocs/op
+BenchmarkArrayTableTranspose-14    	   10000	    113072 ns/op	   90800 B/op	      41 allocs/op
+BenchmarkArrayTableTranspose-14    	   10000	    111012 ns/op	   90800 B/op	      41 allocs/op
+BenchmarkArrayTableTranspose-14    	   10000	    110123 ns/op	   90800 B/op	      41 allocs/op
+BenchmarkTableMemory/hash-14       	    1020	   1148853 ns/op	    459888 retained-bytes	       112.3 retained-bytes/cell	  806904 B/op	    8982 allocs/op
+BenchmarkTableMemory/hash-14       	    1023	   1138166 ns/op	    460112 retained-bytes	       112.3 retained-bytes/cell	  806904 B/op	    8982 allocs/op
+BenchmarkTableMemory/hash-14       	    1087	   1110768 ns/op	    459888 retained-bytes	       112.3 retained-bytes/cell	  806906 B/op	    8982 allocs/op
+BenchmarkTableMemory/tree-14       	     901	   1320493 ns/op	    337744 retained-bytes	        82.46 retained-bytes/cell	  369496 B/op	   12555 allocs/op
+BenchmarkTableMemory/tree-14       	     897	   1373247 ns/op	    337744 retained-bytes	        82.46 retained-bytes/cell	  369492 B/op	   12555 allocs/op
+BenchmarkTableMemory/tree-14       	     900	   1356509 ns/op	    337744 retained-bytes	        82.46 retained-bytes/cell	  369494 B/op	   12555 allocs/op
+BenchmarkTableMemory/array-14      	    1758	    638183 ns/op	     84728 retained-bytes	        20.69 retained-bytes/cell	   96989 B/op	     180 allocs/op
+BenchmarkTableMemory/array-14      	    1906	    622710 ns/op	     84728 retained-bytes	        20.69 retained-bytes/cell	   96990 B/op	     180 allocs/op
+BenchmarkTableMemory/array-14      	    1933	    626713 ns/op	     84728 retained-bytes	        20.69 retained-bytes/cell	   96990 B/op	     180 allocs/op
+BenchmarkTableMemory/nested-14     	    1436	    839421 ns/op	    388736 retained-bytes	        94.91 retained-bytes/cell	  674567 B/op	    4878 allocs/op
+BenchmarkTableMemory/nested-14     	    1416	    849611 ns/op	    388736 retained-bytes	        94.91 retained-bytes/cell	  674569 B/op	    4878 allocs/op
+BenchmarkTableMemory/nested-14     	    1329	    858995 ns/op	    388736 retained-bytes	        94.91 retained-bytes/cell	  674568 B/op	    4878 allocs/op
+BenchmarkTableMemory/flat-14       	    2310	    503001 ns/op	     71880 retained-bytes	        17.55 retained-bytes/cell	   71885 B/op	       7 allocs/op
+BenchmarkTableMemory/flat-14       	    2412	    498007 ns/op	     71880 retained-bytes	        17.55 retained-bytes/cell	   71886 B/op	       7 allocs/op
+BenchmarkTableMemory/flat-14       	    2462	    495899 ns/op	     71880 retained-bytes	        17.55 retained-bytes/cell	   71887 B/op	       7 allocs/op

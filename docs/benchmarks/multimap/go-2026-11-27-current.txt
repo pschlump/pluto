@@ -1,0 +1,25 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/multimap
+cpu: Apple M4 Max
+BenchmarkListMultimap-14          	 1000000	      1128 ns/op	    6474 B/op	       0 allocs/op
+BenchmarkListMultimap-14          	 1000000	      1124 ns/op	    6473 B/op	       0 allocs/op
+BenchmarkListMultimap-14          	 1000000	      1118 ns/op	    6473 B/op	       0 allocs/op
+BenchmarkSetMultimap-14           	 8968388	       131.0 ns/op	     222 B/op	       1 allocs/op
+BenchmarkSetMultimap-14           	 9018840	       130.6 ns/op	     222 B/op	       1 allocs/op
+BenchmarkSetMultimap-14           	 8884341	       132.2 ns/op	     222 B/op	       1 allocs/op
+BenchmarkSortedSetMultimap-14     	 9860166	       121.6 ns/op	     108 B/op	       0 allocs/op
+BenchmarkSortedSetMultimap-14     	 9827878	       122.2 ns/op	     108 B/op	       0 allocs/op
+BenchmarkSortedSetMultimap-14     	 9725953	       121.9 ns/op	     108 B/op	       0 allocs/op
+BenchmarkListMap-14               	 4477171	      1102 ns/op	      33 B/op	       0 allocs/op
+BenchmarkListMap-14               	 4474324	      1102 ns/op	      33 B/op	       0 allocs/op
+BenchmarkListMap-14               	 4478088	      1102 ns/op	      33 B/op	       0 allocs/op
+BenchmarkSetMap-14                	29790504	        39.95 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSetMap-14                	29616069	        40.19 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSetMap-14                	29922637	        39.94 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedListMultimap-14    	 1000000	      7101 ns/op	    2646 B/op	       0 allocs/op
+BenchmarkLinkedListMultimap-14    	 1000000	      7157 ns/op	    2646 B/op	       0 allocs/op
+BenchmarkLinkedListMultimap-14    	 1000000	      7109 ns/op	    2646 B/op	       0 allocs/op
+BenchmarkLinkedHashMultimap-14    	 9600146	       124.3 ns/op	      60 B/op	       0 allocs/op
+BenchmarkLinkedHashMultimap-14    	 9644259	       124.5 ns/op	      60 B/op	       0 allocs/op
+BenchmarkLinkedHashMultimap-14    	 9699487	       123.6 ns/op	      60 B/op	       0 allocs/op

@@ -1,4 +1,25 @@
-# Phase 8 math benchmark record
+# math_util benchmarks: Pluto (Go) vs Guava (Java)
+
+## Current results
+
+Rates are operations per second; higher is better. The Go column was
+measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
+1-second runs, shown slowest–fastest, plus bytes and allocations per
+operation. Raw output is `go-2026-11-27-current.txt`.
+The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
+2026-11-22 record below and not re-run (mean ± error).
+
+| Workload | Pluto (Go) | Guava (Java) |
+|---|---:|---:|
+| Half-even divide | 445.04–483.79M · 0 B, 0 allocs | 782.43M ± 76.63M * |
+| Half-even log10 | 612.75–637.76M · 0 B, 0 allocs | 426.63M ± 15.93M |
+| Half-even sqrt | 446.23–460.41M · 0 B, 0 allocs | 783.05M ± 28.97M * |
+| Deterministic primality | 702.25–708.22K · 0 B, 0 allocs | 8.75K ± 0.58K |
+| Binomial(30, 15) | 1.00–1.00G · 0 B, 0 allocs | 782.06M ± 88.58M * |
+
+\* Probably constant-folded by the JIT. `MathBenchmark.java` passes literal constants to pure static methods, and all three report the same ~1.28 ns no matter how much work they do. Treat them as an upper bound, not a measurement.
+
+## Original record (2026-11-22)
 
 Recorded 2026-11-22 on Apple M4 Max, darwin/arm64, Go 1.27.0, OpenJDK 11.0.28,
 Guava commit `36e3995499d6c3b74b1207d362fa9e19915d2589`. Go ran three 1-second

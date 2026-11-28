@@ -1,4 +1,21 @@
-# Phase 1a multiset benchmark record
+# multiset benchmarks: Pluto (Go) vs Guava (Java)
+
+## Current results
+
+Rates are operations per second; higher is better. The Go column was
+measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
+1-second runs, shown slowest–fastest, plus bytes and allocations per
+operation. Raw output is `go-2026-11-27-current.txt`.
+The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
+2026-11-22 record below and not re-run (mean ± error).
+
+| Workload | Pluto (Go) | Guava (Java) |
+|---|---:|---:|
+| HashMultiset | 25.34–25.45M · 0 B, 0 allocs | 67.89M ± 7.74M |
+| TreeMultiset | 4.92–4.94M · 4 B, 0 allocs | 6.08M ± 1.53M |
+| Baseline: plain map of counts (Java: HashMap) | 37.89–38.10M · 0 B, 0 allocs | 52.87M ± 8.26M |
+
+## Original record (2026-11-22)
 
 Recorded 2026-11-22 on an Apple M4 Max, darwin/arm64, Go 1.27.0, and
 OpenJDK 11.0.28. Guava source commit:

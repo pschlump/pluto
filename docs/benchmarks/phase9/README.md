@@ -1,4 +1,24 @@
-# Phase 9 completeness benchmark record
+# phase9 benchmarks: Pluto (Go) vs Guava (Java)
+
+## Current results
+
+Rates are operations per second; higher is better. The Go column was
+measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
+1-second runs, shown slowest–fastest, plus bytes and allocations per
+operation. Raw output is `go-2026-11-27-current.txt`.
+The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
+2026-11-22 record below and not re-run (mean ± error).
+
+| Workload | Pluto (Go) | Guava (Java) |
+|---|---:|---:|
+| Strong intern, hit/miss | 37.04–37.22M · 16 B, 1 alloc | 40.34M ± 4.19M |
+| Baseline: map + RWMutex interner | 55.07–55.31M · 16 B, 1 alloc | — |
+| Linked map put/get (Java: LinkedHashMap) | 24.33–24.42M · 0 B, 0 allocs | 132.53M ± 34.46M |
+| Linked multiset operation | 16.13–16.25M · 4 B, 0 allocs | 64.82M ± 31.19M |
+| Linked list multimap operation | 139.72–140.83K · 2646 B, 0 allocs | 69.17K ± 246.28K |
+| Linked hash multimap operation | 8.03–8.09M · 60 B, 0 allocs | 33.93M ± 2.42M |
+
+## Original record (2026-11-22)
 
 Recorded 2026-11-23 on Apple M4 Max, darwin/arm64, Go 1.27.0, OpenJDK 11.0.28,
 JMH 1.37, and Guava commit `36e3995499d6c3b74b1207d362fa9e19915d2589`.

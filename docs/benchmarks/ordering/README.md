@@ -1,4 +1,22 @@
-# Phase 7 ordering benchmark record
+# ordering benchmarks: Pluto (Go) vs Guava (Java)
+
+## Current results
+
+Rates are operations per second; higher is better. The Go column was
+measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
+1-second runs, shown slowest–fastest, plus bytes and allocations per
+operation. Raw output is `go-2026-11-27-current.txt`.
+The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
+2026-11-22 record below and not re-run (mean ± error).
+
+| Workload | Pluto (Go) | Guava (Java) |
+|---|---:|---:|
+| Stable sorted copy | 1.25–1.25K · 81920 B, 1 alloc | 1.97K ± 0.21K |
+| Least 32 | 32.69–32.81K · 336 B, 4 allocs | 45.07K ± 2.21K |
+| Greatest 32 | 27.12–27.29K · 360 B, 5 allocs | 46.63K ± 1.37K |
+| Baseline: full sort | 7.41–8.25K · 81920 B, 1 alloc | 7.86K ± 4.97K |
+
+## Original record (2026-11-22)
 
 Recorded 2026-11-22 on Apple M4 Max, darwin/arm64, Go 1.27.0, OpenJDK 11.0.28,
 Guava commit `36e3995499d6c3b74b1207d362fa9e19915d2589`. Each workload uses

@@ -1,0 +1,84 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/range_set
+cpu: Apple M4 Max
+BenchmarkRangeSet-14             	 9207402	       128.2 ns/op	      11 B/op	       0 allocs/op
+BenchmarkRangeSet-14             	 9341289	       128.1 ns/op	      11 B/op	       0 allocs/op
+BenchmarkRangeSet-14             	 9190926	       128.0 ns/op	      11 B/op	       0 allocs/op
+BenchmarkRangeSetIteration-14    	  630860	      1852 ns/op	   18432 B/op	       1 allocs/op
+BenchmarkRangeSetIteration-14    	  657036	      1840 ns/op	   18432 B/op	       1 allocs/op
+BenchmarkRangeSetIteration-14    	  646594	      1854 ns/op	   18432 B/op	       1 allocs/op
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/range_map
+cpu: Apple M4 Max
+BenchmarkRangeMap-14             	 4562838	       256.3 ns/op	      11 B/op	       0 allocs/op
+BenchmarkRangeMap-14             	 4690430	       256.2 ns/op	      11 B/op	       0 allocs/op
+BenchmarkRangeMap-14             	 4618953	       256.4 ns/op	      11 B/op	       0 allocs/op
+BenchmarkRangeMapIteration-14    	  509168	      2386 ns/op	   27264 B/op	       1 allocs/op
+BenchmarkRangeMapIteration-14    	  507282	      2385 ns/op	   27264 B/op	       1 allocs/op
+BenchmarkRangeMapIteration-14    	  506208	      2400 ns/op	   27264 B/op	       1 allocs/op
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/tree_set
+cpu: Apple M4 Max
+BenchmarkTreeSet_vs_Map/n=1000/TreeSet/insert-14         	   12877	     92012 ns/op	   48016 B/op	    1001 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/TreeSet/insert-14         	   13042	     91690 ns/op	   48016 B/op	    1001 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/TreeSet/insert-14         	   13047	     91874 ns/op	   48016 B/op	    1001 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/HashSet/insert-14         	   41205	     29171 ns/op	  102560 B/op	      20 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/HashSet/insert-14         	   41110	     29326 ns/op	  102560 B/op	      20 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/HashSet/insert-14         	   41230	     29167 ns/op	  102560 B/op	      20 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/map/insert-14             	  122281	      9895 ns/op	   54608 B/op	       5 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/map/insert-14             	  122205	      9872 ns/op	   54608 B/op	       5 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/map/insert-14             	  121149	      9854 ns/op	   54608 B/op	       5 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/TreeSet/lookup-14         	   21002	     57073 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/TreeSet/lookup-14         	   20953	     57194 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/TreeSet/lookup-14         	   20988	     57091 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/HashSet/lookup-14         	  122808	      9711 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/HashSet/lookup-14         	  131265	      9344 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/HashSet/lookup-14         	  127531	      9731 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/map/lookup-14             	  193305	      5735 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/map/lookup-14             	  195986	      6042 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/map/lookup-14             	  206725	      5929 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/TreeSet/delete-14         	   30986	     38583 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/TreeSet/delete-14         	   31041	     38724 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/TreeSet/delete-14         	   31366	     38664 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/HashSet/delete-14         	   78679	     15254 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/HashSet/delete-14         	   78520	     15209 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/HashSet/delete-14         	   78126	     15194 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/map/delete-14             	  114063	     10499 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/map/delete-14             	  113811	     10477 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=1000/map/delete-14             	  113866	     10512 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/TreeSet/insert-14       	      43	  26817377 ns/op	 4800276 B/op	  100001 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/TreeSet/insert-14       	      44	  27182858 ns/op	 4800028 B/op	  100001 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/TreeSet/insert-14       	      42	  27085416 ns/op	 4800032 B/op	  100001 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/HashSet/insert-14       	     312	   3816991 ns/op	12587168 B/op	      34 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/HashSet/insert-14       	     309	   3831441 ns/op	12587168 B/op	      34 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/HashSet/insert-14       	     313	   3850337 ns/op	12587185 B/op	      34 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/map/insert-14           	     804	   1488343 ns/op	 3495538 B/op	     257 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/map/insert-14           	     802	   1495332 ns/op	 3495187 B/op	     257 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/map/insert-14           	     813	   1501769 ns/op	 3495253 B/op	     257 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/TreeSet/lookup-14       	      91	  13046752 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/TreeSet/lookup-14       	      92	  13028697 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/TreeSet/lookup-14       	      91	  13032186 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/HashSet/lookup-14       	     768	   1550613 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/HashSet/lookup-14       	     759	   1570368 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/HashSet/lookup-14       	     766	   1564820 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/map/lookup-14           	     903	   1327483 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/map/lookup-14           	     879	   1326825 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/map/lookup-14           	     898	   1316075 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/TreeSet/delete-14       	      92	  12837302 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/TreeSet/delete-14       	      92	  12848299 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/TreeSet/delete-14       	      93	  12856650 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/HashSet/delete-14       	     891	   1342726 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/HashSet/delete-14       	     892	   1341838 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/HashSet/delete-14       	     895	   1342284 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/map/delete-14           	     916	   1315681 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/map/delete-14           	     919	   1313206 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSet_vs_Map/n=100000/map/delete-14           	     912	   1317698 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeSetRangePositioned-14                       	 7562482	       158.7 ns/op	     280 B/op	       5 allocs/op
+BenchmarkTreeSetRangePositioned-14                       	 7575102	       158.5 ns/op	     280 B/op	       5 allocs/op
+BenchmarkTreeSetRangePositioned-14                       	 7577647	       159.2 ns/op	     280 B/op	       5 allocs/op
+BenchmarkTreeSetRangeFiltered-14                         	  423928	      2848 ns/op	      24 B/op	       2 allocs/op
+BenchmarkTreeSetRangeFiltered-14                         	  423055	      2831 ns/op	      24 B/op	       2 allocs/op
+BenchmarkTreeSetRangeFiltered-14                         	  425607	      2829 ns/op	      24 B/op	       2 allocs/op

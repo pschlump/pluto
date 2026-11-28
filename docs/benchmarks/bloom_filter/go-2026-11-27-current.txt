@@ -1,0 +1,35 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bloom_filter
+cpu: Apple M4 Max
+BenchmarkBloomFilterPut-14              	   38182	     30849 ns/op	  123016 B/op	       2 allocs/op
+BenchmarkBloomFilterPut-14              	   39150	     30749 ns/op	  123016 B/op	       2 allocs/op
+BenchmarkBloomFilterPut-14              	   39201	     30544 ns/op	  123016 B/op	       2 allocs/op
+BenchmarkBloomFilterMightContain/hit-14 	61147533	        19.97 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/hit-14 	59970388	        20.29 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/hit-14 	58063227	        20.77 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/miss-14         	44918234	        26.65 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/miss-14         	45024622	        26.63 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/miss-14         	44387110	        26.96 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMerge-14                     	 5480385	       215.0 ns/op	    1280 B/op	       1 allocs/op
+BenchmarkBloomFilterMerge-14                     	 5447274	       215.1 ns/op	    1280 B/op	       1 allocs/op
+BenchmarkBloomFilterMerge-14                     	 5610523	       213.7 ns/op	    1280 B/op	       1 allocs/op
+BenchmarkBloomFilterSerialization-14             	 2890150	       414.9 ns/op	    3888 B/op	       4 allocs/op
+BenchmarkBloomFilterSerialization-14             	 2868190	       416.5 ns/op	    3888 B/op	       4 allocs/op
+BenchmarkBloomFilterSerialization-14             	 2881063	       417.3 ns/op	    3888 B/op	       4 allocs/op
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bloom_filter_ts
+cpu: Apple M4 Max
+BenchmarkBloomFilterPut-14             	   29382	     40049 ns/op	  123050 B/op	       3 allocs/op
+BenchmarkBloomFilterPut-14             	   30285	     39908 ns/op	  123050 B/op	       3 allocs/op
+BenchmarkBloomFilterPut-14             	   30205	     39806 ns/op	  123050 B/op	       3 allocs/op
+BenchmarkBloomFilterMightContain/hit-14         	50129414	        23.92 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/hit-14         	49982122	        24.00 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/hit-14         	50317276	        23.93 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/miss-14        	37614410	        31.89 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/miss-14        	37606748	        31.81 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/miss-14        	37650798	        31.81 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/parallel-hit-14         	 9328082	       127.7 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/parallel-hit-14         	 9526297	       124.9 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/parallel-hit-14         	 9678092	       129.4 ns/op	       0 B/op	       0 allocs/op

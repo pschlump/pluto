@@ -1,0 +1,19 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/min_max_pq
+cpu: Apple M4 Max
+BenchmarkMinMaxPriorityQueue-14           	15217450	        94.35 ns/op	       2 B/op	       0 allocs/op
+BenchmarkMinMaxPriorityQueue-14           	15165436	        94.57 ns/op	       2 B/op	       0 allocs/op
+BenchmarkMinMaxPriorityQueue-14           	15027298	        94.68 ns/op	       2 B/op	       0 allocs/op
+BenchmarkBoundedMinMaxPriorityQueue-14    	23352057	        51.39 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBoundedMinMaxPriorityQueue-14    	23314041	        51.07 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBoundedMinMaxPriorityQueue-14    	23295692	        51.27 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMinMaxOneEnd-14                  	18483991	        74.72 ns/op	      13 B/op	       0 allocs/op
+BenchmarkMinMaxOneEnd-14                  	18265453	        74.69 ns/op	      13 B/op	       0 allocs/op
+BenchmarkMinMaxOneEnd-14                  	18522258	        74.78 ns/op	      13 B/op	       0 allocs/op
+BenchmarkPriorityQueue-14                 	27705307	        49.86 ns/op	      14 B/op	       0 allocs/op
+BenchmarkPriorityQueue-14                 	27564951	        49.74 ns/op	      14 B/op	       0 allocs/op
+BenchmarkPriorityQueue-14                 	27687728	        49.75 ns/op	      14 B/op	       0 allocs/op
+BenchmarkTwoHeap-14                       	12264060	       134.0 ns/op	      89 B/op	       1 allocs/op
+BenchmarkTwoHeap-14                       	12200338	       133.9 ns/op	      89 B/op	       1 allocs/op
+BenchmarkTwoHeap-14                       	12195302	       134.4 ns/op	      89 B/op	       1 allocs/op

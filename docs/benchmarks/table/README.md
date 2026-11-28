@@ -1,4 +1,34 @@
-# Phase 1d table benchmark record
+# table benchmarks: Pluto (Go) vs Guava (Java)
+
+## Current results
+
+Rates are operations per second; higher is better. The Go column was
+measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
+1-second runs, shown slowest–fastest, plus bytes and allocations per
+operation. Raw output is `go-2026-11-27-current.txt`.
+The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
+2026-11-22 record below and not re-run (mean ± error).
+
+| Workload | Pluto (Go) | Guava (Java) |
+|---|---:|---:|
+| HashTable mixed (Java: HashBasedTable) | 20.94–21.80M · 0 B, 0 allocs | 31.85M ± 11.19M |
+| TreeTable mixed (Java: TreeBasedTable) | 8.90–8.98M · 25 B, 0 allocs | 11.12M ± 4.49M |
+| ArrayTable mixed | 24.15–26.02M · 0 B, 0 allocs | 55.95M ± 19.88M |
+| HashTable row | 2.35–2.43M · 3200 B, 1 alloc | 293.17M ± 28.80M |
+| HashTable column | 522.47–621.12K · 7504 B, 7 allocs | 6.08M ± 0.84M |
+| TreeTable row | 1.41–1.41M · 3344 B, 6 allocs | 39.94M ± 0.96M |
+| TreeTable column | 380.37–384.47K · 7648 B, 12 allocs | 1.29M ± 0.10M |
+| ArrayTable row | 1.11–1.12M · 7504 B, 7 allocs | 286.79M ± 23.22M |
+| ArrayTable column | 1.10–1.11M · 7504 B, 7 allocs | 293.70M ± 17.09M |
+| HashTable transpose | 3.96–4.08K · 706254 B, 781 allocs | 11.99K ± 0.84K |
+| TreeTable transpose | 1.92–1.93K · 279299 B, 4682 allocs | 4.37K ± 0.40K |
+| ArrayTable transpose | 8.84–9.08K · 90800 B, 41 allocs | 22.30K ± 0.60K |
+| Baseline: nested maps | 27.93–28.33M · 0 B, 0 allocs | 50.84M ± 8.13M |
+| Baseline: flat matrix + presence bitmap | 264.34–303.67M · 0 B, 0 allocs | 199.26M ± 16.45M |
+
+Guava's row and column accessors return live views, while Pluto's return fresh copies (the allocations in the Go column). The access figures therefore compare different contracts.
+
+## Original record (2026-11-22)
 
 Recorded 2026-11-22 on an Apple M4 Max, darwin/arm64, Go 1.27.0, and
 OpenJDK 11.0.28. Guava source commit:

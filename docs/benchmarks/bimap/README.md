@@ -1,4 +1,23 @@
-# Phase 1c bimap benchmark record
+# bimap benchmarks: Pluto (Go) vs Guava (Java)
+
+## Current results
+
+Rates are operations per second; higher is better. The Go column was
+measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
+1-second runs, shown slowest–fastest, plus bytes and allocations per
+operation. Raw output is `go-2026-11-27-current.txt`.
+The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
+2026-11-22 record below and not re-run (mean ± error).
+
+| Workload | Pluto (Go) | Guava (Java) |
+|---|---:|---:|
+| HashBiMap mixed stream | 29.87–30.68M · 0 B, 0 allocs | 20.24M ± 2.30M |
+| Inverse iteration, 4096 entries | 144.93–145.94K · 0 B, 0 allocs | 28.87K ± 6.25K |
+| Baseline: two plain maps, mixed stream | 40.78–41.32M · 0 B, 0 allocs | 58.50M ± 8.93M |
+
+Retained memory: about 192 bytes per association for Pluto HashBiMap and for two plain Go maps alike. Go and Java heap figures are not directly comparable.
+
+## Original record (2026-11-22)
 
 Recorded 2026-11-22 on an Apple M4 Max, darwin/arm64, Go 1.27.0, and
 OpenJDK 11.0.28. Guava source commit:

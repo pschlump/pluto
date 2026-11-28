@@ -1,4 +1,27 @@
-# Phase 5 generic Bloom benchmark and accuracy record
+# bloom_filter benchmarks: Pluto (Go) vs Guava (Java)
+
+## Current results
+
+Rates are operations per second; higher is better. The Go column was
+measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
+1-second runs, shown slowest–fastest, plus bytes and allocations per
+operation. Raw output is `go-2026-11-27-current.txt`.
+The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
+2026-11-22 record below and not re-run (mean ± error).
+
+| Workload | Pluto (Go) | Guava (Java) |
+|---|---:|---:|
+| Create + 1,000 puts | 32.42–32.74K · 123016 B, 2 allocs | 14.81K ± 1.01K |
+| Membership hit | 48.15–50.08M · 0 B, 0 allocs | 19.09M ± 4.21M |
+| Membership miss | 37.09–37.55M · 0 B, 0 allocs | 16.74M ± 2.54M |
+| Copy + merge | 4.65–4.68M · 1280 B, 1 alloc | 1.03M ± 0.09M |
+| Guava compact serialization | 2.40–2.41M · 3888 B, 4 allocs | 1.07M ± 0.11M |
+| Thread-safe twin: membership hit | 41.67–41.81M · 0 B, 0 allocs | — |
+| Thread-safe twin: hit, 14 parallel readers | 7.73–8.01M · 0 B, 0 allocs | — |
+
+Guava's JMH benchmarks use `@Setup(Level.Invocation)`, which adds per-call timing overhead, so its nanosecond-scale membership figures are pessimistic.
+
+## Original record (2026-11-22)
 
 Recorded 2026-11-22 on Apple M4 Max, darwin/arm64, Go 1.27.0, OpenJDK 11.0.28,
 Guava commit `36e3995499d6c3b74b1207d362fa9e19915d2589`. Go ran three 1-second
