@@ -11,9 +11,9 @@ The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
 
 | Workload | Pluto (Go) | Guava (Java) |
 |---|---:|---:|
-| HashBiMap mixed stream | 29.87–30.68M · 0 B, 0 allocs | 20.24M ± 2.30M |
-| Inverse iteration, 4096 entries | 144.93–145.94K · 0 B, 0 allocs | 28.87K ± 6.25K |
-| Baseline: two plain maps, mixed stream | 40.78–41.32M · 0 B, 0 allocs | 58.50M ± 8.93M |
+| HashBiMap mixed stream | 33.23–34.52M · 0 B, 0 allocs | 20.24M ± 2.30M |
+| Inverse iteration, 4096 entries | 144.63–146.84K · 0 B, 0 allocs | 28.87K ± 6.25K |
+| Baseline: two plain maps, mixed stream | 40.78–41.39M · 0 B, 0 allocs | 58.50M ± 8.93M |
 
 Retained memory: about 192 bytes per association for Pluto HashBiMap and for two plain Go maps alike. Go and Java heap figures are not directly comparable.
 

@@ -15,8 +15,8 @@ The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
 | RangeMap mixed stream (Java: TreeRangeMap) | 3.90–3.90M · 11 B, 0 allocs | 2.89M ± 0.31M |
 | RangeSet iteration | 539.37–543.48K · 18432 B, 1 alloc | 599.1K ± 60.4K |
 | RangeMap iteration | 416.67–419.29K · 27264 B, 1 alloc | 312.9K ± 11.5K |
-| Sorted-set subrange iteration (Java: TreeSet.subSet) | 6.28–6.31M · 280 B, 5 allocs | 18.21M ± 2.24M |
-| Baseline: filtered full scan | 351.12–353.48K · 24 B, 2 allocs | — |
+| Sorted-set subrange iteration (Java: TreeSet.subSet) | 8.14–8.20M · 88 B, 3 allocs | 18.21M ± 2.24M |
+| Baseline: filtered full scan | 414.25–421.59K · 0 B, 0 allocs | — |
 
 ## Original record (2026-11-22)
 
