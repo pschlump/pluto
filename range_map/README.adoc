@@ -6,5 +6,21 @@ values are deliberately not coalesced. Includes Get, RangeContaining,
 SubRangeMap, ordered entries, clone, and function-based equality. Optional
 discrete domains use canonical ranges. Derived maps are snapshots.
 
+== Complexity
+
+Storage is a sorted slice of r disjoint entries. Mutations binary-search the
+run of entries they touch and splice it in place, so their comparison count is
+logarithmic; the splice itself is a memmove of the slice tail.
+
+[cols="2,3"]
+|===
+| Operation | Cost
+
+| `Put`, `Remove` | O(log r) comparisons + O(r) worst-case memmove; amortized growth only, no per-call allocation
+| `Get`, `RangeContaining` | O(log r)
+| `Len`, `IsEmpty` | O(1)
+| `EntriesSlice`, `Entries`, `Clone`, `SubRangeMap`, `Equal` | O(r) (snapshots copy)
+|===
+
 `range_map_ts` supplies atomic writes, snapshot entries/submaps, and non-nested
 equality locks through an RWMutex. Immutable conversions live in `immutable`.

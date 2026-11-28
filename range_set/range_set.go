@@ -11,6 +11,7 @@ package range_set
 import (
 	"cmp"
 	"iter"
+	"slices"
 
 	"github.com/pschlump/pluto/ranges"
 )
@@ -89,28 +90,6 @@ func (s *RangeSet[T]) All() iter.Seq[ranges.Range[T]] {
 	}
 }
 
-func lowerCompare[T any](a, b ranges.Range[T]) int {
-	aLower, aBound, aHas := a.LowerBound()
-	bLower, bBound, bHas := b.LowerBound()
-	if !aHas {
-		if bHas {
-			return -1
-		}
-		return 0
-	}
-	if !bHas {
-		return 1
-	}
-	order := a.Compare()(aLower, bLower)
-	if order == 0 && aBound != bBound {
-		if aBound == ranges.OpenBound {
-			return 1
-		}
-		return -1
-	}
-	return order
-}
-
 func (s *RangeSet[T]) makeBounds(lower T, lowerOpen, hasLower bool, upper T, upperOpen, hasUpper bool) ranges.Range[T] {
 	return s.canonical(makeBounds(s.compare, lower, lowerOpen, hasLower, upper, upperOpen, hasUpper))
 }
@@ -134,8 +113,59 @@ func (s *RangeSet[T]) adjacent(a, b ranges.Range[T]) bool {
 	return nextClosed(a, b) || nextClosed(b, a)
 }
 
+// lowerAfterUpper orders left's lower bound against right's upper bound under
+// compare: positive when left's lower bound lies strictly after right's upper
+// bound, otherwise zero or negative. A missing bound is infinite, and touching
+// open endpoints count as strictly after — exactly one half of
+// ranges.Range.IsConnected.
+func lowerAfterUpper[T any](compare func(T, T) int, left, right ranges.Range[T]) int {
+	lower, lowerBound, hasLower := left.LowerBound()
+	upper, upperBound, hasUpper := right.UpperBound()
+	if !hasLower || !hasUpper {
+		return -1
+	}
+	order := compare(lower, upper)
+	if order == 0 && lowerBound == ranges.OpenBound && upperBound == ranges.OpenBound {
+		return 1
+	}
+	return order
+}
+
+// connectedWindow returns the half-open index window [lo, hi) of the stored
+// ranges connected to value. Stored ranges are sorted and disjoint, so their
+// upper bounds ascend with their lower bounds and both halves of IsConnected
+// are monotone over the slice: the connected ranges are one contiguous run,
+// found by two binary searches. Complexity is O(log r).
+func (s *RangeSet[T]) connectedWindow(value ranges.Range[T]) (int, int) {
+	values := s.values
+	// lo: the first stored range whose upper bound reaches value's lower bound.
+	lo, end := 0, len(values)
+	for lo < end {
+		middle := int(uint(lo+end) >> 1)
+		if lowerAfterUpper(s.compare, value, values[middle]) > 0 {
+			lo = middle + 1
+		} else {
+			end = middle
+		}
+	}
+	// hi: the first stored range at or after lo whose lower bound lies strictly
+	// after value's upper bound.
+	hi, end := lo, len(values)
+	for hi < end {
+		middle := int(uint(hi+end) >> 1)
+		if lowerAfterUpper(s.compare, values[middle], value) > 0 {
+			end = middle
+		} else {
+			hi = middle + 1
+		}
+	}
+	return lo, hi
+}
+
 // Add inserts and coalesces connected ranges. With a discrete domain, ranges are
 // canonicalized first and successor-adjacent closed ranges also coalesce.
+// Complexity is O(log r) comparisons to locate the affected run plus an O(r)
+// worst-case element shift (a memmove; amortized slice growth only).
 func (s *RangeSet[T]) Add(value ranges.Range[T]) {
 	if s == nil || s.compare == nil {
 		panic("range_set: Add on zero-value RangeSet")
@@ -144,24 +174,25 @@ func (s *RangeSet[T]) Add(value ranges.Range[T]) {
 	if value.IsEmpty() {
 		return
 	}
+	lo, hi := s.connectedWindow(value)
+	// Successor adjacency (discrete domains only) can reach one stored range
+	// beyond each end of the connected run; stored ranges are pairwise
+	// non-adjacent, so each loop takes at most one step.
+	for lo > 0 && s.adjacent(value, s.values[lo-1]) {
+		lo--
+	}
+	for hi < len(s.values) && s.adjacent(value, s.values[hi]) {
+		hi++
+	}
 	merged := value
-	result := make([]ranges.Range[T], 0, len(s.values)+1)
-	inserted := false
-	for _, existing := range s.values {
-		if s.adjacent(merged, existing) {
-			merged = merged.Span(existing)
-			continue
-		}
-		if !inserted && lowerCompare(existing, merged) > 0 {
-			result = append(result, merged)
-			inserted = true
-		}
-		result = append(result, existing)
+	for _, existing := range s.values[lo:hi] {
+		merged = merged.Span(existing)
 	}
-	if !inserted {
-		result = append(result, merged)
+	if hi-lo == 1 {
+		s.values[lo] = merged
+		return
 	}
-	s.values = result
+	s.values = slices.Replace(s.values, lo, hi, merged)
 }
 
 func makeBounds[T any](compare func(T, T) int, lower T, lowerOpen, hasLower bool, upper T, upperOpen, hasUpper bool) ranges.Range[T] {
@@ -193,6 +224,8 @@ func makeBounds[T any](compare func(T, T) int, lower T, lowerOpen, hasLower bool
 }
 
 // Remove subtracts value, splitting existing ranges at exact boundaries.
+// Complexity is O(log r) comparisons to locate the affected run plus an O(r)
+// worst-case element shift (a memmove; amortized slice growth only).
 func (s *RangeSet[T]) Remove(value ranges.Range[T]) {
 	if s == nil || s.compare == nil {
 		panic("range_set: Remove on zero-value RangeSet")
@@ -201,8 +234,26 @@ func (s *RangeSet[T]) Remove(value ranges.Range[T]) {
 	if value.IsEmpty() {
 		return
 	}
-	result := make([]ranges.Range[T], 0, len(s.values))
-	for _, existing := range s.values {
+	lo, hi := s.connectedWindow(value)
+	if lo == hi {
+		return
+	}
+	// Only the first and last ranges of the run can survive in any form (the
+	// run's interior is enclosed by value and dropped), so the replacement
+	// fits the fixed stack buffer; append would grow it otherwise.
+	var buffer [4]ranges.Range[T]
+	pieces := s.subtract(buffer[:0], s.values[lo:hi], value)
+	if len(pieces) == hi-lo {
+		copy(s.values[lo:hi], pieces)
+		return
+	}
+	s.values = slices.Replace(s.values, lo, hi, pieces...)
+}
+
+// subtract appends to result what remains of each window range after removing
+// value, in order. Window ranges that merely touch value are kept unchanged.
+func (s *RangeSet[T]) subtract(result, window []ranges.Range[T], value ranges.Range[T]) []ranges.Range[T] {
+	for _, existing := range window {
 		if !existing.IsConnected(value) || existing.Intersection(value).IsEmpty() {
 			result = append(result, existing)
 			continue
@@ -219,8 +270,13 @@ func (s *RangeSet[T]) Remove(value ranges.Range[T]) {
 			order := s.compare(oldLower, cutLower)
 			left = !oldHasLower || order < 0 || order == 0 && oldLowerBound == ranges.ClosedBound && cutLowerBound == ranges.OpenBound
 		}
+		// A fragment can canonicalize to empty — the remainder of an unbounded
+		// range past a finite domain's maximum is (max,max) — and an empty
+		// range is never stored.
 		if left {
-			result = append(result, s.makeBounds(oldLower, oldLowerBound == ranges.OpenBound, oldHasLower, cutLower, cutLowerBound == ranges.ClosedBound, true))
+			if fragment := s.makeBounds(oldLower, oldLowerBound == ranges.OpenBound, oldHasLower, cutLower, cutLowerBound == ranges.ClosedBound, true); !fragment.IsEmpty() {
+				result = append(result, fragment)
+			}
 		}
 		right := false
 		if cutHasUpper {
@@ -228,37 +284,67 @@ func (s *RangeSet[T]) Remove(value ranges.Range[T]) {
 			right = !oldHasUpper || order < 0 || order == 0 && oldUpperBound == ranges.ClosedBound && cutUpperBound == ranges.OpenBound
 		}
 		if right {
-			result = append(result, s.makeBounds(cutUpper, cutUpperBound == ranges.ClosedBound, true, oldUpper, oldUpperBound == ranges.OpenBound, oldHasUpper))
+			if fragment := s.makeBounds(cutUpper, cutUpperBound == ranges.ClosedBound, true, oldUpper, oldUpperBound == ranges.OpenBound, oldHasUpper); !fragment.IsEmpty() {
+				result = append(result, fragment)
+			}
 		}
 	}
-	s.values = result
+	return result
 }
 
+// Contains reports whether value lies in a stored range.
+// Complexity is O(log r).
 func (s *RangeSet[T]) Contains(value T) bool {
 	_, found := s.RangeContaining(value)
 	return found
 }
+
+// RangeContaining returns the stored range containing value. Stored ranges are
+// sorted and disjoint, so the only candidate is the first range whose upper
+// bound reaches value. Complexity is O(log r).
 func (s *RangeSet[T]) RangeContaining(value T) (ranges.Range[T], bool) {
 	if s == nil {
 		return ranges.Range[T]{}, false
 	}
-	for _, candidate := range s.values {
-		if candidate.Contains(value) {
-			return candidate, true
+	values := s.values
+	lo, hi := 0, len(values)
+	for lo < hi {
+		middle := int(uint(lo+hi) >> 1)
+		upper, bound, has := values[middle].UpperBound()
+		order := 0
+		if has {
+			order = s.compare(upper, value)
 		}
+		if has && (order < 0 || order == 0 && bound == ranges.OpenBound) {
+			lo = middle + 1
+		} else {
+			hi = middle
+		}
+	}
+	if lo < len(values) && values[lo].Contains(value) {
+		return values[lo], true
 	}
 	return ranges.Range[T]{}, false
 }
+
+// Encloses reports whether one stored range encloses value; an empty value is
+// always enclosed. The only candidate is the first stored range whose upper
+// bound reaches value's lower bound. Complexity is O(log r).
 func (s *RangeSet[T]) Encloses(value ranges.Range[T]) bool {
 	if value.IsEmpty() {
 		return true
 	}
-	for _, candidate := range s.values {
-		if candidate.Encloses(value) {
-			return true
+	values := s.values
+	lo, hi := 0, len(values)
+	for lo < hi {
+		middle := int(uint(lo+hi) >> 1)
+		if lowerAfterUpper(s.compare, value, values[middle]) > 0 {
+			lo = middle + 1
+		} else {
+			hi = middle
 		}
 	}
-	return false
+	return lo < len(values) && values[lo].Encloses(value)
 }
 func (s *RangeSet[T]) Span() (ranges.Range[T], bool) {
 	if s == nil || len(s.values) == 0 {

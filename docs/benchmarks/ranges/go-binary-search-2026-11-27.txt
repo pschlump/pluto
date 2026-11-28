@@ -1,0 +1,24 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/range_set
+cpu: Apple M4 Max
+BenchmarkRangeSet-14             	 8127519	       147.1 ns/op	      11 B/op	       0 allocs/op
+BenchmarkRangeSet-14             	 8758137	       141.0 ns/op	      11 B/op	       0 allocs/op
+BenchmarkRangeSet-14             	 8584770	       138.6 ns/op	      11 B/op	       0 allocs/op
+BenchmarkRangeSetIteration-14    	  621624	      1931 ns/op	   18432 B/op	       1 allocs/op
+BenchmarkRangeSetIteration-14    	  622512	      1921 ns/op	   18432 B/op	       1 allocs/op
+BenchmarkRangeSetIteration-14    	  629173	      1855 ns/op	   18432 B/op	       1 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/range_set	10.755s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/range_map
+cpu: Apple M4 Max
+BenchmarkRangeMap-14             	 4603551	       259.3 ns/op	      11 B/op	       0 allocs/op
+BenchmarkRangeMap-14             	 4664900	       260.5 ns/op	      11 B/op	       0 allocs/op
+BenchmarkRangeMap-14             	 4533910	       260.3 ns/op	      11 B/op	       0 allocs/op
+BenchmarkRangeMapIteration-14    	  470498	      2417 ns/op	   27264 B/op	       1 allocs/op
+BenchmarkRangeMapIteration-14    	  505298	      2404 ns/op	   27264 B/op	       1 allocs/op
+BenchmarkRangeMapIteration-14    	  501111	      2417 ns/op	   27264 B/op	       1 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/range_map	8.146s

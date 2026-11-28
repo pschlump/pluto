@@ -11,7 +11,7 @@ package range_map
 import (
 	"cmp"
 	"iter"
-	"sort"
+	"slices"
 
 	"github.com/pschlump/pluto/ranges"
 )
@@ -149,8 +149,69 @@ func (m *RangeMap[T, V]) makeBounds(lower T, lowerOpen, hasLower bool, upper T, 
 	return m.canonical(makeBounds(m.compare, lower, lowerOpen, hasLower, upper, upperOpen, hasUpper))
 }
 
+// lowerAfterUpper orders left's lower bound against right's upper bound under
+// compare: positive when left's lower bound lies strictly after right's upper
+// bound, otherwise zero or negative. A missing bound is infinite, and touching
+// open endpoints count as strictly after — exactly one half of
+// ranges.Range.IsConnected.
+func lowerAfterUpper[T any](compare func(T, T) int, left, right ranges.Range[T]) int {
+	lower, lowerBound, hasLower := left.LowerBound()
+	upper, upperBound, hasUpper := right.UpperBound()
+	if !hasLower || !hasUpper {
+		return -1
+	}
+	order := compare(lower, upper)
+	if order == 0 && lowerBound == ranges.OpenBound && upperBound == ranges.OpenBound {
+		return 1
+	}
+	return order
+}
+
+// connectedWindow returns the half-open index window [lo, hi) of the entries
+// whose ranges are connected to value. Entry ranges are sorted and disjoint
+// (though possibly touching), so their upper bounds ascend with their lower
+// bounds and both halves of IsConnected are monotone over the slice: the
+// connected entries are one contiguous run, found by two binary searches.
+// Complexity is O(log r).
+func (m *RangeMap[T, V]) connectedWindow(value ranges.Range[T]) (int, int) {
+	entries := m.entries
+	// lo: the first entry whose upper bound reaches value's lower bound.
+	lo, end := 0, len(entries)
+	for lo < end {
+		middle := int(uint(lo+end) >> 1)
+		if lowerAfterUpper(m.compare, value, entries[middle].Range) > 0 {
+			lo = middle + 1
+		} else {
+			end = middle
+		}
+	}
+	// hi: the first entry at or after lo whose lower bound lies strictly after
+	// value's upper bound.
+	hi, end := lo, len(entries)
+	for hi < end {
+		middle := int(uint(hi+end) >> 1)
+		if lowerAfterUpper(m.compare, entries[middle].Range, value) > 0 {
+			end = middle
+		} else {
+			hi = middle + 1
+		}
+	}
+	return lo, hi
+}
+
+// splice replaces entries[lo:hi] with pieces, in place when the counts match.
+func (m *RangeMap[T, V]) splice(lo, hi int, pieces []Entry[T, V]) {
+	if len(pieces) == hi-lo {
+		copy(m.entries[lo:hi], pieces)
+		return
+	}
+	m.entries = slices.Replace(m.entries, lo, hi, pieces...)
+}
+
 // Put replaces all mappings overlapping value, preserving non-overlapping left
-// and right fragments of partially covered entries.
+// and right fragments of partially covered entries. Complexity is O(log r)
+// comparisons to locate the affected run plus an O(r) worst-case element shift
+// (a memmove; amortized slice growth only).
 func (m *RangeMap[T, V]) Put(value ranges.Range[T], mapped V) {
 	if m == nil || m.compare == nil {
 		panic("range_map: Put on zero-value RangeMap")
@@ -159,8 +220,24 @@ func (m *RangeMap[T, V]) Put(value ranges.Range[T], mapped V) {
 	if value.IsEmpty() {
 		return
 	}
-	result := make([]Entry[T, V], 0, len(m.entries)+1)
-	for _, existing := range m.entries {
+	lo, hi := m.connectedWindow(value)
+	// The run's untouched (merely touching) entries and fragments, plus the new
+	// entry, put back in lower-bound order. Only the run's two end entries can
+	// survive in any form, so the replacement usually fits the fixed buffer.
+	var buffer [5]Entry[T, V]
+	pieces := m.subtract(buffer[:0], m.entries[lo:hi], value)
+	pieces = append(pieces, Entry[T, V]{Range: value, Value: mapped})
+	// Insertion sort, stable: the new entry was appended last, as before.
+	for index := len(pieces) - 1; index > 0 && lowerCompare(pieces[index-1], pieces[index].Range) > 0; index-- {
+		pieces[index-1], pieces[index] = pieces[index], pieces[index-1]
+	}
+	m.splice(lo, hi, pieces)
+}
+
+// subtract appends to result what remains of each window entry after removing
+// value, in order. Entries that merely touch value are kept unchanged.
+func (m *RangeMap[T, V]) subtract(result, window []Entry[T, V], value ranges.Range[T]) []Entry[T, V] {
+	for _, existing := range window {
 		if !existing.Range.IsConnected(value) || existing.Range.Intersection(value).IsEmpty() {
 			result = append(result, existing)
 			continue
@@ -172,24 +249,31 @@ func (m *RangeMap[T, V]) Put(value ranges.Range[T], mapped V) {
 		if cutHasLower {
 			order := m.compare(oldLower, cutLower)
 			left := !oldHasLower || order < 0 || order == 0 && oldLowerBound == ranges.ClosedBound && cutLowerBound == ranges.OpenBound
+			// A fragment can canonicalize to empty — the remainder of an
+			// unbounded entry past a finite domain's maximum is (max,max) — and
+			// an empty range is never stored.
 			if left {
-				result = append(result, Entry[T, V]{Range: m.makeBounds(oldLower, oldLowerBound == ranges.OpenBound, oldHasLower, cutLower, cutLowerBound == ranges.ClosedBound, true), Value: existing.Value})
+				if fragment := m.makeBounds(oldLower, oldLowerBound == ranges.OpenBound, oldHasLower, cutLower, cutLowerBound == ranges.ClosedBound, true); !fragment.IsEmpty() {
+					result = append(result, Entry[T, V]{Range: fragment, Value: existing.Value})
+				}
 			}
 		}
 		if cutHasUpper {
 			order := m.compare(cutUpper, oldUpper)
 			right := !oldHasUpper || order < 0 || order == 0 && oldUpperBound == ranges.ClosedBound && cutUpperBound == ranges.OpenBound
 			if right {
-				result = append(result, Entry[T, V]{Range: m.makeBounds(cutUpper, cutUpperBound == ranges.ClosedBound, true, oldUpper, oldUpperBound == ranges.OpenBound, oldHasUpper), Value: existing.Value})
+				if fragment := m.makeBounds(cutUpper, cutUpperBound == ranges.ClosedBound, true, oldUpper, oldUpperBound == ranges.OpenBound, oldHasUpper); !fragment.IsEmpty() {
+					result = append(result, Entry[T, V]{Range: fragment, Value: existing.Value})
+				}
 			}
 		}
 	}
-	result = append(result, Entry[T, V]{Range: value, Value: mapped})
-	sort.SliceStable(result, func(i, j int) bool { return lowerCompare(result[i], result[j].Range) < 0 })
-	m.entries = result
+	return result
 }
 
 // Remove deletes value's interval and preserves exact boundary fragments.
+// Complexity is O(log r) comparisons to locate the affected run plus an O(r)
+// worst-case element shift (a memmove; amortized slice growth only).
 func (m *RangeMap[T, V]) Remove(value ranges.Range[T]) {
 	if m == nil || m.compare == nil {
 		panic("range_map: Remove on zero-value RangeMap")
@@ -198,46 +282,44 @@ func (m *RangeMap[T, V]) Remove(value ranges.Range[T]) {
 	if value.IsEmpty() {
 		return
 	}
-	result := make([]Entry[T, V], 0, len(m.entries))
-	for _, existing := range m.entries {
-		if !existing.Range.IsConnected(value) || existing.Range.Intersection(value).IsEmpty() {
-			result = append(result, existing)
-			continue
-		}
-		oldLower, oldLowerBound, oldHasLower := existing.Range.LowerBound()
-		oldUpper, oldUpperBound, oldHasUpper := existing.Range.UpperBound()
-		cutLower, cutLowerBound, cutHasLower := value.LowerBound()
-		cutUpper, cutUpperBound, cutHasUpper := value.UpperBound()
-		if cutHasLower {
-			order := m.compare(oldLower, cutLower)
-			left := !oldHasLower || order < 0 || order == 0 && oldLowerBound == ranges.ClosedBound && cutLowerBound == ranges.OpenBound
-			if left {
-				result = append(result, Entry[T, V]{Range: m.makeBounds(oldLower, oldLowerBound == ranges.OpenBound, oldHasLower, cutLower, cutLowerBound == ranges.ClosedBound, true), Value: existing.Value})
-			}
-		}
-		if cutHasUpper {
-			order := m.compare(cutUpper, oldUpper)
-			right := !oldHasUpper || order < 0 || order == 0 && oldUpperBound == ranges.ClosedBound && cutUpperBound == ranges.OpenBound
-			if right {
-				result = append(result, Entry[T, V]{Range: m.makeBounds(cutUpper, cutUpperBound == ranges.ClosedBound, true, oldUpper, oldUpperBound == ranges.OpenBound, oldHasUpper), Value: existing.Value})
-			}
-		}
+	lo, hi := m.connectedWindow(value)
+	if lo == hi {
+		return
 	}
-	m.entries = result
+	var buffer [4]Entry[T, V]
+	m.splice(lo, hi, m.subtract(buffer[:0], m.entries[lo:hi], value))
 }
 
+// Get returns the value mapped at point. Complexity is O(log r).
 func (m *RangeMap[T, V]) Get(point T) (V, bool) {
 	_, value, found := m.RangeContaining(point)
 	return value, found
 }
+
+// RangeContaining returns the entry containing point. Entry ranges are sorted
+// and disjoint, so the only candidate is the first entry whose upper bound
+// reaches point. Complexity is O(log r).
 func (m *RangeMap[T, V]) RangeContaining(point T) (ranges.Range[T], V, bool) {
 	if m == nil {
 		return ranges.Range[T]{}, *new(V), false
 	}
-	for _, entry := range m.entries {
-		if entry.Range.Contains(point) {
-			return entry.Range, entry.Value, true
+	entries := m.entries
+	lo, hi := 0, len(entries)
+	for lo < hi {
+		middle := int(uint(lo+hi) >> 1)
+		upper, bound, has := entries[middle].Range.UpperBound()
+		order := 0
+		if has {
+			order = m.compare(upper, point)
 		}
+		if has && (order < 0 || order == 0 && bound == ranges.OpenBound) {
+			lo = middle + 1
+		} else {
+			hi = middle
+		}
+	}
+	if lo < len(entries) && entries[lo].Range.Contains(point) {
+		return entries[lo].Range, entries[lo].Value, true
 	}
 	return ranges.Range[T]{}, *new(V), false
 }

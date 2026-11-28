@@ -6,8 +6,22 @@ entry. Remove subtracts exactly. Adjacent entries are not coalesced even when
 values are equal. Empty ranges are no-ops. Optional discrete domains canonicalize
 inputs and fragments.
 
-Sorted-slice Put/Remove are O(r), point lookup is O(r), and ordered iteration is
-O(r), where r is the entry count. `Get` distinguishes absence from a zero value;
+Storage is a sorted slice (r = entry count). Put/Remove binary-search the
+contiguous run of entries connected to the argument (`connectedWindow`),
+rebuild only that run in a fixed stack buffer, and splice it in place: O(log r)
+comparisons plus an O(r) worst-case memmove, no per-call allocation. Put's
+new entry is placed by one insertion step (the rest of the run is already
+ordered), replacing the former whole-slice `sort.SliceStable`. Get and
+RangeContaining are O(log r); ordered iteration is O(r).
+
+**The invariant the binary searches depend on:** entries are sorted, pairwise
+disjoint (touching is allowed — entries are not coalesced), and never empty, so
+upper bounds ascend with lower bounds and both halves of `IsConnected` are
+monotone. A stored empty range breaks that and silently corrupts lookups;
+`subtract` drops fragments that canonicalize to empty. (Before 2026-11-27 the
+whole-slice code stored one: overwriting up to a finite domain's maximum inside
+an unbounded entry left `(max,max)`.) `reference_test.go` keeps the original
+whole-slice algorithms as differential oracles. `Get` distinguishes absence from a zero value;
 `RangeContaining` returns the stored range too. `SubRangeMap`, `Clone`, `Entries`,
 and `EntriesSlice` are snapshots. Equality takes a value function and therefore
 supports non-comparable V.

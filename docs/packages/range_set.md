@@ -6,10 +6,25 @@ Add coalesces connected ranges; discrete construction canonicalizes first and
 also merges successor-adjacent ranges. Remove preserves exact open/closed left
 and right fragments.
 
-The implementation uses a sorted slice: Add/Remove are O(r), point containment
-and range-containing queries are O(r), and iteration is O(r), where r is the
-number of stored ranges. This favors compact storage and straightforward exact
-boundary behavior; benchmarks compare against Guava's tree implementation.
+The implementation uses a sorted slice (r = number of stored ranges).
+Add/Remove binary-search the contiguous run of stored ranges connected to the
+argument (`connectedWindow`) and splice it in place with `slices.Replace`:
+O(log r) comparisons plus an O(r) worst-case memmove, no per-call allocation.
+Contains/RangeContaining/Encloses are O(log r); iteration is O(r).
+
+**The invariant the binary searches depend on:** stored ranges are sorted,
+pairwise disconnected, and never empty. Disjointness makes upper bounds ascend
+with lower bounds, which makes both halves of `IsConnected` (`lowerAfterUpper`)
+monotone over the slice. A stored empty range such as `(a,a)` breaks the
+monotonicity and silently corrupts lookups — so every fragment `subtract`
+produces is checked with `IsEmpty` before it is stored. (Before 2026-11-27 the
+whole-slice code stored one: removing up to a finite domain's maximum from an
+unbounded range left the canonical remainder `(max,max)`.) The successor
+adjacency loops in Add are unreachable for canonical ranges (Canonical opens
+every closed upper bound that has a successor) but are kept so Add matches the
+`adjacent` predicate exactly. `reference_test.go` holds the original
+whole-slice algorithms as differential oracles — keep it in step with any
+semantic change.
 
 `Complement` covers the full comparator universe, including unbounded ends.
 `SubRangeSet`, `Complement`, `Clone`, `Slice`, and `All` return independent

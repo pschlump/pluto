@@ -18,6 +18,9 @@ var benchmarkRangeMapResult int
 func BenchmarkRangeMap(b *testing.B) {
 	corpus := readRangeMapCorpus(b)
 	mapped := NewRangeMap[int, string]()
+	// Count into a local and publish once, as the JMH method returns its value:
+	// a package-global increment inside the loop is extra work Java never does.
+	hits := 0
 	b.ReportAllocs()
 	b.ResetTimer()
 	for index := 0; index < b.N; index++ {
@@ -29,10 +32,11 @@ func BenchmarkRangeMap(b *testing.B) {
 			mapped.Remove(ranges.ClosedOpen(operation.Low, operation.High))
 		default:
 			if _, found := mapped.Get(operation.Point); found {
-				benchmarkRangeMapResult++
+				hits++
 			}
 		}
 	}
+	benchmarkRangeMapResult = hits
 }
 
 func BenchmarkRangeMapIteration(b *testing.B) {
@@ -42,9 +46,11 @@ func BenchmarkRangeMapIteration(b *testing.B) {
 	}
 	b.ReportAllocs()
 	for b.Loop() {
+		count := 0
 		for range mapped.Entries() {
-			benchmarkRangeMapResult++
+			count++
 		}
+		benchmarkRangeMapResult = count
 	}
 }
 

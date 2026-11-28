@@ -6,5 +6,21 @@ canonicalize before merging integer-successor ranges. Queries include Contains,
 RangeContaining, Encloses, Span, Complement, SubRangeSet, ordered iteration,
 clone, and equality. Derived sets are snapshots, not live views.
 
+== Complexity
+
+Storage is a sorted slice of r disjoint ranges. Mutations binary-search the
+run of stored ranges they touch and splice it in place, so their comparison
+count is logarithmic; the splice itself is a memmove of the slice tail.
+
+[cols="2,3"]
+|===
+| Operation | Cost
+
+| `Add`, `Remove` | O(log r) comparisons + O(r) worst-case memmove; amortized growth only, no per-call allocation
+| `Contains`, `RangeContaining`, `Encloses` | O(log r)
+| `Span`, `Len`, `IsEmpty` | O(1)
+| `Slice`, `All`, `Clone`, `Complement`, `SubRangeSet`, `Equal` | O(r) (snapshots copy)
+|===
+
 `range_set_ts` wraps the same contract with an RWMutex, atomic writes, snapshot
 iterators/derived values, and opposite-way equality without nested locks.

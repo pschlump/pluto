@@ -18,6 +18,9 @@ var benchmarkRangeSetResult int
 func BenchmarkRangeSet(b *testing.B) {
 	corpus := readRangeSetCorpus(b)
 	set := NewRangeSet[int]()
+	// Count into a local and publish once, as the JMH method returns its value:
+	// a package-global increment inside the loop is extra work Java never does.
+	hits := 0
 	b.ReportAllocs()
 	b.ResetTimer()
 	for index := 0; index < b.N; index++ {
@@ -29,10 +32,11 @@ func BenchmarkRangeSet(b *testing.B) {
 			set.Remove(ranges.ClosedOpen(operation.Low, operation.High))
 		default:
 			if set.Contains(operation.Point) {
-				benchmarkRangeSetResult++
+				hits++
 			}
 		}
 	}
+	benchmarkRangeSetResult = hits
 }
 
 func BenchmarkRangeSetIteration(b *testing.B) {
@@ -42,9 +46,11 @@ func BenchmarkRangeSetIteration(b *testing.B) {
 	}
 	b.ReportAllocs()
 	for b.Loop() {
+		count := 0
 		for range set.All() {
-			benchmarkRangeSetResult++
+			count++
 		}
+		benchmarkRangeSetResult = count
 	}
 }
 
