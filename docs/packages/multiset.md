@@ -2,10 +2,31 @@
 
 ## Representation and invariants
 
-`HashMultiset[T]` composes `hash_grow.HashTab[Entry[T]]`; entry equality and
-hashing inspect only `Entry.Value`. The facade retains the value-level functions
-for cloning, algebra adoption, and the twin. `size` is the sum of all entry
-counts. The table contains exactly `DistinctLen` entries, all with Count > 0.
+`HashMultiset[T]` owns a private open-addressing table (`table.go`,
+`table[T, int]`): each slot holds the stored hash, the value, and its count.
+The facade retains the value-level functions for cloning, algebra adoption,
+and the twin. `size` is the sum of all entry counts. The table contains
+exactly `DistinctLen` entries, all with Count > 0.
+
+Table invariants (checked by `checkTable` in `table_test.go`; keep them):
+
+- power-of-two slot count, `shift == 64 - log2(len(slots))`, home slot =
+  high bits of `hash * fibMul` (Fibonacci hashing — weak caller hashes such as
+  identity integers must not cluster under a plain mask);
+- stored hash 0 marks an empty slot, so caller hashes of 0 are remapped to 1;
+- linear probing with **backward-shift deletion, no tombstones** — a probe
+  stops at the first empty slot; `deleteAt`'s move test is
+  `(next-home)&mask >= (next-hole)&mask`;
+- load factor ≤ 3/4 after every insert.
+
+The hot-path rule is one hash and one probe run per operation: `find` returns
+the slot index, and Add/Remove/SetCount update the count in place or insert
+at the returned empty slot. Do not reintroduce a Count-then-Insert sequence.
+Representative semantics are pinned by `TestCustomFunctions`: HashMultiset
+stores the **latest** equal value on any count change (hash_grow's replacing
+`Insert` did this, and callers can observe it with custom equality), while
+LinkedHashMultiset keeps the **first** (`TestLinkedHashMultisetKeepsFirstRepresentative`).
+Remove with zero occurrences and SetCount to the same count change nothing.
 
 `TreeMultiset[T]` is a dedicated AVL tree rather than a `tree_set` facade. Each
 node stores one value, its positive count, height, and children. The tree keeps
@@ -74,9 +95,24 @@ heap measurement made by a different method.
 
 ## Insertion-ordered variant
 
-`LinkedHashMultiset` stores counts in `linked_hash_map` and yields distinct
-entries in first-insertion order. Updates retain position; complete removal and
-reinsertion appends. Its operations and count algebra match `HashMultiset`, with
+`LinkedHashMultiset` stores counts in a private `linkedTable` (`linked_table.go`)
+and yields distinct entries in first-insertion order. Updates retain position;
+complete removal and reinsertion appends. The insertion-order list is threaded
+through the inline slots by index (`head`/`tail`/`prev`/`next`, -1 = none), so
+steady-state updates allocate nothing. Two places must keep the list
+consistent: `deleteAt` unlinks first and then, for every backward-shift move of
+a slot to the hole, calls `relink` so the moved entry's neighbours (or
+head/tail) point at its new index; `grow` re-inserts by walking the list so the
+order survives resizing. `checkLinkedTable` verifies both against a model order
+after randomized operations with clustered and zero hashes. Do not mutate a
+plain LinkedHashMultiset while iterating it (iteration follows live indexes).
+`NewLinkedHashMultisetFunc` with a nil function panics with a `multiset:`
+message (previously the panic came from `linked_hash_map.NewFunc`).
+
+TreeMultiset.Add updates a present value in place after one `findNode`
+descent; only a new value takes the recursive rebalancing insert. The
+comparator idiom (`a < b`, then `b < a`) costs two `cmpstring` calls for
+strings; an equality-first variant was slower and changes NaN ordering. Its operations and count algebra match `HashMultiset`, with
 expected O(1) single-value lookup/update/removal and O(n) occurrence iteration.
 `HighestCountFirst` uses insertion order to break equal-count ties. The `_ts`
 twin provides the same operations with atomic compound writes and snapshots.

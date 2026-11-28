@@ -1,0 +1,18 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/multiset
+cpu: Apple M4 Max
+BenchmarkHashMultiset-14          	32888725	        35.20 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashMultiset-14          	33942571	        34.77 ns/op	       0 B/op	       0 allocs/op
+BenchmarkHashMultiset-14          	33188248	        34.84 ns/op	       0 B/op	       0 allocs/op
+BenchmarkTreeMultiset-14          	 6646042	       181.4 ns/op	       4 B/op	       0 allocs/op
+BenchmarkTreeMultiset-14          	 6593844	       181.5 ns/op	       4 B/op	       0 allocs/op
+BenchmarkTreeMultiset-14          	 6546471	       184.6 ns/op	       4 B/op	       0 allocs/op
+BenchmarkMapMultiset-14           	41041425	        27.96 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapMultiset-14           	41200065	        26.96 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMapMultiset-14           	41807658	        29.63 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedHashMultiset-14    	30501009	        36.37 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedHashMultiset-14    	32717530	        36.74 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedHashMultiset-14    	30784326	        33.45 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/multiset	15.139s

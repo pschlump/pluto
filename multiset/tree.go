@@ -117,21 +117,27 @@ func (m *TreeMultiset[T]) Count(value T) int {
 }
 
 // Add adds occurrences of value and returns its resulting count.
+// A present value is updated in place after one descent; only a new value
+// pays the rebalancing insert.
+// Complexity is O(log n).
 func (m *TreeMultiset[T]) Add(value T, occurrences int) int {
 	checkedCount("Add", occurrences)
-	old := m.Count(value)
 	if occurrences == 0 {
-		return old
+		return m.Count(value)
 	}
 	m.writeContract("Add")
-	checkedAddition(old, occurrences)
+	if node := m.findNode(value); node != nil {
+		checkedAddition(node.count, occurrences)
+		checkedAddition(m.size, occurrences)
+		node.count += occurrences
+		m.size += occurrences
+		return node.count
+	}
 	checkedAddition(m.size, occurrences)
 	m.root = m.insert(m.root, value, occurrences)
 	m.size += occurrences
-	if old == 0 {
-		m.distinct++
-	}
-	return old + occurrences
+	m.distinct++
+	return occurrences
 }
 
 // Remove removes up to occurrences of value and returns its resulting count.

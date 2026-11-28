@@ -1,0 +1,27 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/multimap
+cpu: Apple M4 Max
+BenchmarkListMultimap-14          	 1743579	      1114 ns/op	    4617 B/op	       0 allocs/op
+BenchmarkListMultimap-14          	 1716291	      1108 ns/op	    4545 B/op	       0 allocs/op
+BenchmarkListMultimap-14          	 1665878	      1146 ns/op	    4414 B/op	       0 allocs/op
+BenchmarkSetMultimap-14           	17506268	        59.63 ns/op	      26 B/op	       0 allocs/op
+BenchmarkSetMultimap-14           	20182666	        59.32 ns/op	      26 B/op	       0 allocs/op
+BenchmarkSetMultimap-14           	19530534	        58.30 ns/op	      26 B/op	       0 allocs/op
+BenchmarkSortedSetMultimap-14     	16023232	        79.45 ns/op	      31 B/op	       0 allocs/op
+BenchmarkSortedSetMultimap-14     	15310231	        79.11 ns/op	      31 B/op	       0 allocs/op
+BenchmarkSortedSetMultimap-14     	15732296	        75.24 ns/op	      31 B/op	       0 allocs/op
+BenchmarkListMap-14               	 4260241	      1124 ns/op	      33 B/op	       0 allocs/op
+BenchmarkListMap-14               	 3983826	      1086 ns/op	      33 B/op	       0 allocs/op
+BenchmarkListMap-14               	 4283452	      1106 ns/op	      33 B/op	       0 allocs/op
+BenchmarkSetMap-14                	28015046	        42.67 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSetMap-14                	27063522	        42.70 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSetMap-14                	27969446	        42.55 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedListMultimap-14    	 1000000	     13369 ns/op	    2646 B/op	       0 allocs/op
+BenchmarkLinkedListMultimap-14    	 1000000	     12317 ns/op	    2646 B/op	       0 allocs/op
+BenchmarkLinkedListMultimap-14    	 1000000	     13383 ns/op	    2646 B/op	       0 allocs/op
+BenchmarkLinkedHashMultimap-14    	15975122	        72.41 ns/op	      34 B/op	       0 allocs/op
+BenchmarkLinkedHashMultimap-14    	16682257	        72.43 ns/op	      34 B/op	       0 allocs/op
+BenchmarkLinkedHashMultimap-14    	16117730	        73.99 ns/op	      34 B/op	       0 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/multimap	77.102s

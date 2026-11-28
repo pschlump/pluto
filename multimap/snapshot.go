@@ -31,10 +31,10 @@ func (c *core[K, V, C]) AsMap() MapSnapshot[K, V] {
 		return MapSnapshot[K, V]{}
 	}
 	result := MapSnapshot[K, V]{eq: c.eq, size: c.Len()}
-	for entry := range c.tab.Values() {
+	for key, collection := range c.tab.all() {
 		result.entries = append(result.entries, MapSnapshotEntry[K, V]{
-			Key:    entry.Key,
-			Values: c.ops.values(entry.Collection),
+			Key:    key,
+			Values: c.ops.values(collection),
 		})
 	}
 	return result

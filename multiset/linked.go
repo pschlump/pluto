@@ -8,25 +8,33 @@ package multiset
 
 import (
 	"fmt"
+	"hash/maphash"
 	"iter"
 	"sort"
-
-	"github.com/pschlump/pluto/linked_hash_map"
 )
 
 // LinkedHashMultiset is a hash multiset whose distinct values iterate in first
 // insertion order. Removing a value entirely and reinserting it appends it.
+// Updating a present value keeps its first representative and its position.
+// Do not mutate a plain LinkedHashMultiset while iterating over it.
 type LinkedHashMultiset[T any] struct {
-	counts *linked_hash_map.Map[T, int]
+	counts *linkedTable[T, int]
 	size   int
 }
 
 func NewLinkedHashMultiset[T comparable]() *LinkedHashMultiset[T] {
-	return &LinkedHashMultiset[T]{counts: linked_hash_map.New[T, int]()}
+	seed := maphash.MakeSeed()
+	return &LinkedHashMultiset[T]{counts: newLinkedTable[T, int](
+		func(a, b T) bool { return a == b },
+		func(value T) uint64 { return maphash.Comparable(seed, value) },
+	)}
 }
 
 func NewLinkedHashMultisetFunc[T any](eq func(T, T) bool, hash func(T) uint64) *LinkedHashMultiset[T] {
-	return &LinkedHashMultiset[T]{counts: linked_hash_map.NewFunc[T, int](eq, hash)}
+	if eq == nil || hash == nil {
+		panic("multiset: NewLinkedHashMultisetFunc requires non-nil equality and hash functions")
+	}
+	return &LinkedHashMultiset[T]{counts: newLinkedTable[T, int](eq, hash)}
 }
 
 func FromSliceLinked[T comparable](values []T) *LinkedHashMultiset[T] {
@@ -51,72 +59,108 @@ func (m *LinkedHashMultiset[T]) Eq() func(T, T) bool {
 	if m == nil || m.counts == nil {
 		return nil
 	}
-	return m.counts.Eq()
+	return m.counts.eq
 }
 
 func (m *LinkedHashMultiset[T]) Hash() func(T) uint64 {
 	if m == nil || m.counts == nil {
 		return nil
 	}
-	return m.counts.Hash()
+	return m.counts.hash
 }
 
+// Count returns the number of occurrences of value.
+// Complexity is O(1) expected.
 func (m *LinkedHashMultiset[T]) Count(value T) int {
-	if m == nil || m.counts == nil {
+	if m == nil {
 		return 0
 	}
-	count, _ := m.counts.Get(value)
-	return count
+	if count := m.counts.lookup(value); count != nil {
+		return *count
+	}
+	return 0
 }
 
+// Add adds occurrences of value and returns its resulting count. A new value
+// is appended to the insertion order; a present value keeps its position.
+// Complexity is O(1) expected: one hash and one probe sequence.
 func (m *LinkedHashMultiset[T]) Add(value T, occurrences int) int {
 	checkedCount("Add", occurrences)
-	old := m.Count(value)
 	if occurrences == 0 {
-		return old
+		return m.Count(value)
 	}
 	m.writeContract("Add")
-	checkedAddition(old, occurrences)
+	index, h, found := m.counts.find(value)
+	if found {
+		s := &m.counts.slots[index]
+		checkedAddition(s.val, occurrences)
+		checkedAddition(m.size, occurrences)
+		s.val += occurrences
+		m.size += occurrences
+		return s.val
+	}
 	checkedAddition(m.size, occurrences)
-	m.counts.Put(value, old+occurrences)
+	m.counts.insertAt(index, h, value, occurrences)
 	m.size += occurrences
-	return old + occurrences
+	return occurrences
 }
 
+// Remove removes up to occurrences of value and returns its resulting count.
+// Complexity is O(1) expected.
 func (m *LinkedHashMultiset[T]) Remove(value T, occurrences int) int {
 	checkedCount("Remove", occurrences)
-	old := m.Count(value)
-	if occurrences == 0 || old == 0 {
-		return old
-	}
-	if occurrences >= old {
-		m.counts.Delete(value)
-		m.size -= old
+	if m == nil || m.counts == nil || m.counts.length == 0 {
 		return 0
 	}
-	m.counts.Put(value, old-occurrences)
-	m.size -= occurrences
-	return old - occurrences
+	index, _, found := m.counts.find(value)
+	if !found {
+		return 0
+	}
+	s := &m.counts.slots[index]
+	if occurrences < s.val {
+		s.val -= occurrences
+		m.size -= occurrences
+		return s.val
+	}
+	m.size -= s.val
+	m.counts.deleteAt(index)
+	return 0
 }
 
+// SetCount changes value's count and returns its previous count. A zero count
+// removes the value.
+// Complexity is O(1) expected.
 func (m *LinkedHashMultiset[T]) SetCount(value T, count int) int {
 	checkedCount("SetCount", count)
-	old := m.Count(value)
-	if old == count {
-		return old
-	}
 	if count == 0 {
-		m.counts.Delete(value)
+		if m == nil || m.counts == nil || m.counts.length == 0 {
+			return 0
+		}
+		index, _, found := m.counts.find(value)
+		if !found {
+			return 0
+		}
+		old := m.counts.slots[index].val
 		m.size -= old
+		m.counts.deleteAt(index)
 		return old
 	}
 	m.writeContract("SetCount")
-	if count > old {
-		checkedAddition(m.size, count-old)
+	index, h, found := m.counts.find(value)
+	if found {
+		s := &m.counts.slots[index]
+		old := s.val
+		if count > old {
+			checkedAddition(m.size, count-old)
+		}
+		s.val = count
+		m.size += count - old
+		return old
 	}
-	m.counts.Put(value, count)
-	m.size += count - old
-	return old
+	checkedAddition(m.size, count)
+	m.counts.insertAt(index, h, value, count)
+	m.size += count
+	return 0
 }
 
 func (m *LinkedHashMultiset[T]) DeleteAll(value T) int { return m.SetCount(value, 0) }
@@ -131,14 +175,14 @@ func (m *LinkedHashMultiset[T]) DistinctLen() int {
 	if m == nil || m.counts == nil {
 		return 0
 	}
-	return m.counts.Len()
+	return m.counts.length
 }
 func (m *LinkedHashMultiset[T]) IsEmpty() bool { return m.Len() == 0 }
 func (m *LinkedHashMultiset[T]) Clear() {
 	if m == nil || m.counts == nil {
 		return
 	}
-	m.counts.Clear()
+	m.counts.clear()
 	m.size = 0
 }
 
@@ -205,7 +249,7 @@ func (m *LinkedHashMultiset[T]) Clone() *LinkedHashMultiset[T] {
 	if m.counts == nil {
 		return &LinkedHashMultiset[T]{}
 	}
-	return &LinkedHashMultiset[T]{counts: m.counts.Clone(), size: m.size}
+	return &LinkedHashMultiset[T]{counts: m.counts.clone(), size: m.size}
 }
 
 // Entries yields distinct entries in first-insertion order.
@@ -214,8 +258,9 @@ func (m *LinkedHashMultiset[T]) Entries() iter.Seq[Entry[T]] {
 		if m == nil || m.counts == nil {
 			return
 		}
-		for value, count := range m.counts.All() {
-			if !yield(Entry[T]{Value: value, Count: count}) {
+		t := m.counts
+		for current := t.head; current >= 0; current = t.slots[current].next {
+			if s := &t.slots[current]; !yield(Entry[T]{Value: s.key, Count: s.val}) {
 				return
 			}
 		}

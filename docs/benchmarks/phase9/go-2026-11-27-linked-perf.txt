@@ -1,0 +1,9 @@
+BenchmarkLinkedHashMultiset-14    	30501009	        36.37 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedHashMultiset-14    	32717530	        36.74 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedHashMultiset-14    	30784326	        33.45 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLinkedListMultimap-14    	 1000000	     13369 ns/op	    2646 B/op	       0 allocs/op
+BenchmarkLinkedListMultimap-14    	 1000000	     12317 ns/op	    2646 B/op	       0 allocs/op
+BenchmarkLinkedListMultimap-14    	 1000000	     13383 ns/op	    2646 B/op	       0 allocs/op
+BenchmarkLinkedHashMultimap-14    	15975122	        72.41 ns/op	      34 B/op	       0 allocs/op
+BenchmarkLinkedHashMultimap-14    	16682257	        72.43 ns/op	      34 B/op	       0 allocs/op
+BenchmarkLinkedHashMultimap-14    	16117730	        73.99 ns/op	      34 B/op	       0 allocs/op

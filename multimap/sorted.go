@@ -68,6 +68,9 @@ func NewSortedSetMultimapFunc[K any, V any](keyEq func(K, K) bool, keyHash func(
 			})
 			return index < len(values) && valueCompare(values[index], value) == 0
 		},
+		addAll: func(values []V, batch []V) ([]V, int) {
+			return mergeSortedBatch(values, batch, valueCompare)
+		},
 		length: func(values []V) int { return len(values) },
 		values: func(values []V) []V { return slices.Clone(values) },
 		replace: func(values []V) []V {
@@ -90,6 +93,60 @@ func NewSortedSetMultimapFunc[K any, V any](keyEq func(K, K) bool, keyHash func(
 			return result[:write]
 		},
 	}, func(a, b V) bool { return valueCompare(a, b) == 0 })}
+}
+
+// sortedInsert is one value of a sorted PutAll batch and the index in the
+// existing sorted collection before which it belongs.
+type sortedInsert[V any] struct {
+	value V
+	at    int
+}
+
+// mergeSortedBatch adds batch to the sorted duplicate-free values and returns
+// the result and the number of values added. It keeps exactly the
+// representatives the old copy/stable-sort/dedupe rebuild kept: an existing
+// value beats an equal batch value, and the first of equal batch values wins.
+// Every comparator call happens before values is touched, so a panicking
+// comparator leaves values unchanged. The merge is done in place from the
+// back after one growth. Complexity is O(v + k log k).
+func mergeSortedBatch[V any](values []V, batch []V, compare func(V, V) int) ([]V, int) {
+	inserts := make([]sortedInsert[V], len(batch))
+	for index, value := range batch {
+		inserts[index].value = value
+	}
+	slices.SortStableFunc(inserts, func(a, b sortedInsert[V]) int { return compare(a.value, b.value) })
+	fresh := 0
+	position := 0
+	for read := range inserts {
+		if fresh > 0 && compare(inserts[fresh-1].value, inserts[read].value) == 0 {
+			continue // a later equal batch value: the first one wins
+		}
+		for position < len(values) && compare(values[position], inserts[read].value) < 0 {
+			position++
+		}
+		if position < len(values) && compare(values[position], inserts[read].value) == 0 {
+			continue // already present: the existing representative wins
+		}
+		inserts[fresh] = sortedInsert[V]{value: inserts[read].value, at: position}
+		fresh++
+	}
+	if fresh == 0 {
+		return values, 0
+	}
+	oldLength := len(values)
+	values = slices.Grow(values, fresh)[:oldLength+fresh]
+	write := len(values) - 1
+	read := oldLength - 1
+	for insert := fresh - 1; insert >= 0; insert-- {
+		for read >= inserts[insert].at {
+			values[write] = values[read]
+			write--
+			read--
+		}
+		values[write] = inserts[insert].value
+		write--
+	}
+	return values, fresh
 }
 
 func compareValues[V cmp.Ordered](a, b V) int {

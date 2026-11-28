@@ -317,7 +317,9 @@ the plain twin must not be mutated while an iterator runs.
 Count-aware multisets with `Add`/`Remove`/`SetCount`, total and distinct sizes,
 entry and occurrence iteration, JSON, highest-count-first copies, and alias-safe
 `Union` (maximum), `Sum`, `Intersection` (minimum), and `Minus` (saturating).
-`HashMultiset` uses `hash_grow`; `LinkedHashMultiset` adds first-insertion order;
+`HashMultiset` uses a private one-probe open-addressing count table;
+`LinkedHashMultiset` adds first-insertion order (an index-linked list through
+the same kind of table);
 `TreeMultiset` uses a dedicated AVL tree with O(log n) navigation and
 O(log n + k) open/closed range snapshots. Counts and sizes are `int`; negative
 counts and overflow panic, and zero counts remove or do nothing. `multiset_ts`

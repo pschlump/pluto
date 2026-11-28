@@ -2,24 +2,45 @@
 
 ## Shared representation
 
-All three variants share `core[K,V,C]`, a `hash_grow.HashTab` of key entries
-whose collection has type C. `collectionOps[V,C]` supplies collection behavior
+All three variants share `core[K,V,C]`, whose key index is the package's
+private open-addressing `table[K, C]` (`table.go`, a copy of
+`multiset/table.go` with the same invariants: power-of-two slots, Fibonacci
+home slot, hash 0 remapped, backward-shift deletion, load ≤ 3/4). The slot
+payload is the collection itself, so every operation hashes and probes the key
+once and updates the collection in place through the slot; never go back to a
+Search-then-Insert pair. `collectionOps[V,C]` supplies collection behavior
 without converting keys or values to `any`:
 
 - list C = `[]V`, with value equality for removal and membership;
-- set C = `*hash_grow.HashTab[V]`;
+- set C = `*valueSet[V]` (= `*table[V, struct{}]`);
 - sorted set C = `[]V`, with binary search, insertion sorting, and deduplication.
 
 The core tracks total associations and uses the table length for distinct keys.
 The central invariant is that no table entry has an empty collection. Every
 removal, removal-all, and empty replacement deletes such a key immediately.
-Model tests check this after randomized operations.
+Model tests check this after randomized operations (`TestMultimapClusteredHashModels`
+also checks the table invariants with colliding key/value hashes).
 
-PutAll combines a copy of existing and new values, then builds the replacement
-collection before checking size overflow and installing it. ReplaceValues does
-the same for a complete replacement. Failed batches do not partially mutate the
-map. List and sorted slice removal clear the vacated final slot so references
-are not retained.
+PutAll first checks whether the batch could overflow the association count
+(`size > maxInt - len(values)`). If it cannot, it adds in place: a new key's
+collection is built completely before the key is installed; an existing key
+is extended through `addAll` (list: one append — safe because stored slices
+are never aliased, Get/AsMap clone; sorted: `mergeSortedBatch`, which sorts a
+copy of the batch, makes every comparator call, and only then merges in place
+from the back) or value by value for sets, with `size` updated per successful
+add so a panicking caller callback leaves a consistent partial batch. A batch
+that could overflow takes `putAllRebuild`, the original copy-and-rebuild path
+that checks overflow exactly before installing. ReplaceValues still builds the
+replacement first. Overflow never exposes a partial batch. List and sorted
+slice removal clear the vacated final slot so references are not retained.
+
+Representatives are observable with custom equality and are pinned by
+`TestMultimapRepresentatives` (they reproduce the old hash_grow semantics): an
+adding Put/PutAll/ReplaceValues stores the latest key; Remove keeps the stored
+key; a set Put of a present value replaces the stored value; a set PutAll that
+adds nothing changes nothing (hence the "any absent value?" pre-scan),
+otherwise the last equal batch value wins; a sorted PutAll keeps existing values
+and the first of equal batch values.
 
 ## Snapshot contract
 
@@ -72,6 +93,15 @@ Go/Java list-map and set-map baselines. Raw and normalized results are retained
 under `docs/benchmarks/multimap/`.
 
 ## Insertion-ordered variants and live views
+
+The linked core uses the same private table for the key index
+(`table[K, *linkedKeyEntry]`) and, in the set variant, for each key's value
+index (`table[V, *linkedAssociation]`). Key order is an intrusive list through
+the key entries (`keyHead`/`keyTail`, `prevKey`/`nextKey`, first key
+representative kept in `entry.key`); every key deletion must also call
+`unlinkKey`. `put` computes every caller hash before linking anything.
+PutAll looks the key up once and pre-counts additions (`addedCount`, a
+temporary table) only when the batch could overflow.
 
 `LinkedListMultimap` and `LinkedHashMultimap` preserve first-key insertion order.
 Their flattened `Entries`, `Keys`, and `Values` follow Guava's global association

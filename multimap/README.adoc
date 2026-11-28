@@ -27,7 +27,7 @@ custom construction.
 |===
 |Operation |List |Set |Sorted set
 |Put |amortized O(1) |O(1) expected |O(v) with O(log v) lookup
-|PutAll |O(v+k) |O(v+k) expected |O((v+k) log(v+k))
+|PutAll |amortized O(k) |O(k) expected |O(v + k log k)
 |Get |O(v) |O(v) |O(v)
 |Remove / ContainsEntry |O(v) |O(1) expected |O(v) / O(log v)
 |RemoveAll |O(v) |O(v) |O(v)
@@ -42,8 +42,14 @@ custom construction.
 `v` is values for one key, `N` all associations, and `k` input values. Put
 reports whether an association was added (always true for lists). PutAll returns
 the number added. RemoveAll and ReplaceValues return former values. Empty
-replacement removes the key. PutAll and ReplaceValues compute a replacement
-before mutation, so overflow cannot expose a partial batch.
+replacement removes the key. PutAll checks overflow before mutating and then
+adds in place (a batch that could reach the `int` limit instead builds the
+combined collection first, at the former O(v+k) / O((v+k) log(v+k)) cost);
+ReplaceValues computes its replacement before mutation. Overflow therefore
+never exposes a partial batch. A caller-supplied set equality/hash function
+that panics part-way through a PutAll into an existing key can leave the values
+added so far (sizes stay consistent); a new key is installed only after its
+whole batch succeeds.
 
 == Iteration and snapshots
 

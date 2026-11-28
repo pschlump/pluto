@@ -9,14 +9,13 @@ package multimap
 import (
 	"iter"
 
-	"github.com/pschlump/pluto/hash_grow"
 	"github.com/pschlump/pluto/multiset"
 )
 
 // SetMultimap stores duplicate-free value sets. Value iteration order is
 // unspecified.
 type SetMultimap[K any, V any] struct {
-	core core[K, V, *hash_grow.HashTab[V]]
+	core core[K, V, *valueSet[V]]
 }
 
 // NewSetMultimap creates an empty set multimap using == for keys and values.
@@ -34,44 +33,50 @@ func NewSetMultimapFunc[K any, V any](keyEq func(K, K) bool, keyHash func(K) uin
 	return newSetMultimap(keyEq, keyHash, valueEq, valueHash)
 }
 
+// valueSet is one key's SetMultimap collection: the package table with an
+// empty payload. Adding an equal value stores the latest representative
+// (hash_grow.Insert's replace semantics, which the set variant always had).
+type valueSet[V any] = table[V, struct{}]
+
 func newSetMultimap[K any, V any](keyEq func(K, K) bool, keyHash func(K) uint64, valueEq func(V, V) bool, valueHash func(V) uint64) *SetMultimap[K, V] {
-	newValues := func() *hash_grow.HashTab[V] {
-		return hash_grow.NewHashTabFunc(valueEq, valueHash, 8, 0)
+	newValues := func() *valueSet[V] {
+		return newTable[V, struct{}](valueEq, valueHash)
 	}
-	return &SetMultimap[K, V]{core: newCore(keyEq, keyHash, collectionOps[V, *hash_grow.HashTab[V]]{
+	add := func(values *valueSet[V], value V) (*valueSet[V], bool) {
+		if values == nil {
+			values = newValues()
+		}
+		index, h, found := values.find(value)
+		if found {
+			values.slots[index].key = value
+			return values, false
+		}
+		values.insertAt(index, h, value, struct{}{})
+		return values, true
+	}
+	return &SetMultimap[K, V]{core: newCore(keyEq, keyHash, collectionOps[V, *valueSet[V]]{
 		unique:        true,
 		newCollection: newValues,
-		add: func(values *hash_grow.HashTab[V], value V) (*hash_grow.HashTab[V], bool) {
-			if values == nil {
-				values = newValues()
-			}
-			return values, values.Insert(value)
+		add:           add,
+		remove: func(values *valueSet[V], value V) (*valueSet[V], bool) {
+			return values, values.remove(value)
 		},
-		remove: func(values *hash_grow.HashTab[V], value V) (*hash_grow.HashTab[V], bool) {
-			if values == nil {
-				return nil, false
-			}
-			return values, values.Delete(value)
+		contains: func(values *valueSet[V], value V) bool {
+			return values.lookup(value) != nil
 		},
-		contains: func(values *hash_grow.HashTab[V], value V) bool {
-			return values != nil && values.Contains(value)
-		},
-		length: func(values *hash_grow.HashTab[V]) int {
+		length: func(values *valueSet[V]) int {
 			if values == nil {
 				return 0
 			}
-			return values.Len()
+			return values.length
 		},
-		values: func(values *hash_grow.HashTab[V]) []V {
-			if values == nil {
-				return nil
-			}
-			return values.Slice()
+		values: func(values *valueSet[V]) []V {
+			return values.keys()
 		},
-		replace: func(values []V) *hash_grow.HashTab[V] {
+		replace: func(values []V) *valueSet[V] {
 			result := newValues()
 			for _, value := range values {
-				result.Insert(value)
+				add(result, value)
 			}
 			return result
 		},

@@ -83,10 +83,24 @@ func TestLinkedMultimapModelAgainstBase(t *testing.T) {
 }
 
 func TestLinkedHashMultimapGlobalOrderModel(t *testing.T) {
+	t.Run("natural", func(t *testing.T) {
+		runLinkedHashGlobalOrderModel(t, NewLinkedHashMultimap[int, int]())
+	})
+	// Clustered hashes force long probe runs in the key index and the per-key
+	// value indexes, exercising their backward-shift deletion.
+	t.Run("clustered", func(t *testing.T) {
+		eq := func(a, b int) bool { return a == b }
+		runLinkedHashGlobalOrderModel(t, NewLinkedHashMultimapFunc(eq,
+			func(key int) uint64 { return uint64(key % 3) }, eq,
+			func(value int) uint64 { return uint64(value % 2) }))
+	})
+}
+
+func runLinkedHashGlobalOrderModel(t *testing.T, actual *LinkedHashMultimap[int, int]) {
 	random := rand.New(rand.NewSource(8128))
-	actual := NewLinkedHashMultimap[int, int]()
 	model := map[int][]int{}
 	global := []Association[int, int]{}
+	keyOrder := []int{}
 	for step := range 2000 {
 		key, value := random.Intn(11), random.Intn(17)
 		switch random.Intn(4) {
@@ -136,11 +150,20 @@ func TestLinkedHashMultimapGlobalOrderModel(t *testing.T) {
 			}
 			global = kept
 		}
+		present := slices.Contains(keyOrder, key)
 		if len(model[key]) == 0 {
 			delete(model, key)
+			if present {
+				keyOrder = slices.DeleteFunc(keyOrder, func(candidate int) bool { return candidate == key })
+			}
+		} else if !present {
+			keyOrder = append(keyOrder, key)
 		}
 		if step%25 == 0 {
 			checkLinkedInvariant(t, &actual.core)
+			if got := slices.Collect(actual.KeySet()); !slices.Equal(got, keyOrder) {
+				t.Fatalf("step %d key order %v, want %v", step, got, keyOrder)
+			}
 			if !reflect.DeepEqual(actual.EntriesSlice(), global) {
 				t.Fatalf("step %d global order mismatch\ngot=%v\nwant=%v", step, actual.EntriesSlice(), global)
 			}
@@ -163,21 +186,22 @@ func checkLinkedInvariant(t *testing.T, core *linkedCore[int, int]) {
 		if node.prev != previous {
 			t.Fatal("broken global previous link")
 		}
-		if !core.keys.ContainsKey(node.key) {
+		if core.keys.lookup(node.key) == nil {
 			t.Fatal("association refers to missing key")
 		}
 		globalCount++
 		previous = node
 	}
-	if core.tail != previous || globalCount != core.size || core.keys.Len() > core.size {
+	if core.tail != previous || globalCount != core.size || core.keys.length > core.size {
 		t.Fatal("global links or sizes are inconsistent")
 	}
 	keyTotal := 0
 	for key := range core.KeySet() {
-		entry, found := core.keys.Get(key)
-		if !found || entry.count == 0 {
+		slot := core.keys.lookup(key)
+		if slot == nil || (*slot).count == 0 || (*slot).key != key {
 			t.Fatal("empty key entry")
 		}
+		entry := *slot
 		count := 0
 		var keyPrevious *linkedAssociation[int, int]
 		for node := entry.head; node != nil; node = node.keyNext {
@@ -185,8 +209,8 @@ func checkLinkedInvariant(t *testing.T, core *linkedCore[int, int]) {
 				t.Fatal("broken per-key links")
 			}
 			if core.unique {
-				stored, found := entry.values.Get(node.associationValue)
-				if !found || stored != node {
+				stored := entry.values.lookup(node.associationValue)
+				if stored == nil || *stored != node {
 					t.Fatal("value index does not reference association")
 				}
 			}
@@ -196,7 +220,7 @@ func checkLinkedInvariant(t *testing.T, core *linkedCore[int, int]) {
 		if entry.tail != keyPrevious || count != entry.count {
 			t.Fatal("per-key count mismatch")
 		}
-		if core.unique && entry.values.Len() != count {
+		if core.unique && entry.values.length != count {
 			t.Fatal("value index count mismatch")
 		}
 		keyTotal += count

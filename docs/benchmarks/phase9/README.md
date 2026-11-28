@@ -5,10 +5,9 @@
 Rates are operations per second; higher is better. The Go column was
 measured 2026-11-27 on an Apple M4 Max, darwin/arm64, Go 1.27.0: three
 1-second runs, shown slowest–fastest, plus bytes and allocations per
-operation. Raw output is `go-2026-11-27-current.txt`, except the intern,
-baseline and linked-map rows, which are the six post-change runs (two
-interleaved rounds) in `go-2026-11-27-linked-intern-interleaved.txt` — see
-the 2026-11-27 section below.
+operation. Raw output is `go-2026-11-27-current.txt`. The intern, baseline,
+linked-map and linked-multiset rows were re-measured after the 2026-11-27
+rewrites; see the 2026-11-27 sections below and in `../multiset/README.md`.
 The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
 2026-11-22 record below and not re-run (mean ± error).
 
@@ -17,9 +16,9 @@ The Java column is Guava under JMH on OpenJDK 11.0.28, copied from the
 | Strong intern, hit/miss | 46.27–49.14M · 16 B, 1 alloc | 40.34M ± 4.19M |
 | Baseline: map + RWMutex interner | 45.33–54.79M · 16 B, 1 alloc | — |
 | Linked map put/get (Java: LinkedHashMap) | 42.52–44.94M · 0 B, 0 allocs | 132.53M ± 34.46M |
-| Linked multiset operation | 16.13–16.25M · 4 B, 0 allocs | 64.82M ± 31.19M |
+| Linked multiset operation | 27.22–29.90M · 0 B, 0 allocs | 64.82M ± 31.19M |
 | Linked list multimap operation | 139.72–140.83K · 2646 B, 0 allocs | 69.17K ± 246.28K |
-| Linked hash multimap operation | 8.03–8.09M · 60 B, 0 allocs | 33.93M ± 2.42M |
+| Linked hash multimap operation | 13.52–13.81M · 34 B, 0 allocs | 33.93M ± 2.42M |
 
 ## Original record (2026-11-22)
 

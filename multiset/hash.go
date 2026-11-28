@@ -11,16 +11,12 @@ import (
 	"hash/maphash"
 	"iter"
 	"sort"
-
-	"github.com/pschlump/pluto/hash_grow"
 )
-
-const defaultHashCapacity = 16
 
 // HashMultiset is a hash-backed multiset. Iteration order is unspecified.
 // The zero value is empty and read-only.
 type HashMultiset[T any] struct {
-	tab  *hash_grow.HashTab[Entry[T]]
+	tab  *table[T, int]
 	eq   func(a, b T) bool
 	hash func(a T) uint64
 	size int
@@ -45,16 +41,7 @@ func NewHashMultisetFunc[T any](eq func(a, b T) bool, hash func(a T) uint64) *Ha
 }
 
 func newHashMultiset[T any](eq func(a, b T) bool, hash func(a T) uint64) *HashMultiset[T] {
-	return &HashMultiset[T]{
-		tab: hash_grow.NewHashTabFunc(
-			func(a, b Entry[T]) bool { return eq(a.Value, b.Value) },
-			func(a Entry[T]) uint64 { return hash(a.Value) },
-			defaultHashCapacity,
-			0,
-		),
-		eq:   eq,
-		hash: hash,
-	}
+	return &HashMultiset[T]{tab: newTable[T, int](eq, hash), eq: eq, hash: hash}
 }
 
 // FromSlice creates a multiset containing one occurrence per slice element.
@@ -94,73 +81,107 @@ func (m *HashMultiset[T]) Hash() func(a T) uint64 {
 }
 
 // Count returns the number of occurrences of value.
+// Complexity is O(1) expected.
 func (m *HashMultiset[T]) Count(value T) int {
-	if m == nil || m.tab == nil {
+	if m == nil {
 		return 0
 	}
-	entry, found := m.tab.Search(Entry[T]{Value: value})
-	if !found {
-		return 0
+	if count := m.tab.lookup(value); count != nil {
+		return *count
 	}
-	return entry.Count
+	return 0
 }
 
 // Add adds occurrences of value and returns its resulting count. Zero is a
 // no-op. Negative counts and count or total-size overflow panic.
+// Complexity is O(1) expected: one hash and one probe sequence.
 func (m *HashMultiset[T]) Add(value T, occurrences int) int {
 	checkedCount("Add", occurrences)
-	old := m.Count(value)
 	if occurrences == 0 {
-		return old
+		return m.Count(value)
 	}
 	m.writeContract("Add")
-	checkedAddition(old, occurrences)
+	index, h, found := m.tab.find(value)
+	if found {
+		s := &m.tab.slots[index]
+		checkedAddition(s.val, occurrences)
+		checkedAddition(m.size, occurrences)
+		s.key = value // a count change stores the latest representative
+		s.val += occurrences
+		m.size += occurrences
+		return s.val
+	}
 	checkedAddition(m.size, occurrences)
-	count := old + occurrences
-	m.tab.Insert(Entry[T]{Value: value, Count: count})
+	m.tab.insertAt(index, h, value, occurrences)
 	m.size += occurrences
-	return count
+	return occurrences
 }
 
 // Remove removes up to occurrences of value and returns its resulting count.
 // Removing more than the current count removes the value entirely.
+// Complexity is O(1) expected.
 func (m *HashMultiset[T]) Remove(value T, occurrences int) int {
 	checkedCount("Remove", occurrences)
-	old := m.Count(value)
-	if occurrences == 0 || old == 0 {
-		return old
-	}
-	if occurrences >= old {
-		m.tab.Delete(Entry[T]{Value: value})
-		m.size -= old
+	if m == nil || m.tab == nil || m.tab.length == 0 {
 		return 0
 	}
-	count := old - occurrences
-	m.tab.Insert(Entry[T]{Value: value, Count: count})
-	m.size -= occurrences
-	return count
+	index, _, found := m.tab.find(value)
+	if !found {
+		return 0
+	}
+	s := &m.tab.slots[index]
+	if occurrences == 0 {
+		return s.val
+	}
+	if occurrences < s.val {
+		s.key = value
+		s.val -= occurrences
+		m.size -= occurrences
+		return s.val
+	}
+	m.size -= s.val
+	m.tab.deleteAt(index)
+	return 0
 }
 
 // SetCount changes value's count and returns its previous count. A zero count
 // removes the value.
+// Complexity is O(1) expected.
 func (m *HashMultiset[T]) SetCount(value T, count int) int {
 	checkedCount("SetCount", count)
-	old := m.Count(value)
-	if old == count {
-		return old
-	}
 	if count == 0 {
-		m.tab.Delete(Entry[T]{Value: value})
+		if m == nil || m.tab == nil || m.tab.length == 0 {
+			return 0
+		}
+		index, _, found := m.tab.find(value)
+		if !found {
+			return 0
+		}
+		old := m.tab.slots[index].val
 		m.size -= old
+		m.tab.deleteAt(index)
 		return old
 	}
 	m.writeContract("SetCount")
-	if count > old {
-		checkedAddition(m.size, count-old)
+	index, h, found := m.tab.find(value)
+	if found {
+		s := &m.tab.slots[index]
+		old := s.val
+		if count == old {
+			return old
+		}
+		if count > old {
+			checkedAddition(m.size, count-old)
+		}
+		s.key = value
+		s.val = count
+		m.size += count - old
+		return old
 	}
-	m.tab.Insert(Entry[T]{Value: value, Count: count})
-	m.size += count - old
-	return old
+	checkedAddition(m.size, count)
+	m.tab.insertAt(index, h, value, count)
+	m.size += count
+	return 0
 }
 
 // DeleteAll removes every occurrence of value and returns its previous count.
@@ -186,7 +207,7 @@ func (m *HashMultiset[T]) DistinctLen() int {
 	if m == nil || m.tab == nil {
 		return 0
 	}
-	return m.tab.Len()
+	return m.tab.length
 }
 
 // IsEmpty reports whether the multiset has no occurrences.
@@ -199,7 +220,7 @@ func (m *HashMultiset[T]) Clear() {
 	if m == nil || m.tab == nil {
 		return
 	}
-	m.tab.Truncate()
+	m.tab.clear()
 	m.size = 0
 }
 
@@ -277,7 +298,7 @@ func (m *HashMultiset[T]) Clone() *HashMultiset[T] {
 	}
 	clone := &HashMultiset[T]{eq: m.eq, hash: m.hash, size: m.size}
 	if m.tab != nil {
-		clone.tab = m.tab.Clone()
+		clone.tab = m.tab.clone()
 	}
 	return clone
 }
@@ -287,7 +308,14 @@ func (m *HashMultiset[T]) Entries() iter.Seq[Entry[T]] {
 	if m == nil || m.tab == nil {
 		return func(func(Entry[T]) bool) {}
 	}
-	return m.tab.Values()
+	t := m.tab
+	return func(yield func(Entry[T]) bool) {
+		for i := 0; i < len(t.slots); i++ {
+			if s := &t.slots[i]; s.hash != 0 && !yield(Entry[T]{Value: s.key, Count: s.val}) {
+				return
+			}
+		}
+	}
 }
 
 // Elements iterates over distinct values in unspecified order.
@@ -320,7 +348,13 @@ func (m *HashMultiset[T]) EntriesSlice() []Entry[T] {
 	if m == nil || m.tab == nil {
 		return nil
 	}
-	return m.tab.Slice()
+	entries := make([]Entry[T], 0, m.tab.length)
+	for i := range m.tab.slots {
+		if s := &m.tab.slots[i]; s.hash != 0 {
+			entries = append(entries, Entry[T]{Value: s.key, Count: s.val})
+		}
+	}
+	return entries
 }
 
 // Slice returns a fresh slice containing every occurrence.

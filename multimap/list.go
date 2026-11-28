@@ -40,6 +40,11 @@ func newListMultimap[K any, V any](keyEq func(K, K) bool, keyHash func(K) uint64
 		add: func(values []V, value V) ([]V, bool) {
 			return append(values, value), true
 		},
+		// The stored list is never aliased (Get and AsMap clone), so a batch
+		// is appended in place instead of copied and rebuilt.
+		addAll: func(values []V, batch []V) ([]V, int) {
+			return append(values, batch...), len(batch)
+		},
 		remove: func(values []V, value V) ([]V, bool) {
 			for index, candidate := range values {
 				if valueEq(candidate, value) {
