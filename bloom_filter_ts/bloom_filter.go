@@ -113,22 +113,29 @@ func (b *BloomFilter[T]) Count() uint64 {
 
 func (b *BloomFilter[T]) ApproximateElementCount() uint64 { return b.Count() }
 
+// Compatible reports identical shape and strategy. Each filter's shape is read
+// under its own read lock (never two locks at once); a nil or zero-value filter
+// is compatible only with another nil or zero-value filter.
+// Complexity is O(1).
 func (b *BloomFilter[T]) Compatible(other *BloomFilter[T]) bool {
-	var left, right *bloom_filter.BloomFilter[T]
-	if b != nil {
-		b.lock.RLock()
-		left = b.inner.Copy()
-		b.lock.RUnlock()
+	leftBits, leftHashes := b.shape()
+	rightBits, rightHashes := other.shape()
+	if leftBits == 0 || rightBits == 0 {
+		return leftBits == 0 && rightBits == 0
 	}
-	if other != nil {
-		other.lock.RLock()
-		right = other.inner.Copy()
-		other.lock.RUnlock()
+	return leftBits == rightBits && leftHashes == rightHashes
+}
+
+// shape returns the bit and hash counts under the read lock; (0, 0) for a nil
+// or zero-value filter. Shapes are immutable after construction, but the lock
+// keeps the read ordered with respect to construction-time publication.
+func (b *BloomFilter[T]) shape() (uint64, int) {
+	if b == nil {
+		return 0, 0
 	}
-	if left == nil || right == nil {
-		return left == nil && right == nil
-	}
-	return left.Compatible(right)
+	b.lock.RLock()
+	defer b.lock.RUnlock()
+	return b.inner.BitCount(), b.inner.HashCount()
 }
 
 func (b *BloomFilter[T]) Copy() *BloomFilter[T] {

@@ -7,7 +7,10 @@ from the frozen byte-slice filter in package bloom.
 - New sizes from expected distinct insertions and target FPP. NewWithBits takes
   an explicit shape; storage and probe arithmetic round up to whole uint64 words,
   exactly as Guava's LockFreeBitArray does.
-- Put and MightContain provide one-sided membership. Copy/Clone are independent.
+- Put and MightContain provide one-sided membership in O(encoded bytes + k)
+  with zero heap allocations: the funnel writes into a pooled sink and the
+  Murmur3-128 halves are computed without building a HashCode. Funnels must
+  not retain the PrimitiveSink they are given. Copy/Clone are independent.
   Merge validates every shape before mutation. Compatible checks shape and
   strategy; callers must ensure funnels are semantically identical because Go
   cannot compare function behavior.
@@ -15,8 +18,9 @@ from the frozen byte-slice filter in package bloom.
   estimates. Full saturation gives ExpectedFPP 1 and Count bitSize.
 - Bytes/WriteTo and FromBytes/ReadFrom use Pluto's versioned PBF1 little-endian
   stream. WriteGuavaTo, ReadGuavaFrom and FromGuavaBytes explicitly support
-  Guava's compact big-endian Murmur3 encoding. Never decode bloom.Bytes with
-  these functions.
+  Guava's compact big-endian Murmur3 encoding (WriteGuavaTo encodes into one
+  buffer of at most ~32 KiB and writes it in as few calls as possible). Never
+  decode bloom.Bytes with these functions.
 - bloom_filter_ts is the RWMutex twin. It snapshots merge operands one at a time
   and takes no caller locks while running a funnel beyond its own filter lock.
 

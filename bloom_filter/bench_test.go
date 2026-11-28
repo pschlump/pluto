@@ -61,6 +61,8 @@ func BenchmarkBloomFilterMerge(b *testing.B) {
 		if err := copyFilter.Merge(right); err != nil {
 			b.Fatal(err)
 		}
+		// Guava's bloomFilterMerge returns copy.mightContain(values[0]).
+		benchmarkBool = copyFilter.MightContain("value-0000")
 	}
 }
 
@@ -75,6 +77,7 @@ func BenchmarkBloomFilterSerialization(b *testing.B) {
 		if err := filter.WriteGuavaTo(&output); err != nil {
 			b.Fatal(err)
 		}
-		benchmarkBytes = output.Bytes()
+		// Guava's bloomFilterSerialization returns output.toByteArray(), a copy.
+		benchmarkBytes = bytes.Clone(output.Bytes())
 	}
 }

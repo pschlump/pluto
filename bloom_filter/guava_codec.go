@@ -22,20 +22,28 @@ func (b *BloomFilter[T]) WriteGuavaTo(w io.Writer) error {
 	if b == nil || b.bitSize == 0 {
 		return fmt.Errorf("%w: zero-value filter", ErrInvalidShape)
 	}
-	header := []byte{1, byte(b.hashCount), 0, 0, 0, 0}
-	binary.BigEndian.PutUint32(header[2:], uint32(len(b.words)))
-	if err := writeAll(w, header); err != nil {
-		return err
-	}
-	var data [8]byte
+	// Encode into one buffer of at most guavaWriteChunk bytes and write it in
+	// as few calls as possible: one Write per 8-byte word made the caller's
+	// writer (e.g. a bytes.Buffer) grow step by step.
+	total := 6 + len(b.words)*8
+	buffer := make([]byte, 0, min(total, guavaWriteChunk))
+	buffer = append(buffer, 1, byte(b.hashCount))
+	buffer = binary.BigEndian.AppendUint32(buffer, uint32(len(b.words)))
 	for _, word := range b.words {
-		binary.BigEndian.PutUint64(data[:], word)
-		if err := writeAll(w, data[:]); err != nil {
-			return err
+		if len(buffer)+8 > cap(buffer) {
+			if err := writeAll(w, buffer); err != nil {
+				return err
+			}
+			buffer = buffer[:0]
 		}
+		buffer = binary.BigEndian.AppendUint64(buffer, word)
 	}
-	return nil
+	return writeAll(w, buffer)
 }
+
+// guavaWriteChunk caps WriteGuavaTo's encode buffer; a multiple of 8 plus the
+// 6-byte header so small filters are written in exactly one call.
+const guavaWriteChunk = 6 + 4096*8
 
 // ReadGuavaFrom reads Guava's compact Murmur3 Bloom encoding. As in Guava, a
 // decoded filter's bit size is rounded up to a whole 64-bit word.

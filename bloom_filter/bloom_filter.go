@@ -18,6 +18,7 @@ import (
 	"math/bits"
 
 	"github.com/pschlump/pluto/hashing"
+	"github.com/pschlump/pluto/internal/murmur3"
 )
 
 const (
@@ -95,27 +96,31 @@ func NewWithBits[T any](bitSize uint64, hashCount int, funnel hashing.Funnel[T])
 	return &BloomFilter[T]{funnel: funnel, words: make([]uint64, int(words)), bitSize: words * 64, hashCount: hashCount}
 }
 
-func (b *BloomFilter[T]) positions(value T) []uint64 {
-	code := hashing.HashObject(value, b.funnel, hashing.Murmur3_128())
-	bytes := code.Bytes()
-	hash1 := binary.LittleEndian.Uint64(bytes)
-	hash2 := binary.LittleEndian.Uint64(bytes[8:])
-	positions := make([]uint64, b.hashCount)
-	combined := hash1
-	for i := range positions {
-		positions[i] = (combined & math.MaxInt64) % b.bitSize
-		combined += hash2
-	}
-	return positions
+// hash128 runs the funnel into a pooled probeSink and returns Guava's two
+// Murmur3-128 halves: hash1 is the low little-endian word of HashCode.Bytes()
+// and hash2 the high word. It is bit-identical to
+// hashing.HashObject(value, funnel, hashing.Murmur3_128()) but allocation-free
+// once the pool is warm (see docs/packages/bloom_filter.md).
+func (b *BloomFilter[T]) hash128(value T) (uint64, uint64) {
+	sink := getProbeSink()
+	b.funnel(value, sink)
+	hash1, hash2 := murmur3.Sum128(sink.data, 0)
+	putProbeSink(sink)
+	return hash1, hash2
 }
 
 // Put records value and reports whether any probe bit changed.
+// Complexity is O(encoded bytes + k).
 func (b *BloomFilter[T]) Put(value T) bool {
 	if b == nil || b.bitSize == 0 {
 		panic("bloom_filter: Put on a zero-value filter; use New or NewWithBits")
 	}
+	hash1, hash2 := b.hash128(value)
 	changed := false
-	for _, position := range b.positions(value) {
+	combined := hash1
+	for range b.hashCount {
+		position := (combined & math.MaxInt64) % b.bitSize
+		combined += hash2
 		word, mask := position>>6, uint64(1)<<(position&63)
 		if b.words[word]&mask == 0 {
 			b.words[word] |= mask
@@ -128,11 +133,16 @@ func (b *BloomFilter[T]) Put(value T) bool {
 
 // MightContain reports whether all probe bits are set. Added elements never
 // produce false negatives; absent elements may produce false positives.
+// Complexity is O(encoded bytes + k).
 func (b *BloomFilter[T]) MightContain(value T) bool {
 	if b == nil || b.bitSize == 0 {
 		return false
 	}
-	for _, position := range b.positions(value) {
+	hash1, hash2 := b.hash128(value)
+	combined := hash1
+	for range b.hashCount {
+		position := (combined & math.MaxInt64) % b.bitSize
+		combined += hash2
 		if b.words[position>>6]&(uint64(1)<<(position&63)) == 0 {
 			return false
 		}

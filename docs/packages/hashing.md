@@ -16,6 +16,11 @@ prefixing avoids concatenation ambiguity. The shared hasher currently buffers
 input, so streaming calls use O(input) memory and direct `HashBytes` is the
 allocation-conscious path. All final hashes are chunk-independent.
 
+The Murmur3 x64-128 core lives in `internal/murmur3.Sum128` (allocation-free,
+returns h1/h2); `murmur3Sum128` delegates to it so `bloom_filter` can hash
+without building a `HashCode`. Keep exactly one copy of that core — hashing's
+Guava vectors are its only test oracle.
+
 Murmur3-32/128 (optional seed), SipHash-2-4 (Guava default or explicit key),
 FarmHashFingerprint64, and Fingerprint2011 match Guava byte-for-byte. CRC32,
 CRC32C, Adler32, MD5, SHA-1, SHA-256, and SHA-512 wrap the standard library.

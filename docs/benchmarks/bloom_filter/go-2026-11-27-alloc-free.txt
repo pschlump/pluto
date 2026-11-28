@@ -1,0 +1,140 @@
+# 2026-11-27 allocation-free probes. Interleaved runs (before, after, before, after, ...), -count=1 x3.
+# Apple M4 Max, darwin/arm64, Go 1.27.0; load average ~6-10 during the run (other jobs active).
+# BEFORE = commit 7bbed0c source with the harness-fixed bench_test.go (merge ends with
+# MightContain, serialization copies the bytes like toByteArray). Rejected-experiment runs
+# are described in README.md, not recorded here.
+
+## bloom_filter BEFORE
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bloom_filter
+cpu: Apple M4 Max
+BenchmarkBloomFilterPut-14              	   14200	     84590 ns/op	  314946 B/op	    7002 allocs/op
+BenchmarkBloomFilterMightContain/hit-14 	16722193	        76.17 ns/op	     192 B/op	       7 allocs/op
+BenchmarkBloomFilterMightContain/miss-14         	14810076	        78.94 ns/op	     192 B/op	       7 allocs/op
+BenchmarkBloomFilterMerge-14                     	 4184451	       288.3 ns/op	    1472 B/op	       8 allocs/op
+BenchmarkBloomFilterSerialization-14             	 1000000	      1131 ns/op	    5376 B/op	      10 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/bloom_filter	6.116s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bloom_filter
+cpu: Apple M4 Max
+BenchmarkBloomFilterPut-14              	   13872	     87647 ns/op	  314945 B/op	    7002 allocs/op
+BenchmarkBloomFilterMightContain/hit-14 	16136767	        72.69 ns/op	     192 B/op	       7 allocs/op
+BenchmarkBloomFilterMightContain/miss-14         	15403144	        78.10 ns/op	     192 B/op	       7 allocs/op
+BenchmarkBloomFilterMerge-14                     	 4362442	       275.4 ns/op	    1472 B/op	       8 allocs/op
+BenchmarkBloomFilterSerialization-14             	 1000000	      1143 ns/op	    5376 B/op	      10 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/bloom_filter	6.014s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bloom_filter
+cpu: Apple M4 Max
+BenchmarkBloomFilterPut-14              	   15000	     80042 ns/op	  314945 B/op	    7002 allocs/op
+BenchmarkBloomFilterMightContain/hit-14 	16877370	        69.90 ns/op	     192 B/op	       7 allocs/op
+BenchmarkBloomFilterMightContain/miss-14         	15899944	        75.73 ns/op	     192 B/op	       7 allocs/op
+BenchmarkBloomFilterMerge-14                     	 4449498	       269.4 ns/op	    1472 B/op	       8 allocs/op
+BenchmarkBloomFilterSerialization-14             	 1000000	      1088 ns/op	    5376 B/op	      10 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/bloom_filter	5.964s
+
+## bloom_filter AFTER
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bloom_filter
+cpu: Apple M4 Max
+BenchmarkBloomFilterPut-14              	   36156	     33010 ns/op	  123018 B/op	       2 allocs/op
+BenchmarkBloomFilterMightContain/hit-14 	58005458	        21.01 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/miss-14         	42972952	        27.72 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMerge-14                     	 5584242	       215.8 ns/op	    1280 B/op	       1 allocs/op
+BenchmarkBloomFilterSerialization-14             	 2843781	       415.0 ns/op	    3888 B/op	       4 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/bloom_filter	6.083s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bloom_filter
+cpu: Apple M4 Max
+BenchmarkBloomFilterPut-14              	   36134	     33876 ns/op	  123018 B/op	       2 allocs/op
+BenchmarkBloomFilterMightContain/hit-14 	58100713	        21.28 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/miss-14         	43305535	        27.79 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMerge-14                     	 5248557	       233.6 ns/op	    1280 B/op	       1 allocs/op
+BenchmarkBloomFilterSerialization-14             	 2859352	       414.2 ns/op	    3888 B/op	       4 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/bloom_filter	6.159s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bloom_filter
+cpu: Apple M4 Max
+BenchmarkBloomFilterPut-14              	   36913	     31753 ns/op	  123017 B/op	       2 allocs/op
+BenchmarkBloomFilterMightContain/hit-14 	59640664	        20.17 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/miss-14         	45014980	        26.93 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMerge-14                     	 5336833	       221.5 ns/op	    1280 B/op	       1 allocs/op
+BenchmarkBloomFilterSerialization-14             	 2732232	       435.3 ns/op	    3888 B/op	       4 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/bloom_filter	6.058s
+
+## bloom_filter_ts BEFORE
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bloom_filter_ts
+cpu: Apple M4 Max
+BenchmarkBloomFilterPut-14             	   12975	     92379 ns/op	  314977 B/op	    7003 allocs/op
+BenchmarkBloomFilterMightContain/hit-14         	15966602	        75.75 ns/op	     192 B/op	       7 allocs/op
+BenchmarkBloomFilterMightContain/miss-14        	14267341	        83.47 ns/op	     192 B/op	       7 allocs/op
+BenchmarkBloomFilterMightContain/parallel-hit-14         	 8442648	       140.8 ns/op	     192 B/op	       7 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/bloom_filter_ts	5.071s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bloom_filter_ts
+cpu: Apple M4 Max
+BenchmarkBloomFilterPut-14             	   13132	     91175 ns/op	  314978 B/op	    7003 allocs/op
+BenchmarkBloomFilterMightContain/hit-14         	15974457	        83.59 ns/op	     192 B/op	       7 allocs/op
+BenchmarkBloomFilterMightContain/miss-14        	13792297	        90.42 ns/op	     192 B/op	       7 allocs/op
+BenchmarkBloomFilterMightContain/parallel-hit-14         	 7989187	       170.3 ns/op	     192 B/op	       7 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/bloom_filter_ts	5.450s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bloom_filter_ts
+cpu: Apple M4 Max
+BenchmarkBloomFilterPut-14             	   13608	     88521 ns/op	  314978 B/op	    7003 allocs/op
+BenchmarkBloomFilterMightContain/hit-14         	16602715	        72.66 ns/op	     192 B/op	       7 allocs/op
+BenchmarkBloomFilterMightContain/miss-14        	14986254	        79.76 ns/op	     192 B/op	       7 allocs/op
+BenchmarkBloomFilterMightContain/parallel-hit-14         	 8594346	       139.7 ns/op	     192 B/op	       7 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/bloom_filter_ts	5.025s
+
+## bloom_filter_ts AFTER
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bloom_filter_ts
+cpu: Apple M4 Max
+BenchmarkBloomFilterPut-14             	   28940	     41102 ns/op	  123051 B/op	       3 allocs/op
+BenchmarkBloomFilterMightContain/hit-14         	51171343	        23.48 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/miss-14        	38429205	        31.64 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/parallel-hit-14         	10099663	       131.1 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/bloom_filter_ts	5.176s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bloom_filter_ts
+cpu: Apple M4 Max
+BenchmarkBloomFilterPut-14             	   29686	     40104 ns/op	  123051 B/op	       3 allocs/op
+BenchmarkBloomFilterMightContain/hit-14         	50645110	        23.66 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/miss-14        	37660302	        31.86 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/parallel-hit-14         	 9887342	       129.1 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/bloom_filter_ts	5.099s
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/bloom_filter_ts
+cpu: Apple M4 Max
+BenchmarkBloomFilterPut-14             	   28215	     42072 ns/op	  123051 B/op	       3 allocs/op
+BenchmarkBloomFilterMightContain/hit-14         	49904349	        24.29 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/miss-14        	36588850	        32.60 ns/op	       0 B/op	       0 allocs/op
+BenchmarkBloomFilterMightContain/parallel-hit-14         	 9028093	       131.8 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/bloom_filter_ts	5.026s
+
