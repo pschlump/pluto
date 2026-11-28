@@ -27,16 +27,18 @@ type Multiset[T any] struct {
 
 func NewMultiset[T comparable](values []T) *Multiset[T] {
 	equal, hash := naturalFunctions[T]()
-	return NewMultisetFunc(equal, hash, values)
+	return newMultiset(equal, hash, newNaturalIndex[T](len(values)), values)
 }
 
 func NewMultisetFunc[T any](equal func(T, T) bool, hash func(T) uint64, values []T) *Multiset[T] {
-	result := &Multiset[T]{index: newHashIndex(equal, hash), equal: equal, hash: hash}
+	return newMultiset(equal, hash, newHashIndexSized(equal, hash, len(values)), values)
+}
+
+func newMultiset[T any](equal func(T, T) bool, hash func(T) uint64, index *hashIndex[T], values []T) *Multiset[T] {
+	result := &Multiset[T]{index: index, equal: equal, hash: hash}
 	for _, value := range values {
-		position, found := result.index.get(value)
+		position, found := index.getOrAdd(value, len(result.entries))
 		if !found {
-			position = len(result.entries)
-			result.index.add(value, position)
 			result.entries = append(result.entries, multiset.Entry[T]{Value: value})
 		}
 		if result.entries[position].Count == maxInt || result.total == maxInt {
@@ -59,7 +61,7 @@ func FreezeHashMultiset[T any](source *multiset.HashMultiset[T]) *Multiset[T] {
 		return &Multiset[T]{}
 	}
 	entries := source.EntriesSlice()
-	result := &Multiset[T]{index: newHashIndex(source.Eq(), source.Hash()), equal: source.Eq(), hash: source.Hash(), entries: entries}
+	result := &Multiset[T]{index: newHashIndexSized(source.Eq(), source.Hash(), len(entries)), equal: source.Eq(), hash: source.Hash(), entries: entries}
 	for position, entry := range entries {
 		if entry.Count <= 0 || entry.Count > maxInt-result.total {
 			panic("immutable: invalid or overflowing multiset counts")
@@ -101,17 +103,24 @@ func (m *Multiset[T]) DistinctLen() int {
 
 func (m *Multiset[T]) IsEmpty() bool { return m.Len() == 0 }
 
+// Count returns value's occurrence count. Complexity is expected O(1) for hash
+// snapshots and O(log n) for tree snapshots.
 func (m *Multiset[T]) Count(value T) int {
 	if m == nil {
 		return 0
 	}
 	if m.index != nil {
-		position, found := m.index.get(value)
-		if !found {
-			return 0
+		if position, found := m.index.get(value); found {
+			return m.entries[position].Count
 		}
-		return m.entries[position].Count
+		return 0
 	}
+	return m.treeCount(value)
+}
+
+// treeCount is Count for tree snapshots, kept out of line so the hash path
+// inlines.
+func (m *Multiset[T]) treeCount(value T) int {
 	if m.compare == nil {
 		return 0
 	}
@@ -127,10 +136,11 @@ func (m *Multiset[T]) Count(value T) int {
 func (m *Multiset[T]) Contains(value T) bool { return m.Count(value) > 0 }
 
 func (m *Multiset[T]) Entries() iter.Seq[multiset.Entry[T]] {
-	if m == nil {
-		return sequence[multiset.Entry[T]](nil)
+	var values []multiset.Entry[T]
+	if m != nil {
+		values = m.entries
 	}
-	return sequence(m.entries)
+	return sequence(values)
 }
 
 func (m *Multiset[T]) EntriesSlice() []multiset.Entry[T] {
@@ -187,14 +197,17 @@ func (m *Multiset[T]) Equal(other *Multiset[T]) bool {
 
 // MultisetBuilder incrementally constructs independent hash Multiset snapshots.
 type MultisetBuilder[T any] struct {
-	values []T
-	equal  func(T, T) bool
-	hash   func(T) uint64
+	values  []T
+	equal   func(T, T) bool
+	hash    func(T) uint64
+	natural func(hint int) *hashIndex[T] // set by NewMultisetBuilder only
 }
 
 func NewMultisetBuilder[T comparable]() *MultisetBuilder[T] {
 	equal, hash := naturalFunctions[T]()
-	return NewMultisetBuilderFunc(equal, hash)
+	builder := NewMultisetBuilderFunc(equal, hash)
+	builder.natural = newNaturalIndex[T]
+	return builder
 }
 
 func NewMultisetBuilderFunc[T any](equal func(T, T) bool, hash func(T) uint64) *MultisetBuilder[T] {
@@ -210,6 +223,9 @@ func (b *MultisetBuilder[T]) AddAll(values []T) { b.values = append(b.values, va
 func (b *MultisetBuilder[T]) Build() *Multiset[T] {
 	if b == nil {
 		return nil
+	}
+	if b.natural != nil {
+		return newMultiset(b.equal, b.hash, b.natural(len(b.values)), b.values)
 	}
 	return NewMultisetFunc(b.equal, b.hash, b.values)
 }

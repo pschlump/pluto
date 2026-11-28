@@ -153,17 +153,19 @@ func (s *SortedSet[T]) Slice() []T {
 }
 
 func (s *SortedSet[T]) All() iter.Seq[T] {
-	if s == nil {
-		return sequence[T](nil)
+	var values []T
+	if s != nil {
+		values = s.values
 	}
-	return sequence(s.values)
+	return sequence(values)
 }
 
 func (s *SortedSet[T]) Reverse() iter.Seq[T] {
-	if s == nil {
-		return sequence[T](nil)
+	var values []T
+	if s != nil {
+		values = s.values
 	}
-	return reverseSequence(s.values)
+	return reverseSequence(values)
 }
 
 func (s *SortedSet[T]) Equal(other *SortedSet[T]) bool {

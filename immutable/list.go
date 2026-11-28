@@ -58,18 +58,20 @@ func (l *List[T]) Slice() []T {
 }
 
 func (l *List[T]) All() iter.Seq[T] {
-	if l == nil {
-		return sequence[T](nil)
+	var values []T
+	if l != nil {
+		values = l.values
 	}
-	return sequence(l.values)
+	return sequence(values)
 }
 
 // Reverse iterates from the last element to the first.
 func (l *List[T]) Reverse() iter.Seq[T] {
-	if l == nil {
-		return sequence[T](nil)
+	var values []T
+	if l != nil {
+		values = l.values
 	}
-	return reverseSequence(l.values)
+	return reverseSequence(values)
 }
 
 // Equal reports sequence equality using == on dynamic element values.

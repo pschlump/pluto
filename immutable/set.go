@@ -16,18 +16,24 @@ type Set[T any] struct {
 }
 
 func NewSet[T comparable](values []T) *Set[T] {
-	equal, hash := naturalFunctions[T]()
-	return NewSetFunc(equal, hash, values)
+	equal, _ := naturalFunctions[T]()
+	return newSet(equal, newNaturalIndex[T](len(values)), values)
 }
 
 // NewSetFunc defensively copies values and collapses custom-equal duplicates.
 func NewSetFunc[T any](equal func(T, T) bool, hash func(T) uint64, values []T) *Set[T] {
-	result := &Set[T]{index: newHashIndex(equal, hash), equal: equal}
+	return newSet(equal, newHashIndexSized(equal, hash, len(values)), values)
+}
+
+func newSet[T any](equal func(T, T) bool, index *hashIndex[T], values []T) *Set[T] {
+	result := &Set[T]{index: index, equal: equal, values: make([]T, 0, len(values))}
 	for _, value := range values {
-		if _, found := result.index.get(value); !found {
-			result.index.add(value, len(result.values))
+		if index.add(value, len(result.values)) {
 			result.values = append(result.values, value)
 		}
+	}
+	if len(result.values) == 0 {
+		result.values = nil
 	}
 	return result
 }
@@ -52,10 +58,11 @@ func (s *Set[T]) Contains(value T) bool {
 }
 
 func (s *Set[T]) All() iter.Seq[T] {
-	if s == nil {
-		return sequence[T](nil)
+	var values []T
+	if s != nil {
+		values = s.values
 	}
-	return sequence(s.values)
+	return sequence(values)
 }
 
 func (s *Set[T]) Slice() []T {
@@ -83,14 +90,17 @@ func (s *Set[T]) Equal(other *Set[T]) bool {
 
 // SetBuilder incrementally constructs independent Set snapshots.
 type SetBuilder[T any] struct {
-	values []T
-	equal  func(T, T) bool
-	hash   func(T) uint64
+	values  []T
+	equal   func(T, T) bool
+	hash    func(T) uint64
+	natural func(hint int) *hashIndex[T] // set by NewSetBuilder only
 }
 
 func NewSetBuilder[T comparable]() *SetBuilder[T] {
 	equal, hash := naturalFunctions[T]()
-	return NewSetBuilderFunc(equal, hash)
+	builder := NewSetBuilderFunc(equal, hash)
+	builder.natural = newNaturalIndex[T]
+	return builder
 }
 
 func NewSetBuilderFunc[T any](equal func(T, T) bool, hash func(T) uint64) *SetBuilder[T] {
@@ -106,6 +116,9 @@ func (b *SetBuilder[T]) AddAll(values []T) { b.values = append(b.values, values.
 func (b *SetBuilder[T]) Build() *Set[T] {
 	if b == nil {
 		return nil
+	}
+	if b.natural != nil {
+		return newSet(b.equal, b.natural(len(b.values)), b.values)
 	}
 	return NewSetFunc(b.equal, b.hash, b.values)
 }

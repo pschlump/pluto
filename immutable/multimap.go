@@ -26,29 +26,65 @@ type Multimap[K any, V any] struct {
 
 func NewMultimap[K comparable, V comparable](entries []multimap.Association[K, V]) *Multimap[K, V] {
 	keyEqual, keyHash := naturalFunctions[K]()
-	return NewMultimapFunc(keyEqual, keyHash, func(a, b V) bool { return a == b }, entries)
+	return newMultimap(keyEqual, keyHash, func(a, b V) bool { return a == b }, newNaturalIndex[K](0), entries)
 }
 
 func NewMultimapFunc[K any, V any](keyEqual func(K, K) bool, keyHash func(K) uint64, valueEqual func(V, V) bool, entries []multimap.Association[K, V]) *Multimap[K, V] {
 	if valueEqual == nil {
 		panic("immutable: NewMultimapFunc requires non-nil value equality")
 	}
-	result := &Multimap[K, V]{index: newHashIndex(keyEqual, keyHash), valueEqual: valueEqual, keyEqual: keyEqual, keyHash: keyHash}
-	for _, entry := range entries {
+	return newMultimap(keyEqual, keyHash, valueEqual, newHashIndex(keyEqual, keyHash), entries)
+}
+
+// newMultimap groups entries in two passes: the first assigns each entry its
+// key position and counts values per key, the second copies every value into
+// one shared backing array carved into per-key, full-capacity groups. Groups
+// are never exposed (Get and AsMap copy), so sharing one array is safe.
+func newMultimap[K any, V any](keyEqual func(K, K) bool, keyHash func(K) uint64, valueEqual func(V, V) bool, index *hashIndex[K], entries []multimap.Association[K, V]) *Multimap[K, V] {
+	result := &Multimap[K, V]{index: index, valueEqual: valueEqual, keyEqual: keyEqual, keyHash: keyHash}
+	if len(entries) == 0 {
+		return result
+	}
+	positions := make([]int, len(entries))
+	var counts []int
+	for entryIndex, entry := range entries {
 		if result.total == maxInt {
 			panic("immutable: multimap association count overflow")
 		}
-		position, found := result.index.get(entry.Key)
+		position, found := index.getOrAdd(entry.Key, len(result.keys))
 		if !found {
-			position = len(result.keys)
-			result.index.add(entry.Key, position)
 			result.keys = append(result.keys, entry.Key)
-			result.values = append(result.values, nil)
+			counts = append(counts, 0)
 		}
-		result.values[position] = append(result.values[position], entry.Value)
+		positions[entryIndex] = position
+		counts[position]++
 		result.total++
 	}
+	flat := make([]V, len(entries))
+	result.values = make([][]V, len(result.keys))
+	start := 0
+	for position, count := range counts {
+		result.values[position] = flat[start : start : start+count]
+		start += count
+	}
+	for entryIndex, entry := range entries {
+		position := positions[entryIndex]
+		result.values[position] = append(result.values[position], entry.Value)
+	}
 	return result
+}
+
+// group returns key's internal value group without copying. Internal only:
+// the group must never escape to a caller. Expected O(1).
+func (m *Multimap[K, V]) group(key K) ([]V, bool) {
+	if m == nil {
+		return nil, false
+	}
+	position, found := m.index.get(key)
+	if !found {
+		return nil, false
+	}
+	return m.values[position], true
 }
 
 func CopyOfMultimap[K any, V any](value *Multimap[K, V]) *Multimap[K, V] { return value }
@@ -99,24 +135,23 @@ func (m *Multimap[K, V]) KeyLen() int {
 
 func (m *Multimap[K, V]) IsEmpty() bool { return m.Len() == 0 }
 
+// Get returns a fresh copy of key's values in input order; the caller owns it.
+// Complexity is expected O(1) lookup plus O(values for key) for the copy.
 func (m *Multimap[K, V]) Get(key K) ([]V, bool) {
-	if m == nil {
-		return nil, false
-	}
-	position, found := m.index.get(key)
+	values, found := m.group(key)
 	if !found {
 		return nil, false
 	}
-	return append([]V{}, m.values[position]...), true
+	return append([]V{}, values...), true
 }
 
 func (m *Multimap[K, V]) ContainsKey(key K) bool {
-	_, found := m.Get(key)
+	_, found := m.group(key)
 	return found
 }
 
 func (m *Multimap[K, V]) ContainsEntry(key K, value V) bool {
-	values, found := m.Get(key)
+	values, found := m.group(key)
 	if !found {
 		return false
 	}
@@ -191,10 +226,11 @@ func (m *Multimap[K, V]) Values() iter.Seq[V] {
 }
 
 func (m *Multimap[K, V]) KeySet() iter.Seq[K] {
-	if m == nil {
-		return sequence[K](nil)
+	var values []K
+	if m != nil {
+		values = m.keys
 	}
-	return sequence(m.keys)
+	return sequence(values)
 }
 
 // AsMap yields each key and a fresh value slice snapshot.
@@ -216,7 +252,7 @@ func (m *Multimap[K, V]) Equal(other *Multimap[K, V]) bool {
 		return false
 	}
 	for position, key := range m.keys {
-		values, found := other.Get(key)
+		values, found := other.group(key)
 		if !found || len(values) != len(m.values[position]) {
 			return false
 		}
@@ -235,11 +271,14 @@ type MultimapBuilder[K any, V any] struct {
 	keyEqual   func(K, K) bool
 	keyHash    func(K) uint64
 	valueEqual func(V, V) bool
+	natural    func(hint int) *hashIndex[K] // set by NewMultimapBuilder only
 }
 
 func NewMultimapBuilder[K comparable, V comparable]() *MultimapBuilder[K, V] {
 	keyEqual, keyHash := naturalFunctions[K]()
-	return NewMultimapBuilderFunc(keyEqual, keyHash, func(a, b V) bool { return a == b })
+	builder := NewMultimapBuilderFunc(keyEqual, keyHash, func(a, b V) bool { return a == b })
+	builder.natural = newNaturalIndex[K]
+	return builder
 }
 
 func NewMultimapBuilderFunc[K any, V any](keyEqual func(K, K) bool, keyHash func(K) uint64, valueEqual func(V, V) bool) *MultimapBuilder[K, V] {
@@ -260,6 +299,9 @@ func (b *MultimapBuilder[K, V]) PutAll(entries []multimap.Association[K, V]) {
 func (b *MultimapBuilder[K, V]) Build() *Multimap[K, V] {
 	if b == nil {
 		return nil
+	}
+	if b.natural != nil {
+		return newMultimap(b.keyEqual, b.keyHash, b.valueEqual, b.natural(0), b.entries)
 	}
 	return NewMultimapFunc(b.keyEqual, b.keyHash, b.valueEqual, b.entries)
 }

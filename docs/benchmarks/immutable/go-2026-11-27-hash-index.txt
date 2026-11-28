@@ -1,0 +1,172 @@
+# 2026-11-27 hash-index rewrite: interleaved A/B on Apple M4 Max, darwin/arm64, Go 1.27.0.
+# Three rounds; each round ran BEFORE (31a1d71, old harness), then the old
+# implementation with the new ListIteration harness, then AFTER.
+# Machine shared with other benchmarking agents (load average 5-8 on 14 cores).
+
+## BEFORE (31a1d71)
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/immutable
+cpu: Apple M4 Max
+BenchmarkImmutableListBuild-14            	  578221	      2172 ns/op	   32792 B/op	       2 allocs/op
+BenchmarkImmutableListCopyOf-14           	678316917	         1.767 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListAt-14               	1000000000	         0.5297 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListIteration-14        	  250946	      4839 ns/op	      24 B/op	       2 allocs/op
+BenchmarkImmutableSetBuild-14             	    7062	    168972 ns/op	  480361 B/op	      42 allocs/op
+BenchmarkImmutableSetContains-14          	130331024	         9.451 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMapBuild-14             	    6456	    193722 ns/op	  627172 B/op	      28 allocs/op
+BenchmarkImmutableMapGet-14               	77229186	        14.97 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSortedSetBuild-14       	    3517	    317824 ns/op	   32816 B/op	       3 allocs/op
+BenchmarkImmutableSortedSetContains-14    	26274326	        40.62 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSortedSetSubRange-14    	25455255	        46.63 ns/op	      32 B/op	       1 allocs/op
+BenchmarkImmutableSortedMapBuild-14       	   32632	     36878 ns/op	   98352 B/op	       3 allocs/op
+BenchmarkImmutableSortedMapGet-14         	17804450	        65.26 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultisetBuild-14        	    6604	    177342 ns/op	  570482 B/op	      42 allocs/op
+BenchmarkImmutableMultisetCount-14        	100000000	        10.00 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultimapBuild-14        	   17922	     66614 ns/op	   79112 B/op	     478 allocs/op
+BenchmarkImmutableMultimapGet-14          	17017504	        66.21 ns/op	     512 B/op	       1 allocs/op
+BenchmarkImmutableBiMapBuild-14           	    3306	    399277 ns/op	 1118561 B/op	      56 allocs/op
+BenchmarkImmutableBiMapGet-14             	77060976	        15.03 ns/op	       0 B/op	       0 allocs/op
+PASS
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/immutable
+cpu: Apple M4 Max
+BenchmarkImmutableListBuild-14            	  511783	      2305 ns/op	   32792 B/op	       2 allocs/op
+BenchmarkImmutableListCopyOf-14           	664929537	         1.790 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListAt-14               	1000000000	         0.5287 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListIteration-14        	  252092	      4917 ns/op	      24 B/op	       2 allocs/op
+BenchmarkImmutableSetBuild-14             	    6985	    165948 ns/op	  480363 B/op	      42 allocs/op
+BenchmarkImmutableSetContains-14          	128414424	         9.566 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMapBuild-14             	    6314	    188453 ns/op	  627171 B/op	      28 allocs/op
+BenchmarkImmutableMapGet-14               	78049627	        14.80 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSortedSetBuild-14       	    3762	    316537 ns/op	   32816 B/op	       3 allocs/op
+BenchmarkImmutableSortedSetContains-14    	29420958	        40.07 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSortedSetSubRange-14    	26729852	        46.55 ns/op	      32 B/op	       1 allocs/op
+BenchmarkImmutableSortedMapBuild-14       	   32217	     36691 ns/op	   98352 B/op	       3 allocs/op
+BenchmarkImmutableSortedMapGet-14         	17473734	        64.84 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultisetBuild-14        	    6774	    171094 ns/op	  570481 B/op	      42 allocs/op
+BenchmarkImmutableMultisetCount-14        	122986978	         9.830 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultimapBuild-14        	   18818	     63778 ns/op	   79112 B/op	     478 allocs/op
+BenchmarkImmutableMultimapGet-14          	18501232	        62.00 ns/op	     512 B/op	       1 allocs/op
+BenchmarkImmutableBiMapBuild-14           	    3429	    373273 ns/op	 1118563 B/op	      56 allocs/op
+BenchmarkImmutableBiMapGet-14             	75180314	        14.83 ns/op	       0 B/op	       0 allocs/op
+PASS
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/immutable
+cpu: Apple M4 Max
+BenchmarkImmutableListBuild-14            	  615607	      1937 ns/op	   32792 B/op	       2 allocs/op
+BenchmarkImmutableListCopyOf-14           	685348932	         1.747 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListAt-14               	1000000000	         0.5246 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListIteration-14        	  251776	      5048 ns/op	      24 B/op	       2 allocs/op
+BenchmarkImmutableSetBuild-14             	    7009	    166442 ns/op	  480361 B/op	      42 allocs/op
+BenchmarkImmutableSetContains-14          	131533803	         8.940 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMapBuild-14             	    6526	    183047 ns/op	  627170 B/op	      28 allocs/op
+BenchmarkImmutableMapGet-14               	78976162	        14.85 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSortedSetBuild-14       	    3771	    311274 ns/op	   32816 B/op	       3 allocs/op
+BenchmarkImmutableSortedSetContains-14    	28897064	        40.07 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSortedSetSubRange-14    	25956234	        44.82 ns/op	      32 B/op	       1 allocs/op
+BenchmarkImmutableSortedMapBuild-14       	   32809	     39359 ns/op	   98352 B/op	       3 allocs/op
+BenchmarkImmutableSortedMapGet-14         	17942169	        65.43 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultisetBuild-14        	    6909	    174766 ns/op	  570482 B/op	      42 allocs/op
+BenchmarkImmutableMultisetCount-14        	100000000	        10.05 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultimapBuild-14        	   18039	     66316 ns/op	   79112 B/op	     478 allocs/op
+BenchmarkImmutableMultimapGet-14          	18512018	        66.20 ns/op	     512 B/op	       1 allocs/op
+BenchmarkImmutableBiMapBuild-14           	    3362	    397374 ns/op	 1118561 B/op	      56 allocs/op
+BenchmarkImmutableBiMapGet-14             	73278526	        15.34 ns/op	       0 B/op	       0 allocs/op
+PASS
+
+## OLD IMPLEMENTATION + NEW ListIteration HARNESS
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/immutable
+cpu: Apple M4 Max
+BenchmarkImmutableListIteration-14    	  241821	      4862 ns/op	      42 B/op	       2 allocs/op
+PASS
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/immutable
+cpu: Apple M4 Max
+BenchmarkImmutableListIteration-14    	  245680	      4820 ns/op	      42 B/op	       2 allocs/op
+PASS
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/immutable
+cpu: Apple M4 Max
+BenchmarkImmutableListIteration-14    	  243951	      4912 ns/op	      42 B/op	       2 allocs/op
+PASS
+
+## AFTER
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/immutable
+cpu: Apple M4 Max
+BenchmarkImmutableListBuild-14            	  580375	      2136 ns/op	   32792 B/op	       2 allocs/op
+BenchmarkImmutableListCopyOf-14           	681386506	         1.762 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListAt-14               	1000000000	         0.5168 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListIteration-14        	 1000000	      1031 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSetBuild-14             	   18696	     63990 ns/op	  180776 B/op	      26 allocs/op
+BenchmarkImmutableSetContains-14          	228027148	         5.369 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMapBuild-14             	   16546	     68672 ns/op	  316913 B/op	      24 allocs/op
+BenchmarkImmutableMapGet-14               	142191186	         8.492 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSortedSetBuild-14       	    4004	    290343 ns/op	   32816 B/op	       3 allocs/op
+BenchmarkImmutableSortedSetContains-14    	23747288	        43.16 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSortedSetSubRange-14    	25937392	        44.29 ns/op	      32 B/op	       1 allocs/op
+BenchmarkImmutableSortedMapBuild-14       	   34177	     37219 ns/op	   98352 B/op	       3 allocs/op
+BenchmarkImmutableSortedMapGet-14         	18234738	        64.95 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultisetBuild-14        	   14546	     82382 ns/op	  325417 B/op	      40 allocs/op
+BenchmarkImmutableMultisetCount-14        	197660264	         6.098 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultimapBuild-14        	   27667	     41714 ns/op	   77648 B/op	      33 allocs/op
+BenchmarkImmutableMultimapGet-14          	16924699	        65.90 ns/op	     512 B/op	       1 allocs/op
+BenchmarkImmutableBiMapBuild-14           	    9975	    118363 ns/op	  464962 B/op	      48 allocs/op
+BenchmarkImmutableBiMapGet-14             	149905574	         8.220 ns/op	       0 B/op	       0 allocs/op
+PASS
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/immutable
+cpu: Apple M4 Max
+BenchmarkImmutableListBuild-14            	  586004	      1961 ns/op	   32792 B/op	       2 allocs/op
+BenchmarkImmutableListCopyOf-14           	685104706	         1.745 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListAt-14               	1000000000	         0.5273 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListIteration-14        	 1000000	      1032 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSetBuild-14             	   18454	     64898 ns/op	  180776 B/op	      26 allocs/op
+BenchmarkImmutableSetContains-14          	235538893	         5.216 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMapBuild-14             	   19526	     61600 ns/op	  316912 B/op	      24 allocs/op
+BenchmarkImmutableMapGet-14               	144189651	         8.470 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSortedSetBuild-14       	    3644	    313646 ns/op	   32816 B/op	       3 allocs/op
+BenchmarkImmutableSortedSetContains-14    	24997764	        43.10 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSortedSetSubRange-14    	25586602	        47.12 ns/op	      32 B/op	       1 allocs/op
+BenchmarkImmutableSortedMapBuild-14       	   33117	     36218 ns/op	   98352 B/op	       3 allocs/op
+BenchmarkImmutableSortedMapGet-14         	17829040	        66.67 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultisetBuild-14        	   14911	     80344 ns/op	  325417 B/op	      40 allocs/op
+BenchmarkImmutableMultisetCount-14        	193007097	         6.268 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultimapBuild-14        	   31251	     38288 ns/op	   77648 B/op	      33 allocs/op
+BenchmarkImmutableMultimapGet-14          	19776062	        60.21 ns/op	     512 B/op	       1 allocs/op
+BenchmarkImmutableBiMapBuild-14           	   10000	    115427 ns/op	  464961 B/op	      48 allocs/op
+BenchmarkImmutableBiMapGet-14             	147978794	         8.080 ns/op	       0 B/op	       0 allocs/op
+PASS
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/immutable
+cpu: Apple M4 Max
+BenchmarkImmutableListBuild-14            	  561718	      2194 ns/op	   32792 B/op	       2 allocs/op
+BenchmarkImmutableListCopyOf-14           	668790384	         1.799 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListAt-14               	1000000000	         0.5466 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableListIteration-14        	 1000000	      1065 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSetBuild-14             	   18250	     65700 ns/op	  180777 B/op	      26 allocs/op
+BenchmarkImmutableSetContains-14          	227871392	         5.386 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMapBuild-14             	   16788	     74465 ns/op	  316913 B/op	      24 allocs/op
+BenchmarkImmutableMapGet-14               	137525727	         8.685 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSortedSetBuild-14       	    3514	    322794 ns/op	   32816 B/op	       3 allocs/op
+BenchmarkImmutableSortedSetContains-14    	24940419	        45.74 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableSortedSetSubRange-14    	24088525	        51.72 ns/op	      32 B/op	       1 allocs/op
+BenchmarkImmutableSortedMapBuild-14       	   25621	     41032 ns/op	   98352 B/op	       3 allocs/op
+BenchmarkImmutableSortedMapGet-14         	17308450	        67.98 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultisetBuild-14        	   12042	     97270 ns/op	  325418 B/op	      40 allocs/op
+BenchmarkImmutableMultisetCount-14        	187471110	         6.309 ns/op	       0 B/op	       0 allocs/op
+BenchmarkImmutableMultimapBuild-14        	   23350	     45083 ns/op	   77648 B/op	      33 allocs/op
+BenchmarkImmutableMultimapGet-14          	18120193	        79.76 ns/op	     512 B/op	       1 allocs/op
+BenchmarkImmutableBiMapBuild-14           	    7485	    141560 ns/op	  464964 B/op	      48 allocs/op
+BenchmarkImmutableBiMapGet-14             	143600008	         8.174 ns/op	       0 B/op	       0 allocs/op
+PASS

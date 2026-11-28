@@ -24,15 +24,18 @@ type Map[K any, V any] struct {
 }
 
 func NewMap[K comparable, V any](entries []Entry[K, V]) (*Map[K, V], error) {
-	equal, hash := naturalFunctions[K]()
-	return NewMapFunc(equal, hash, entries)
+	return newMap(newNaturalIndex[K](len(entries)), entries)
 }
 
 // NewMapFunc rejects duplicate keys and defensively copies entries.
 func NewMapFunc[K any, V any](equal func(K, K) bool, hash func(K) uint64, entries []Entry[K, V]) (*Map[K, V], error) {
-	result := &Map[K, V]{index: newHashIndex(equal, hash), entries: append([]Entry[K, V](nil), entries...)}
+	return newMap(newHashIndexSized(equal, hash, len(entries)), entries)
+}
+
+func newMap[K any, V any](index *hashIndex[K], entries []Entry[K, V]) (*Map[K, V], error) {
+	result := &Map[K, V]{index: index, entries: append([]Entry[K, V](nil), entries...)}
 	for position, entry := range result.entries {
-		if !result.index.add(entry.Key, position) {
+		if !index.addUnique(entry.Key, position) {
 			return nil, fmt.Errorf("%w at entry %d", ErrDuplicateKey, position)
 		}
 	}
@@ -50,17 +53,16 @@ func (m *Map[K, V]) Len() int {
 
 func (m *Map[K, V]) IsEmpty() bool { return m.Len() == 0 }
 
-func (m *Map[K, V]) Get(key K) (V, bool) {
+// Get returns key's value. Complexity is expected O(1).
+func (m *Map[K, V]) Get(key K) (value V, found bool) {
 	if m == nil {
-		var zero V
-		return zero, false
+		return value, false
 	}
 	position, found := m.index.get(key)
-	if !found {
-		var zero V
-		return zero, false
+	if found {
+		value = m.entries[position].Value
 	}
-	return m.entries[position].Value, true
+	return value, found
 }
 
 func (m *Map[K, V]) ContainsKey(key K) bool {
@@ -69,10 +71,11 @@ func (m *Map[K, V]) ContainsKey(key K) bool {
 }
 
 func (m *Map[K, V]) Entries() iter.Seq[Entry[K, V]] {
-	if m == nil {
-		return sequence[Entry[K, V]](nil)
+	var values []Entry[K, V]
+	if m != nil {
+		values = m.entries
 	}
-	return sequence(m.entries)
+	return sequence(values)
 }
 
 func (m *Map[K, V]) EntriesSlice() []Entry[K, V] {
@@ -121,11 +124,14 @@ type MapBuilder[K any, V any] struct {
 	entries []Entry[K, V]
 	equal   func(K, K) bool
 	hash    func(K) uint64
+	natural func(hint int) *hashIndex[K] // set by NewMapBuilder only
 }
 
 func NewMapBuilder[K comparable, V any]() *MapBuilder[K, V] {
 	equal, hash := naturalFunctions[K]()
-	return NewMapBuilderFunc[K, V](equal, hash)
+	builder := NewMapBuilderFunc[K, V](equal, hash)
+	builder.natural = newNaturalIndex[K]
+	return builder
 }
 
 func NewMapBuilderFunc[K any, V any](equal func(K, K) bool, hash func(K) uint64) *MapBuilder[K, V] {
@@ -146,6 +152,9 @@ func (b *MapBuilder[K, V]) PutAll(entries []Entry[K, V]) {
 func (b *MapBuilder[K, V]) Build() (*Map[K, V], error) {
 	if b == nil {
 		return nil, nil
+	}
+	if b.natural != nil {
+		return newMap(b.natural(len(b.entries)), b.entries)
 	}
 	return NewMapFunc(b.equal, b.hash, b.entries)
 }

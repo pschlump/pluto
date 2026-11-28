@@ -155,10 +155,11 @@ func (m *SortedMap[K, V]) Tail(from K, inclusive bool) *SortedMap[K, V] {
 }
 
 func (m *SortedMap[K, V]) Entries() iter.Seq[Entry[K, V]] {
-	if m == nil {
-		return sequence[Entry[K, V]](nil)
+	var values []Entry[K, V]
+	if m != nil {
+		values = m.entries
 	}
-	return sequence(m.entries)
+	return sequence(values)
 }
 
 func (m *SortedMap[K, V]) EntriesSlice() []Entry[K, V] {
@@ -189,10 +190,11 @@ func (m *SortedMap[K, V]) Values() iter.Seq[V] {
 }
 
 func (m *SortedMap[K, V]) Reverse() iter.Seq[Entry[K, V]] {
-	if m == nil {
-		return sequence[Entry[K, V]](nil)
+	var values []Entry[K, V]
+	if m != nil {
+		values = m.entries
 	}
-	return reverseSequence(m.entries)
+	return reverseSequence(values)
 }
 
 func (m *SortedMap[K, V]) Equal(other *SortedMap[K, V]) bool {

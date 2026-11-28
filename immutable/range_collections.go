@@ -44,10 +44,11 @@ func (s *RangeSet[T]) Slice() []ranges.Range[T] {
 	return append([]ranges.Range[T]{}, s.values...)
 }
 func (s *RangeSet[T]) All() iter.Seq[ranges.Range[T]] {
-	if s == nil {
-		return sequence[ranges.Range[T]](nil)
+	var values []ranges.Range[T]
+	if s != nil {
+		values = s.values
 	}
-	return sequence(s.values)
+	return sequence(values)
 }
 func (s *RangeSet[T]) Contains(value T) bool { _, found := s.RangeContaining(value); return found }
 func (s *RangeSet[T]) RangeContaining(value T) (ranges.Range[T], bool) {
@@ -142,10 +143,11 @@ func (m *RangeMap[T, V]) EntriesSlice() []range_map.Entry[T, V] {
 	return append([]range_map.Entry[T, V]{}, m.entries...)
 }
 func (m *RangeMap[T, V]) Entries() iter.Seq[range_map.Entry[T, V]] {
-	if m == nil {
-		return sequence[range_map.Entry[T, V]](nil)
+	var values []range_map.Entry[T, V]
+	if m != nil {
+		values = m.entries
 	}
-	return sequence(m.entries)
+	return sequence(values)
 }
 func (m *RangeMap[T, V]) Get(point T) (V, bool) {
 	_, value, found := m.RangeContaining(point)

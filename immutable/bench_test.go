@@ -47,10 +47,17 @@ func BenchmarkImmutableListAt(b *testing.B) {
 func BenchmarkImmutableListIteration(b *testing.B) {
 	list := NewList(readImmutableCorpus(b).Values)
 	b.ReportAllocs()
-	for b.Loop() {
+	// A plain b.N loop, not b.Loop: inside a b.Loop body the compiler keeps
+	// every assignment alive and stops inlining the range-over-func body, so
+	// each element pays an indirect yield call plus a memory round trip that
+	// JMH's JIT (and ordinary Go code) does not. Accumulate locally and publish
+	// once per pass, as the JMH method does (int result = 0; ... return result).
+	for range b.N {
+		result := 0
 		for value := range list.All() {
-			immutableBenchmarkInt += value
+			result += value
 		}
+		immutableBenchmarkInt = result
 	}
 }
 
