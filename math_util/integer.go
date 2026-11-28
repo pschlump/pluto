@@ -10,7 +10,7 @@ package math_util
 
 import (
 	"errors"
-	"math/big"
+	"math/bits"
 	"unsafe"
 )
 
@@ -267,6 +267,8 @@ func Factorial(n int) (uint64, bool) {
 
 // Binomial returns n choose k and true when it fits in uint64. Invalid negative
 // inputs return false; k>n returns zero and true.
+// Complexity is O(1) for n <= 67 (table lookup); otherwise O(min(k, n-k))
+// word operations, and overflow is detected within about 64 steps.
 func Binomial(n, k int) (uint64, bool) {
 	if n < 0 || k < 0 {
 		return 0, false
@@ -277,13 +279,63 @@ func Binomial(n, k int) (uint64, bool) {
 	if k > n-k {
 		k = n - k
 	}
-	result := big.NewInt(1)
+	if n <= binomialTableMaxN {
+		return binomialTable[binomialRowStart[n]+uint16(k)], true
+	}
+	result := uint64(1)
 	for index := 0; index < k; index++ {
-		result.Mul(result, big.NewInt(int64(n-index)))
-		result.Quo(result, big.NewInt(int64(index+1)))
+		// result is C(n, index); result*(n-index) = C(n, index+1)*(index+1)
+		// is exact. C(n, i) increases for i <= n/2, so once C(n, index+1)
+		// exceeds MaxUint64 (hi >= index+1) the final result must as well.
+		divisor := uint64(index + 1)
+		hi, lo := bits.Mul64(result, uint64(n-index))
+		if hi == 0 {
+			result = lo / divisor
+			continue
+		}
+		if hi >= divisor {
+			return 0, false
+		}
+		result, _ = bits.Div64(hi, lo, divisor)
 	}
-	if !result.IsUint64() {
-		return 0, false
+	return result, true
+}
+
+// binomialTableMaxN is the largest n for which every C(n, k) fits in
+// uint64 (C(67, 33) does; C(68, 34) does not).
+const binomialTableMaxN = 67
+
+// binomialTable holds C(n, k) for 0 <= n <= binomialTableMaxN and
+// 0 <= k <= n/2, row n starting at binomialRowStart[n]. Built once at init
+// by Pascal's rule (additions only, all exact in uint64).
+var (
+	binomialRowStart [binomialTableMaxN + 1]uint16
+	binomialTable    [binomialTableSize]uint64
+)
+
+// binomialTableSize is the sum over n of n/2+1 for n in 0..binomialTableMaxN
+// (closed form valid because binomialTableMaxN is odd): 1190 entries.
+const binomialTableSize = (binomialTableMaxN/2 + 1) * (binomialTableMaxN/2 + 2)
+
+func init() {
+	start := uint16(0)
+	for n := 0; n <= binomialTableMaxN; n++ {
+		binomialRowStart[n] = start
+		start += uint16(n/2 + 1)
 	}
-	return result.Uint64(), true
+	at := func(n, k int) uint64 {
+		if k > n-k {
+			k = n - k
+		}
+		return binomialTable[binomialRowStart[n]+uint16(k)]
+	}
+	for n := 0; n <= binomialTableMaxN; n++ {
+		for k := 0; k <= n/2; k++ {
+			value := uint64(1)
+			if k > 0 {
+				value = at(n-1, k-1) + at(n-1, k)
+			}
+			binomialTable[binomialRowStart[n]+uint16(k)] = value
+		}
+	}
 }

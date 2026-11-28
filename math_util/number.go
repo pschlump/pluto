@@ -67,6 +67,8 @@ func Mean[T Integer](a, b T) T {
 }
 
 // IsPrime performs deterministic Miller-Rabin primality testing over uint64.
+// Complexity is O(log value) Montgomery multiplications per witness, seven
+// witnesses at most.
 func IsPrime(value uint64) bool {
 	if value < 2 {
 		return false
@@ -76,21 +78,28 @@ func IsPrime(value uint64) bool {
 			return value == prime
 		}
 	}
+	// value is now odd and > 37: Montgomery arithmetic modulo value with
+	// R = 2^64. Residues are kept in Montgomery form (x*R mod value), so
+	// 1 and value-1 become one and minusOne.
+	inverse := montgomeryInverse(value)
+	one := bits.Rem64(1, 0, value)
+	minusOne := value - one
 	d := value - 1
 	shift := bits.TrailingZeros64(d)
 	d >>= shift
 	for _, base := range []uint64{2, 325, 9375, 28178, 450775, 9780504, 1795265022} {
-		if base%value == 0 {
+		reduced := base % value
+		if reduced == 0 {
 			continue
 		}
-		x := powMod(base%value, d, value)
-		if x == 1 || x == value-1 {
+		x := montgomeryPow(bits.Rem64(reduced, 0, value), d, one, value, inverse)
+		if x == one || x == minusOne {
 			continue
 		}
 		composite := true
 		for range shift - 1 {
-			x = mulMod(x, x, value)
-			if x == value-1 {
+			x = montgomeryMul(x, x, value, inverse)
+			if x == minusOne {
 				composite = false
 				break
 			}
@@ -102,38 +111,42 @@ func IsPrime(value uint64) bool {
 	return true
 }
 
-func powMod(base, exponent, modulus uint64) uint64 {
-	result := uint64(1)
-	for exponent != 0 {
-		if exponent&1 != 0 {
-			result = mulMod(result, base, modulus)
-		}
-		exponent >>= 1
-		if exponent != 0 {
-			base = mulMod(base, base, modulus)
-		}
+// montgomeryInverse returns value^-1 mod 2^64 for odd value by Newton
+// iteration: value*value ≡ 1 (mod 8) gives 3 correct bits and each step
+// doubles them (3, 6, 12, 24, 48, 96).
+func montgomeryInverse(value uint64) uint64 {
+	inverse := value
+	for range 5 {
+		inverse *= 2 - value*inverse
+	}
+	return inverse
+}
+
+// montgomeryMul returns a*b*2^-64 mod modulus for a, b < modulus and odd
+// modulus, where inverse = modulus^-1 mod 2^64. With m = lo*inverse the low
+// words of a*b and m*modulus are equal, so (a*b - m*modulus)/2^64 is
+// hi - mhi exactly, which lies in (-modulus, modulus).
+func montgomeryMul(a, b, modulus, inverse uint64) uint64 {
+	hi, lo := bits.Mul64(a, b)
+	mhi, _ := bits.Mul64(lo*inverse, modulus)
+	result := hi - mhi
+	if hi < mhi {
+		result += modulus
 	}
 	return result
 }
 
-func mulMod(a, b, modulus uint64) uint64 {
-	result := uint64(0)
-	for b != 0 {
-		if b&1 != 0 {
-			if result >= modulus-a {
-				result -= modulus - a
-			} else {
-				result += a
-			}
+// montgomeryPow returns base^exponent in Montgomery form; base and one are
+// in Montgomery form.
+func montgomeryPow(base, exponent, one, modulus, inverse uint64) uint64 {
+	result := one
+	for exponent != 0 {
+		if exponent&1 != 0 {
+			result = montgomeryMul(result, base, modulus, inverse)
 		}
-		b >>= 1
-		if b == 0 {
-			break
-		}
-		if a >= modulus-a {
-			a -= modulus - a
-		} else {
-			a += a
+		exponent >>= 1
+		if exponent != 0 {
+			base = montgomeryMul(base, base, modulus, inverse)
 		}
 	}
 	return result

@@ -1,0 +1,21 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/math_util
+cpu: Apple M4 Max
+BenchmarkMathDivide-14      	318995695	         3.717 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMathDivide-14      	322821531	         3.643 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMathDivide-14      	321178224	         3.730 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMathLog10-14       	15295782	        78.63 ns/op	     160 B/op	       5 allocs/op
+BenchmarkMathLog10-14       	15324153	        78.42 ns/op	     160 B/op	       5 allocs/op
+BenchmarkMathLog10-14       	15429006	        80.63 ns/op	     160 B/op	       5 allocs/op
+BenchmarkMathSqrt-14        	478395858	         2.462 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMathSqrt-14        	510098444	         2.406 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMathSqrt-14        	515176048	         2.338 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMathIsPrime-14     	   27878	     42007 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMathIsPrime-14     	   28713	     42089 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMathIsPrime-14     	   28902	     42114 ns/op	       0 B/op	       0 allocs/op
+BenchmarkMathBinomial-14    	 4783549	       249.7 ns/op	      56 B/op	       2 allocs/op
+BenchmarkMathBinomial-14    	 4799437	       253.5 ns/op	      56 B/op	       2 allocs/op
+BenchmarkMathBinomial-14    	 4607050	       260.3 ns/op	      56 B/op	       2 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/math_util	22.268s
