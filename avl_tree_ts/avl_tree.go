@@ -19,8 +19,8 @@ BSD 3 Clause Licensed.
 //	Reads (Search, FindMin, FindMax, Floor, Ceil, Index, Depth, Len,
 //	Length, IsEmpty) take the read lock and release it before returning,
 //	so they run in parallel with each other.
-//	Writes (Insert, Delete, DeleteAtHead, DeleteAtTail, Reverse, Truncate)
-//	take the write lock.
+//	Writes (Insert, Upsert, Delete, Remove, DeleteAtHead, DeleteAtTail,
+//	Reverse, Truncate) take the write lock.
 //	Front, All and Backward operate on a snapshot taken when they are
 //	called (one O(n) copy, under the read lock), so they are safe to use
 //	concurrently with any tree operation — including mutating the tree
@@ -54,7 +54,9 @@ BSD 3 Clause Licensed.
 // Basic operations on an Avl Tree:
 //
 //	Insert — create a new element in the tree; a duplicate replaces the existing element.
+//	Upsert — Insert in one descent that also returns the replaced element.
 //	Delete — delete a specified element from the tree (elements can be found via Search).
+//	Remove — Delete in one descent that also returns the stored element.
 //	Search — return the given element from the tree.
 //	Index — return the Nth element of the tree in in-order order.
 //	IsEmpty — report whether the tree is empty.
@@ -80,8 +82,9 @@ BSD 3 Clause Licensed.
 //	Clone — deep copy of the tree.
 //
 // A nil *AvlTree and the zero value both behave as an empty tree for
-// every operation except Insert: Search finds nothing, Delete,
-// DeleteAtHead and DeleteAtTail return false, FindMin, FindMax, Floor,
+// every operation except Insert and Upsert: Search finds nothing, Delete,
+// DeleteAtHead and DeleteAtTail return false, Remove reports not-found,
+// FindMin, FindMax, Floor,
 // Ceil and Index report not-found, Len and Depth are 0, and the walks and
 // iterators visit nothing.
 //
@@ -94,8 +97,8 @@ BSD 3 Clause Licensed.
 // that cannot be handled where they occur:
 //
 //	NewAvlTreeFunc(nil)          — nil comparison function, caught at construction.
-//	Insert on a nil tree         — a nil tree cannot store an element.
-//	Insert on a zero-value tree  — no comparison function; the message names the constructors.
+//	Insert or Upsert on a nil tree         — a nil tree cannot store an element.
+//	Insert or Upsert on a zero-value tree  — no comparison function; the message names the constructors.
 package avl_tree_ts
 
 import (
@@ -359,12 +362,22 @@ func (tt *AvlTree[T]) rebalanceNode(root **AvlTreeElement[T]) {
 	}
 }
 
+// maxAvlHeight bounds the height of every AVL tree that can exist.  A
+// minimal AVL tree of height h holds F(h+2)-1 nodes (F the Fibonacci
+// numbers) and F(94) exceeds 2^64, so no tree that fits in a 64-bit
+// address space is taller than 91.  The descents (insert, delete) record
+// their root-to-leaf path and the traversals keep their pending nodes in
+// fixed arrays of this size, so neither allocates nor recurses through a
+// closure.
+const maxAvlHeight = 92
+
 // Insert will add a new item to the tree.  If it is a duplicate of an
 // existing item the new item will replace the existing one in place and
-// false is returned; true is returned when a new node was added.
+// false is returned; true is returned when a new node was added.  A
+// replace allocates nothing; only a genuine insert allocates its node.
 // Insert panics on a nil tree or on a zero-value tree (no comparison
-// function); these are the only panics on non-constructor calls in the
-// package — every other operation treats both as an empty tree.
+// function); Upsert shares that contract.  Every other non-constructor
+// operation treats both as an empty tree.
 // Complexity is O(log₂ n).
 func (tt *AvlTree[T]) Insert(item T) (vv bool) {
 	if tt == nil {
@@ -380,39 +393,81 @@ func (tt *AvlTree[T]) Insert(item T) (vv bool) {
 	return tt.nlInsert(item)
 }
 
+// Upsert inserts item, or replaces the stored element equal to it, in a
+// single descent under one hold of the write lock.  When an equal element
+// was present it is returned as old with replaced=true (the tree now
+// holds item in its place, the shape unchanged and nothing allocated);
+// otherwise item is added as a new node and old is the zero value with
+// replaced=false.  Upsert is Insert that also hands back the previous
+// element — an atomic replacement of the racy Search-then-Insert
+// pattern.  Like Insert it panics on a nil tree or on a zero-value tree
+// (no comparison function).
+// Complexity is O(log₂ n).
+func (tt *AvlTree[T]) Upsert(item T) (old T, replaced bool) {
+	if tt == nil {
+		panic("avl_tree_ts: Upsert called on a nil tree (a nil tree cannot store an element; create the tree with NewAvlTree or NewAvlTreeFunc)")
+	}
+
+	tt.lock.Lock()
+	defer tt.lock.Unlock()
+
+	if tt.cmp == nil {
+		panic("avl_tree_ts: Upsert called on a tree with no comparison function (create the tree with NewAvlTree or NewAvlTreeFunc)")
+	}
+	return tt.nlUpsert(item)
+}
+
 // nlInsert is Insert without locking; the caller must hold the write lock
 // and tt.cmp must be non-nil.
-func (tt *AvlTree[T]) nlInsert(item T) (vv bool) {
-	node := NewAvlTreeElement(item)
-	if tt.nlIsEmpty() {
-		tt.root = node
-		tt.length = 1
-		return true
-	}
+func (tt *AvlTree[T]) nlInsert(item T) bool {
+	_, replaced := tt.nlUpsert(item)
+	return !replaced
+}
 
-	// Recursive insert with AVL rebalancing on the way back up.
-	var insert func(root **AvlTreeElement[T]) bool
-	insert = func(root **AvlTreeElement[T]) bool {
-		if *root == nil {
-			*root = node
-			tt.length++
-			return true
+// nlUpsert is Upsert without locking; the caller must hold the write lock
+// and tt.cmp must be non-nil.  It is an iterative descent that records
+// the links it passes in a fixed-size path.  An equal element is replaced
+// in place (no allocation, no rebalancing — the shape does not change);
+// otherwise the node is allocated only now, at the nil link where it
+// belongs, and the path is retraced bottom-up.
+func (tt *AvlTree[T]) nlUpsert(item T) (old T, replaced bool) {
+	var path [maxAvlHeight]**AvlTreeElement[T]
+	n := 0
+	link := &tt.root
+	for cur := *link; cur != nil; cur = *link {
+		c := tt.cmp(item, cur.data)
+		if c == 0 {
+			old, cur.data = cur.data, item
+			return old, true
 		}
-		if c := tt.cmp(item, (*root).data); c == 0 {
-			// Duplicate: replace the stored value in place, keeping the
-			// children and the height so the tree shape does not change.
-			(*root).data = item
-			return false
-		} else if c < 0 {
-			vv = insert(&(*root).left)
+		path[n] = link
+		n++
+		if c < 0 {
+			link = &cur.left
 		} else {
-			vv = insert(&(*root).right)
+			link = &cur.right
 		}
-		tt.rebalanceNode(root)
-		return vv
 	}
+	*link = &AvlTreeElement[T]{data: item, height: 1}
+	tt.length++
+	tt.retrace(path[:n])
+	return old, false
+}
 
-	return insert(&tt.root)
+// retrace walks a recorded descent path bottom-up, recomputing heights and
+// rotating where the AVL invariant is broken.  It stops at the first
+// subtree whose height came out unchanged: the heights (and therefore the
+// balance factors) of everything above it are unchanged too, so the
+// remaining rebalanceNode calls would all be no-ops.  The caller must
+// hold the write lock.
+func (tt *AvlTree[T]) retrace(path []**AvlTreeElement[T]) {
+	for i := len(path) - 1; i >= 0; i-- {
+		before := (*path[i]).height
+		tt.rebalanceNode(path[i])
+		if (*path[i]).height == before {
+			return
+		}
+	}
 }
 
 // Len returns the number of elements in the tree.
@@ -524,55 +579,90 @@ func (tt *AvlTree[T]) Delete(find T) (found bool) {
 	return tt.nlDelete(find)
 }
 
-// nlDelete is Delete without locking; the caller must hold the write lock
-// and the tree must be non-empty.
-func (tt *AvlTree[T]) nlDelete(find T) (found bool) {
-
-	// Recursive delete with AVL rebalancing on the way back up.
-	var delete func(root **AvlTreeElement[T])
-	delete = func(root **AvlTreeElement[T]) {
-		if *root == nil {
-			return // not found
-		}
-		c := tt.compare(find, (*root).data)
-		if c < 0 {
-			delete(&(*root).left)
-		} else if c > 0 {
-			delete(&(*root).right)
-		} else {
-			found = true
-			tt.length--
-			n := *root
-			switch {
-			case n.left == nil:
-				*root = n.right // leaf or single right child; may set nil
-			case n.right == nil:
-				*root = n.left // single left child
-			default:
-				// Two children: unlink the in-order successor (the leftmost
-				// node of the right subtree) and put it in n's place.
-				var removeMin func(r **AvlTreeElement[T]) *AvlTreeElement[T]
-				removeMin = func(r **AvlTreeElement[T]) *AvlTreeElement[T] {
-					if (*r).left == nil {
-						m := *r
-						*r = m.right // leftmost node may have a right subtree
-						m.right = nil
-						return m
-					}
-					rv := removeMin(&(*r).left)
-					tt.rebalanceNode(r)
-					return rv
-				}
-				succ := removeMin(&(n.right))
-				succ.left, succ.right, succ.height = n.left, n.right, n.height
-				*root = succ
-			}
-		}
-		tt.rebalanceNode(root)
+// Remove deletes the element equal to find and returns it: removed is the
+// stored element (with all of its fields, not just the ones the
+// comparison function reads) and found reports whether one was present.
+// It is Delete that also hands back the element, in one descent under one
+// hold of the write lock — an atomic replacement of the racy
+// Search-then-Delete pattern.  A nil tree and the zero value behave as an
+// empty tree (found=false), exactly like Delete.
+// Complexity is O(log₂ n).
+func (tt *AvlTree[T]) Remove(find T) (removed T, found bool) {
+	if tt == nil {
+		return
 	}
 
-	delete(&tt.root)
-	return
+	tt.lock.Lock()
+	defer tt.lock.Unlock()
+
+	return tt.nlRemove(find)
+}
+
+// nlDelete is Delete without locking; the caller must hold the write lock.
+func (tt *AvlTree[T]) nlDelete(find T) (found bool) {
+	_, found = tt.nlRemove(find)
+	return found
+}
+
+// nlRemove is Remove without locking; the caller must hold the write
+// lock.  An iterative descent records the links it passes in a fixed-size
+// path.  A node with two children is replaced by its in-order successor
+// (the leftmost node of its right subtree), whose own descent extends the
+// same path; then the path is retraced bottom-up.
+func (tt *AvlTree[T]) nlRemove(find T) (removed T, found bool) {
+	var path [maxAvlHeight]**AvlTreeElement[T]
+	n := 0
+	link := &tt.root
+	for {
+		cur := *link
+		if cur == nil {
+			return // not found (or empty tree)
+		}
+		c := tt.compare(find, cur.data)
+		if c == 0 {
+			break
+		}
+		path[n] = link
+		n++
+		if c < 0 {
+			link = &cur.left
+		} else {
+			link = &cur.right
+		}
+	}
+
+	target := *link
+	removed = target.data
+	tt.length--
+	switch {
+	case target.left == nil:
+		*link = target.right // leaf or single right child; may set nil
+	case target.right == nil:
+		*link = target.left // single left child
+	default:
+		// Two children: unlink the in-order successor m and put it in
+		// target's place, keeping target's height for the retrace.
+		slot := n
+		path[n] = link
+		n++
+		ml := &target.right
+		for (*ml).left != nil {
+			path[n] = ml
+			n++
+			ml = &(*ml).left
+		}
+		m := *ml
+		*ml = m.right // the successor may have a right subtree
+		m.left, m.right, m.height = target.left, target.right, target.height
+		*link = m
+		if n > slot+1 {
+			// The path recorded &target.right, a field of the unlinked
+			// node; the live link to that subtree is now m.right.
+			path[slot+1] = &m.right
+		}
+	}
+	tt.retrace(path[:n])
+	return removed, true
 }
 
 // FindMin returns the smallest value in the tree, or false if the tree is
@@ -745,16 +835,26 @@ func (tt *AvlTree[T]) Reverse() {
 		return
 	}
 
-	var postTraversal func(cur *AvlTreeElement[T])
-	postTraversal = func(cur *AvlTreeElement[T]) {
-		if cur == nil {
+	// Iterative pre-order: swap at each node, keep one pending subtree
+	// per level on a fixed-size stack (mirroring preserves heights).
+	var stk [maxAvlHeight]*AvlTreeElement[T]
+	sp := 0
+	cur := tt.root
+	for {
+		for cur != nil {
+			cur.left, cur.right = cur.right, cur.left
+			if cur.right != nil {
+				stk[sp] = cur.right
+				sp++
+			}
+			cur = cur.left
+		}
+		if sp == 0 {
 			return
 		}
-		postTraversal(cur.left)
-		postTraversal(cur.right)
-		cur.left, cur.right = cur.right, cur.left
+		sp--
+		cur = stk[sp]
 	}
-	postTraversal(tt.root)
 }
 
 // Index returns the `pos`-th element of the tree in in-order order, or
@@ -775,23 +875,15 @@ func (tt *AvlTree[T]) Index(pos int) (item T, found bool) {
 		return
 	}
 
-	var n = 0
-	var inorderTraversal func(cur *AvlTreeElement[T])
-	inorderTraversal = func(cur *AvlTreeElement[T]) {
-		if cur == nil || found {
-			return
+	i := 0
+	tt.walkInOrder(func(_, _ int, v T) bool {
+		if i == pos {
+			item, found = v, true
+			return false
 		}
-		inorderTraversal(cur.left)
-		if n == pos {
-			item = cur.data
-			found = true
-		}
-		n++
-		if !found {
-			inorderTraversal(cur.right)
-		}
-	}
-	inorderTraversal(tt.root)
+		i++
+		return true
+	})
 	return
 }
 
@@ -834,27 +926,7 @@ func (tt *AvlTree[T]) WalkInOrder(fx ApplyFunction[T]) {
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 
-	p := 0
-	b := true
-	var inorderTraversal func(cur *AvlTreeElement[T], n int)
-	inorderTraversal = func(cur *AvlTreeElement[T], n int) {
-		if cur == nil {
-			return
-		}
-		if b {
-			inorderTraversal(cur.left, n+1)
-		}
-		// ----------------------------------------------------------------------
-		if b {
-			b = fx(p, n, cur.data)
-			p++
-		}
-		// ----------------------------------------------------------------------
-		if b {
-			inorderTraversal(cur.right, n+1)
-		}
-	}
-	inorderTraversal(tt.root, 0)
+	tt.walkInOrder(fx)
 }
 
 // WalkPreOrder visits every element in pre-order (node, left, right)
@@ -870,27 +942,7 @@ func (tt *AvlTree[T]) WalkPreOrder(fx ApplyFunction[T]) {
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 
-	p := 0
-	b := true
-	var preOrderTraversal func(cur *AvlTreeElement[T], n int)
-	preOrderTraversal = func(cur *AvlTreeElement[T], n int) {
-		if cur == nil {
-			return
-		}
-		// ----------------------------------------------------------------------
-		if b {
-			b = fx(p, n, cur.data)
-			p++
-		}
-		// ----------------------------------------------------------------------
-		if b {
-			preOrderTraversal(cur.left, n+1)
-		}
-		if b {
-			preOrderTraversal(cur.right, n+1)
-		}
-	}
-	preOrderTraversal(tt.root, 0)
+	tt.walkPreOrder(fx)
 }
 
 // WalkPostOrder visits every element in post-order (left, right, node)
@@ -906,27 +958,95 @@ func (tt *AvlTree[T]) WalkPostOrder(fx ApplyFunction[T]) {
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 
-	p := 0
-	b := true
-	var postOrderTraversal func(cur *AvlTreeElement[T], n int)
-	postOrderTraversal = func(cur *AvlTreeElement[T], n int) {
-		if cur == nil {
+	tt.walkPostOrder(fx)
+}
+
+// walkFrame is one pending node of an iterative Walk*, with its depth.
+type walkFrame[T any] struct {
+	n     *AvlTreeElement[T]
+	depth int
+}
+
+// walkInOrder is the iterative in-order walk shared by WalkInOrder and
+// Index: a fixed-size stack of (node, depth) frames.  The caller must
+// hold the lock.
+func (tt *AvlTree[T]) walkInOrder(fx ApplyFunction[T]) {
+	var stk [maxAvlHeight]walkFrame[T]
+	sp, p := 0, 0
+	cur, d := tt.root, 0
+	for {
+		for ; cur != nil; cur, d = cur.left, d+1 {
+			stk[sp] = walkFrame[T]{cur, d}
+			sp++
+		}
+		if sp == 0 {
 			return
 		}
-		if b {
-			postOrderTraversal(cur.left, n+1)
+		sp--
+		f := stk[sp]
+		if !fx(p, f.depth, f.n.data) {
+			return
 		}
-		if b {
-			postOrderTraversal(cur.right, n+1)
-		}
-		// ----------------------------------------------------------------------
-		if b {
-			b = fx(p, n, cur.data)
-			p++
-		}
-		// ----------------------------------------------------------------------
+		p++
+		cur, d = f.n.right, f.depth+1
 	}
-	postOrderTraversal(tt.root, 0)
+}
+
+// walkPreOrder is the iterative pre-order walk: visit, remember the right
+// child, go left.  At most one pending right child per level.  The caller
+// must hold the lock.
+func (tt *AvlTree[T]) walkPreOrder(fx ApplyFunction[T]) {
+	var stk [maxAvlHeight]walkFrame[T]
+	sp, p := 0, 0
+	cur, d := tt.root, 0
+	for {
+		for ; cur != nil; cur, d = cur.left, d+1 {
+			if !fx(p, d, cur.data) {
+				return
+			}
+			p++
+			if cur.right != nil {
+				stk[sp] = walkFrame[T]{cur.right, d + 1}
+				sp++
+			}
+		}
+		if sp == 0 {
+			return
+		}
+		sp--
+		cur, d = stk[sp].n, stk[sp].depth
+	}
+}
+
+// walkPostOrder is the iterative post-order walk: the stack holds the
+// current root-to-node path; a node is visited once its right subtree is
+// done (last == its right child, or it has none).  The caller must hold
+// the lock.
+func (tt *AvlTree[T]) walkPostOrder(fx ApplyFunction[T]) {
+	var stk [maxAvlHeight]*AvlTreeElement[T]
+	sp, p := 0, 0
+	cur := tt.root
+	var last *AvlTreeElement[T]
+	for {
+		for ; cur != nil; cur = cur.left {
+			stk[sp] = cur
+			sp++
+		}
+		if sp == 0 {
+			return
+		}
+		top := stk[sp-1]
+		if top.right != nil && top.right != last {
+			cur = top.right
+			continue
+		}
+		sp--
+		if !fx(p, sp, top.data) { // depth == number of ancestors on the stack
+			return
+		}
+		p++
+		last = top
+	}
 }
 
 // snapshot returns the data of the tree in in-order (sorted) sequence
@@ -941,20 +1061,30 @@ func (tt *AvlTree[T]) snapshot() (items []T, cmp func(a, b T) int) {
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
 
-	items = make([]T, 0, tt.length)
-	var stk []*AvlTreeElement[T]
+	return tt.nlAppendInOrder(make([]T, 0, tt.length)), tt.cmp
+}
+
+// nlAppendInOrder appends the elements in in-order sequence to dst and
+// returns it; the walk uses a fixed-size stack, so the only allocation is
+// dst's growth (none when dst has room for Len elements).  The caller
+// must hold the lock.
+func (tt *AvlTree[T]) nlAppendInOrder(dst []T) []T {
+	var stk [maxAvlHeight]*AvlTreeElement[T]
+	sp := 0
 	n := tt.root
-	for n != nil || len(stk) > 0 {
-		for n != nil {
-			stk = append(stk, n)
-			n = n.left
+	for {
+		for ; n != nil; n = n.left {
+			stk[sp] = n
+			sp++
 		}
-		n = stk[len(stk)-1]
-		stk = stk[:len(stk)-1]
-		items = append(items, n.data)
+		if sp == 0 {
+			return dst
+		}
+		sp--
+		n = stk[sp]
+		dst = append(dst, n.data)
 		n = n.right
 	}
-	return items, tt.cmp
 }
 
 // adoptCmp makes sure tt has a comparison function while holding the write

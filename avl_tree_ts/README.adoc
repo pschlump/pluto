@@ -37,6 +37,7 @@ Same as `avl_tree`:
 | Operation                                              | Complexity
 
 | Insert / Delete / Search                               | O(log₂ n) worst case
+| Upsert / Remove                                        | O(log₂ n) worst case — one descent, one write-lock hold
 | FindMin / FindMax / DeleteAtHead / DeleteAtTail        | O(log₂ n) worst case
 | Floor / Ceil                                           | O(log₂ n) worst case
 | Index                                                  | O(n)
@@ -56,13 +57,19 @@ Same as `avl_tree`:
 duplicate replaced the stored value.  `Len` is an alias for `Length`,
 matching the other pluto tree packages.
 
+`Upsert(item) (old T, replaced bool)` inserts or replaces and returns the
+replaced element; `Remove(find) (removed T, found bool)` deletes and
+returns the stored element.  Each runs as one descent under one hold of
+the write lock, so it is the atomic form of the racy `Search`-then-write
+pattern.  A replace allocates nothing.
+
 == Locking behavior
 
 * *Reads* (`Search`, `FindMin`, `FindMax`, `Floor`, `Ceil`, `Index`,
 `Depth`, `Len`, `Length`, `IsEmpty`) take the read lock and release it
 before returning — they can run in parallel with each other.
-* *Writes* (`Insert`, `Delete`, `DeleteAtHead`, `DeleteAtTail`,
-`Reverse`, `Truncate`) take the write lock.  The *batch mutators*
+* *Writes* (`Insert`, `Upsert`, `Delete`, `Remove`, `DeleteAtHead`,
+`DeleteAtTail`, `Reverse`, `Truncate`) take the write lock.  The *batch mutators*
 (`InsertSlice`, `InsertIter`, `DeleteSlice`) hold the write lock once for
 the whole batch, so a batch is atomic: an interleaved reader sees none or
 all of it, never part.
@@ -118,9 +125,11 @@ all programmer errors with no sane fallback:
 | Call | Why 
 
 | `NewAvlTreeFunc(nil)` | nil comparison function, caught at construction time 
-| `Insert` on a nil `*AvlTree` | a nil tree cannot store an element 
-| `Insert` on a zero-value tree | no comparison function; the message names the constructors 
+| `Insert` or `Upsert` on a nil `*AvlTree` | a nil tree cannot store an element 
+| `Insert` or `Upsert` on a zero-value tree | no comparison function; the message names the constructors 
 |===
+
+`Remove` follows `Delete`: a nil or zero-value tree reports not-found.
 
 Everything else tolerates a nil tree and the zero value as an empty tree
 (the zero value of `sync.RWMutex` is a working lock), including nil

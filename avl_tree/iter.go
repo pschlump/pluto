@@ -93,22 +93,11 @@ func (iter *AvlTreeIter[T]) Done() bool {
 //	for item := range tree.All() { ... }
 //
 // The tree must not be modified while the iterator is being consumed — it
-// walks the live nodes.
+// walks the live nodes.  The walk keeps its pending nodes in a fixed-size
+// stack array: a full or early-stopped range allocates nothing.
 // Complexity is O(n).
 func (tt *AvlTree[T]) All() iter.Seq[T] {
-	if tt == nil {
-		return func(func(T) bool) {} // a nil tree iterates as an empty one
-	}
-	return func(yield func(T) bool) {
-		var walk func(cur *AvlTreeElement[T]) bool
-		walk = func(cur *AvlTreeElement[T]) bool {
-			if cur == nil {
-				return true
-			}
-			return walk(cur.left) && yield(cur.data) && walk(cur.right)
-		}
-		walk(tt.root)
-	}
+	return func(yield func(T) bool) { tt.ascend(yield) }
 }
 
 // Backward returns a range-over-func iterator that visits every element of
@@ -117,20 +106,60 @@ func (tt *AvlTree[T]) All() iter.Seq[T] {
 //	for item := range tree.Backward() { ... }
 //
 // The tree must not be modified while the iterator is being consumed — it
-// walks the live nodes.
+// walks the live nodes.  Like All it allocates nothing.
 // Complexity is O(n).
 func (tt *AvlTree[T]) Backward() iter.Seq[T] {
+	return func(yield func(T) bool) { tt.descend(yield) }
+}
+
+// ascend yields every element in in-order sequence, stopping as soon as
+// yield returns false.  It is a method (not a closure) with a fixed-size
+// stack so that All stays small enough to inline and nothing escapes.
+func (tt *AvlTree[T]) ascend(yield func(T) bool) {
 	if tt == nil {
-		return func(func(T) bool) {} // a nil tree iterates as an empty one
+		return // a nil tree iterates as an empty one
 	}
-	return func(yield func(T) bool) {
-		var walk func(cur *AvlTreeElement[T]) bool
-		walk = func(cur *AvlTreeElement[T]) bool {
-			if cur == nil {
-				return true
-			}
-			return walk(cur.right) && yield(cur.data) && walk(cur.left)
+	var stk [maxAvlHeight]*AvlTreeElement[T]
+	sp := 0
+	n := tt.root
+	for {
+		for ; n != nil; n = n.left {
+			stk[sp] = n
+			sp++
 		}
-		walk(tt.root)
+		if sp == 0 {
+			return
+		}
+		sp--
+		n = stk[sp]
+		if !yield(n.data) {
+			return
+		}
+		n = n.right
+	}
+}
+
+// descend is ascend mirrored: reverse in-order, right subtrees first.
+func (tt *AvlTree[T]) descend(yield func(T) bool) {
+	if tt == nil {
+		return // a nil tree iterates as an empty one
+	}
+	var stk [maxAvlHeight]*AvlTreeElement[T]
+	sp := 0
+	n := tt.root
+	for {
+		for ; n != nil; n = n.right {
+			stk[sp] = n
+			sp++
+		}
+		if sp == 0 {
+			return
+		}
+		sp--
+		n = stk[sp]
+		if !yield(n.data) {
+			return
+		}
+		n = n.left
 	}
 }

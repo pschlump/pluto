@@ -552,7 +552,10 @@ early-stop callbacks, `All`/`Backward`, `Index`, `Reverse`, `Front`,
 `Intersect`. The set operations snapshot their operands before
 rebuilding the destination (a source may alias the destination), and a
 zero-value destination adopts an operand's comparison function.
-`Insert` returns bool (added vs duplicate-replaced).
+`Insert` returns bool (added vs duplicate-replaced); `Upsert`/`Remove`
+are the one-descent forms that also return the replaced / removed
+element. Replaces and full or early-stopped `All`/`Backward` ranges
+allocate nothing.
 
 * Good: hard O(log n) bound; O(1) `Depth`; set operations you will not
 find elsewhere here; `avl_tree_ts` has the same API behind the

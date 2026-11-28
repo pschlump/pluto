@@ -53,20 +53,7 @@ func (tt *AvlTree[T]) Slice() []T {
 	if tt == nil {
 		return nil
 	}
-	items := make([]T, 0, tt.length)
-	var stk []*AvlTreeElement[T]
-	n := tt.root
-	for n != nil || len(stk) > 0 {
-		for n != nil {
-			stk = append(stk, n)
-			n = n.left
-		}
-		n = stk[len(stk)-1]
-		stk = stk[:len(stk)-1]
-		items = append(items, n.data)
-		n = n.right
-	}
-	return items
+	return tt.appendInOrder(make([]T, 0, tt.length))
 }
 
 // String renders the tree as its elements formatted with fmt.Sprint and
@@ -138,22 +125,25 @@ func (tt *AvlTree[T]) Clone() *AvlTree[T] {
 	if tt == nil {
 		return nil
 	}
-	var copyNode func(n *AvlTreeElement[T]) *AvlTreeElement[T]
-	copyNode = func(n *AvlTreeElement[T]) *AvlTreeElement[T] {
-		if n == nil {
-			return nil
-		}
-		return &AvlTreeElement[T]{
-			data:   n.data,
-			height: n.height,
-			left:   copyNode(n.left),
-			right:  copyNode(n.right),
-		}
-	}
 	return &AvlTree[T]{
-		root:   copyNode(tt.root),
+		root:   cloneNode(tt.root),
 		length: tt.length,
 		cmp:    tt.cmp,
+	}
+}
+
+// cloneNode deep-copies the subtree rooted at n, cached heights included.
+// It is a plain recursive function (depth bounded by the tree height, at
+// most maxAvlHeight), not a recursive closure.
+func cloneNode[T any](n *AvlTreeElement[T]) *AvlTreeElement[T] {
+	if n == nil {
+		return nil
+	}
+	return &AvlTreeElement[T]{
+		data:   n.data,
+		height: n.height,
+		left:   cloneNode(n.left),
+		right:  cloneNode(n.right),
 	}
 }
 

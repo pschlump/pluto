@@ -57,20 +57,22 @@ func (tt *AvlTree[T]) RangeOf(value ranges.Range[T]) iter.Seq[T] {
 		}
 		lower, lowerBound, hasLower := value.LowerBound()
 		upper, upperBound, hasUpper := value.UpperBound()
-		stack := []*AvlTreeElement[T]{}
+		var stack [maxAvlHeight]*AvlTreeElement[T] // fixed size: no allocation
+		sp := 0
 		node := tt.root
 		for node != nil {
 			include := !hasLower || tt.compare(node.data, lower) > 0 || lowerBound == ranges.ClosedBound && tt.compare(node.data, lower) == 0
 			if include {
-				stack = append(stack, node)
+				stack[sp] = node
+				sp++
 				node = node.left
 			} else {
 				node = node.right
 			}
 		}
-		for len(stack) > 0 {
-			node = stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
+		for sp > 0 {
+			sp--
+			node = stack[sp]
 			if hasUpper {
 				order := tt.compare(node.data, upper)
 				if order > 0 || order == 0 && upperBound == ranges.OpenBound {
@@ -80,10 +82,9 @@ func (tt *AvlTree[T]) RangeOf(value ranges.Range[T]) iter.Seq[T] {
 			if !yield(node.data) {
 				return
 			}
-			node = node.right
-			for node != nil {
-				stack = append(stack, node)
-				node = node.left
+			for node = node.right; node != nil; node = node.left {
+				stack[sp] = node
+				sp++
 			}
 		}
 	}

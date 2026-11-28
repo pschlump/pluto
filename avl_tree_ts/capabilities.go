@@ -141,22 +141,26 @@ func (tt *AvlTree[T]) Clone() *AvlTree[T] {
 	}
 	tt.lock.RLock()
 	defer tt.lock.RUnlock()
-	var copyNode func(n *AvlTreeElement[T]) *AvlTreeElement[T]
-	copyNode = func(n *AvlTreeElement[T]) *AvlTreeElement[T] {
-		if n == nil {
-			return nil
-		}
-		return &AvlTreeElement[T]{
-			data:   n.data,
-			height: n.height,
-			left:   copyNode(n.left),
-			right:  copyNode(n.right),
-		}
-	}
 	return &AvlTree[T]{
-		root:   copyNode(tt.root),
+		root:   cloneNode(tt.root),
 		length: tt.length,
 		cmp:    tt.cmp,
+	}
+}
+
+// cloneNode deep-copies the subtree rooted at n, cached heights included.
+// It is a plain recursive function (depth bounded by the tree height, at
+// most maxAvlHeight), not a recursive closure.  The caller must hold the
+// lock.
+func cloneNode[T any](n *AvlTreeElement[T]) *AvlTreeElement[T] {
+	if n == nil {
+		return nil
+	}
+	return &AvlTreeElement[T]{
+		data:   n.data,
+		height: n.height,
+		left:   cloneNode(n.left),
+		right:  cloneNode(n.right),
 	}
 }
 
