@@ -31,7 +31,9 @@ on pkg.go.dev.
 | Operation                                                        | Description                                        | Complexity
 
 | `Insert`                                                         | Add an element; duplicates replace the old data    | O(log₂ n)
+| `Upsert`                                                         | Insert or replace; returns the replaced element    | O(log₂ n)
 | `Delete`                                                         | Remove an element; reports whether it was found    | O(log₂ n)
+| `Remove`                                                         | Remove and return the stored element (one descent) | O(log₂ n)
 | `Search` / `Contains`                                            | Return / test membership of an equal element       | O(log₂ n)
 | `FindMin` / `FindMax`                                            | Return the smallest / largest element              | O(log₂ n)
 | `Floor` / `Ceil`                                                 | Largest element ≤ key / smallest ≥ key             | O(log₂ n)

@@ -203,12 +203,30 @@ func (ts *TreeSet[T]) Insert(item T) bool {
 	return ts.inner.Insert(item)
 }
 
+// Upsert inserts item, or replaces the equal element, in one descent and
+// returns the element it replaced (replaced is false for a new element).
+// It is the single-descent form of Search followed by Insert. It panics
+// exactly as Insert does (nil or zero-value set).
+// Complexity is O(log₂ n).
+func (ts *TreeSet[T]) Upsert(item T) (old T, replaced bool) {
+	ts.insertContractCheck("Upsert")
+	return ts.inner.Upsert(item)
+}
+
 // Delete removes the element equal to find and reports whether one was
 // present.  As with Search, `find` only needs the fields that the
 // comparison function reads.
 // Complexity is O(log₂ n).
 func (ts *TreeSet[T]) Delete(find T) bool {
 	return ts.innerOf().Delete(find)
+}
+
+// Remove deletes the element equal to find and returns the stored element,
+// in one descent: the single-descent form of Search followed by Delete. A
+// nil or zero-value set reports not found, as Delete does.
+// Complexity is O(log₂ n).
+func (ts *TreeSet[T]) Remove(find T) (removed T, found bool) {
+	return ts.innerOf().Remove(find)
 }
 
 // Search returns the stored element equal to find, or false when the

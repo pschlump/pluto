@@ -163,3 +163,5 @@ positioned AVL walk in O(log n + results), replacing the former full-prefix scan
 `UnionOf`, `IntersectionOf`, `DifferenceOf`, and `SymmetricDifferenceOf` return
 independent results without mutating operands. The `_ts` twin snapshots only the
 matching range and retains the same API.
+
+**Single-descent writes (2026-11-27).** `Upsert` (insert or replace, returning the replaced element) and `Remove` (delete and return the stored element) forward to the new `avl_tree` methods; the twin adds `Upsert`/`Remove` under one write-lock hold plus `NlUpsert`/`NlRemove`. `Upsert` follows Insert's panic contract (nil and zero-value sets, message names the method); `Remove` treats nil and zero-value sets as empty, like Delete. The twin's `Upsert` is the atomic replacement for a racy Search-then-Insert: `TestTwinUpsertRemoveConcurrent` requires exactly one fresh insert per value across 8 racing goroutines.

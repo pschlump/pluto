@@ -229,6 +229,53 @@ func (t *TreeSet[T]) NlInsert(item T) bool {
 	return t.inner.Insert(item)
 }
 
+// Upsert inserts item, or replaces the equal element, under one hold of
+// the write lock and returns the element it replaced. It is the atomic,
+// single-descent replacement for Search followed by Insert, and panics
+// exactly as Insert does.
+// Complexity is O(log₂ n).
+func (t *TreeSet[T]) Upsert(item T) (old T, replaced bool) {
+	if t == nil {
+		t.writeContractCheck("Upsert") // always panics on nil
+	}
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	if t.cmp == nil {
+		t.writeContractCheck("Upsert") // zero-value: same contract, under the lock
+	}
+	return t.inner.Upsert(item)
+}
+
+// NlUpsert is Upsert without the locking, for callers holding the set's
+// exclusive lock.
+// Complexity is O(log₂ n).
+func (t *TreeSet[T]) NlUpsert(item T) (old T, replaced bool) {
+	return t.inner.Upsert(item)
+}
+
+// Remove deletes the element equal to find under one hold of the write
+// lock and returns the stored element: the atomic, single-descent form of
+// Search followed by Delete. A nil or zero-value set reports not found.
+// Complexity is O(log₂ n).
+func (t *TreeSet[T]) Remove(find T) (removed T, found bool) {
+	if t == nil {
+		return removed, false
+	}
+	t.lock.Lock()
+	defer t.lock.Unlock()
+	return t.inner.Remove(find)
+}
+
+// NlRemove is Remove without the locking, for callers holding the set's
+// exclusive lock.
+// Complexity is O(log₂ n).
+func (t *TreeSet[T]) NlRemove(find T) (removed T, found bool) {
+	if t == nil {
+		return removed, false
+	}
+	return t.inner.Remove(find)
+}
+
 // Delete removes the element equal to find and reports whether one was
 // present.  As with Search, `find` only needs the fields that the
 // comparison function reads.

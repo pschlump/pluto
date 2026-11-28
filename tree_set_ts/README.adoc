@@ -42,7 +42,7 @@ type TreeSet[T any] struct {
   `FindMax`, `Index`, `Len`, `Length`, `IsEmpty`, `Slice`,
   `ContainsSlice`, `ContainsAny`, the relations, `MarshalJSON` — take
   the read lock for the whole call.
-* **Writes** — `Insert`, `InsertSlice`, `InsertIter`, `Delete`,
+* **Writes** — `Insert`, `Upsert`, `InsertSlice`, `InsertIter`, `Delete`, `Remove`,
   `DeleteSlice`, `DeleteFunc`, `DeleteAtHead`, `DeleteAtTail`,
   `Truncate`, the algebra, `UnmarshalJSON` — take the write lock once
   for the whole operation: a batch is atomic to concurrent readers.
