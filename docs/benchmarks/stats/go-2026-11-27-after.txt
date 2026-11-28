@@ -1,0 +1,33 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/pschlump/pluto/stats
+cpu: Apple M4 Max
+BenchmarkStatsAccumulator-14        	   31476	     38323 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatsAccumulator-14        	   29588	     40476 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatsAccumulator-14        	   29644	     40609 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatsPaired-14             	   16555	     71096 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatsPaired-14             	   16952	     70973 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatsPaired-14             	   16885	     71198 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatsQuantiles-14          	   29958	     40184 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantiles-14          	   29886	     40558 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantiles-14          	   29916	     40255 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/sorted-14         	   52910	     22825 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/sorted-14         	   51805	     23640 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/sorted-14         	   51310	     23216 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/reverse-14        	   51570	     23497 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/reverse-14        	   51434	     23394 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/reverse-14        	   51512	     23340 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/organPipe-14      	   46878	     25535 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/organPipe-14      	   46269	     25522 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/organPipe-14      	   46948	     25662 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/fewDistinct-14    	   47510	     25193 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/fewDistinct-14    	   47572	     25438 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/fewDistinct-14    	   47331	     25424 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/allEqual-14       	   50455	     23888 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/allEqual-14       	   50144	     23861 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesShapes/allEqual-14       	   50142	     23879 ns/op	   82384 B/op	       5 allocs/op
+BenchmarkStatsQuantilesSort-14                  	    9714	    124791 ns/op	   82016 B/op	       2 allocs/op
+BenchmarkStatsQuantilesSort-14                  	    9483	    120625 ns/op	   82016 B/op	       2 allocs/op
+BenchmarkStatsQuantilesSort-14                  	    9524	    124990 ns/op	   82016 B/op	       2 allocs/op
+PASS
+ok  	github.com/pschlump/pluto/stats	41.677s

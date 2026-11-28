@@ -9,8 +9,11 @@ Online statistics and exact quantiles.
   squares fits. LinearTransformation supports regular, horizontal, vertical,
   inverse, and NaN forms.
 - Type-7 Quantile/Quantiles, Median, and Percentile, with copying and in-place
-  variants. Multiple indexes share one deterministic median-of-medians selection
-  pass; duplicate indexes and result order are preserved.
+  variants. Multiple indexes share one deterministic introselect pass
+  (median-of-three/ninther pivots, Hoare partition, descent only into ranges
+  holding requested ranks, repeated median-of-five fallback after a depth
+  budget); duplicate indexes and result order are preserved. Expected O(n)
+  for a fixed index count; adversarial inputs cannot drive it quadratic.
 
 Empty means/extrema and insufficient sample/correlation results are NaN; empty
 sum is zero. Non-finite observations propagate NaN as documented by the API.

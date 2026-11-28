@@ -50,8 +50,8 @@ func (accumulator *Accumulator) Add(value float64) {
 		accumulator.mean = nonFiniteMean(accumulator.mean, value)
 		accumulator.m2 = math.NaN()
 	}
-	accumulator.min = math.Min(accumulator.min, value)
-	accumulator.max = math.Max(accumulator.max, value)
+	accumulator.min = minFloat(accumulator.min, value)
+	accumulator.max = maxFloat(accumulator.max, value)
 }
 
 // AddAll adds every value in order.
@@ -79,8 +79,8 @@ func (accumulator *Accumulator) Merge(other Stats) {
 		accumulator.mean = nonFiniteMean(accumulator.mean, other.mean)
 		accumulator.m2 = math.NaN()
 	}
-	accumulator.min = math.Min(accumulator.min, other.min)
-	accumulator.max = math.Max(accumulator.max, other.max)
+	accumulator.min = minFloat(accumulator.min, other.min)
+	accumulator.max = maxFloat(accumulator.max, other.max)
 }
 
 // MergeAccumulator incorporates another accumulator's current state.
@@ -160,8 +160,43 @@ func (stats Stats) SampleStandardDeviation() float64 {
 	return math.Sqrt(stats.SampleVariance())
 }
 
+// minFloat is math.Min, bit for bit, without its out-of-line call. The
+// builtin min already matches math.Min for signed zeros, ordinary NaN
+// propagation and infinities, except that math.Min returns -Inf (not NaN)
+// when one operand is -Inf and the other NaN; that pair is patched up on the
+// rarely taken NaN branch.
+func minFloat(x, y float64) float64 {
+	result := min(x, y)
+	if result != result {
+		if x < -math.MaxFloat64 { // x is -Inf
+			return x
+		}
+		if y < -math.MaxFloat64 {
+			return y
+		}
+	}
+	return result
+}
+
+// maxFloat is math.Max, bit for bit (see minFloat): math.Max returns +Inf,
+// not NaN, for a +Inf/NaN pair.
+func maxFloat(x, y float64) float64 {
+	result := max(x, y)
+	if result != result {
+		if x > math.MaxFloat64 { // x is +Inf
+			return x
+		}
+		if y > math.MaxFloat64 {
+			return y
+		}
+	}
+	return result
+}
+
+// finite reports whether value is neither NaN nor infinite: value-value is
+// exactly 0 for every finite value and NaN for NaN and both infinities.
 func finite(value float64) bool {
-	return !math.IsNaN(value) && !math.IsInf(value, 0)
+	return value-value == 0
 }
 
 func nonFiniteMean(previous, value float64) float64 {

@@ -53,6 +53,36 @@ func BenchmarkStatsQuantiles(b *testing.B) {
 	}
 }
 
+// BenchmarkStatsQuantilesShapes runs the eleven-quantile pass over inputs
+// that defeat naive quickselect pivoting (sorted, reversed, organ-pipe) and
+// duplicate-heavy inputs (few distinct values, all equal).
+func BenchmarkStatsQuantilesShapes(b *testing.B) {
+	indexes := []int{0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100}
+	n := statsBenchmarkSize
+	shapes := []struct {
+		name string
+		at   func(i int) float64
+	}{
+		{"sorted", func(i int) float64 { return float64(i) }},
+		{"reverse", func(i int) float64 { return float64(n - i) }},
+		{"organPipe", func(i int) float64 { return float64(min(i, n-1-i)) }},
+		{"fewDistinct", func(i int) float64 { return float64(i % 3) }},
+		{"allEqual", func(int) float64 { return 1 }},
+	}
+	for _, shape := range shapes {
+		values := make([]float64, n)
+		for i := range values {
+			values[i] = shape.at(i)
+		}
+		b.Run(shape.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for range b.N {
+				statsSink, _ = stats.Quantiles(values, 100, indexes...)
+			}
+		})
+	}
+}
+
 func BenchmarkStatsQuantilesSort(b *testing.B) {
 	indexes := []int{0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100}
 	b.ReportAllocs()
