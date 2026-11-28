@@ -3,7 +3,6 @@ package generic_graph
 import (
 	"path/filepath"
 	"runtime"
-	"slices"
 	"testing"
 
 	"github.com/pschlump/pluto/dijkstra"
@@ -105,7 +104,12 @@ func BenchmarkGenericGraphTraversal(b *testing.B) {
 	start := corpus.Edges[0].Source
 	b.ReportAllocs()
 	for b.Loop() {
-		benchmarkGraphInt = len(slices.Collect(ForGraph(graph).BreadthFirst(start)))
+		// Count lazily, as the JMH benchmark does, rather than collecting.
+		count := 0
+		for range ForGraph(graph).BreadthFirst(start) {
+			count++
+		}
+		benchmarkGraphInt = count
 	}
 }
 
@@ -132,6 +136,78 @@ func BenchmarkGenericNetworkInsert(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		network := NewNetwork[int, int](true, false, false)
+		for node := range corpus.Nodes {
+			_ = network.AddNode(node)
+		}
+		for id, edge := range corpus.Edges {
+			_ = network.AddEdge(edge.Source, edge.Target, id)
+		}
+	}
+}
+
+// The Expected variants pass the same capacity hints the JMH builders use
+// (expectedNodeCount, and expectedEdgeCount for the network). The natural
+// constructors have no capacity parameter, so these reach the natural
+// configuration internally; see docs/packages/generic_graph.md.
+func BenchmarkGenericGraphInsertExpected(b *testing.B) {
+	corpus := graphBenchCorpus(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		config := naturalConfig[int](true, false)
+		config.ExpectedNodes = corpus.Nodes
+		graph := NewGraphFunc(config)
+		for node := range corpus.Nodes {
+			_ = graph.AddNode(node)
+		}
+		for _, edge := range corpus.Edges {
+			_ = graph.AddEdge(edge.Source, edge.Target)
+		}
+	}
+}
+
+func BenchmarkGenericGraphInsertDenseExpected(b *testing.B) {
+	b.ReportAllocs()
+	for b.Loop() {
+		config := naturalConfig[int](true, false)
+		config.ExpectedNodes = 512
+		graph := NewGraphFunc(config)
+		for node := range 512 {
+			_ = graph.AddNode(node)
+		}
+		for source := range 512 {
+			for target := range 512 {
+				if source != target {
+					_ = graph.AddEdge(source, target)
+				}
+			}
+		}
+	}
+}
+
+func BenchmarkGenericValueGraphInsertExpected(b *testing.B) {
+	corpus := graphBenchCorpus(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		config := naturalConfig[int](true, false)
+		config.ExpectedNodes = corpus.Nodes
+		graph := NewValueGraphFunc[int, float64](config)
+		for node := range corpus.Nodes {
+			_ = graph.AddNode(node)
+		}
+		for i, edge := range corpus.Edges {
+			_ = graph.AddEdge(edge.Source, edge.Target, float64(i%97+1))
+		}
+	}
+}
+
+func BenchmarkGenericNetworkInsertExpected(b *testing.B) {
+	corpus := graphBenchCorpus(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		config := naturalNetworkConfig[int, int](true, false, false)
+		config.ExpectedNodes = corpus.Nodes
+		config.ExpectedEdges = len(corpus.Edges)
+		network := NewNetworkFunc(config)
 		for node := range corpus.Nodes {
 			_ = network.AddNode(node)
 		}

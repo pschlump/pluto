@@ -31,7 +31,7 @@ func (g *Graph[N]) Dense() *DenseAdapter[N] {
 		return nil
 	}
 	result := &DenseAdapter[N]{nodes: g.NodesSlice()}
-	result.index = newIndexedSet(g.config.Equal, g.config.Hash, len(result.nodes))
+	result.index = newIndexedSet(g.config.Equal, g.config.Hash, len(result.nodes), g.config.native)
 	for _, node := range result.nodes {
 		result.index.add(node)
 	}
@@ -108,7 +108,7 @@ func Dijkstra[N any](graph *ValueGraph[N, float64], source N) (*ShortestPaths[N]
 		return nil, ErrUnknownNode
 	}
 	result := &ShortestPaths[N]{nodes: graph.NodesSlice()}
-	result.index = newIndexedSet(graph.graph.config.Equal, graph.graph.config.Hash, len(result.nodes))
+	result.index = newIndexedSet(graph.graph.config.Equal, graph.graph.config.Hash, len(result.nodes), graph.graph.config.native)
 	for _, node := range result.nodes {
 		result.index.add(node)
 	}

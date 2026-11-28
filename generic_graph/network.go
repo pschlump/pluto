@@ -24,10 +24,12 @@ type Network[N any, E any] struct {
 	nodes  *indexedSet[N]
 	edges  *indexedSet[E]
 	links  []networkEdge
-	out    map[int][]int
-	in     map[int][]int
-	order  []int
-	count  int
+	// adj is parallel to nodes.entries: append-only incidence lists of edge
+	// IDs (inactive IDs are skipped by readers); index/slots are unused.
+	adj   []adjacency
+	order []int
+	count int
+	arena idArena
 }
 
 func NewNetwork[N comparable, E comparable](directed, allowSelfLoops, allowParallelEdges bool) *Network[N, E] {
@@ -54,9 +56,9 @@ func NewNetworkFunc[N any, E any](config NetworkConfig[N, E]) *Network[N, E] {
 		panic("generic_graph: invalid network edge functions/capacity")
 	}
 	return &Network[N, E]{config: config,
-		nodes: newIndexedSet(config.Equal, config.Hash, config.ExpectedNodes),
-		edges: newIndexedSet(config.EqualEdge, config.HashEdge, config.ExpectedEdges),
-		out:   make(map[int][]int), in: make(map[int][]int), order: make([]int, 0, config.ExpectedEdges)}
+		nodes: newIndexedSet(config.Equal, config.Hash, config.ExpectedNodes, config.native),
+		edges: newIndexedSet(config.EqualEdge, config.HashEdge, config.ExpectedEdges, config.nativeEdge),
+		adj:   make([]adjacency, 0, config.ExpectedNodes), order: make([]int, 0, config.ExpectedEdges)}
 }
 
 func (n *Network[N, E]) IsDirected() bool          { return n != nil && n.config.Directed }
@@ -66,6 +68,7 @@ func (n *Network[N, E]) AddNode(node N) error {
 	if _, added := n.nodes.add(node); !added {
 		return ErrDuplicateNode
 	}
+	n.adj = append(n.adj, adjacency{})
 	return nil
 }
 func (n *Network[N, E]) ContainsNode(node N) bool { _, found := n.nodes.lookup(node); return found }
@@ -103,11 +106,11 @@ func (n *Network[N, E]) AddEdge(source, target N, edge E) error {
 		n.links = append(n.links, networkEdge{})
 	}
 	n.links[id] = networkEdge{source: u, target: v, active: true}
-	n.out[u] = append(n.out[u], id)
-	n.in[v] = append(n.in[v], id)
+	n.adj[u].out = n.arena.push(n.adj[u].out, id)
+	n.adj[v].in = n.arena.push(n.adj[v].in, id)
 	if !n.config.Directed && u != v {
-		n.out[v] = append(n.out[v], id)
-		n.in[u] = append(n.in[u], id)
+		n.adj[v].out = n.arena.push(n.adj[v].out, id)
+		n.adj[u].in = n.arena.push(n.adj[u].in, id)
 	}
 	n.order = append(n.order, id)
 	n.count++
@@ -130,7 +133,7 @@ func (n *Network[N, E]) ids(source, target N) (int, int, error) {
 }
 
 func (n *Network[N, E]) hasEdgeIDs(source, target int) bool {
-	for _, id := range n.out[source] {
+	for _, id := range n.adj[source].out {
 		link := n.links[id]
 		if link.active && (link.target == target || (!n.config.Directed && link.source == target)) {
 			return true
@@ -190,7 +193,7 @@ func (n *Network[N, E]) RemoveNode(node N) error {
 		return ErrUnknownNode
 	}
 	seen := make(map[int]struct{})
-	for _, edgeID := range append(append([]int(nil), n.out[id]...), n.in[id]...) {
+	for _, edgeID := range append(append([]int(nil), n.adj[id].out...), n.adj[id].in...) {
 		if _, duplicate := seen[edgeID]; duplicate || !n.links[edgeID].active {
 			continue
 		}
@@ -199,8 +202,7 @@ func (n *Network[N, E]) RemoveNode(node N) error {
 		n.edges.remove(n.edges.entries[edgeID].value)
 		n.count--
 	}
-	delete(n.out, id)
-	delete(n.in, id)
+	n.adj[id] = adjacency{}
 	n.nodes.remove(node)
 	return nil
 }
@@ -257,8 +259,8 @@ func (n *Network[N, E]) IncidentEdges(node N) ([]E, error) {
 		return nil, ErrUnknownNode
 	}
 	seen := make(map[int]struct{})
-	values := make([]E, 0, len(n.out[id])+len(n.in[id]))
-	for _, edgeID := range append(append([]int(nil), n.out[id]...), n.in[id]...) {
+	values := make([]E, 0, len(n.adj[id].out)+len(n.adj[id].in))
+	for _, edgeID := range append(append([]int(nil), n.adj[id].out...), n.adj[id].in...) {
 		if _, duplicate := seen[edgeID]; duplicate || !n.links[edgeID].active {
 			continue
 		}
@@ -277,7 +279,7 @@ func (n *Network[N, E]) EdgesConnecting(source, target N) ([]E, error) {
 		return nil, err
 	}
 	values := make([]E, 0)
-	for _, id := range n.out[u] {
+	for _, id := range n.adj[u].out {
 		if n.links[id].active && n.links[id].target == v {
 			values = append(values, n.edges.entries[id].value)
 		}
@@ -293,9 +295,9 @@ func (n *Network[N, E]) neighbors(node N, predecessor bool) iter.Seq[N] {
 	if !found {
 		return sequence([]N(nil))
 	}
-	edgeIDs := n.out[id]
+	edgeIDs := n.adj[id].out
 	if predecessor {
-		edgeIDs = n.in[id]
+		edgeIDs = n.adj[id].in
 	}
 	seen := make(map[int]struct{})
 	values := make([]N, 0, len(edgeIDs))
@@ -331,10 +333,10 @@ func (n *Network[N, E]) Degree(node N) (int, error) {
 		return 0, ErrUnknownNode
 	}
 	if n.config.Directed {
-		return n.activeDegree(n.out[id]) + n.activeDegree(n.in[id]), nil
+		return n.activeDegree(n.adj[id].out) + n.activeDegree(n.adj[id].in), nil
 	}
-	degree := n.activeDegree(n.out[id])
-	for _, edgeID := range n.out[id] {
+	degree := n.activeDegree(n.adj[id].out)
+	for _, edgeID := range n.adj[id].out {
 		link := n.links[edgeID]
 		if link.active && link.source == link.target {
 			degree++
@@ -348,14 +350,14 @@ func (n *Network[N, E]) OutDegree(node N) (int, error) {
 	if !found {
 		return 0, ErrUnknownNode
 	}
-	return n.activeDegree(n.out[id]), nil
+	return n.activeDegree(n.adj[id].out), nil
 }
 func (n *Network[N, E]) InDegree(node N) (int, error) {
 	id, found := n.nodes.lookup(node)
 	if !found {
 		return 0, ErrUnknownNode
 	}
-	return n.activeDegree(n.in[id]), nil
+	return n.activeDegree(n.adj[id].in), nil
 }
 func (n *Network[N, E]) activeDegree(ids []int) int {
 	count := 0
@@ -382,5 +384,5 @@ func (n *Network[N, E]) Copy() *Network[N, E] {
 		return nil
 	}
 	return &Network[N, E]{config: n.config, nodes: n.nodes.copy(), edges: n.edges.copy(), links: append([]networkEdge(nil), n.links...),
-		out: copyOrder(n.out), in: copyOrder(n.in), order: append([]int(nil), n.order...), count: n.count}
+		adj: copyAdjacency(n.adj), order: append([]int(nil), n.order...), count: n.count}
 }

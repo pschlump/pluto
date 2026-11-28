@@ -1,0 +1,119 @@
+# generic_graph storage rewrite, interleaved A/B (2026-11-27, Apple M4 Max, darwin/arm64, Go 1.27.0)
+# A = bin_old.test: commit 31a1d71 generic_graph code with the NEW bench_test.go (lazy BFS count, *Expected variants)
+# B = bin_new.test: the storage rewrite. Each round runs A then B, 1-second runs, three rounds.
+# Machine shared with other benchmarking agents; load average 9.5 at start, 5.9 at end.
+== A bin_old.test
+BenchmarkGenericGraphInsert-14                 	     217	   5462847 ns/op	 7879729 B/op	   41962 allocs/op
+BenchmarkGenericGraphInsertDense-14            	      16	  72885164 ns/op	97673476 B/op	   29851 allocs/op
+BenchmarkGenericGraphLookup-14                 	17571818	        68.42 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericGraphRemoval-14                	     504	   2427999 ns/op	 4304162 B/op	   24655 allocs/op
+BenchmarkGenericGraphAdjacency-14              	 6316039	       188.2 ns/op	     238 B/op	       8 allocs/op
+BenchmarkGenericGraphTraversal-14              	    1218	    959730 ns/op	 1584879 B/op	   17540 allocs/op
+BenchmarkGenericValueGraphInsert-14            	     174	   6897071 ns/op	 9626634 B/op	   42109 allocs/op
+BenchmarkGenericValueGraphLookup-14            	27148527	        43.70 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericNetworkInsert-14               	     309	   3870286 ns/op	 9203499 B/op	   25156 allocs/op
+BenchmarkGenericGraphInsertExpected-14         	     214	   5542735 ns/op	 7548359 B/op	   41932 allocs/op
+BenchmarkGenericGraphInsertDenseExpected-14    	      16	  67951109 ns/op	97645290 B/op	   29832 allocs/op
+BenchmarkGenericValueGraphInsertExpected-14    	     178	   6717661 ns/op	 9295101 B/op	   42076 allocs/op
+BenchmarkGenericNetworkInsertExpected-14       	     367	   3285588 ns/op	 6438484 B/op	   25067 allocs/op
+BenchmarkGenericGraphDenseAdapter-14           	     979	   1221858 ns/op	 1639717 B/op	   12512 allocs/op
+BenchmarkGenericGraphDijkstraAdapter-14        	     330	   3623508 ns/op	 5240430 B/op	   47219 allocs/op
+BenchmarkGenericGraphDijkstraDirect-14         	    1993	    627549 ns/op	  233568 B/op	       8 allocs/op
+BenchmarkGenericGraphDenseMemory-14            	      16	  74608924 ns/op	  41940488 retained-bytes	       160.0 retained-bytes/input	97673442 B/op	   29851 allocs/op
+BenchmarkGenericGraphMemory-14                 	     183	   6555645 ns/op	   4395024 retained-bytes	       214.6 retained-bytes/input	 7879611 B/op	   41962 allocs/op
+== B bin_new.test
+BenchmarkGenericGraphInsert-14                 	     997	   1104607 ns/op	 2367347 B/op	     135 allocs/op
+BenchmarkGenericGraphInsertDense-14            	     175	   6847327 ns/op	16824653 B/op	    7884 allocs/op
+BenchmarkGenericGraphLookup-14                 	33463196	        35.62 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericGraphRemoval-14                	    8481	    139606 ns/op	 1074120 B/op	      29 allocs/op
+BenchmarkGenericGraphAdjacency-14              	29204570	        40.18 ns/op	      33 B/op	       0 allocs/op
+BenchmarkGenericGraphTraversal-14              	    1551	    797387 ns/op	 1277311 B/op	   16086 allocs/op
+BenchmarkGenericValueGraphInsert-14            	     830	   1451359 ns/op	 3456108 B/op	     186 allocs/op
+BenchmarkGenericValueGraphLookup-14            	27589932	        42.52 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericNetworkInsert-14               	     518	   2387519 ns/op	 7635177 B/op	     332 allocs/op
+BenchmarkGenericGraphInsertExpected-14         	    1227	    956025 ns/op	 1311651 B/op	      77 allocs/op
+BenchmarkGenericGraphInsertDenseExpected-14    	     165	   7123993 ns/op	16742057 B/op	    7853 allocs/op
+BenchmarkGenericValueGraphInsertExpected-14    	    1066	   1178180 ns/op	 2400407 B/op	     127 allocs/op
+BenchmarkGenericNetworkInsertExpected-14       	     828	   1467737 ns/op	 4077884 B/op	     155 allocs/op
+BenchmarkGenericGraphDenseAdapter-14           	    1443	    833136 ns/op	  971038 B/op	   12505 allocs/op
+BenchmarkGenericGraphDijkstraAdapter-14        	     396	   3023428 ns/op	 4571756 B/op	   47212 allocs/op
+BenchmarkGenericGraphDijkstraDirect-14         	    1982	    601302 ns/op	  233568 B/op	       8 allocs/op
+BenchmarkGenericGraphDenseMemory-14            	     139	   8603322 ns/op	  10586880 retained-bytes	        40.39 retained-bytes/input	16824678 B/op	    7884 allocs/op
+BenchmarkGenericGraphMemory-14                 	     832	   1487681 ns/op	   1287160 retained-bytes	        62.85 retained-bytes/input	 2367319 B/op	     135 allocs/op
+== A bin_old.test
+BenchmarkGenericGraphInsert-14                 	     216	   5533919 ns/op	 7879681 B/op	   41962 allocs/op
+BenchmarkGenericGraphInsertDense-14            	      15	  70724503 ns/op	97673343 B/op	   29850 allocs/op
+BenchmarkGenericGraphLookup-14                 	16968955	        72.06 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericGraphRemoval-14                	     513	   2307246 ns/op	 4304185 B/op	   24655 allocs/op
+BenchmarkGenericGraphAdjacency-14              	 6661218	       186.1 ns/op	     238 B/op	       8 allocs/op
+BenchmarkGenericGraphTraversal-14              	    1154	    951952 ns/op	 1584879 B/op	   17540 allocs/op
+BenchmarkGenericValueGraphInsert-14            	     176	   6753296 ns/op	 9626625 B/op	   42109 allocs/op
+BenchmarkGenericValueGraphLookup-14            	27279469	        42.65 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericNetworkInsert-14               	     324	   3694156 ns/op	 9203498 B/op	   25156 allocs/op
+BenchmarkGenericGraphInsertExpected-14         	     225	   5334868 ns/op	 7548356 B/op	   41932 allocs/op
+BenchmarkGenericGraphInsertDenseExpected-14    	      16	  71758589 ns/op	97645237 B/op	   29832 allocs/op
+BenchmarkGenericValueGraphInsertExpected-14    	     169	   7091432 ns/op	 9295105 B/op	   42076 allocs/op
+BenchmarkGenericNetworkInsertExpected-14       	     339	   3434601 ns/op	 6438496 B/op	   25067 allocs/op
+BenchmarkGenericGraphDenseAdapter-14           	    1004	   1205435 ns/op	 1639717 B/op	   12512 allocs/op
+BenchmarkGenericGraphDijkstraAdapter-14        	     325	   3644729 ns/op	 5240429 B/op	   47219 allocs/op
+BenchmarkGenericGraphDijkstraDirect-14         	    2028	    594008 ns/op	  233568 B/op	       8 allocs/op
+BenchmarkGenericGraphDenseMemory-14            	      15	  75562594 ns/op	  41940712 retained-bytes	       160.0 retained-bytes/input	97673414 B/op	   29851 allocs/op
+BenchmarkGenericGraphMemory-14                 	     187	   6324036 ns/op	   4394944 retained-bytes	       214.6 retained-bytes/input	 7879624 B/op	   41962 allocs/op
+== B bin_new.test
+BenchmarkGenericGraphInsert-14                 	    1063	   1108870 ns/op	 2367339 B/op	     135 allocs/op
+BenchmarkGenericGraphInsertDense-14            	     169	   7018775 ns/op	16824670 B/op	    7884 allocs/op
+BenchmarkGenericGraphLookup-14                 	31976158	        36.97 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericGraphRemoval-14                	    8175	    147780 ns/op	 1074120 B/op	      29 allocs/op
+BenchmarkGenericGraphAdjacency-14              	28409623	        41.95 ns/op	      33 B/op	       0 allocs/op
+BenchmarkGenericGraphTraversal-14              	    1396	    861738 ns/op	 1277315 B/op	   16086 allocs/op
+BenchmarkGenericValueGraphInsert-14            	     782	   1496583 ns/op	 3456113 B/op	     186 allocs/op
+BenchmarkGenericValueGraphLookup-14            	27030374	        45.40 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericNetworkInsert-14               	     480	   2246317 ns/op	 7635170 B/op	     332 allocs/op
+BenchmarkGenericGraphInsertExpected-14         	    1390	    867659 ns/op	 1311654 B/op	      77 allocs/op
+BenchmarkGenericGraphInsertDenseExpected-14    	     186	   6436172 ns/op	16742111 B/op	    7853 allocs/op
+BenchmarkGenericValueGraphInsertExpected-14    	    1136	   1063087 ns/op	 2400408 B/op	     127 allocs/op
+BenchmarkGenericNetworkInsertExpected-14       	     961	   1250590 ns/op	 4077884 B/op	     155 allocs/op
+BenchmarkGenericGraphDenseAdapter-14           	    1580	    761140 ns/op	  971036 B/op	   12505 allocs/op
+BenchmarkGenericGraphDijkstraAdapter-14        	     408	   2927232 ns/op	 4571748 B/op	   47212 allocs/op
+BenchmarkGenericGraphDijkstraDirect-14         	    1968	    589626 ns/op	  233568 B/op	       8 allocs/op
+BenchmarkGenericGraphDenseMemory-14            	     158	   7607497 ns/op	  10586656 retained-bytes	        40.38 retained-bytes/input	16824666 B/op	    7884 allocs/op
+BenchmarkGenericGraphMemory-14                 	     834	   1439766 ns/op	   1287160 retained-bytes	        62.85 retained-bytes/input	 2367317 B/op	     135 allocs/op
+== A bin_old.test
+BenchmarkGenericGraphInsert-14                 	     219	   5297032 ns/op	 7879695 B/op	   41962 allocs/op
+BenchmarkGenericGraphInsertDense-14            	      18	  65820530 ns/op	97673389 B/op	   29851 allocs/op
+BenchmarkGenericGraphLookup-14                 	17296694	        68.91 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericGraphRemoval-14                	     544	   2190234 ns/op	 4304169 B/op	   24655 allocs/op
+BenchmarkGenericGraphAdjacency-14              	 6984280	       169.0 ns/op	     238 B/op	       8 allocs/op
+BenchmarkGenericGraphTraversal-14              	    1288	    939611 ns/op	 1584877 B/op	   17540 allocs/op
+BenchmarkGenericValueGraphInsert-14            	     180	   6641847 ns/op	 9626618 B/op	   42109 allocs/op
+BenchmarkGenericValueGraphLookup-14            	26356585	        45.05 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericNetworkInsert-14               	     325	   3764862 ns/op	 9203502 B/op	   25156 allocs/op
+BenchmarkGenericGraphInsertExpected-14         	     222	   5328915 ns/op	 7548357 B/op	   41932 allocs/op
+BenchmarkGenericGraphInsertDenseExpected-14    	      16	  68599279 ns/op	97645190 B/op	   29831 allocs/op
+BenchmarkGenericValueGraphInsertExpected-14    	     170	   6937047 ns/op	 9295107 B/op	   42076 allocs/op
+BenchmarkGenericNetworkInsertExpected-14       	     356	   3490800 ns/op	 6438490 B/op	   25067 allocs/op
+BenchmarkGenericGraphDenseAdapter-14           	     937	   1173257 ns/op	 1639717 B/op	   12512 allocs/op
+BenchmarkGenericGraphDijkstraAdapter-14        	     367	   3248060 ns/op	 5240425 B/op	   47219 allocs/op
+BenchmarkGenericGraphDijkstraDirect-14         	    2179	    541304 ns/op	  233568 B/op	       8 allocs/op
+BenchmarkGenericGraphDenseMemory-14            	      19	  61022888 ns/op	  41940600 retained-bytes	       160.0 retained-bytes/input	97673396 B/op	   29851 allocs/op
+BenchmarkGenericGraphMemory-14                 	     216	   5511346 ns/op	   4395008 retained-bytes	       214.6 retained-bytes/input	 7879614 B/op	   41962 allocs/op
+== B bin_new.test
+BenchmarkGenericGraphInsert-14                 	    1153	   1036862 ns/op	 2367328 B/op	     135 allocs/op
+BenchmarkGenericGraphInsertDense-14            	     186	   6443063 ns/op	16824649 B/op	    7884 allocs/op
+BenchmarkGenericGraphLookup-14                 	34407163	        34.75 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericGraphRemoval-14                	    8776	    136123 ns/op	 1074122 B/op	      29 allocs/op
+BenchmarkGenericGraphAdjacency-14              	30753788	        38.66 ns/op	      33 B/op	       0 allocs/op
+BenchmarkGenericGraphTraversal-14              	    1581	    753638 ns/op	 1277312 B/op	   16086 allocs/op
+BenchmarkGenericValueGraphInsert-14            	     919	   1301650 ns/op	 3456116 B/op	     186 allocs/op
+BenchmarkGenericValueGraphLookup-14            	29835531	        40.20 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGenericNetworkInsert-14               	     577	   2075201 ns/op	 7635165 B/op	     332 allocs/op
+BenchmarkGenericGraphInsertExpected-14         	    1410	    856468 ns/op	 1311651 B/op	      77 allocs/op
+BenchmarkGenericGraphInsertDenseExpected-14    	     183	   6485431 ns/op	16742073 B/op	    7853 allocs/op
+BenchmarkGenericValueGraphInsertExpected-14    	    1135	   1055423 ns/op	 2400405 B/op	     127 allocs/op
+BenchmarkGenericNetworkInsertExpected-14       	     879	   1290285 ns/op	 4077883 B/op	     155 allocs/op
+BenchmarkGenericGraphDenseAdapter-14           	    1543	    762744 ns/op	  971036 B/op	   12505 allocs/op
+BenchmarkGenericGraphDijkstraAdapter-14        	     434	   2743619 ns/op	 4571750 B/op	   47212 allocs/op
+BenchmarkGenericGraphDijkstraDirect-14         	    2151	    540871 ns/op	  233568 B/op	       8 allocs/op
+BenchmarkGenericGraphDenseMemory-14            	     160	   7396154 ns/op	  10586768 retained-bytes	        40.39 retained-bytes/input	16824675 B/op	    7884 allocs/op
+BenchmarkGenericGraphMemory-14                 	     944	   1285537 ns/op	   1287160 retained-bytes	        62.85 retained-bytes/input	 2367314 B/op	     135 allocs/op
+ 20:01:39  up 5 days 12:40,  7 users,  load average: 5.92, 8.02, 7.21

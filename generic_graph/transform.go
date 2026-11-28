@@ -97,16 +97,23 @@ func (g *Graph[N]) InducedSubgraph(nodes ...N) (*Graph[N], error) {
 }
 
 func (g *ValueGraph[N, V]) InducedSubgraph(nodes ...N) (*ValueGraph[N, V], error) {
-	base, err := g.graph.InducedSubgraph(nodes...)
-	if err != nil || base == nil {
-		return nil, err
+	if g.graph == nil {
+		return nil, nil
 	}
-	result := &ValueGraph[N, V]{graph: base, values: make(map[pairKey]V)}
-	for pair := range base.Edges() {
-		value, _ := g.EdgeValue(pair.Source, pair.Target)
-		u, _ := base.nodes.lookup(pair.Source)
-		v, _ := base.nodes.lookup(pair.Target)
-		result.values[pairKey{u, v}] = value
+	result := NewValueGraphFunc[N, V](g.graph.config)
+	for _, node := range nodes {
+		if !g.ContainsNode(node) {
+			return nil, ErrUnknownNode
+		}
+		if err := result.AddNode(node); err != nil {
+			return nil, err
+		}
+	}
+	for pair := range g.Edges() {
+		if result.ContainsNode(pair.Source) && result.ContainsNode(pair.Target) {
+			value, _ := g.EdgeValue(pair.Source, pair.Target)
+			_ = result.AddEdge(pair.Source, pair.Target, value)
+		}
 	}
 	return result, nil
 }

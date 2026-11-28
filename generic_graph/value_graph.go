@@ -6,13 +6,18 @@ BSD 3 Clause Licensed.
 
 package generic_graph
 
-import "iter"
+import (
+	"iter"
+	"slices"
+)
 
 // ValueGraph associates a value with each unique endpoint pair. Edge values
 // need not be unique.
 type ValueGraph[N any, V any] struct {
-	graph  *Graph[N]
-	values map[pairKey]V
+	graph *Graph[N]
+	// values is indexed by the edge's slot (graph.adj[*].slots); freed slots
+	// are zeroed so they retain nothing.
+	values []V
 }
 
 func NewValueGraph[N comparable, V any](directed, allowSelfLoops bool) *ValueGraph[N, V] {
@@ -30,7 +35,9 @@ func NewOrderedValueGraph[N interface {
 }
 
 func NewValueGraphFunc[N any, V any](config Config[N]) *ValueGraph[N, V] {
-	return &ValueGraph[N, V]{graph: NewGraphFunc(config), values: make(map[pairKey]V)}
+	graph := NewGraphFunc(config)
+	graph.valued = true
+	return &ValueGraph[N, V]{graph: graph}
 }
 
 func (g *ValueGraph[N, V]) IsDirected() bool                 { return g != nil && g.graph.IsDirected() }
@@ -57,27 +64,26 @@ func (g *ValueGraph[N, V]) IncidentEdges(node N) ([]EndpointPair[N], error) {
 }
 
 // AddEdge adds source-target with value and rejects duplicate edges.
+// Complexity is O(1) expected (amortized).
 func (g *ValueGraph[N, V]) AddEdge(source, target N, value V) error {
-	if err := g.graph.AddEdge(source, target); err != nil {
+	u, v, err := g.graph.ids(source, target)
+	if err != nil {
 		return err
 	}
-	u, _ := g.graph.nodes.lookup(source)
-	v, _ := g.graph.nodes.lookup(target)
-	g.values[pairKey{u, v}] = value
+	slot, err := g.graph.addEdgeIDs(u, v)
+	if err != nil {
+		return err
+	}
+	g.setSlot(slot, value)
 	return nil
 }
 
-func (g *ValueGraph[N, V]) valueKey(source, target int) (pairKey, bool) {
-	key := pairKey{source, target}
-	if _, found := g.values[key]; found {
-		return key, true
+// setSlot stores value in slot, growing values when slot is new.
+func (g *ValueGraph[N, V]) setSlot(slot int, value V) {
+	if slot >= len(g.values) {
+		g.values = slices.Grow(g.values, slot+1-len(g.values))[:slot+1]
 	}
-	if !g.graph.config.Directed {
-		key.source, key.target = key.target, key.source
-		_, found := g.values[key]
-		return key, found
-	}
-	return key, false
+	g.values[slot] = value
 }
 
 // SetEdgeValue changes an existing edge value without changing topology.
@@ -86,32 +92,30 @@ func (g *ValueGraph[N, V]) SetEdgeValue(source, target N, value V) error {
 	if err != nil {
 		return err
 	}
-	key, found := g.valueKey(u, v)
+	slot, found := g.graph.edgeSlot(u, v)
 	if !found {
 		return ErrUnknownEdge
 	}
-	g.values[key] = value
+	g.values[slot] = value
 	return nil
 }
 
 // EdgeValue returns the value associated with source-target.
+// Complexity is O(1) expected.
 func (g *ValueGraph[N, V]) EdgeValue(source, target N) (V, bool) {
+	var zero V
 	if g == nil || g.graph == nil {
-		var zero V
 		return zero, false
 	}
 	u, v, err := g.graph.ids(source, target)
 	if err != nil {
-		var zero V
 		return zero, false
 	}
-	key, found := g.valueKey(u, v)
+	slot, found := g.graph.edgeSlot(u, v)
 	if !found {
-		var zero V
 		return zero, false
 	}
-	value := g.values[key]
-	return value, true
+	return g.values[slot], true
 }
 
 func (g *ValueGraph[N, V]) RemoveEdge(source, target N) error {
@@ -119,11 +123,12 @@ func (g *ValueGraph[N, V]) RemoveEdge(source, target N) error {
 	if err != nil {
 		return err
 	}
-	if err := g.graph.RemoveEdge(source, target); err != nil {
+	slot, err := g.graph.removeEdgeIDs(u, v)
+	if err != nil {
 		return err
 	}
-	key, _ := g.valueKey(u, v)
-	delete(g.values, key)
+	var zero V
+	g.values[slot] = zero
 	return nil
 }
 
@@ -135,21 +140,17 @@ func (g *ValueGraph[N, V]) RemoveNode(node N) error {
 	if !found {
 		return ErrUnknownNode
 	}
-	for key := range g.values {
-		if key.source == id || key.target == id {
-			delete(g.values, key)
-		}
-	}
-	return g.graph.RemoveNode(node)
+	g.graph.removeNodeID(id, func(slot int) {
+		var zero V
+		g.values[slot] = zero
+	})
+	g.graph.nodes.remove(node)
+	return nil
 }
 
 func (g *ValueGraph[N, V]) Copy() *ValueGraph[N, V] {
 	if g == nil || g.graph == nil {
 		return nil
 	}
-	result := &ValueGraph[N, V]{graph: g.graph.Copy(), values: make(map[pairKey]V, len(g.values))}
-	for key, value := range g.values {
-		result.values[key] = value
-	}
-	return result
+	return &ValueGraph[N, V]{graph: g.graph.Copy(), values: slices.Clone(g.values)}
 }

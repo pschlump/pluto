@@ -52,7 +52,7 @@ func ForFunc[N any](successors func(N) iter.Seq[N]) *Traverser[N] {
 }
 
 func (t *Traverser[N]) visitedSet() *indexedSet[N] {
-	return newIndexedSet(t.config.Equal, t.config.Hash, 0)
+	return newIndexedSet(t.config.Equal, t.config.Hash, 0, t.config.native)
 }
 
 // BreadthFirst yields each reachable node once for graphs, in breadth-first
