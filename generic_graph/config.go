@@ -142,30 +142,38 @@ func (s *indexedSet[T]) lookup(value T) (int, bool) {
 }
 
 func (s *indexedSet[T]) add(value T) (int, bool) {
-	if _, found := s.lookup(value); found {
-		return 0, false
-	}
 	id := len(s.entries)
 	entry := indexedValue[T]{value: value, id: id, active: true}
-	s.entries = append(s.entries, entry)
 	if s.table == nil {
+		if _, found := s.native.get(value); found {
+			return 0, false
+		}
 		s.native.put(value, id)
-	} else {
-		s.table.Insert(entry)
+	} else if _, found := s.table.GetOrInsert(entry); found {
+		// One hash and one probe: GetOrInsert checks and inserts together and
+		// never overwrites the stored entry.
+		return 0, false
 	}
+	s.entries = append(s.entries, entry)
 	s.active++
 	return id, true
 }
 
 func (s *indexedSet[T]) remove(value T) bool {
-	id, found := s.lookup(value)
-	if !found {
-		return false
-	}
+	var id int
 	if s.table == nil {
+		var found bool
+		if id, found = s.native.get(value); !found {
+			return false
+		}
 		s.native.del(value)
 	} else {
-		s.table.Delete(indexedValue[T]{value: value})
+		// One hash and one probe: Remove deletes and returns the stored entry.
+		removed, found := s.table.Remove(indexedValue[T]{value: value})
+		if !found {
+			return false
+		}
+		id = removed.id
 	}
 	s.entries[id].value = *new(T)
 	s.entries[id].active = false

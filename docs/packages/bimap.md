@@ -53,3 +53,5 @@ results live under `docs/benchmarks/bimap/`; Go memory numbers are not directly
 comparable with Java heap measurements.
 
 **Performance note.** Both directions are `hash_grow` tables, so bimap speed is `hash_grow` speed. The 2026-11-27 gains (24.7 → 31M ops/s) came entirely from `hash_grow`'s probe fixes. A "hash once per operation" rewrite (both hashes stored in a larger table element) was measured and **rejected**: no gain once the stored-hash check landed, inverse iteration about 50% slower, and about 17% more memory. See docs/benchmarks/bimap/README.md before trying it again.
+
+**Single-probe writes (2026-11-27).** `put` decides the no-op and conflict cases from the reverse lookup alone (the tables are mutual inverses, so reverse[value] == key implies forward[key] == value), writes forward with one `hash_grow.Upsert` that returns the displaced value, and `DeleteKey` uses `Remove`. A Put is three probes instead of four. Interleaved A/B: 33.3–36.6 ns → 31.7–33.0 ns. The conflict-permutation, seeded-model and Guava golden tests pin the semantics.

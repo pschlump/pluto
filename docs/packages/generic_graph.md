@@ -117,3 +117,5 @@ covers block-boundary deletes, filters and clones.
 code needed ~10 per node). The `*Expected` benchmarks pass the JMH builders'
 capacity hints; the natural constructors cannot (no capacity parameter), so
 those benchmarks reach the natural config internally.
+
+**Func-config node index (2026-11-27).** `indexedSet.add` uses `hash_grow.GetOrInsert` and `remove` uses `Remove`, so each is one hash and one probe instead of a lookup followed by a write. The native (built-in map) path is unchanged.

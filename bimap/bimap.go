@@ -139,13 +139,15 @@ func (m *HashBiMap[K, V]) ForcePut(key K, value V) {
 	_ = put(m.direction, key, value, true)
 }
 
+// put writes key<->value. The two tables are always mutual inverses, so the
+// reverse lookup alone decides the no-op and conflict cases: reverse[value] ==
+// key implies forward[key] == value. The forward write is a single Upsert that
+// also returns the value it displaced, so a Put costs three probes (reverse
+// lookup, forward upsert, reverse insert) plus any conflict deletes, not four.
 func put[K any, V any](direction *direction[K, V], key K, value V, force bool) error {
-	forwardProbe := Association[K, V]{Key: key}
-	reverseProbe := Association[V, K]{Key: value}
-	oldForward, keyFound := direction.forward.Search(forwardProbe)
-	oldReverse, valueFound := direction.reverse.Search(reverseProbe)
-	if keyFound && valueFound && direction.valueEq(oldForward.Value, value) && direction.keyEq(oldReverse.Value, key) {
-		return nil
+	oldReverse, valueFound := direction.reverse.Search(Association[V, K]{Key: value})
+	if valueFound && direction.keyEq(oldReverse.Value, key) {
+		return nil // key already maps to value (and value back to key)
 	}
 	if valueFound && !force {
 		return ErrValueConflict
@@ -153,10 +155,10 @@ func put[K any, V any](direction *direction[K, V], key K, value V, force bool) e
 	if valueFound {
 		direction.forward.Delete(Association[K, V]{Key: oldReverse.Value})
 	}
+	oldForward, keyFound := direction.forward.Upsert(Association[K, V]{Key: key, Value: value})
 	if keyFound && !direction.valueEq(oldForward.Value, value) {
 		direction.reverse.Delete(Association[V, K]{Key: oldForward.Value})
 	}
-	direction.forward.Insert(Association[K, V]{Key: key, Value: value})
 	direction.reverse.Insert(Association[V, K]{Key: value, Value: key})
 	return nil
 }
@@ -195,12 +197,11 @@ func (m *HashBiMap[K, V]) DeleteKey(key K) (V, bool) {
 		var zero V
 		return zero, false
 	}
-	entry, found := m.direction.forward.Search(Association[K, V]{Key: key})
+	entry, found := m.direction.forward.Remove(Association[K, V]{Key: key})
 	if !found {
 		var zero V
 		return zero, false
 	}
-	m.direction.forward.Delete(Association[K, V]{Key: key})
 	m.direction.reverse.Delete(Association[V, K]{Key: entry.Value})
 	return entry.Value, true
 }
