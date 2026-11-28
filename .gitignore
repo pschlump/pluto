@@ -7,3 +7,4 @@ todo.md
 *.pprof
 sync-to-victoria.sh
 compare-hasing
+.claude/
